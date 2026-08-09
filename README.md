@@ -92,6 +92,6 @@ confidence bounds, and shape-by-kind rules. Run it with `npm run validate:data`.
 
 1. ✅ **Types** — domain data models
 2. ✅ **Mock data** — Bentley dining dataset behind the service layer
-3. ⏭️ Onboarding → dashboard → location/menu pages → meal detail →
+3. ⏭️ Onboarding/user nutrition profile → dashboard/location browsing → meal detail →
    customization → recommendation engine → food logging (localStorage) →
    mobile polish

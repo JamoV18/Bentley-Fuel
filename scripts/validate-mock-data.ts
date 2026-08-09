@@ -42,4 +42,19 @@ console.log("  Macros:", {
 console.log("  Allergens:", build.allergens);
 console.log("  Shared dietary tags:", build.dietaryTags);
 
+const zeroQuantityBuild = computeBuild(
+  { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  [{ componentId: "comp-brito-shredded-cheese", quantity: 0 }],
+  index,
+);
+if (
+  zeroQuantityBuild.nutrition.calories !== 0 ||
+  zeroQuantityBuild.allergens.length !== 0 ||
+  zeroQuantityBuild.mayContainAllergens.length !== 0 ||
+  zeroQuantityBuild.dietaryTags.length !== 0
+) {
+  console.error("Zero-quantity components contributed build metadata.");
+  process.exit(1);
+}
+
 if (!report.ok) process.exit(1);

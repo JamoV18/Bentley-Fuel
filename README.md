@@ -80,7 +80,7 @@ through the provider interface, so real data is a drop-in swap.
 | --- | --- |
 | `diningProvider.ts` | `DiningDataProvider` interface (async, future-proof) + `MenuItemQuery` |
 | `mockDiningProvider.ts` | In-memory implementation with O(1) ID indexes |
-| `diningService.ts` | `getDiningProvider()` singleton + `setDiningProvider()` for the future swap |
+| `diningService.ts` | `getDiningProvider()` singleton + provider injection seam |
 | `nutrition.ts` | Pure nutrition math: `addNutrition`, `scaleNutrition`, `computeBuild` (live builder totals + allergen/dietary roll-ups) |
 
 ### Validation — `src/lib/validateDataset.ts`
@@ -92,6 +92,5 @@ confidence bounds, and shape-by-kind rules. Run it with `npm run validate:data`.
 
 1. ✅ **Types** — domain data models
 2. ✅ **Mock data** — Bentley dining dataset behind the service layer
-3. ⏭️ Onboarding → dashboard → location/menu pages → meal detail →
-   customization → recommendation engine → food logging (localStorage) →
-   mobile polish
+3. ⏭️ Next MVP step: define acceptance criteria and tests for a read-only
+   location/menu browsing flow before adding personalization or persistence.

@@ -1,5 +1,5 @@
 import type { DiningDataset } from "@/types";
-import { britoComponents, pantryComponents } from "./components";
+import { components } from "./components";
 import { locations } from "./locations";
 import { britoItems } from "./menuItems/brito";
 import { laCavaItems } from "./menuItems/lacava";
@@ -10,6 +10,6 @@ import { university } from "./university";
 
 export const mockDiningDataset: DiningDataset = {
   university, locations, stations,
-  components: [...britoComponents, ...pantryComponents],
+  components,
   menuItems: [...nine21Items, ...laCavaItems, ...britoItems, ...marketItems],
 };

@@ -29,6 +29,7 @@ export function validateDataset(data: DiningDataset): DatasetReport {
   const locationIds = new Set(data.locations.map((l) => l.id));
   const stationIds = new Set(data.stations.map((s) => s.id));
   const componentIds = new Set(data.components.map((c) => c.id));
+  const componentIndex = new Map(data.components.map((c) => [c.id, c]));
 
   const seen = new Set<string>();
   const flagDuplicate = (entity: string, id: string) => {
@@ -87,6 +88,36 @@ export function validateDataset(data: DiningDataset): DatasetReport {
       for (const cid of step.componentIds) {
         if (!componentIds.has(cid)) {
           issues.push({ severity: "error", entity: "menuItem", id: item.id, message: `Step "${step.id}" references unknown componentId "${cid}".` });
+        }
+      }
+    }
+
+    // Items whose provenance explicitly says their totals were summed from
+    // components must remain mathematically synchronized with those components.
+    const claimsComponentDerivedTotals = /sum(?:med)? from .*component/i.test(
+      item.provenance.notes ?? "",
+    );
+    if (item.kind === "predefined" && item.nutrition && claimsComponentDerivedTotals) {
+      const componentNutrition = (item.componentIds ?? []).reduce<Record<string, number>>(
+        (totals, componentId) => {
+          const component = componentIndex.get(componentId);
+          if (!component) return totals;
+          for (const [nutrient, value] of Object.entries(component.nutrition)) {
+            totals[nutrient] = (totals[nutrient] ?? 0) + value;
+          }
+          return totals;
+        },
+        {},
+      );
+      for (const [nutrient, declaredValue] of Object.entries(item.nutrition)) {
+        const componentValue = componentNutrition[nutrient] ?? 0;
+        if (Math.abs(declaredValue - componentValue) > 0.001) {
+          issues.push({
+            severity: "error",
+            entity: "menuItem",
+            id: item.id,
+            message: `Declared ${nutrient} (${declaredValue}) does not match component sum (${componentValue}).`,
+          });
         }
       }
     }

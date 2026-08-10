@@ -17,11 +17,10 @@ import type { Allergen, DietaryTag, Macros } from "./nutrition";
 export type Sex = "male" | "female" | "other" | "prefer-not-to-say";
 
 export type ActivityLevel =
-  | "sedentary" // little/no exercise
-  | "light" // 1-3 days/week
-  | "moderate" // 3-5 days/week
-  | "active" // 6-7 days/week
-  | "very-active"; // hard training / physical job
+  | "inactive"
+  | "low-active"
+  | "active"
+  | "very-active";
 
 export type PrimaryGoal =
   | "lose-weight"

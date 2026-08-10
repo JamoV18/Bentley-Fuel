@@ -4,7 +4,7 @@ import type { ActivityLevel, BodyMetrics, PrimaryGoal, UserProfile } from "../ty
 export const PROFILE_STORAGE_KEY = "bentley-fuel.profile.v1";
 
 const GOALS: PrimaryGoal[] = ["lose-weight", "maintain-weight", "gain-weight", "build-muscle", "eat-healthier", "athletic-performance"];
-const ACTIVITIES: ActivityLevel[] = ["sedentary", "light", "moderate", "active", "very-active"];
+const ACTIVITIES: ActivityLevel[] = ["inactive", "low-active", "active", "very-active"];
 const SEXES = ["male", "female", "other", "prefer-not-to-say"];
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const finiteInRange = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;

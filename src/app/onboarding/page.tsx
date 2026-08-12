@@ -54,8 +54,7 @@ export default function OnboardingPage() {
     if (!form.goal) return;
     const profile = createUserProfile({ primaryGoal: form.goal, goalDescription: form.goalDescription || undefined,
       allergensToAvoid: form.allergens, dietaryPreferences: form.diets, metrics: currentBody.value,
-      maintenanceEstimate: estimate ? { calories: estimate, method: "national-academies-2023-adult-eer" } : undefined,
-      dailyTargets: existing?.dailyTargets }, existing);
+      maintenanceEstimate: estimate ? { calories: estimate, method: "national-academies-2023-adult-eer" } : undefined }, existing);
     browserProfileRepository().save(profile); router.push("/profile-summary");
   }
   return <main className="mx-auto w-full max-w-lg flex-1 px-4 py-6 sm:py-10">

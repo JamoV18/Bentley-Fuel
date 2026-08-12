@@ -41,11 +41,12 @@ test("rejects invalid descriptions and maintenance estimates", () => {
   assert.equal(isValidUserProfile({ ...profile, maintenanceEstimate: { calories: 2400, method: "legacy" } }), false);
 });
 
-test("editing retains the profile ID and creation time", () => {
-  const original = createUserProfile(baseInput);
+test("editing retains identity but drops stale daily targets", () => {
+  const original = createUserProfile({ ...baseInput, dailyTargets: { calories: 2200, protein: 120, carbs: 250, fat: 70 } });
   const edited = createUserProfile({ ...baseInput, primaryGoal: "build-muscle", goalDescription: "Build strength." }, original);
   assert.equal(edited.id, original.id);
   assert.equal(edited.createdAt, original.createdAt);
+  assert.equal(edited.dailyTargets, undefined);
 });
 
 test("malformed stored profiles fail safely without throwing", () => {

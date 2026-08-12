@@ -19,14 +19,18 @@ function validMetrics(value: unknown): value is BodyMetrics {
 }
 
 export function isValidUserProfile(value: unknown): value is UserProfile {
-  if (!isRecord(value) || !isRecord(value.dailyTargets)) return false;
+  if (!isRecord(value)) return false;
   const target = value.dailyTargets;
+  const estimate = value.maintenanceEstimate;
   return typeof value.id === "string" && value.id.length > 0 &&
     GOALS.includes(value.primaryGoal as PrimaryGoal) &&
+    (value.goalDescription === undefined || (typeof value.goalDescription === "string" && value.goalDescription.length <= 500)) &&
     Array.isArray(value.dietaryPreferences) && value.dietaryPreferences.every((tag) => ALL_DIETARY_TAGS.includes(tag)) &&
     Array.isArray(value.allergensToAvoid) && value.allergensToAvoid.every((item) => ALL_ALLERGENS.includes(item)) &&
-    finiteInRange(target.calories, 1, 20000) && finiteInRange(target.protein, 0, 1000) &&
-    finiteInRange(target.carbs, 0, 2000) && finiteInRange(target.fat, 0, 1000) &&
+    (target === undefined || (isRecord(target) && finiteInRange(target.calories, 1, 20000) && finiteInRange(target.protein, 0, 1000) &&
+      finiteInRange(target.carbs, 0, 2000) && finiteInRange(target.fat, 0, 1000))) &&
+    (estimate === undefined || (isRecord(estimate) && finiteInRange(estimate.calories, 1, 20000) &&
+      estimate.method === "national-academies-2023-adult-eer")) &&
     (value.metrics === undefined || validMetrics(value.metrics)) &&
     typeof value.createdAt === "string" && !Number.isNaN(Date.parse(value.createdAt)) &&
     typeof value.updatedAt === "string" && !Number.isNaN(Date.parse(value.updatedAt)) &&
@@ -34,7 +38,8 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
 }
 
 export function createUserProfile(
-  input: Pick<UserProfile, "primaryGoal" | "dietaryPreferences" | "allergensToAvoid" | "dailyTargets"> & { metrics?: BodyMetrics },
+  input: Pick<UserProfile, "primaryGoal" | "dietaryPreferences" | "allergensToAvoid"> &
+    Pick<UserProfile, "goalDescription" | "maintenanceEstimate" | "dailyTargets"> & { metrics?: BodyMetrics },
   previous?: UserProfile,
 ): UserProfile {
   const now = new Date().toISOString();

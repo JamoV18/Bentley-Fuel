@@ -1,5 +1,5 @@
 import { feetAndInchesToCentimeters, poundsToKilograms } from "./energyEstimate.ts";
-import type { BodyMetrics, MacroTargets } from "../types/user.ts";
+import type { BodyMetrics } from "../types/user.ts";
 
 export interface BodyInput {
   age: string;
@@ -8,13 +8,6 @@ export interface BodyInput {
   pounds: string;
   sex: BodyMetrics["sex"] | "";
   activity: BodyMetrics["activityLevel"] | "";
-}
-
-export interface TargetInput {
-  calories: string;
-  protein: string;
-  carbs: string;
-  fat: string;
 }
 
 type Result<T> = { value?: T; error?: string };
@@ -46,19 +39,6 @@ export function parseBodyInput(input: BodyInput): Result<BodyMetrics | undefined
     ...(input.activity && { activityLevel: input.activity }),
   };
   return { value: Object.keys(metrics).length ? metrics : undefined };
-}
-
-export function parseTargetInput(input: TargetInput): Result<MacroTargets> {
-  const fields: Array<[keyof TargetInput, string, number, number]> = [
-    ["calories", "Calories", 1, 20000], ["protein", "Protein", 0, 1000],
-    ["carbs", "Carbohydrates", 0, 2000], ["fat", "Fat", 0, 1000],
-  ];
-  for (const [key, name, min, max] of fields) {
-    if (!numeric(input[key])) return { error: `${name} must be a number.` };
-    const value = Number(input[key]);
-    if (value < min || value > max) return { error: `${name} must be between ${min.toLocaleString()} and ${max.toLocaleString()}.` };
-  }
-  return { value: { calories: Number(input.calories), protein: Number(input.protein), carbs: Number(input.carbs), fat: Number(input.fat) } };
 }
 
 export function centimetersToFeetAndInches(heightCm: number): { feet: number; inches: number } {

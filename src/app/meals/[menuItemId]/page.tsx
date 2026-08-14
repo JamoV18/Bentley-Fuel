@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMealDetail } from "@/lib/mealDetail";
+import {
+  getDisplayDietaryTags,
+  getMealDetail,
+  shouldShowAllergenGuidance,
+} from "@/lib/mealDetail";
 import { getDiningProvider } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
 import type { FoodComponent, NutritionFacts, ServingSize } from "@/types";
@@ -41,7 +45,11 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
   const extraNutrition = item.nutrition
     ? optionalNutrition.filter(([key]) => item.nutrition?.[key] !== undefined)
     : [];
-  const showsAllergens = item.allergens.length > 0 || (item.mayContainAllergens?.length ?? 0) > 0;
+  const dietaryTags = getDisplayDietaryTags(item);
+  const showsAllergenGuidance = shouldShowAllergenGuidance(item);
+  const possibleCustomizableAllergens = [
+    ...new Set([...item.allergens, ...(item.mayContainAllergens ?? [])]),
+  ];
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
@@ -85,7 +93,6 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
               </div>
             ))}
           </dl>
-          {item.serving && <p className="mt-3 text-sm text-black/60">Per serving: {servingText(item.serving)}</p>}
           {extraNutrition.length > 0 && (
             <div className="mt-7 border-t border-black/10 pt-5">
               <h2 className="font-bold">More nutrition</h2>
@@ -99,6 +106,12 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
             </div>
           )}
         </section>
+      )}
+
+      {item.serving && (
+        <p className={item.kind === "predefined" && item.nutrition ? "mt-3 text-sm text-black/60" : "mt-8 text-sm text-black/60"}>
+          Serving: {servingText(item.serving)}
+        </p>
       )}
 
       {item.kind === "customizable" && (
@@ -131,20 +144,28 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
         </section>
       )}
 
-      {item.dietaryTags.length > 0 && (
+      {dietaryTags.length > 0 && (
         <section className="mt-8" aria-labelledby="dietary-heading">
           <h2 id="dietary-heading" className="text-sm font-bold text-black/60">Dietary notes</h2>
           <ul className="mt-2 flex flex-wrap gap-2">
-            {item.dietaryTags.map((tag) => <li key={tag} className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-900">{readable(tag)}</li>)}
+            {dietaryTags.map((tag) => <li key={tag} className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-900">{readable(tag)}</li>)}
           </ul>
         </section>
       )}
 
-      {showsAllergens && (
+      {showsAllergenGuidance && (
         <section className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-5" aria-labelledby="allergens-heading">
           <h2 id="allergens-heading" className="text-xl font-bold">Allergen information</h2>
-          {item.allergens.length > 0 && <p className="mt-3"><strong>Contains:</strong> {item.allergens.map(readableAllergen).join(", ")}</p>}
-          {(item.mayContainAllergens?.length ?? 0) > 0 && <p className="mt-2"><strong>May contain:</strong> {item.mayContainAllergens?.map(readableAllergen).join(", ")}</p>}
+          {item.kind === "customizable" ? (
+            possibleCustomizableAllergens.length > 0 && (
+              <p className="mt-3"><strong>Possible allergens among available choices:</strong> {possibleCustomizableAllergens.map(readableAllergen).join(", ")}</p>
+            )
+          ) : (
+            <>
+              {item.allergens.length > 0 && <p className="mt-3"><strong>Contains:</strong> {item.allergens.map(readableAllergen).join(", ")}</p>}
+              {(item.mayContainAllergens?.length ?? 0) > 0 && <p className="mt-2"><strong>May contain:</strong> {item.mayContainAllergens?.map(readableAllergen).join(", ")}</p>}
+            </>
+          )}
           <p className="mt-4 text-sm leading-relaxed text-amber-950/80">{ALLERGEN_DISCLAIMER}</p>
         </section>
       )}

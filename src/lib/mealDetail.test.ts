@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MockDiningProvider } from "../services/mockDiningProvider.ts";
-import { getMealDetail } from "./mealDetail.ts";
+import { mockDiningDataset } from "../data/mock/index.ts";
+import {
+  getDisplayDietaryTags,
+  getMealDetail,
+  shouldShowAllergenGuidance,
+} from "./mealDetail.ts";
 
 const provider = new MockDiningProvider();
 
@@ -44,4 +49,53 @@ test("preserves duplicate recipe component references without adding unrelated c
   const chickenIds = detail.components.filter(({ name }) => name === "Grilled Chicken");
   assert.equal(chickenIds.length, 2);
   assert.equal(detail.components.some(({ id }) => id === "component-beef-patty"), false);
+});
+
+test("gathers recipe and customization references in deterministic order", async () => {
+  const source = mockDiningDataset.menuItems.find(({ id }) => id === "item-921-cheeseburger");
+  assert.ok(source);
+  const recipeIds = [source.componentIds?.[0], source.componentIds?.[0]].filter(
+    (id): id is string => Boolean(id),
+  );
+  const customizationId = mockDiningDataset.components.at(-1)?.id;
+  assert.ok(customizationId);
+
+  const mixedItem = {
+    ...source,
+    id: "item-test-mixed-references",
+    componentIds: [...recipeIds, "component-missing"],
+    customization: [{
+      id: "step-test-extra",
+      label: "Optional extra",
+      category: "extra" as const,
+      required: false,
+      minSelections: 0,
+      maxSelections: 1,
+      componentIds: [customizationId],
+    }],
+  };
+  const mixedProvider = new MockDiningProvider({
+    ...mockDiningDataset,
+    menuItems: [...mockDiningDataset.menuItems, mixedItem],
+  });
+
+  const detail = await getMealDetail(mixedProvider, mixedItem.id);
+  assert.ok(detail);
+  assert.deepEqual(detail.components.map(({ id }) => id), [...recipeIds, customizationId]);
+});
+
+test("customizable aggregate tags are hidden and allergy guidance remains visible", async () => {
+  const detail = await getMealDetail(provider, "item-brito-build-your-own");
+  assert.ok(detail);
+
+  assert.deepEqual(getDisplayDietaryTags(detail.item), []);
+  assert.equal(shouldShowAllergenGuidance(detail.item), true);
+});
+
+test("allergy-sensitive predefined tags trigger guidance without known allergens", async () => {
+  const detail = await getMealDetail(provider, "item-brito-power-protein-bowl");
+  assert.ok(detail);
+  assert.deepEqual(detail.item.allergens, []);
+  assert.ok(getDisplayDietaryTags(detail.item).includes("gluten-free"));
+  assert.equal(shouldShowAllergenGuidance(detail.item), true);
 });

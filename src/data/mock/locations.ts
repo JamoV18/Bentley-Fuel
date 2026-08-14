@@ -76,7 +76,7 @@ export const locations: Location[] = [
     shortName: "Market",
     type: "market",
     universityId: BENTLEY_UNIVERSITY_ID,
-    building: "Residence Quad",
+    building: "Collins",
     description:
       "Convenience market for grab-and-go meals, snacks, protein drinks, and packaged staples — open late.",
     geo: { lat: 42.3891, lng: -71.2208 },

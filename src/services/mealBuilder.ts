@@ -6,7 +6,7 @@ import type {
 } from "@/types";
 
 export type MealBuildIssueCode =
-  | "EMPTY_MEAL" | "LOCATION_NOT_FOUND" | "MENU_ITEM_NOT_FOUND" | "LOCATION_MISMATCH"
+  | "EMPTY_MEAL" | "DUPLICATE_LINE_ID" | "LOCATION_NOT_FOUND" | "MENU_ITEM_NOT_FOUND" | "LOCATION_MISMATCH"
   | "INVALID_ITEM_QUANTITY" | "MISSING_NUTRITION" | "MISSING_CUSTOMIZATION"
   | "INVALID_COMPONENT_QUANTITY" | "COMPONENT_NOT_ALLOWED" | "COMPONENT_NOT_FOUND"
   | "COMPONENT_MAX_QUANTITY" | "STEP_MIN_SELECTIONS" | "STEP_MAX_SELECTIONS";
@@ -63,6 +63,11 @@ export function computeMealBuild(build: MealBuild, resources: MealBuildResources
   const globalIssues: MealBuildIssue[] = [];
   if (!resources.location) globalIssues.push(issue("LOCATION_NOT_FOUND", `Location "${build.locationId}" could not be resolved.`));
   if (build.items.length === 0) globalIssues.push(issue("EMPTY_MEAL", "A meal build must contain at least one item."));
+  const seenLineIds = new Set<string>();
+  for (const line of build.items) {
+    if (seenLineIds.has(line.id)) globalIssues.push(issue("DUPLICATE_LINE_ID", `Meal line ID "${line.id}" must be unique.`, line.id));
+    seenLineIds.add(line.id);
+  }
 
   const lines = build.items.map((selection): ComputedMealLine => {
     const issues: MealBuildIssue[] = [];
@@ -122,12 +127,12 @@ export function computeMealBuild(build: MealBuild, resources: MealBuildResources
 
   const issues = [...globalIssues, ...lines.flatMap((line) => line.issues)];
   const isValid = issues.length === 0;
-  const allergens = [...new Set(lines.flatMap((line) => line.allergens))];
+  const allergens = isValid ? [...new Set(lines.flatMap((line) => line.allergens))] : [];
   const definite = new Set(allergens);
-  const mayContainAllergens = [...new Set(lines.flatMap((line) => line.mayContainAllergens))].filter((allergen) => !definite.has(allergen));
+  const mayContainAllergens = isValid ? [...new Set(lines.flatMap((line) => line.mayContainAllergens))].filter((allergen) => !definite.has(allergen)) : [];
   return {
     build, location: resources.location, lines,
-    nutrition: isValid ? lines.reduce((total, line) => addNutrition(total, line.nutrition!), { calories: 0, protein: 0, carbs: 0, fat: 0 }) : undefined,
+    nutrition: isValid ? lines.slice(1).reduce((total, line) => addNutrition(total, line.nutrition!), lines[0].nutrition!) : undefined,
     allergens, mayContainAllergens,
     dietaryTags: isValid ? intersect(lines.map((line) => line.dietaryTags)) : [],
     issues, isValid,
@@ -139,7 +144,10 @@ export async function resolveMealBuild(provider: DiningDataProvider, build: Meal
   const location = await provider.getLocation(build.locationId);
   const menuItems = (await Promise.all(build.items.map((line) => provider.getMenuItem(line.menuItemId)))).filter((item): item is MenuItem => Boolean(item));
   const stations = (await Promise.all(menuItems.map((item) => provider.getStation(item.stationId)))).filter((station): station is Station => Boolean(station));
-  const componentIds = [...new Set(menuItems.flatMap((item) => item.customization?.flatMap((step) => step.componentIds) ?? []))];
+  const componentIds = [...new Set([
+    ...menuItems.flatMap((item) => item.customization?.flatMap((step) => step.componentIds) ?? []),
+    ...build.items.flatMap((line) => line.componentSelections?.map((selection) => selection.componentId) ?? []),
+  ])];
   const components = await provider.getComponents(componentIds);
   return computeMealBuild(build, { location, menuItems, stations, components });
 }

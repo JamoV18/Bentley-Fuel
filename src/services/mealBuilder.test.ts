@@ -54,6 +54,13 @@ test("reports unknown and disallowed components without crashing", async () => {
   const result = await resolveMealBuild(provider, custom([...customSelections(), { componentId: "missing-component", quantity: 1 }]));
   assert.ok(result.issues.some((entry) => entry.code === "COMPONENT_NOT_ALLOWED")); assert.ok(result.issues.some((entry) => entry.code === "COMPONENT_NOT_FOUND"));
 });
+test("distinguishes a known but disallowed component from a missing component", async () => {
+  const known = await resolveMealBuild(provider, custom([...customSelections(), { componentId: "comp-pantry-beef-patty", quantity: 1 }]));
+  assert.ok(known.issues.some((entry) => entry.code === "COMPONENT_NOT_ALLOWED"));
+  assert.equal(known.issues.some((entry) => entry.code === "COMPONENT_NOT_FOUND" && entry.componentId === "comp-pantry-beef-patty"), false);
+  const missing = await resolveMealBuild(provider, custom([...customSelections(), { componentId: "does-not-exist", quantity: 1 }]));
+  assert.ok(missing.issues.some((entry) => entry.code === "COMPONENT_NOT_FOUND" && entry.componentId === "does-not-exist"));
+});
 test("missing MenuItem prevents an authoritative total", async () => {
   const result = await resolveMealBuild(provider, predefined(["not-real"]));
   assert.equal(result.nutrition, undefined); assert.ok(result.issues.some((entry) => entry.code === "MENU_ITEM_NOT_FOUND"));
@@ -94,6 +101,12 @@ test("component-selection update makes defensive copies and does not mutate", ()
 test("empty meal is explicitly invalid and has no total", async () => {
   const result = await resolveMealBuild(provider, { locationId: "loc-921", items: [] });
   assert.equal(result.isValid, false); assert.equal(result.nutrition, undefined); assert.ok(result.issues.some((entry) => entry.code === "EMPTY_MEAL"));
+});
+test("duplicate stable line IDs invalidate a build and suppress its total", async () => {
+  const build = predefined(["item-921-grilled-chicken-sandwich", "item-921-herb-roasted-chicken"]);
+  build.items[1].id = build.items[0].id;
+  const result = await resolveMealBuild(provider, build);
+  assert.equal(result.isValid, false); assert.equal(result.nutrition, undefined); assert.ok(result.issues.some((entry) => entry.code === "DUPLICATE_LINE_ID"));
 });
 test("predefined item without nutrition is invalid", async () => {
   const changed: DiningDataset = { ...mockDiningDataset, menuItems: mockDiningDataset.menuItems.map((item) => item.id === "item-921-cheeseburger" ? { ...item, nutrition: undefined } : item) };

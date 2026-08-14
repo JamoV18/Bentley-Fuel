@@ -25,7 +25,9 @@ export function scaleNutrition(nutrition: NutritionFacts, quantity: number): Nut
 
 export function addNutrition(left: NutritionFacts, right: NutritionFacts): NutritionFacts {
   return Object.fromEntries(
-    presentNutrientKeys(left, right).map((key) => [key, (left[key] ?? 0) + (right[key] ?? 0)]),
+    presentNutrientKeys(left, right)
+      .filter((key) => REQUIRED_NUTRIENT_KEYS.includes(key) || (left[key] !== undefined && right[key] !== undefined))
+      .map((key) => [key, (left[key] ?? 0) + (right[key] ?? 0)]),
   ) as unknown as NutritionFacts;
 }
 

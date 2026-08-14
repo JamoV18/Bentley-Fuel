@@ -72,8 +72,8 @@ export const locations: Location[] = [
   },
   {
     id: LOCATION_IDS.market,
-    name: "The Market",
-    shortName: "Market",
+    name: "Falcon Market",
+    shortName: "Falcon Market",
     type: "market",
     universityId: BENTLEY_UNIVERSITY_ID,
     building: "Collins",

@@ -1,10 +1,10 @@
 /**
  * The student profile that drives personalization. The recommendation engine
- * reads `dailyTargets`, `allergensToAvoid`, `dietaryPreferences`, and
+ * will read `dailyTargets`, `allergensToAvoid`, `dietaryPreferences`, and
  * `dislikedComponentIds` to deterministically score menu items.
  *
  * No auth here — a profile is created during onboarding and persisted in
- * localStorage (Phase 9). The `id` is a stable client-generated UUID.
+ * localStorage during onboarding. The `id` is a stable client-generated UUID.
  */
 
 import type {
@@ -17,11 +17,10 @@ import type { Allergen, DietaryTag, Macros } from "./nutrition";
 export type Sex = "male" | "female" | "other" | "prefer-not-to-say";
 
 export type ActivityLevel =
-  | "sedentary" // little/no exercise
-  | "light" // 1-3 days/week
-  | "moderate" // 3-5 days/week
-  | "active" // 6-7 days/week
-  | "very-active"; // hard training / physical job
+  | "inactive"
+  | "low-active"
+  | "active"
+  | "very-active";
 
 export type PrimaryGoal =
   | "lose-weight"
@@ -35,9 +34,8 @@ export type PrimaryGoal =
 export type MacroTargets = Macros;
 
 /**
- * Optional body metrics used to *suggest* macro targets during onboarding. The
- * student can always override the computed `dailyTargets` directly, so these
- * are not required for the app to function.
+ * Optional body metrics used to estimate adult maintenance energy during
+ * onboarding. They are not required for the app to function.
  */
 export interface BodyMetrics {
   sex?: Sex;
@@ -55,6 +53,8 @@ export interface UserProfile {
   metrics?: BodyMetrics;
 
   primaryGoal: PrimaryGoal;
+  /** Optional context in the student's own words; not interpreted or transmitted. */
+  goalDescription?: string;
 
   /** Preferred eating styles (soft preferences that boost scoring). */
   dietaryPreferences: DietaryTag[];
@@ -65,8 +65,14 @@ export interface UserProfile {
   /** Specific components the student never wants (e.g. cilantro, olives). */
   dislikedComponentIds?: FoodComponentId[];
 
-  /** The macro budget powering all recommendations. */
-  dailyTargets: MacroTargets;
+  /** An energy-maintenance estimate, kept distinct from personalized targets. */
+  maintenanceEstimate?: {
+    calories: number;
+    method: "national-academies-2023-adult-eer";
+  };
+
+  /** Future personalized targets; onboarding does not fabricate these. */
+  dailyTargets?: MacroTargets;
 
   /** Where the student usually eats; used to default location screens. */
   homeLocationId?: LocationId;

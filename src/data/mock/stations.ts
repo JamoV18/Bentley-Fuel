@@ -132,7 +132,6 @@ export const stations: Station[] = [
     description: "Illustrative build-your-own bowl and burrito menu.",
     locationId: LOCATION_IDS.dana,
     cuisineType: "Mexican",
-    mealPeriods: ["all-day"],
     provenance: p(),
   },
   {

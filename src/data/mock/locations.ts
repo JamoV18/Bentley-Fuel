@@ -68,8 +68,6 @@ export const locations: Location[] = [
     building: "Dana Center",
     description:
       "Home to Blue Chip and the morning-only Nest dining concepts.",
-    mealPlanAccepted: false,
-    acceptsDiningDollars: true,
     provenance: mockProvenance(0.8, "Campus structure is confirmed; operational details are not included."),
   },
   {

@@ -34,8 +34,14 @@ test("returns undefined for a missing location", async () => {
 });
 
 test("Dana replaces Brito as a top-level location and the dataset remains valid", () => {
-  assert.ok(mockDiningDataset.locations.some((location) => location.id === LOCATION_IDS.dana));
+  const dana = mockDiningDataset.locations.find((location) => location.id === LOCATION_IDS.dana);
+  assert.ok(dana);
+  assert.equal("mealPlanAccepted" in dana, false);
+  assert.equal("acceptsDiningDollars" in dana, false);
   assert.equal(mockDiningDataset.locations.some((location) => location.name === "Brito"), false);
+  const blueChip = mockDiningDataset.stations.find((station) => station.id === STATION_IDS.blueChip);
+  assert.ok(blueChip);
+  assert.equal("mealPeriods" in blueChip, false);
   const validation = validateDataset(mockDiningDataset);
   assert.equal(validation.ok, true);
   assert.deepEqual(validation.issues, []);

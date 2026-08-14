@@ -96,8 +96,8 @@ confidence bounds, and shape-by-kind rules. Run it with `npm run validate:data`.
    information and maintenance estimate, persisted locally
 4. ✅ **Dashboard / location browsing** — provider-backed location cards and
    station-grouped menus
-5. **Meal detail**
-6. **Customization**
-7. **Recommendation engine**
-8. **Food logging** (localStorage)
-9. **Mobile polish**
+5. **Meal Detail** — clear provider-backed information for an individual menu item
+6. **Meal Builder + Combination Model** — complete meals assembled from multiple items and stations within a physical dining location
+7. **Personalized Recommendation Engine**
+8. **Food Logging**
+9. **Mobile Polish**

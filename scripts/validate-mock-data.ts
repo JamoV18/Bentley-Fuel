@@ -22,7 +22,7 @@ if (report.issues.length === 0) {
   }
 }
 
-// Smoke-test the live build math on a sample Brito bowl.
+// Smoke-test the live build math on a sample Blue Chip bowl.
 const index = new Map(mockDiningDataset.components.map((c) => [c.id, c]));
 const sampleBuild: ComponentSelection[] = [
   { componentId: "comp-brito-rice-brown", quantity: 1 },
@@ -32,7 +32,7 @@ const sampleBuild: ComponentSelection[] = [
   { componentId: "comp-brito-shredded-cheese", quantity: 1 },
 ];
 const build = computeBuild({ calories: 0, protein: 0, carbs: 0, fat: 0 }, sampleBuild, index);
-console.log("\nSample Brito build (brown rice, double chicken, black beans, guac, cheese):");
+console.log("\nSample Blue Chip build (brown rice, double chicken, black beans, guac, cheese):");
 console.log("  Macros:", {
   calories: build.nutrition.calories,
   protein: build.nutrition.protein,

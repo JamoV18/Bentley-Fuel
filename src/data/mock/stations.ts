@@ -18,8 +18,9 @@ export const STATION_IDS = {
   laCavaDeli: "stn-lacava-deli",
   laCavaCoffee: "stn-lacava-coffee",
 
-  // Brito
-  britoBuild: "stn-brito-build",
+  // Dana Center
+  blueChip: "stn-dana-blue-chip",
+  theNest: "stn-dana-the-nest",
 
   // The Market
   marketGrabGo: "stn-market-grab-go",
@@ -124,15 +125,23 @@ export const stations: Station[] = [
     provenance: p(),
   },
 
-  /* --- Brito --- */
+  /* --- Dana Center --- */
   {
-    id: STATION_IDS.britoBuild,
-    name: "Build Your Own",
-    description: "Assemble a bowl or burrito from fresh components.",
-    locationId: LOCATION_IDS.brito,
+    id: STATION_IDS.blueChip,
+    name: "Blue Chip",
+    description: "Illustrative build-your-own bowl and burrito menu.",
+    locationId: LOCATION_IDS.dana,
     cuisineType: "Mexican",
     mealPeriods: ["all-day"],
     provenance: p(),
+  },
+  {
+    id: STATION_IDS.theNest,
+    name: "The Nest",
+    description: "A morning dining concept next to Blue Chip.",
+    locationId: LOCATION_IDS.dana,
+    mealPeriods: ["breakfast"],
+    provenance: mockProvenance(0.8, "Concept and morning availability are confirmed; menu details are not yet included."),
   },
 
   /* --- The Market --- */

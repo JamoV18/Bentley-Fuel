@@ -5,12 +5,12 @@ import { BRITO_COMPONENT_IDS as B } from "../components";
 import { mockProvenance } from "../provenance";
 
 /**
- * Brito's build-your-own item is the customization showcase. It carries no fixed
+ * Blue Chip's illustrative build-your-own item is the customization showcase. It carries no fixed
  * `nutrition` — instead the nutrition service sums the student's selected
  * components live. `allergens`/`dietaryTags` here describe the *possible* set
  * across all components; the live build narrows them down.
  */
-const LOC = LOCATION_IDS.brito;
+const LOC = LOCATION_IDS.dana;
 
 export const britoItems: MenuItem[] = [
   {
@@ -19,7 +19,7 @@ export const britoItems: MenuItem[] = [
     description:
       "Pick a base, add proteins, beans, veggies, cheese, and sauces. Bentley Fuel totals your macros as you build.",
     kind: "customizable",
-    stationId: STATION_IDS.britoBuild,
+    stationId: STATION_IDS.blueChip,
     locationId: LOC,
     // No base tortilla by default (bowl); the tortilla step adds it if chosen.
     baseNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
@@ -109,14 +109,14 @@ export const britoItems: MenuItem[] = [
     ),
   },
 
-  /* A predefined "recommended build" that reuses Brito components. */
+  /* A predefined illustrative build that reuses the existing components. */
   {
     id: "item-brito-power-protein-bowl",
     name: "Power Protein Bowl",
     description:
       "A ready-to-order high-protein build: brown rice, double chicken, black beans, fajita veggies, pico, and salsa.",
     kind: "predefined",
-    stationId: STATION_IDS.britoBuild,
+    stationId: STATION_IDS.blueChip,
     locationId: LOC,
     componentIds: [
       B.riceBrown,
@@ -137,6 +137,6 @@ export const britoItems: MenuItem[] = [
     availability: ["all-day"],
     price: 11.99,
     popular: true,
-    provenance: mockProvenance(0.55, "Totals summed from Brito component mock nutrition."),
+    provenance: mockProvenance(0.55, "Totals summed from illustrative Blue Chip component nutrition."),
   },
 ];

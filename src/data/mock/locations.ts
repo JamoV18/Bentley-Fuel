@@ -7,7 +7,7 @@ import { mockProvenance } from "./provenance";
 export const LOCATION_IDS = {
   nineTwentyOne: "loc-921",
   laCava: "loc-lacava",
-  brito: "loc-brito",
+  dana: "loc-dana",
   market: "loc-market",
 } as const;
 
@@ -60,22 +60,17 @@ export const locations: Location[] = [
     provenance: mockProvenance(0.5, "Location exists; hours are illustrative mock values."),
   },
   {
-    id: LOCATION_IDS.brito,
-    name: "Brito",
-    shortName: "Brito",
-    type: "quick-service",
+    id: LOCATION_IDS.dana,
+    name: "Dana Center",
+    shortName: "Dana Center",
+    type: "food-court",
     universityId: BENTLEY_UNIVERSITY_ID,
-    building: "LaCava Campus Center",
+    building: "Dana Center",
     description:
-      "Build-your-own bowls and burritos. Pick a base, protein, beans, toppings, and sauces — Bentley Fuel totals the macros live as you build.",
-    geo: { lat: 42.3883, lng: -71.2214 },
+      "Home to Blue Chip and the morning-only Nest dining concepts.",
     mealPlanAccepted: false,
     acceptsDiningDollars: true,
-    hours: buildHours({
-      ...weekdays({ open: "11:00", close: "20:00", period: "all-day" }),
-      ...weekend({ open: "12:00", close: "18:00", period: "all-day" }),
-    }),
-    provenance: mockProvenance(0.5, "Concept is representative; hours are illustrative mock values."),
+    provenance: mockProvenance(0.8, "Campus structure is confirmed; operational details are not included."),
   },
   {
     id: LOCATION_IDS.market,

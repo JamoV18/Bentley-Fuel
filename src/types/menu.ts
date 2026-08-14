@@ -43,7 +43,7 @@ export interface University {
 export type LocationType =
   | "dining-hall" // all-you-care-to-eat residential hall (e.g. 921)
   | "food-court" // multiple counters, à la carte (e.g. LaCava)
-  | "quick-service" // single-concept build station (e.g. Brito)
+  | "quick-service" // single-concept quick-service location
   | "cafe"
   | "market"; // convenience / grab-and-go (e.g. The Market)
 
@@ -102,7 +102,7 @@ export type ComponentCategory =
 
 /**
  * The atomic building block of the food graph. Used both to compose predefined
- * items and to power customizable builders (e.g. a Brito bowl). Nutrition is
+ * items and to power customizable builders (e.g. a build-your-own bowl). Nutrition is
  * expressed per `serving`.
  */
 export interface FoodComponent {

@@ -46,6 +46,7 @@ every entity carries **provenance** (`dataStatus`, `source`, `confidence`).
 | `nutrition.ts` | `Macros`, `NutritionFacts`, `Allergen`, `DietaryTag`, `ALLERGEN_DISCLAIMER` |
 | `menu.ts` | `University`, `Location`, `Station`, `FoodComponent`, `MenuItem`, `CustomizationStep`, `DiningDataset` |
 | `user.ts` | `UserProfile`, `PrimaryGoal`, `MacroTargets`, `BodyMetrics` |
+| `meal.ts` | Editable `MealBuild`, stable meal lines, and customizable component selections |
 
 Menu items are either **`predefined`** (carry their own nutrition + component
 composition) or **`customizable`** (define builder `CustomizationStep`s whose
@@ -82,6 +83,8 @@ through the provider interface, so real data is a drop-in swap.
 | `mockDiningProvider.ts` | In-memory implementation with O(1) ID indexes |
 | `diningService.ts` | `getDiningProvider()` singleton + `setDiningProvider()` for the future swap |
 | `nutrition.ts` | Pure nutrition math: `addNutrition`, `scaleNutrition`, `computeBuild` (live builder totals + allergen/dietary roll-ups) |
+| `mealBuilder.ts` | Provider-backed complete-meal resolution, validation, and deterministic roll-ups |
+| `mealEditing.ts` | Immutable line-level add, remove, replace, quantity, and component edits |
 
 ### Validation — `src/lib/validateDataset.ts`
 
@@ -96,8 +99,15 @@ confidence bounds, and shape-by-kind rules. Run it with `npm run validate:data`.
    information and maintenance estimate, persisted locally
 4. ✅ **Dashboard / location browsing** — provider-backed location cards and
    station-grouped menus
-5. **Meal Detail** — clear provider-backed information for an individual menu item
-6. **Meal Builder + Combination Model** — complete meals assembled from multiple items and stations within a physical dining location
-7. **Personalized Recommendation Engine**
+5. ✅ **Meal Detail** — clear provider-backed information for an individual menu item
+6. ✅ **Meal Builder + Combination Model** — complete meals assembled from multiple items and stations within a physical dining location
+7. **Personalized Recommendation Engine** — next
 8. **Food Logging**
 9. **Mobile Polish**
+
+Phase 6 gives Bentley Fuel a deterministic representation of a complete eating
+occasion, including multiple menu items/stations and selected components inside
+customizable items. The UI accepts a preassembled `MealBuild` in one tap, then
+supports correction-oriented edits without logging food. Phase 7 will generate
+and rank personalized `MealBuild` candidates and smart replacement suggestions;
+Phase 6 deliberately contains no recommendation scoring.

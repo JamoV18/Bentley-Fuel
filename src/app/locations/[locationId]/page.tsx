@@ -29,12 +29,14 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
             ) : (
               <ul className="mt-4 space-y-3">
                 {menuItems.map((item) => (
-                  <li key={item.id} className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
+                  <li key={item.id}>
+                    <Link href={`/meals/${item.id}`} className="block rounded-xl border border-black/10 bg-white p-4 shadow-sm transition hover:border-emerald-700/40 hover:shadow focus-visible:border-emerald-700">
+                      <div className="flex items-start justify-between gap-3">
                       <h3 className="font-bold">{item.name}</h3>
                       {item.kind === "customizable" && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">Customizable</span>}
                     </div>
-                    {item.description && <p className="mt-2 text-sm leading-relaxed text-black/60">{item.description}</p>}
+                      {item.description && <p className="mt-2 text-sm leading-relaxed text-black/60">{item.description}</p>}
+                    </Link>
                   </li>
                 ))}
               </ul>

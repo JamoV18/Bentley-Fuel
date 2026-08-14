@@ -49,12 +49,12 @@ every entity carries **provenance** (`dataStatus`, `source`, `confidence`).
 
 Menu items are either **`predefined`** (carry their own nutrition + component
 composition) or **`customizable`** (define builder `CustomizationStep`s whose
-nutrition is summed live from the chosen components — e.g. a Brito bowl).
+nutrition is summed live from the chosen components — e.g. a Blue Chip bowl).
 
 ### Mock dataset (Phase 2) — `src/data/mock/`
 
 Mock data for four locations: **921** (dining hall), **LaCava** (food court),
-**Brito** (build-your-own), **The Market** (grab-and-go).
+**Dana Center** (Blue Chip and The Nest), and **The Market** (grab-and-go).
 
 ```
 data/mock/
@@ -94,9 +94,10 @@ confidence bounds, and shape-by-kind rules. Run it with `npm run validate:data`.
 2. ✅ **Mock data** — Bentley dining dataset behind the service layer
 3. ✅ **Onboarding/user nutrition profile** — goals, restrictions, optional body
    information and maintenance estimate, persisted locally
-4. ⏭️ **Dashboard/location browsing**
-5. Meal detail
-6. Customization
-7. Recommendation engine
-8. Food logging (localStorage)
-9. Mobile polish
+4. ✅ **Dashboard / location browsing** — provider-backed location cards and
+   station-grouped menus
+5. **Meal detail**
+6. **Customization**
+7. **Recommendation engine**
+8. **Food logging** (localStorage)
+9. **Mobile polish**

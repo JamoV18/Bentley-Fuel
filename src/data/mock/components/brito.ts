@@ -1,7 +1,7 @@
 import type { FoodComponent } from "@/types";
 import { mockProvenance } from "../provenance";
 
-/** Stable IDs shared by the Brito builder and its predefined recommended build. */
+/** Historical stable IDs shared by the Blue Chip builder and its predefined build. */
 export const BRITO_COMPONENT_IDS = {
   riceCilantroLime: "comp-brito-rice-cilantro-lime",
   riceBrown: "comp-brito-rice-brown",
@@ -29,10 +29,10 @@ export const BRITO_COMPONENT_IDS = {
 } as const;
 
 const B = BRITO_COMPONENT_IDS;
-const provenance = mockProvenance(0.65, "Mock Brito serving with estimated nutrition.");
+const provenance = mockProvenance(0.65, "Illustrative Blue Chip serving with mock nutrition.");
 const veganTags = ["vegan", "vegetarian", "dairy-free", "gluten-free"] as const;
 
-/** PR #1's atomic Brito portions, used for live customization nutrition math. */
+/** Existing atomic portions, retained for live customization nutrition math. */
 export const britoComponents: FoodComponent[] = [
   {
     id: B.riceCilantroLime,

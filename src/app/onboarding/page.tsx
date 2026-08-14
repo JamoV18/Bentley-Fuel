@@ -56,7 +56,7 @@ export default function OnboardingPage() {
     const profile = createUserProfile({ primaryGoal: form.goal, goalDescription: form.goalDescription || undefined,
       allergensToAvoid: form.allergens, dietaryPreferences: form.diets, metrics: currentBody.value,
       maintenanceEstimate: estimate ? { calories: estimate, method: "national-academies-2023-adult-eer" } : undefined }, existing);
-    browserProfileRepository().save(profile); router.push("/profile-summary");
+    browserProfileRepository().save(profile); router.push("/dashboard");
   }
   return <main className="mx-auto w-full max-w-lg flex-1 px-4 py-6 sm:py-10">
     <header><Link href="/" className="text-sm font-bold text-emerald-700">Bentley Fuel</Link><div className="mt-5 flex items-center justify-between"><p className="text-sm font-medium">Step {step} of 4</p><p className="text-sm text-black/55">About one minute</p></div>

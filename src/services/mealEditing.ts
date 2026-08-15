@@ -6,6 +6,9 @@ export const addMealItem = (build: MealBuild, item: MealItemSelection): MealBuil
 export const removeMealItem = (build: MealBuild, lineId: string): MealBuild =>
   ({ ...build, items: build.items.filter((item) => item.id !== lineId) });
 
+/** Interactive removal keeps one recovery path; pure removal remains unrestricted. */
+export const canRemoveMealItem = (build: MealBuild): boolean => build.items.length > 1;
+
 export const replaceMealItem = (build: MealBuild, lineId: string, replacement: Omit<MealItemSelection, "id">): MealBuild =>
   ({ ...build, items: build.items.map((item) => item.id === lineId ? { ...replacement, id: item.id, componentSelections: replacement.componentSelections?.map((choice) => ({ ...choice })) } : item) });
 
@@ -41,7 +44,9 @@ export function editComponentInStep(
   delta: 1 | -1,
 ): ComponentStepEdit {
   if (!step.componentIds.includes(componentId)) return { selections: selections.map((selection) => ({ ...selection })), changed: false };
-  const currentQuantity = selections.find((selection) => selection.componentId === componentId)?.quantity ?? 0;
+  const currentQuantity = selections
+    .filter((selection) => selection.componentId === componentId)
+    .reduce((sum, selection) => sum + selection.quantity, 0);
   const stepTotal = selections.filter((selection) => step.componentIds.includes(selection.componentId)).reduce((sum, selection) => sum + selection.quantity, 0);
   const componentMaximum = components.find((component) => component.id === componentId)?.maxQuantity ?? step.maxSelections;
   if (delta < 0 && (currentQuantity <= 0 || stepTotal - 1 < step.minSelections)) return { selections: selections.map((selection) => ({ ...selection })), changed: false };

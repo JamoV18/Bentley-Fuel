@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { getMealOrderReference } from "@/lib/mealOrderReference";
 import { adjustMealItemQuantity, canRemoveMealItem, computeMealBuild, editComponentInStep, removeMealItem, setComponentSelections } from "@/services";
 import type { MealBuildResources } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
@@ -14,6 +15,7 @@ export default function MealBuilderClient({ initialBuild, resources, isDemo }: {
   const [selected, setSelected] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
+  const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
 
   const changeComponent = (lineId: string, step: CustomizationStep, componentId: string, delta: 1 | -1) => {
     const line = build.items.find((item) => item.id === lineId);
@@ -31,6 +33,11 @@ export default function MealBuilderClient({ initialBuild, resources, isDemo }: {
         <p className="mt-3 text-black/60">This Phase 6 example only demonstrates complete-meal selection and editing. It is not optimized or ranked.</p>
       </header>
       {isDemo && <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">Demo dining data — not current official Bentley Dining information.</p>}
+
+      {selected && <aside className="sticky top-2 z-10 mt-5 max-h-[40vh] overflow-y-auto rounded-xl border border-emerald-800/20 bg-white/95 p-3 shadow-lg backdrop-blur" aria-label="Your selected meal order reference">
+        <h2 className="text-xs font-bold uppercase tracking-wide text-emerald-800">Your meal · {orderReference.locationName}</h2>
+        <ol className="mt-2 space-y-2">{orderReference.lines.map((line) => <li key={line.lineId} className="border-t border-black/5 pt-2 first:border-0 first:pt-0"><p className="text-[11px] font-bold uppercase tracking-wide text-black/50">{line.stationName}</p><p className="text-sm font-semibold">{line.itemName} <span className="whitespace-nowrap">×{line.quantity}</span></p>{line.components.length > 0 && <ul className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-black/65">{line.components.map((component) => <li key={component.componentId}>{component.name}{component.quantity > 1 && <strong> ×{component.quantity}</strong>}</li>)}</ul>}</li>)}</ol>
+      </aside>}
 
       <section className="mt-7 rounded-2xl border border-black/10 bg-white p-5 shadow-sm" aria-labelledby="candidate-heading">
         <h2 id="candidate-heading" className="text-xl font-bold">Example complete meal</h2>

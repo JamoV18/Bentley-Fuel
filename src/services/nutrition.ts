@@ -1,10 +1,6 @@
-import type { Allergen, DietaryTag, FoodComponent, FoodComponentId, NutritionFacts } from "@/types";
-import { EMPTY_NUTRITION } from "@/types";
+import type { Allergen, ComponentSelection, DietaryTag, FoodComponent, FoodComponentId, NutritionFacts } from "@/types";
 
-export interface ComponentSelection {
-  componentId: FoodComponentId;
-  quantity: number;
-}
+export type { ComponentSelection } from "@/types";
 
 export interface ComputedBuild {
   nutrition: NutritionFacts;
@@ -13,20 +9,25 @@ export interface ComputedBuild {
   dietaryTags: DietaryTag[];
 }
 
-const NUTRIENT_KEYS = Object.keys(EMPTY_NUTRITION) as (keyof NutritionFacts)[];
+const REQUIRED_NUTRIENT_KEYS: (keyof NutritionFacts)[] = ["calories", "protein", "carbs", "fat"];
+
+const presentNutrientKeys = (...records: NutritionFacts[]): (keyof NutritionFacts)[] =>
+  [...new Set([...REQUIRED_NUTRIENT_KEYS, ...records.flatMap((record) => Object.keys(record) as (keyof NutritionFacts)[])])];
 
 export function scaleNutrition(nutrition: NutritionFacts, quantity: number): NutritionFacts {
   if (!Number.isFinite(quantity) || quantity < 0) {
     throw new RangeError("Component quantity must be a finite, non-negative number.");
   }
   return Object.fromEntries(
-    NUTRIENT_KEYS.map((key) => [key, (nutrition[key] ?? 0) * quantity]),
+    presentNutrientKeys(nutrition).map((key) => [key, (nutrition[key] ?? 0) * quantity]),
   ) as unknown as NutritionFacts;
 }
 
 export function addNutrition(left: NutritionFacts, right: NutritionFacts): NutritionFacts {
   return Object.fromEntries(
-    NUTRIENT_KEYS.map((key) => [key, (left[key] ?? 0) + (right[key] ?? 0)]),
+    presentNutrientKeys(left, right)
+      .filter((key) => REQUIRED_NUTRIENT_KEYS.includes(key) || (left[key] !== undefined && right[key] !== undefined))
+      .map((key) => [key, (left[key] ?? 0) + (right[key] ?? 0)]),
   ) as unknown as NutritionFacts;
 }
 
@@ -53,7 +54,7 @@ export function computeBuild(
 
   const nutrition = selectedComponents.reduce(
     (total, { component, quantity }) => addNutrition(total, scaleNutrition(component.nutrition, quantity)),
-    { ...EMPTY_NUTRITION, ...baseNutrition },
+    { ...baseNutrition },
   );
   const allergens = new Set<Allergen>();
   const mayContainAllergens = new Set<Allergen>();

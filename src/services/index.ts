@@ -4,3 +4,4 @@ export * from "./mockDiningProvider";
 export * from "./nutrition";
 export * from "./mealBuilder";
 export * from "./mealEditing";
+export * from "./recommendationEligibility";

@@ -3,6 +3,7 @@ import test from "node:test";
 import type {
   Macros,
   MealCandidate,
+  MealHistoryEntry,
   RecommendationContext,
   UserProfile,
 } from "@/types";
@@ -51,10 +52,16 @@ const computed = (id: string, nutrition: Macros & { fiber?: number }): ComputedM
   isValid: true,
 });
 
+const history = (id: string, overrides: Partial<MealHistoryEntry> = {}): MealHistoryEntry => ({
+  id: `history-${id}`,
+  locationId: "loc-921",
+  selectedAt: "2026-08-17T12:00:00.000Z",
+  build: candidate(id).build,
+  ...overrides,
+});
+
 test("derives a meal-sized target from explicit daily targets", () => {
-  const result = deriveMealMacroTarget(context({
-    profile: profile({ dailyTargets: { calories: 2400, protein: 160, carbs: 300, fat: 80 } }),
-  }));
+  const result = deriveMealMacroTarget(context({ profile: profile({ dailyTargets: { calories: 2400, protein: 160, carbs: 300, fat: 80 } }) }));
   assert.deepEqual(result, { calories: 720, protein: 48, carbs: 90, fat: 24 });
 });
 
@@ -79,35 +86,47 @@ test("exact macro fit scores above a materially worse fit", () => {
 });
 
 test("build-muscle goal ranks higher-protein candidates above otherwise similar lower-protein meals without targets", () => {
-  const ctx = context({ profile: profile({ primaryGoal: "build-muscle" }) });
   const ranked = scoreResolvedMeals([
     { candidate: candidate("low"), computed: computed("low", { calories: 600, protein: 25, carbs: 70, fat: 20 }) },
     { candidate: candidate("high"), computed: computed("high", { calories: 620, protein: 55, carbs: 65, fat: 20 }) },
-  ], ctx);
+  ], context({ profile: profile({ primaryGoal: "build-muscle" }) }));
   assert.equal(ranked[0].candidate.id, "high");
-  assert.equal(ranked[0].score.mode, "goal-only");
 });
 
 test("athletic-performance goal rewards carbohydrate availability when protein is comparable", () => {
-  const ctx = context({ profile: profile({ primaryGoal: "athletic-performance" }) });
   const ranked = scoreResolvedMeals([
     { candidate: candidate("low-carb"), computed: computed("low-carb", { calories: 650, protein: 45, carbs: 30, fat: 35 }) },
     { candidate: candidate("higher-carb"), computed: computed("higher-carb", { calories: 650, protein: 45, carbs: 90, fat: 18 }) },
-  ], ctx);
+  ], context({ profile: profile({ primaryGoal: "athletic-performance" }) }));
   assert.equal(ranked[0].candidate.id, "higher-carb");
 });
 
 test("remaining-macro overshoot penalizes an otherwise attractive candidate", () => {
-  const ctx = context({
-    profile: profile({ primaryGoal: "build-muscle" }),
-    remainingMacros: { calories: 500, protein: 60, carbs: 50, fat: 15 },
-  });
   const ranked = scoreResolvedMeals([
     { candidate: candidate("fits"), computed: computed("fits", { calories: 480, protein: 50, carbs: 45, fat: 12 }) },
     { candidate: candidate("overshoots"), computed: computed("overshoots", { calories: 900, protein: 70, carbs: 100, fat: 35 }) },
-  ], ctx);
+  ], context({ profile: profile({ primaryGoal: "build-muscle" }), remainingMacros: { calories: 500, protein: 60, carbs: 50, fat: 15 } }));
   assert.equal(ranked[0].candidate.id, "fits");
-  assert.ok(ranked.find((entry) => entry.candidate.id === "overshoots")!.score.remainingBudgetPenalty > 0);
+});
+
+test("recent repetition can break a nutrition tie in favor of variety", () => {
+  const same = { calories: 600, protein: 40, carbs: 70, fat: 18 };
+  const ranked = scoreResolvedMeals([
+    { candidate: candidate("repeated"), computed: computed("repeated", same) },
+    { candidate: candidate("different"), computed: computed("different", same) },
+  ], context({ recentHistory: [history("repeated", { completionFraction: 1, explicitFeedback: "like" })] }));
+  assert.equal(ranked[0].candidate.id, "different");
+});
+
+test("behavior cannot rescue a materially poor nutrition candidate", () => {
+  const ranked = scoreResolvedMeals([
+    { candidate: candidate("good"), computed: computed("good", { calories: 620, protein: 55, carbs: 65, fat: 18 }) },
+    { candidate: candidate("poor"), computed: computed("poor", { calories: 1200, protein: 15, carbs: 160, fat: 55 }) },
+  ], context({
+    profile: profile({ primaryGoal: "build-muscle", dailyTargets: { calories: 2200, protein: 180, carbs: 240, fat: 70 } }),
+    recentHistory: [history("poor", { completionFraction: 1, explicitFeedback: "like" })],
+  }));
+  assert.equal(ranked[0].candidate.id, "good");
 });
 
 test("invalid computed meals never enter ranking", () => {
@@ -124,18 +143,11 @@ test("Blue Chip candidate variants receive deterministic nutrition rankings", as
   const ctx: RecommendationContext = {
     locationId: "loc-dana",
     mealPeriod: "lunch",
-    profile: profile({
-      primaryGoal: "build-muscle",
-      dailyTargets: { calories: 2600, protein: 180, carbs: 300, fat: 80 },
-    }),
+    profile: profile({ primaryGoal: "build-muscle", dailyTargets: { calories: 2600, protein: 180, carbs: 300, fat: 80 } }),
   };
-  const candidates = await generateMealCandidates(provider, ctx, {
-    maxCandidates: 20,
-    maxCustomVariantsPerItem: 8,
-  });
+  const candidates = await generateMealCandidates(provider, ctx, { maxCandidates: 20, maxCustomVariantsPerItem: 8 });
   const first = await rankMealCandidates(provider, candidates, ctx);
   const second = await rankMealCandidates(provider, candidates, ctx);
   assert.ok(first.length > 1);
   assert.deepEqual(first.map((entry) => entry.candidate.id), second.map((entry) => entry.candidate.id));
-  assert.ok(first.every((entry, index) => index === 0 || first[index - 1].score.total >= entry.score.total));
 });

@@ -79,7 +79,11 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
     },
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");
-      const next = read().map((entry) => entry.id === id ? { ...entry, completionFraction, explicitFeedback } : entry);
+      const next = read().map((entry) => entry.id === id ? {
+        ...entry,
+        completionFraction: completionFraction ?? entry.completionFraction,
+        explicitFeedback: explicitFeedback ?? entry.explicitFeedback,
+      } : entry);
       write(next);
     },
     clear() {

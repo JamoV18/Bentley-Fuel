@@ -7,3 +7,4 @@ export * from "./mealEditing";
 export * from "./recommendationEligibility";
 export * from "./recommendationCandidates";
 export * from "./recommendationScoring";
+export * from "./recommendationBehavior";

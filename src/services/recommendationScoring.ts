@@ -192,14 +192,25 @@ function relativeGoalAlignment(
   return roundScore(score * 100);
 }
 
-const MAX_ALTERNATIVE_SIMILARITY = 0.4;
 const MAX_ALTERNATIVE_SCORE_DROP = 20;
 
 /**
- * Keeps the top recommendation untouched, then prefers a materially different
- * next option when one is still close enough in quality. This makes "Show me
- * another option" feel like a true alternative rather than a one-item permutation,
- * without sacrificing nutrition just for novelty.
+ * Until menu-role metadata exists, the highest-calorie line is a pragmatic proxy
+ * for the meal's "anchor" or main food. Alternative ordering should prefer changing
+ * this anchor before merely swapping one snack/add-on for another.
+ */
+function mealAnchorMenuItemId(meal: RankedMealCandidate): string | undefined {
+  const rankedLines = meal.computed.lines
+    .filter((line) => Boolean(line.nutrition))
+    .sort((a, b) => (b.nutrition?.calories ?? 0) - (a.nutrition?.calories ?? 0));
+  return rankedLines[0]?.selection.menuItemId;
+}
+
+/**
+ * Keeps the top recommendation untouched, then prefers a meaningfully different
+ * meal anchor when one is still close enough in quality. Within that pool, lower
+ * overall meal similarity wins. This makes "Show me another option" change the
+ * meal concept before it cycles through tiny snack permutations.
  */
 export function orderRankedMealsForVariety(
   sorted: readonly RankedMealCandidate[],
@@ -210,11 +221,28 @@ export function orderRankedMealsForVariety(
 
   while (remaining.length > 0) {
     const current = ordered[ordered.length - 1];
-    const distinctIndex = remaining.findIndex((entry) =>
-      current.score.total - entry.score.total <= MAX_ALTERNATIVE_SCORE_DROP
-      && mealBuildSimilarity(current.candidate.build, entry.candidate.build) <= MAX_ALTERNATIVE_SIMILARITY,
-    );
-    const nextIndex = distinctIndex >= 0 ? distinctIndex : 0;
+    const currentAnchor = mealAnchorMenuItemId(current);
+    const eligible = remaining
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => current.score.total - entry.score.total <= MAX_ALTERNATIVE_SCORE_DROP);
+
+    const differentAnchor = eligible.filter(({ entry }) => {
+      const anchor = mealAnchorMenuItemId(entry);
+      return Boolean(currentAnchor && anchor && anchor !== currentAnchor);
+    });
+    const pool = differentAnchor.length > 0 ? differentAnchor : eligible;
+
+    let nextIndex = 0;
+    if (pool.length > 0) {
+      const best = [...pool].sort((a, b) => {
+        const similarityDifference = mealBuildSimilarity(current.candidate.build, a.entry.candidate.build)
+          - mealBuildSimilarity(current.candidate.build, b.entry.candidate.build);
+        if (similarityDifference !== 0) return similarityDifference;
+        return b.entry.score.total - a.entry.score.total;
+      })[0];
+      nextIndex = best.index;
+    }
+
     ordered.push(remaining.splice(nextIndex, 1)[0]);
   }
 

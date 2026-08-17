@@ -71,4 +71,6 @@ export interface MealCandidateGenerationOptions {
   maxItemsPerMeal?: number;
   /** Safety cap against combinatorial explosion before scoring. */
   maxCandidates?: number;
+  /** Deterministic sample of valid configurations for each customizable item. */
+  maxCustomVariantsPerItem?: number;
 }

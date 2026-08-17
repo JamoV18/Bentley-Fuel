@@ -8,3 +8,4 @@ export * from "./recommendationEligibility";
 export * from "./recommendationCandidates";
 export * from "./recommendationScoring";
 export * from "./recommendationBehavior";
+export * from "./mealHistoryRepository";

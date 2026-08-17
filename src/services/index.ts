@@ -10,3 +10,4 @@ export * from "./recommendationScoring";
 export * from "./recommendationBehavior";
 export * from "./recommendationReplacements";
 export * from "./mealHistoryRepository";
+export * from "./dailyNutrition";

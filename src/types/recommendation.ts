@@ -1,6 +1,6 @@
 import type { FoodComponentId, LocationId, MealPeriod, MenuItemId, StationId } from "./common";
 import type { MealBuild } from "./meal";
-import type { Allergen, DietaryTag } from "./nutrition";
+import type { Allergen, DietaryTag, NutritionFacts } from "./nutrition";
 import type { RemainingMacros, UserProfile } from "./user";
 
 /**
@@ -34,6 +34,8 @@ export interface MealHistoryEntry {
   locationId: LocationId;
   build: MealBuild;
   selectedAt: string;
+  /** Snapshot of the selected meal so later menu changes cannot rewrite history. */
+  nutrition?: NutritionFacts;
   /** Optional because the student may skip the follow-up question. */
   completionFraction?: MealCompletionFraction;
   explicitFeedback?: MealExplicitFeedback;

@@ -13,6 +13,8 @@ export interface NutritionScoreBreakdown {
   targetFit?: number;
   goalAlignment: number;
   remainingBudgetPenalty: number;
+  /** Temporary meal-composition sanity guard until authoritative meal-role metadata exists. */
+  compositionPenalty: number;
   behavior: MealHistoryScore;
   mode: NutritionScoringMode;
 }
@@ -111,6 +113,20 @@ function remainingBudgetPenalty(nutrition: Macros, context: RecommendationContex
   return roundScore(penalty * 100);
 }
 
+const SUBSTANTIAL_LINE_CALORIES = 350;
+
+/**
+ * Prevents the current mock-data generator from treating multiple full entrees as
+ * "better" merely because stacking them raises protein/carbs. This is deliberately
+ * conservative and temporary: authoritative menu-role metadata (main/side/drink)
+ * should eventually replace the calorie proxy.
+ */
+function mealCompositionPenalty(meal: ComputedMealBuild): number {
+  const substantialLines = meal.lines.filter((line) => (line.nutrition?.calories ?? 0) >= SUBSTANTIAL_LINE_CALORIES).length;
+  if (substantialLines <= 1) return 0;
+  return Math.min(30, (substantialLines - 1) * 18);
+}
+
 type Features = {
   calories: number;
   protein: number;
@@ -189,12 +205,13 @@ export function scoreResolvedMeals(
     .map(({ candidate, computed }): RankedMealCandidate => {
       const goalAlignment = relativeGoalAlignment(computed, pool, context.profile.primaryGoal);
       const penalty = remainingBudgetPenalty(computed.nutrition!, context);
+      const compositionPenalty = mealCompositionPenalty(computed);
       const targetFit = target
         ? scoreMacroTargetFit(computed.nutrition!, target, context.profile.primaryGoal)
         : undefined;
       const nutritionTotal = roundScore(targetFit === undefined
-        ? goalAlignment - penalty
-        : targetFit * 0.75 + goalAlignment * 0.25 - penalty);
+        ? goalAlignment - penalty - compositionPenalty
+        : targetFit * 0.75 + goalAlignment * 0.25 - penalty - compositionPenalty);
       const behavior = scoreMealHistory(candidate, context.recentHistory ?? []);
       // Behavior is intentionally a modest additive correction. It can break ties,
       // avoid stale repetition, and learn taste, but cannot make a poor nutritional
@@ -209,6 +226,7 @@ export function scoreResolvedMeals(
           targetFit,
           goalAlignment,
           remainingBudgetPenalty: penalty,
+          compositionPenalty,
           behavior,
           mode,
         },

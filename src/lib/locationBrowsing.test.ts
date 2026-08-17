@@ -41,7 +41,10 @@ test("Dana replaces Brito as a top-level location and the dataset remains valid"
   assert.equal(mockDiningDataset.locations.some((location) => location.name === "Brito"), false);
   const blueChip = mockDiningDataset.stations.find((station) => station.id === STATION_IDS.blueChip);
   assert.ok(blueChip);
-  assert.equal("mealPeriods" in blueChip, false);
+  assert.deepEqual(blueChip.mealPeriods, ["lunch", "dinner"]);
+  const nest = mockDiningDataset.stations.find((station) => station.id === STATION_IDS.theNest);
+  assert.ok(nest);
+  assert.deepEqual(nest.mealPeriods, ["breakfast"]);
   const validation = validateDataset(mockDiningDataset);
   assert.equal(validation.ok, true);
   assert.deepEqual(validation.issues, []);

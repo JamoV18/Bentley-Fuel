@@ -60,10 +60,13 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
   const reasons = useMemo(() => reasonsFor(activeRanking, recommendationContext), [activeRanking, recommendationContext]);
 
   useEffect(() => {
+    let cancelled = false;
     const profile = browserProfileRepository().get();
     if (!profile) {
-      setRecommendationState("missing-profile");
-      return;
+      queueMicrotask(() => {
+        if (!cancelled) setRecommendationState("missing-profile");
+      });
+      return () => { cancelled = true; };
     }
 
     const recentHistory = browserMealHistoryRepository().getRecent(12);
@@ -85,15 +88,20 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
       context,
     );
 
-    setRecommendationContext(context);
-    setRankings(ranked);
-    setRecommendationIndex(0);
-    if (ranked.length === 0) {
-      setRecommendationState("no-candidates");
-      return;
-    }
-    setBuild(ranked[0].candidate.build);
-    setRecommendationState("ready");
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setRecommendationContext(context);
+      setRankings(ranked);
+      setRecommendationIndex(0);
+      if (ranked.length === 0) {
+        setRecommendationState("no-candidates");
+        return;
+      }
+      setBuild(ranked[0].candidate.build);
+      setRecommendationState("ready");
+    });
+
+    return () => { cancelled = true; };
   }, [fallbackBuild.locationId, resources]);
 
   useEffect(() => {

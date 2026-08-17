@@ -20,6 +20,25 @@ export const HARD_DIETARY_RESTRICTIONS = [
 
 export type HardDietaryRestriction = (typeof HARD_DIETARY_RESTRICTIONS)[number];
 
+/** Lightweight post-meal response options shown as human labels in the UI. */
+export type MealCompletionFraction = 0 | 0.25 | 0.5 | 0.8 | 1;
+export type MealExplicitFeedback = "like" | "dislike";
+
+/**
+ * One observed eating occasion. History is intentionally kept separate from the
+ * static UserProfile because it grows over time and can later move to a backend
+ * without reshaping onboarding/profile data.
+ */
+export interface MealHistoryEntry {
+  id: string;
+  build: MealBuild;
+  selectedAt: string;
+  /** Optional because the student may skip the follow-up question. */
+  completionFraction?: MealCompletionFraction;
+  explicitFeedback?: MealExplicitFeedback;
+  source?: "recommended" | "self-built";
+}
+
 /** Inputs known before candidate generation/ranking begins. */
 export interface RecommendationContext {
   profile: UserProfile;
@@ -29,6 +48,8 @@ export interface RecommendationContext {
   mealPeriod?: MealPeriod;
   /** More precise than daily targets when meal logging/history is available. */
   remainingMacros?: RemainingMacros;
+  /** Newest-first recent history. Omit when the app has no behavioral history yet. */
+  recentHistory?: readonly MealHistoryEntry[];
 }
 
 export type RecommendationEligibilityIssueCode =

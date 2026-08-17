@@ -31,6 +31,7 @@ export type MealExplicitFeedback = "like" | "dislike";
  */
 export interface MealHistoryEntry {
   id: string;
+  locationId: LocationId;
   build: MealBuild;
   selectedAt: string;
   /** Optional because the student may skip the follow-up question. */

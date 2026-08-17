@@ -1,6 +1,6 @@
 import type { DiningDataProvider } from "./diningProvider";
 import { resolveMealBuild, type ComputedMealBuild } from "./mealBuilder";
-import { scoreMealHistory, type MealHistoryScore } from "./recommendationBehavior";
+import { mealBuildSimilarity, scoreMealHistory, type MealHistoryScore } from "./recommendationBehavior";
 import type { Macros, MealCandidate, PrimaryGoal, RecommendationContext } from "@/types";
 
 export type NutritionScoringMode = "daily-targets" | "goal-only";
@@ -192,6 +192,35 @@ function relativeGoalAlignment(
   return roundScore(score * 100);
 }
 
+const MAX_ALTERNATIVE_SIMILARITY = 0.4;
+const MAX_ALTERNATIVE_SCORE_DROP = 20;
+
+/**
+ * Keeps the top recommendation untouched, then prefers a materially different
+ * next option when one is still close enough in quality. This makes "Show me
+ * another option" feel like a true alternative rather than a one-item permutation,
+ * without sacrificing nutrition just for novelty.
+ */
+export function orderRankedMealsForVariety(
+  sorted: readonly RankedMealCandidate[],
+): RankedMealCandidate[] {
+  if (sorted.length <= 2) return [...sorted];
+  const ordered: RankedMealCandidate[] = [sorted[0]];
+  const remaining = [...sorted.slice(1)];
+
+  while (remaining.length > 0) {
+    const current = ordered[ordered.length - 1];
+    const distinctIndex = remaining.findIndex((entry) =>
+      current.score.total - entry.score.total <= MAX_ALTERNATIVE_SCORE_DROP
+      && mealBuildSimilarity(current.candidate.build, entry.candidate.build) <= MAX_ALTERNATIVE_SIMILARITY,
+    );
+    const nextIndex = distinctIndex >= 0 ? distinctIndex : 0;
+    ordered.push(remaining.splice(nextIndex, 1)[0]);
+  }
+
+  return ordered;
+}
+
 export function scoreResolvedMeals(
   resolved: readonly { candidate: MealCandidate; computed: ComputedMealBuild }[],
   context: RecommendationContext,
@@ -201,7 +230,7 @@ export function scoreResolvedMeals(
   const target = deriveMealMacroTarget(context);
   const mode: NutritionScoringMode = target ? "daily-targets" : "goal-only";
 
-  return valid
+  const sorted = valid
     .map(({ candidate, computed }): RankedMealCandidate => {
       const goalAlignment = relativeGoalAlignment(computed, pool, context.profile.primaryGoal);
       const penalty = remainingBudgetPenalty(computed.nutrition!, context);
@@ -233,6 +262,8 @@ export function scoreResolvedMeals(
       };
     })
     .sort((a, b) => b.score.total - a.score.total || b.score.nutritionTotal - a.score.nutritionTotal || a.candidate.id.localeCompare(b.candidate.id));
+
+  return orderRankedMealsForVariety(sorted);
 }
 
 export async function rankMealCandidates(

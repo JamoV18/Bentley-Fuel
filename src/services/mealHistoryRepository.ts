@@ -65,7 +65,15 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
     },
     upsert(entry) {
       if (!isValidMealHistoryEntry(entry)) throw new Error("Refusing to store an invalid meal history entry");
-      const next = [entry, ...read().filter((existing) => existing.id !== entry.id)]
+      const existing = read().find((candidate) => candidate.id === entry.id);
+      const merged: MealHistoryEntry = existing
+        ? {
+            ...entry,
+            completionFraction: entry.completionFraction ?? existing.completionFraction,
+            explicitFeedback: entry.explicitFeedback ?? existing.explicitFeedback,
+          }
+        : entry;
+      const next = [merged, ...read().filter((candidate) => candidate.id !== entry.id)]
         .sort((a, b) => b.selectedAt.localeCompare(a.selectedAt));
       write(next);
     },

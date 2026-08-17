@@ -8,6 +8,7 @@ const entry = (id: string, selectedAt = "2026-08-17T12:00:00.000Z"): MealHistory
   locationId: "loc-921",
   selectedAt,
   source: "recommended",
+  nutrition: { calories: 700, protein: 50, carbs: 75, fat: 20 },
   build: {
     locationId: "loc-921",
     items: [{ id: `${id}-line`, menuItemId: "item-test", quantity: 1 }],
@@ -35,7 +36,7 @@ test("stores newest meal history first and upserts by id", () => {
   assert.equal(recent[0].completionFraction, 0.8);
 });
 
-test("updates completion and explicit feedback without changing the saved build", () => {
+test("updates completion and explicit feedback without changing the saved build or nutrition", () => {
   const storage = memoryStorage();
   const repository = createLocalMealHistoryRepository(storage);
   repository.upsert(entry("meal"));
@@ -44,15 +45,17 @@ test("updates completion and explicit feedback without changing the saved build"
   assert.equal(saved.completionFraction, 0.5);
   assert.equal(saved.explicitFeedback, "like");
   assert.equal(saved.build.items[0].menuItemId, "item-test");
+  assert.equal(saved.nutrition?.calories, 700);
 });
 
-test("later build edits preserve previously saved completion feedback", () => {
+test("later build edits preserve feedback while refreshing the nutrition snapshot", () => {
   const storage = memoryStorage();
   const repository = createLocalMealHistoryRepository(storage);
   repository.upsert(entry("meal"));
   repository.updateFeedback("meal", 0.8, "like");
   repository.upsert({
     ...entry("meal"),
+    nutrition: { calories: 520, protein: 42, carbs: 55, fat: 16 },
     build: {
       locationId: "loc-921",
       items: [{ id: "meal-line-edited", menuItemId: "item-edited", quantity: 1 }],
@@ -60,6 +63,7 @@ test("later build edits preserve previously saved completion feedback", () => {
   });
   const saved = repository.getRecent()[0];
   assert.equal(saved.build.items[0].menuItemId, "item-edited");
+  assert.equal(saved.nutrition?.calories, 520);
   assert.equal(saved.completionFraction, 0.8);
   assert.equal(saved.explicitFeedback, "like");
 });
@@ -67,6 +71,16 @@ test("later build edits preserve previously saved completion feedback", () => {
 test("ignores malformed stored history instead of crashing", () => {
   const storage = memoryStorage();
   storage.setItem(MEAL_HISTORY_STORAGE_KEY, JSON.stringify([{ id: "bad" }, entry("good")]));
+  const repository = createLocalMealHistoryRepository(storage);
+  assert.deepEqual(repository.getRecent().map((item) => item.id), ["good"]);
+});
+
+test("rejects malformed nutrition snapshots", () => {
+  const storage = memoryStorage();
+  storage.setItem(MEAL_HISTORY_STORAGE_KEY, JSON.stringify([
+    { ...entry("bad"), nutrition: { calories: 700, protein: -1, carbs: 75, fat: 20 } },
+    entry("good"),
+  ]));
   const repository = createLocalMealHistoryRepository(storage);
   assert.deepEqual(repository.getRecent().map((item) => item.id), ["good"]);
 });

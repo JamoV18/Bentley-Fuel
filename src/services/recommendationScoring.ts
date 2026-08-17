@@ -1,14 +1,19 @@
 import type { DiningDataProvider } from "./diningProvider";
 import { resolveMealBuild, type ComputedMealBuild } from "./mealBuilder";
+import { scoreMealHistory, type MealHistoryScore } from "./recommendationBehavior";
 import type { Macros, MealCandidate, PrimaryGoal, RecommendationContext } from "@/types";
 
 export type NutritionScoringMode = "daily-targets" | "goal-only";
 
 export interface NutritionScoreBreakdown {
+  /** Final score after bounded behavior/history adjustment. */
   total: number;
+  /** Nutrition-only score before behavior/history adjustment. */
+  nutritionTotal: number;
   targetFit?: number;
   goalAlignment: number;
   remainingBudgetPenalty: number;
+  behavior: MealHistoryScore;
   mode: NutritionScoringMode;
 }
 
@@ -187,22 +192,29 @@ export function scoreResolvedMeals(
       const targetFit = target
         ? scoreMacroTargetFit(computed.nutrition!, target, context.profile.primaryGoal)
         : undefined;
-      const raw = targetFit === undefined
+      const nutritionTotal = roundScore(targetFit === undefined
         ? goalAlignment - penalty
-        : targetFit * 0.75 + goalAlignment * 0.25 - penalty;
+        : targetFit * 0.75 + goalAlignment * 0.25 - penalty);
+      const behavior = scoreMealHistory(candidate, context.recentHistory ?? []);
+      // Behavior is intentionally a modest additive correction. It can break ties,
+      // avoid stale repetition, and learn taste, but cannot make a poor nutritional
+      // option look excellent simply because the student ate it before.
+      const total = roundScore(nutritionTotal + behavior.totalAdjustment);
       return {
         candidate,
         computed,
         score: {
-          total: roundScore(raw),
+          total,
+          nutritionTotal,
           targetFit,
           goalAlignment,
           remainingBudgetPenalty: penalty,
+          behavior,
           mode,
         },
       };
     })
-    .sort((a, b) => b.score.total - a.score.total || a.candidate.id.localeCompare(b.candidate.id));
+    .sort((a, b) => b.score.total - a.score.total || b.score.nutritionTotal - a.score.nutritionTotal || a.candidate.id.localeCompare(b.candidate.id));
 }
 
 export async function rankMealCandidates(

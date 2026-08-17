@@ -1,4 +1,5 @@
-import type { FoodComponentId, LocationId, MealPeriod, MenuItemId } from "./common";
+import type { FoodComponentId, LocationId, MealPeriod, MenuItemId, StationId } from "./common";
+import type { MealBuild } from "./meal";
 import type { Allergen, DietaryTag } from "./nutrition";
 import type { RemainingMacros, UserProfile } from "./user";
 
@@ -56,4 +57,18 @@ export interface RecommendationEligibilityAssessment {
   isEligible: boolean;
   requiresConfiguration: boolean;
   issues: RecommendationEligibilityIssue[];
+}
+
+/** A complete-meal seed generated before Phase 7 scoring/ranking. */
+export interface MealCandidate {
+  id: string;
+  build: MealBuild;
+  stationIds: StationId[];
+}
+
+export interface MealCandidateGenerationOptions {
+  /** Maximum distinct menu-item lines in one generated meal. */
+  maxItemsPerMeal?: number;
+  /** Safety cap against combinatorial explosion before scoring. */
+  maxCandidates?: number;
 }

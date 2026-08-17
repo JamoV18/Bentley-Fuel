@@ -1,8 +1,21 @@
-import type { MealBuild, MealCompletionFraction, MealExplicitFeedback, MealHistoryEntry } from "@/types";
+import type { MealBuild, MealCompletionFraction, MealExplicitFeedback, MealHistoryEntry, NutritionFacts } from "@/types";
 
 export const MEAL_HISTORY_STORAGE_KEY = "bentley-fuel.meal-history.v1";
 const MAX_HISTORY_ENTRIES = 50;
 const COMPLETION_VALUES: MealCompletionFraction[] = [0, 0.25, 0.5, 0.8, 1];
+const OPTIONAL_NUTRIENT_KEYS: (keyof NutritionFacts)[] = [
+  "fiber",
+  "sugar",
+  "addedSugar",
+  "saturatedFat",
+  "transFat",
+  "cholesterol",
+  "sodium",
+  "potassium",
+  "calcium",
+  "iron",
+  "vitaminD",
+];
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -24,6 +37,15 @@ const validBuild = (value: unknown): value is MealBuild => {
   });
 };
 
+const validNutrition = (value: unknown): value is NutritionFacts => {
+  if (!isRecord(value)) return false;
+  const required = ["calories", "protein", "carbs", "fat"] as const;
+  if (!required.every((key) => typeof value[key] === "number" && Number.isFinite(value[key]) && value[key] >= 0)) return false;
+  return OPTIONAL_NUTRIENT_KEYS.every((key) =>
+    value[key] === undefined || (typeof value[key] === "number" && Number.isFinite(value[key]) && value[key] >= 0),
+  );
+};
+
 export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEntry => {
   if (!isRecord(value)) return false;
   const feedback = value.explicitFeedback;
@@ -32,6 +54,7 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
     typeof value.locationId === "string" && value.locationId.length > 0 &&
     validBuild(value.build) && value.build.locationId === value.locationId &&
     typeof value.selectedAt === "string" && !Number.isNaN(Date.parse(value.selectedAt)) &&
+    (value.nutrition === undefined || validNutrition(value.nutrition)) &&
     (completion === undefined || COMPLETION_VALUES.includes(completion as MealCompletionFraction)) &&
     (feedback === undefined || feedback === "like" || feedback === "dislike") &&
     (value.source === undefined || value.source === "recommended" || value.source === "self-built");
@@ -69,6 +92,7 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
       const merged: MealHistoryEntry = existing
         ? {
             ...entry,
+            nutrition: entry.nutrition ?? existing.nutrition,
             completionFraction: entry.completionFraction ?? existing.completionFraction,
             explicitFeedback: entry.explicitFeedback ?? existing.explicitFeedback,
           }

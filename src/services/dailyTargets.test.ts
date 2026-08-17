@@ -3,11 +3,16 @@ import test from "node:test";
 import { createUserProfile } from "./profileRepository.ts";
 import { deriveDailyTargetPlan, resolveDailyTargets } from "./dailyTargets.ts";
 
-const profile = (overrides: Parameters<typeof createUserProfile>[0]) => createUserProfile({
-  primaryGoal: "maintain-weight",
-  dietaryPreferences: [],
-  allergensToAvoid: [],
-  ...overrides,
+type ProfileInput = Parameters<typeof createUserProfile>[0];
+
+const profile = (overrides: Partial<ProfileInput> = {}) => createUserProfile({
+  primaryGoal: overrides.primaryGoal ?? "maintain-weight",
+  dietaryPreferences: overrides.dietaryPreferences ?? [],
+  allergensToAvoid: overrides.allergensToAvoid ?? [],
+  goalDescription: overrides.goalDescription,
+  maintenanceEstimate: overrides.maintenanceEstimate,
+  dailyTargets: overrides.dailyTargets,
+  metrics: overrides.metrics,
 });
 
 test("explicit profile targets always win", () => {

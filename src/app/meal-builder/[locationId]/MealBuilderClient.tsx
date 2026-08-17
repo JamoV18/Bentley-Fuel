@@ -11,6 +11,7 @@ import {
   computeMealBuild,
   editComponentInStep,
   generateMealCandidatesFromResources,
+  MEAL_COMPLETION_CHOICES,
   removeMealItem,
   scoreResolvedMeals,
   setComponentSelections,
@@ -18,11 +19,13 @@ import {
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
-import type { CustomizationStep, MealBuild, RecommendationContext } from "@/types";
+import type { CustomizationStep, MealBuild, MealCompletionFraction, RecommendationContext } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
 
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const goalLabel = (goal: RecommendationContext["profile"]["primaryGoal"]) => readable(goal).toLowerCase();
+const completionLabel = (fraction: MealCompletionFraction) =>
+  MEAL_COMPLETION_CHOICES.find((choice) => choice.fraction === fraction)?.label ?? `${Math.round(fraction * 100)}%`;
 
 function reasonsFor(ranked: RankedMealCandidate | undefined, context: RecommendationContext | undefined): string[] {
   if (!ranked?.computed.nutrition || !context) return [];
@@ -69,6 +72,8 @@ export default function MealBuilderClient({
   const [selectedHistoryId, setSelectedHistoryId] = useState<string>();
   const [selectedAt, setSelectedAt] = useState<string>();
   const [replacementPrompt, setReplacementPrompt] = useState<ReplacementPrompt>();
+  const [showCompletionCheckIn, setShowCompletionCheckIn] = useState(false);
+  const [completionFraction, setCompletionFraction] = useState<MealCompletionFraction>();
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
@@ -148,6 +153,8 @@ export default function MealBuilderClient({
     setSelected(true);
     setSelectedHistoryId(historyId);
     setSelectedAt(now);
+    setShowCompletionCheckIn(false);
+    setCompletionFraction(undefined);
     browserMealHistoryRepository().upsert({
       id: historyId,
       locationId: build.locationId,
@@ -155,6 +162,13 @@ export default function MealBuilderClient({
       selectedAt: now,
       source: recommendationState === "ready" ? "recommended" : "self-built",
     });
+  };
+
+  const saveCompletion = (fraction: MealCompletionFraction) => {
+    if (!selectedHistoryId) return;
+    browserMealHistoryRepository().updateFeedback(selectedHistoryId, fraction);
+    setCompletionFraction(fraction);
+    setShowCompletionCheckIn(false);
   };
 
   const showAnother = () => {
@@ -165,6 +179,8 @@ export default function MealBuilderClient({
     setSelected(false);
     setCustomizing(false);
     setReplacementPrompt(undefined);
+    setShowCompletionCheckIn(false);
+    setCompletionFraction(undefined);
   };
 
   const removeWithSuggestions = (lineId: string) => {
@@ -261,8 +277,45 @@ export default function MealBuilderClient({
         ) : (
           <div className="mt-6">
             {computed.isValid ? <p className="font-bold text-emerald-800">Meal selected</p> : <p className="font-bold text-red-800">Meal selection needs attention</p>}
-            <p className="mt-1 text-sm text-black/55">Your choice is saved locally so Bentley Fuel can learn preference and variety patterns. You can confirm how much you finished later.</p>
+            <p className="mt-1 text-sm text-black/55">Your choice is saved locally so Bentley Fuel can learn preference and variety patterns.</p>
             <button className="secondary mt-3 w-full" onClick={() => setCustomizing((value) => !value)}>{customizing ? "Done customizing" : "Customize"}</button>
+
+            <div className="mt-4 border-t border-black/10 pt-4">
+              {completionFraction === undefined ? (
+                <button type="button" className="text-sm font-semibold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn((value) => !value)}>
+                  Finished eating? Add a quick check-in
+                </button>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm"><strong>Finished:</strong> {completionLabel(completionFraction)}</p>
+                  <button type="button" className="text-sm font-semibold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button>
+                </div>
+              )}
+
+              {showCompletionCheckIn && (
+                <div className="mt-3 rounded-xl bg-emerald-50 p-4">
+                  <p className="font-semibold text-emerald-950">How much did you finish?</p>
+                  <p className="mt-1 text-xs leading-relaxed text-emerald-950/70">Optional. This helps Bentley Fuel learn what you actually tend to eat without making you log every bite.</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    {MEAL_COMPLETION_CHOICES.map((choice) => (
+                      <button
+                        key={choice.label}
+                        type="button"
+                        className={`rounded-lg border px-3 py-2 text-sm font-semibold ${completionFraction === choice.fraction ? "border-emerald-800 bg-emerald-800 text-white" : "border-emerald-900/15 bg-white text-emerald-950"}`}
+                        onClick={() => saveCompletion(choice.fraction)}
+                      >
+                        {choice.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" className="mt-3 text-xs font-semibold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(false)}>Not now</button>
+                </div>
+              )}
+
+              {completionFraction !== undefined && !showCompletionCheckIn && (
+                <p className="mt-2 text-xs leading-relaxed text-black/50">Saved. Bentley Fuel can use this as lightweight preference and consumption-history evidence.</p>
+              )}
+            </div>
           </div>
         )}
       </section>

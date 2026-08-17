@@ -41,9 +41,16 @@ const candidate = (id: string): MealCandidate => ({
   build: { locationId: "loc-921", items: [{ id: `${id}-line`, menuItemId: id, quantity: 1 }] },
 });
 
-const computed = (id: string, nutrition: Macros & { fiber?: number }): ComputedMealBuild => ({
+const computed = (id: string, nutrition: Macros & { fiber?: number }, lineCalories: number[] = []): ComputedMealBuild => ({
   build: candidate(id).build,
-  lines: [],
+  lines: lineCalories.map((calories, index) => ({
+    selection: { id: `${id}-line-${index}`, menuItemId: `${id}-item-${index}`, quantity: 1 },
+    nutrition: { calories, protein: 20, carbs: 30, fat: 10 },
+    allergens: [],
+    mayContainAllergens: [],
+    dietaryTags: [],
+    issues: [],
+  })),
   nutrition,
   allergens: [],
   mayContainAllergens: [],
@@ -107,6 +114,17 @@ test("remaining-macro overshoot penalizes an otherwise attractive candidate", ()
     { candidate: candidate("overshoots"), computed: computed("overshoots", { calories: 900, protein: 70, carbs: 100, fat: 35 }) },
   ], context({ profile: profile({ primaryGoal: "build-muscle" }), remainingMacros: { calories: 500, protein: 60, carbs: 50, fat: 15 } }));
   assert.equal(ranked[0].candidate.id, "fits");
+});
+
+test("stacking multiple entree-sized lines is penalized when nutrition totals are otherwise tied", () => {
+  const totals = { calories: 900, protein: 60, carbs: 90, fat: 28 };
+  const ranked = scoreResolvedMeals([
+    { candidate: candidate("balanced"), computed: computed("balanced", totals, [550, 200, 150]) },
+    { candidate: candidate("stacked"), computed: computed("stacked", totals, [450, 450]) },
+  ], context({ profile: profile({ primaryGoal: "build-muscle" }) }));
+  assert.equal(ranked[0].candidate.id, "balanced");
+  assert.equal(ranked[0].score.compositionPenalty, 0);
+  assert.ok(ranked[1].score.compositionPenalty > 0);
 });
 
 test("recent repetition can break a nutrition tie in favor of variety", () => {

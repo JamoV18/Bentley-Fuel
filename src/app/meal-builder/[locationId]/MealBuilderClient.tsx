@@ -12,10 +12,12 @@ import {
   editComponentInStep,
   generateMealCandidatesFromResources,
   MEAL_COMPLETION_CHOICES,
+  remainingMacrosFromDailyTargets,
   removeMealItem,
   scoreResolvedMeals,
   setComponentSelections,
   suggestMealItemReplacements,
+  summarizeDailyNutrition,
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
@@ -90,12 +92,16 @@ export default function MealBuilderClient({
       return () => { cancelled = true; };
     }
 
-    const recentHistory = browserMealHistoryRepository().getRecent(12);
+    const history = browserMealHistoryRepository().getRecent(50);
+    const consumedToday = summarizeDailyNutrition(history);
     const context: RecommendationContext = {
       profile,
       locationId: fallbackBuild.locationId,
       mealPeriod,
-      recentHistory,
+      remainingMacros: profile.dailyTargets
+        ? remainingMacrosFromDailyTargets(profile.dailyTargets, consumedToday.nutrition)
+        : undefined,
+      recentHistory: history.slice(0, 12),
     };
     const candidates = generateMealCandidatesFromResources(
       resources.menuItems,
@@ -126,15 +132,16 @@ export default function MealBuilderClient({
   }, [fallbackBuild.locationId, mealPeriod, resources]);
 
   useEffect(() => {
-    if (!selectedHistoryId || !selectedAt || !computed.isValid || build.items.length === 0) return;
+    if (!selectedHistoryId || !selectedAt || !computed.isValid || !computed.nutrition || build.items.length === 0) return;
     browserMealHistoryRepository().upsert({
       id: selectedHistoryId,
       locationId: build.locationId,
       build,
       selectedAt,
+      nutrition: computed.nutrition,
       source: recommendationState === "ready" ? "recommended" : "self-built",
     });
-  }, [build, computed.isValid, recommendationState, selectedAt, selectedHistoryId]);
+  }, [build, computed.isValid, computed.nutrition, recommendationState, selectedAt, selectedHistoryId]);
 
   const changeComponent = (lineId: string, step: CustomizationStep, componentId: string, delta: 1 | -1) => {
     const line = build.items.find((item) => item.id === lineId);
@@ -147,7 +154,7 @@ export default function MealBuilderClient({
   };
 
   const chooseMeal = () => {
-    if (!computed.isValid) return;
+    if (!computed.isValid || !computed.nutrition) return;
     const historyId = crypto.randomUUID();
     const now = new Date().toISOString();
     setSelected(true);
@@ -160,6 +167,7 @@ export default function MealBuilderClient({
       locationId: build.locationId,
       build,
       selectedAt: now,
+      nutrition: computed.nutrition,
       source: recommendationState === "ready" ? "recommended" : "self-built",
     });
   };
@@ -295,7 +303,7 @@ export default function MealBuilderClient({
               {showCompletionCheckIn && (
                 <div className="mt-3 rounded-xl bg-emerald-50 p-4">
                   <p className="font-semibold text-emerald-950">How much did you finish?</p>
-                  <p className="mt-1 text-xs leading-relaxed text-emerald-950/70">Optional. This helps Bentley Fuel learn what you actually tend to eat without making you log every bite.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-emerald-950/70">Optional. This tells Bentley Fuel how much nutrition you actually consumed so later meals can adjust, while also helping preference learning.</p>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                     {MEAL_COMPLETION_CHOICES.map((choice) => (
                       <button
@@ -313,7 +321,7 @@ export default function MealBuilderClient({
               )}
 
               {completionFraction !== undefined && !showCompletionCheckIn && (
-                <p className="mt-2 text-xs leading-relaxed text-black/50">Saved. Bentley Fuel can use this as lightweight preference and consumption-history evidence.</p>
+                <p className="mt-2 text-xs leading-relaxed text-black/50">Saved. Future recommendations can use this to update today’s remaining nutrition and preference history.</p>
               )}
             </div>
           </div>

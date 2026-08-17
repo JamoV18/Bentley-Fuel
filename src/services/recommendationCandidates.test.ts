@@ -3,6 +3,7 @@ import test from "node:test";
 import { mockDiningDataset } from "@/data/mock";
 import type { RecommendationContext, UserProfile } from "@/types";
 import { MockDiningProvider } from "./mockDiningProvider";
+import { resolveMealBuild } from "./mealBuilder";
 import { generateMealCandidates, generateMealCandidatesFromResources } from "./recommendationCandidates";
 
 const profile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
@@ -107,30 +108,48 @@ test("Dana lunch generates Blue Chip candidates but not The Nest", async () => {
   assert.ok(candidates.every((candidate) => candidate.stationIds.every((id) => id === "stn-dana-blue-chip")));
 });
 
-test("customizable candidates receive a valid required-step configuration seed", async () => {
+test("customizable candidates receive valid required-step configuration seeds", async () => {
+  const provider = new MockDiningProvider();
   const candidates = await generateMealCandidates(
-    new MockDiningProvider(),
+    provider,
     context("loc-dana", {}, "lunch"),
     { maxCandidates: 20 },
   );
-  const custom = candidates.find((candidate) => candidate.build.items.some((line) => line.menuItemId === "item-brito-build-your-own"));
-  assert.ok(custom);
-  const line = custom.build.items.find((entry) => entry.menuItemId === "item-brito-build-your-own");
-  assert.ok(line?.componentSelections?.length);
-  assert.ok(line.componentSelections.some((selection) => selection.componentId.startsWith("comp-brito-rice") || selection.componentId === "comp-brito-greens" || selection.componentId === "comp-brito-no-base"));
-  assert.ok(line.componentSelections.some((selection) => ["comp-brito-chicken", "comp-brito-steak", "comp-brito-barbacoa", "comp-brito-carnitas", "comp-brito-sofritas"].includes(selection.componentId)));
+  const custom = candidates.filter((candidate) => candidate.build.items.length === 1 && candidate.build.items[0].menuItemId === "item-brito-build-your-own");
+  assert.ok(custom.length > 0);
+  for (const candidate of custom) {
+    const resolved = await resolveMealBuild(provider, candidate.build);
+    assert.equal(resolved.isValid, true);
+  }
 });
 
-test("allergen restrictions shape the customizable seed instead of rejecting the whole builder", async () => {
+test("Blue Chip generator emits nutritionally distinct customizable variants", async () => {
+  const provider = new MockDiningProvider();
+  const candidates = await generateMealCandidates(
+    provider,
+    context("loc-dana", {}, "lunch"),
+    { maxItemsPerMeal: 1, maxCandidates: 20, maxCustomVariantsPerItem: 8 },
+  );
+  const custom = candidates.filter((candidate) => candidate.build.items[0]?.menuItemId === "item-brito-build-your-own");
+  assert.ok(custom.length >= 3);
+  const nutrition = await Promise.all(custom.map((candidate) => resolveMealBuild(provider, candidate.build)));
+  const signatures = new Set(nutrition.map((meal) => `${meal.nutrition?.calories}/${meal.nutrition?.protein}/${meal.nutrition?.carbs}/${meal.nutrition?.fat}`));
+  assert.ok(signatures.size >= 3);
+  assert.ok(custom.some((candidate) => candidate.build.items[0].componentSelections?.some((selection) => selection.quantity === 2)));
+});
+
+test("allergen restrictions shape customizable variants instead of rejecting the whole builder", async () => {
   const candidates = await generateMealCandidates(
     new MockDiningProvider(),
     context("loc-dana", { allergensToAvoid: ["soy", "milk", "wheat"] }, "lunch"),
     { maxCandidates: 20 },
   );
-  const custom = candidates.find((candidate) => candidate.build.items.some((line) => line.menuItemId === "item-brito-build-your-own"));
-  assert.ok(custom);
-  const selections = custom.build.items.find((line) => line.menuItemId === "item-brito-build-your-own")?.componentSelections ?? [];
-  assert.ok(!selections.some((selection) => ["comp-brito-sofritas", "comp-brito-flour-tortilla", "comp-brito-shredded-cheese", "comp-brito-queso", "comp-brito-sour-cream", "comp-brito-chipotle-crema"].includes(selection.componentId)));
+  const custom = candidates.filter((candidate) => candidate.build.items.some((line) => line.menuItemId === "item-brito-build-your-own"));
+  assert.ok(custom.length > 0);
+  for (const candidate of custom) {
+    const selections = candidate.build.items.find((line) => line.menuItemId === "item-brito-build-your-own")?.componentSelections ?? [];
+    assert.ok(!selections.some((selection) => ["comp-brito-sofritas", "comp-brito-flour-tortilla", "comp-brito-shredded-cheese", "comp-brito-queso", "comp-brito-sour-cream", "comp-brito-chipotle-crema"].includes(selection.componentId)));
+  }
 });
 
 test("candidate generation honors caps deterministically", () => {

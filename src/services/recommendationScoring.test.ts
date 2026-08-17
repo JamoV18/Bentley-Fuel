@@ -78,11 +78,20 @@ const history = (id: string, overrides: Partial<MealHistoryEntry> = {}): MealHis
   ...overrides,
 });
 
-const ranked = (meal: MealCandidate, total: number): RankedMealCandidate => ({
+const ranked = (meal: MealCandidate, total: number, lineCalories: number[] = []): RankedMealCandidate => ({
   candidate: meal,
   computed: {
     build: meal.build,
-    lines: [],
+    lines: meal.build.items.map((selection, index) => ({
+      selection,
+      nutrition: lineCalories[index] === undefined
+        ? undefined
+        : { calories: lineCalories[index], protein: 20, carbs: 30, fat: 10 },
+      allergens: [],
+      mayContainAllergens: [],
+      dietaryTags: [],
+      issues: [],
+    })),
     nutrition: { calories: 700, protein: 50, carbs: 70, fat: 20 },
     allergens: [],
     mayContainAllergens: [],
@@ -175,10 +184,18 @@ test("alternative ordering skips a near-duplicate when a similarly strong distin
   assert.deepEqual(result.map((entry) => entry.candidate.id), ["top", "distinct", "near"]);
 });
 
+test("alternative ordering prioritizes changing the dominant meal anchor before a snack-only swap", () => {
+  const top = ranked(multiCandidate("top", ["wrap", "shake", "bar"]), 90, [500, 210, 200]);
+  const snackSwap = ranked(multiCandidate("snack-swap", ["wrap", "shake", "yogurt"]), 89, [500, 210, 110]);
+  const mainSwap = ranked(multiCandidate("main-swap", ["oats", "shake", "bar"]), 86, [330, 210, 200]);
+  const result = orderRankedMealsForVariety([top, snackSwap, mainSwap]);
+  assert.deepEqual(result.map((entry) => entry.candidate.id), ["top", "main-swap", "snack-swap"]);
+});
+
 test("alternative ordering does not sacrifice a large score gap purely for novelty", () => {
-  const top = ranked(multiCandidate("top", ["wrap", "shake", "bar"]), 90);
-  const nearDuplicate = ranked(multiCandidate("near", ["wrap", "shake", "yogurt"]), 89);
-  const weakDistinct = ranked(multiCandidate("weak", ["sandwich", "fruit", "milk"]), 60);
+  const top = ranked(multiCandidate("top", ["wrap", "shake", "bar"]), 90, [500, 210, 200]);
+  const nearDuplicate = ranked(multiCandidate("near", ["wrap", "shake", "yogurt"]), 89, [500, 210, 110]);
+  const weakDistinct = ranked(multiCandidate("weak", ["sandwich", "fruit", "milk"]), 60, [480, 100, 120]);
   const result = orderRankedMealsForVariety([top, nearDuplicate, weakDistinct]);
   assert.equal(result[1].candidate.id, "near");
 });

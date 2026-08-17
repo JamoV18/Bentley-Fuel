@@ -46,6 +46,24 @@ test("updates completion and explicit feedback without changing the saved build"
   assert.equal(saved.build.items[0].menuItemId, "item-test");
 });
 
+test("later build edits preserve previously saved completion feedback", () => {
+  const storage = memoryStorage();
+  const repository = createLocalMealHistoryRepository(storage);
+  repository.upsert(entry("meal"));
+  repository.updateFeedback("meal", 0.8, "like");
+  repository.upsert({
+    ...entry("meal"),
+    build: {
+      locationId: "loc-921",
+      items: [{ id: "meal-line-edited", menuItemId: "item-edited", quantity: 1 }],
+    },
+  });
+  const saved = repository.getRecent()[0];
+  assert.equal(saved.build.items[0].menuItemId, "item-edited");
+  assert.equal(saved.completionFraction, 0.8);
+  assert.equal(saved.explicitFeedback, "like");
+});
+
 test("ignores malformed stored history instead of crashing", () => {
   const storage = memoryStorage();
   storage.setItem(MEAL_HISTORY_STORAGE_KEY, JSON.stringify([{ id: "bad" }, entry("good")]));

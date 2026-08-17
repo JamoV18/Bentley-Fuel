@@ -10,15 +10,18 @@ import {
   browserMealHistoryRepository,
   computeMealBuild,
   editComponentInStep,
+  MEAL_COMPLETION_CHOICES,
   removeMealItem,
   setComponentSelections,
 } from "@/services";
 import type { MealBuildResources } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
-import type { CustomizationStep, MealBuild } from "@/types";
+import type { CustomizationStep, MealBuild, MealCompletionFraction } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
 
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
+const completionLabel = (fraction: MealCompletionFraction) =>
+  MEAL_COMPLETION_CHOICES.find((choice) => choice.fraction === fraction)?.label ?? `${Math.round(fraction * 100)}%`;
 
 export default function ManualMealBuilderClient({
   locationId,
@@ -41,23 +44,26 @@ export default function ManualMealBuilderClient({
   });
   const [savedHistoryId, setSavedHistoryId] = useState<string>();
   const [savedAt, setSavedAt] = useState<string>();
+  const [showCompletionCheckIn, setShowCompletionCheckIn] = useState(false);
+  const [completionFraction, setCompletionFraction] = useState<MealCompletionFraction>();
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
 
   useEffect(() => {
-    if (!savedHistoryId || !savedAt) return;
+    if (!savedHistoryId || !savedAt || !computed.isValid || !computed.nutrition || build.items.length === 0) return;
     browserMealHistoryRepository().upsert({
       id: savedHistoryId,
       locationId: build.locationId,
       build,
       selectedAt: savedAt,
+      nutrition: computed.nutrition,
       source: "self-built",
     });
-  }, [build, savedAt, savedHistoryId]);
+  }, [build, computed.isValid, computed.nutrition, savedAt, savedHistoryId]);
 
   const saveMeal = () => {
-    if (!computed.isValid || build.items.length === 0) return;
+    if (!computed.isValid || !computed.nutrition || build.items.length === 0) return;
     const id = savedHistoryId ?? crypto.randomUUID();
     const selectedAt = savedAt ?? new Date().toISOString();
     browserMealHistoryRepository().upsert({
@@ -65,10 +71,18 @@ export default function ManualMealBuilderClient({
       locationId: build.locationId,
       build,
       selectedAt,
+      nutrition: computed.nutrition,
       source: "self-built",
     });
     setSavedHistoryId(id);
     setSavedAt(selectedAt);
+  };
+
+  const saveCompletion = (fraction: MealCompletionFraction) => {
+    if (!savedHistoryId) return;
+    browserMealHistoryRepository().updateFeedback(savedHistoryId, fraction);
+    setCompletionFraction(fraction);
+    setShowCompletionCheckIn(false);
   };
 
   const changeComponent = (lineId: string, step: CustomizationStep, componentId: string, delta: 1 | -1) => {
@@ -186,7 +200,30 @@ export default function ManualMealBuilderClient({
         <button type="button" className="primary mt-6 w-full disabled:cursor-not-allowed disabled:bg-black/30" disabled={!computed.isValid || build.items.length === 0} onClick={saveMeal}>
           {savedHistoryId ? "Meal saved" : "Save this meal"}
         </button>
-        {savedHistoryId && <p className="mt-2 text-center text-sm text-black/55">Changes continue updating this saved meal. You can confirm how much you finished later.</p>}
+
+        {savedHistoryId && (
+          <div className="mt-4 border-t border-black/10 pt-4">
+            {completionFraction !== undefined ? (
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <p><strong>Finished:</strong> {completionLabel(completionFraction)}</p>
+                <button type="button" className="font-semibold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button>
+              </div>
+            ) : (
+              <button type="button" className="text-sm font-semibold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Finished eating? Add a quick check-in</button>
+            )}
+            {showCompletionCheckIn && (
+              <div className="mt-3">
+                <p className="text-sm font-semibold">How much did you finish?</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {MEAL_COMPLETION_CHOICES.map((choice) => (
+                    <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-black/50">This updates today’s consumed nutrition so later recommendations can use what actually remains.</p>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <MealFoodBrowser build={build} resources={resources} mealPeriod={mealPeriod} onBuildChange={setBuild} />

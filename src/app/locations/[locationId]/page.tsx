@@ -26,12 +26,20 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
         <p className="mt-2 text-sm leading-relaxed text-black/65">
           Bentley Fuel can combine eligible foods across the stations and concepts at {view.location.shortName ?? view.location.name}, then rank complete meals using your profile, goals, restrictions, and recent meal patterns.
         </p>
-        <Link
-          href={`/meal-builder/${view.location.id}`}
-          className="mt-4 inline-flex rounded-xl bg-emerald-800 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-        >
-          Get my recommendation
-        </Link>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href={`/meal-builder/${view.location.id}`}
+            className="inline-flex rounded-xl bg-emerald-800 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+          >
+            Get my recommendation
+          </Link>
+          <Link
+            href={`/meal-builder/${view.location.id}?mode=manual`}
+            className="inline-flex rounded-xl border border-emerald-800/20 bg-white px-4 py-3 text-sm font-bold text-emerald-900 transition hover:border-emerald-800/40"
+          >
+            Build my own meal
+          </Link>
+        </div>
       </section>
 
       <div className="mt-8 space-y-8">
@@ -45,13 +53,24 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
               <ul className="mt-4 space-y-3">
                 {menuItems.map((item) => (
                   <li key={item.id}>
-                    <Link href={`/meals/${item.id}`} className="block rounded-xl border border-black/10 bg-white p-4 shadow-sm transition hover:border-emerald-700/40 hover:shadow focus-visible:border-emerald-700">
+                    <article className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
-                        <h3 className="font-bold">{item.name}</h3>
+                        <div className="min-w-0">
+                          <Link href={`/meals/${item.id}`} className="font-bold hover:text-emerald-800 hover:underline">{item.name}</Link>
+                          {item.description && <p className="mt-2 text-sm leading-relaxed text-black/60">{item.description}</p>}
+                        </div>
                         {item.kind === "customizable" && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">Customizable</span>}
                       </div>
-                      {item.description && <p className="mt-2 text-sm leading-relaxed text-black/60">{item.description}</p>}
-                    </Link>
+                      <div className="mt-4 flex items-center gap-3">
+                        <Link
+                          href={`/meal-builder/${view.location.id}?mode=manual&add=${encodeURIComponent(item.id)}`}
+                          className="inline-flex rounded-lg bg-emerald-800 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-900"
+                        >
+                          Add to meal
+                        </Link>
+                        <Link href={`/meals/${item.id}`} className="text-sm font-semibold text-black/55 underline">Details</Link>
+                      </div>
+                    </article>
                   </li>
                 ))}
               </ul>

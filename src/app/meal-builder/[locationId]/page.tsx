@@ -8,11 +8,24 @@ export default async function MealBuilderPage({ params }: { params: Promise<{ lo
   const provider = getDiningProvider();
   const location = await provider.getLocation(locationId);
   if (!location) notFound();
-  const build = await getPhase6ExampleMeal(provider, locationId);
-  if (!build) notFound();
+
+  // Retained only as a graceful fallback when no local student profile exists yet.
+  const fallbackBuild = await getPhase6ExampleMeal(provider, locationId);
+  if (!fallbackBuild) notFound();
+
   const menuItems = await provider.getMenuItems({ locationId });
   const stations = await provider.getStations(locationId);
-  const componentIds = [...new Set(menuItems.flatMap((item) => item.customization?.flatMap((step) => step.componentIds) ?? []))];
+  const componentIds = [...new Set(menuItems.flatMap((item) => [
+    ...(item.componentIds ?? []),
+    ...(item.customization?.flatMap((step) => step.componentIds) ?? []),
+  ]))];
   const components = await provider.getComponents(componentIds);
-  return <MealBuilderClient initialBuild={build} resources={{ location, menuItems, stations, components }} isDemo={provider.dataStatus === "mock"} />;
+
+  return (
+    <MealBuilderClient
+      fallbackBuild={fallbackBuild}
+      resources={{ location, menuItems, stations, components }}
+      isDemo={provider.dataStatus === "mock"}
+    />
+  );
 }

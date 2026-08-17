@@ -21,16 +21,16 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
       )}
 
       <section className="mt-6 rounded-2xl border border-emerald-900/10 bg-emerald-50 p-5">
-        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-900/65">Complete meal</p>
-        <h2 className="mt-1 text-xl font-bold">Build a meal from this location</h2>
+        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-900/65">Personalized meal</p>
+        <h2 className="mt-1 text-xl font-bold">What should I eat here?</h2>
         <p className="mt-2 text-sm leading-relaxed text-black/65">
-          Bentley Fuel can combine eligible foods across the stations and concepts at {view.location.shortName ?? view.location.name}. This Phase 6 example is not personalized yet.
+          Bentley Fuel can combine eligible foods across the stations and concepts at {view.location.shortName ?? view.location.name}, then rank complete meals using your profile, goals, restrictions, and recent meal patterns.
         </p>
         <Link
           href={`/meal-builder/${view.location.id}`}
           className="mt-4 inline-flex rounded-xl bg-emerald-800 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
         >
-          See complete meal
+          Get my recommendation
         </Link>
       </section>
 

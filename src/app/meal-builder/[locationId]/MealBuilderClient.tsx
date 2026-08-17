@@ -14,8 +14,9 @@ import {
   removeMealItem,
   scoreResolvedMeals,
   setComponentSelections,
+  suggestMealItemReplacements,
 } from "@/services";
-import type { MealBuildResources, RankedMealCandidate } from "@/services";
+import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
 import type { CustomizationStep, MealBuild, RecommendationContext } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
@@ -43,6 +44,11 @@ function reasonsFor(ranked: RankedMealCandidate | undefined, context: Recommenda
 
 type RecommendationState = "loading" | "ready" | "missing-profile" | "no-candidates";
 
+type ReplacementPrompt = {
+  removedName: string;
+  suggestions: MealReplacementSuggestion[];
+};
+
 export default function MealBuilderClient({
   fallbackBuild,
   resources,
@@ -62,6 +68,7 @@ export default function MealBuilderClient({
   const [recommendationContext, setRecommendationContext] = useState<RecommendationContext>();
   const [selectedHistoryId, setSelectedHistoryId] = useState<string>();
   const [selectedAt, setSelectedAt] = useState<string>();
+  const [replacementPrompt, setReplacementPrompt] = useState<ReplacementPrompt>();
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
@@ -128,7 +135,10 @@ export default function MealBuilderClient({
     const line = build.items.find((item) => item.id === lineId);
     if (!line) return;
     const edit = editComponentInStep(line.componentSelections ?? [], step, resources.components, componentId, delta);
-    if (edit.changed) setBuild(setComponentSelections(build, lineId, edit.selections));
+    if (edit.changed) {
+      setReplacementPrompt(undefined);
+      setBuild(setComponentSelections(build, lineId, edit.selections));
+    }
   };
 
   const chooseMeal = () => {
@@ -154,6 +164,49 @@ export default function MealBuilderClient({
     setBuild(rankings[next].candidate.build);
     setSelected(false);
     setCustomizing(false);
+    setReplacementPrompt(undefined);
+  };
+
+  const removeWithSuggestions = (lineId: string) => {
+    const line = computed.lines.find((candidate) => candidate.selection.id === lineId);
+    if (!line) return;
+    const nextBuild = removeMealItem(build, lineId);
+    setBuild(nextBuild);
+    if (!recommendationContext) {
+      setReplacementPrompt(undefined);
+      return;
+    }
+    const suggestions = suggestMealItemReplacements(
+      nextBuild,
+      line.selection,
+      line.nutrition,
+      resources,
+      recommendationContext,
+      { maxSuggestions: 3 },
+    );
+    setReplacementPrompt({
+      removedName: line.item?.name ?? "that item",
+      suggestions,
+    });
+  };
+
+  const acceptReplacement = (suggestion: MealReplacementSuggestion) => {
+    setBuild({
+      ...build,
+      items: [
+        ...build.items,
+        {
+          ...suggestion.selection,
+          componentSelections: suggestion.selection.componentSelections?.map((selection) => ({ ...selection })),
+        },
+      ],
+    });
+    setReplacementPrompt(undefined);
+  };
+
+  const handleFoodBrowserChange = (nextBuild: MealBuild) => {
+    setReplacementPrompt(undefined);
+    setBuild(nextBuild);
   };
 
   const personalized = recommendationState === "ready";
@@ -227,12 +280,12 @@ export default function MealBuilderClient({
                       <h3 className="font-bold">{line.item?.name ?? line.selection.menuItemId}</h3>
                       <p className="text-sm text-black/55">{line.station?.name}{line.nutrition && ` · ${line.nutrition.calories} cal · ${line.nutrition.protein}g protein`}</p>
                     </div>
-                    <button className="text-sm font-bold text-red-700" onClick={() => setBuild(removeMealItem(build, line.selection.id))}>Remove</button>
+                    <button className="text-sm font-bold text-red-700" onClick={() => removeWithSuggestions(line.selection.id)}>Remove</button>
                   </div>
                   <div className="mt-3 flex items-center gap-3">
-                    <button className="secondary px-4 disabled:cursor-not-allowed disabled:opacity-40" disabled={line.selection.quantity <= 1} onClick={() => setBuild(adjustMealItemQuantity(build, line.selection.id, -1))}>−</button>
+                    <button className="secondary px-4 disabled:cursor-not-allowed disabled:opacity-40" disabled={line.selection.quantity <= 1} onClick={() => { setReplacementPrompt(undefined); setBuild(adjustMealItemQuantity(build, line.selection.id, -1)); }}>−</button>
                     <span className="font-bold">{line.selection.quantity} serving{line.selection.quantity === 1 ? "" : "s"}</span>
-                    <button className="secondary px-4" onClick={() => setBuild(adjustMealItemQuantity(build, line.selection.id, 1))}>+</button>
+                    <button className="secondary px-4" onClick={() => { setReplacementPrompt(undefined); setBuild(adjustMealItemQuantity(build, line.selection.id, 1)); }}>+</button>
                   </div>
                   {line.item?.kind === "customizable" && (
                     <div className="mt-5 space-y-4 border-t border-black/10 pt-4">
@@ -270,7 +323,36 @@ export default function MealBuilderClient({
             </div>
           </section>
 
-          <MealFoodBrowser build={build} resources={resources} mealPeriod={mealPeriod} onBuildChange={setBuild} />
+          {replacementPrompt && (
+            <section className="mt-6 rounded-2xl border border-emerald-800/15 bg-emerald-50 p-5" aria-labelledby="replacement-heading">
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Bentley Fuel replacements</p>
+              <h2 id="replacement-heading" className="mt-1 text-xl font-bold">Replace {replacementPrompt.removedName}?</h2>
+              {replacementPrompt.suggestions.length > 0 ? (
+                <>
+                  <p className="mt-2 text-sm leading-relaxed text-black/60">These options preserve the nutritional job of what you removed while re-checking your full meal, restrictions, goals, preferences, and recent variety.</p>
+                  <div className="mt-4 space-y-3">
+                    {replacementPrompt.suggestions.map((suggestion) => (
+                      <article key={suggestion.id} className="rounded-xl border border-emerald-900/10 bg-white p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-bold">{suggestion.itemName}</h3>
+                            <p className="text-sm text-black/55">{suggestion.stationName}{suggestion.nutrition && ` · ${suggestion.nutrition.calories} cal · ${suggestion.nutrition.protein}g protein`}</p>
+                            <p className="mt-2 text-sm leading-relaxed text-black/60">{suggestion.reason}</p>
+                          </div>
+                          <button type="button" className="primary shrink-0 px-3 py-2 text-sm" onClick={() => acceptReplacement(suggestion)}>Use this</button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-2 text-sm leading-relaxed text-black/60">No strong automatic replacement is available from the eligible foods right now. You can choose anything you want from the stations below.</p>
+              )}
+              <button type="button" className="mt-4 text-sm font-semibold text-emerald-800 underline" onClick={() => setReplacementPrompt(undefined)}>I’ll choose something myself</button>
+            </section>
+          )}
+
+          <MealFoodBrowser build={build} resources={resources} mealPeriod={mealPeriod} onBuildChange={handleFoodBrowserChange} />
         </>
       )}
 

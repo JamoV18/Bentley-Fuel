@@ -7,3 +7,4 @@ export * from "./nutrition";
 export * from "./menu";
 export * from "./user";
 export * from "./meal";
+export * from "./recommendation";

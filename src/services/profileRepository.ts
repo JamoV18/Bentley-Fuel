@@ -1,5 +1,6 @@
 import { ALL_ALLERGENS, ALL_DIETARY_TAGS } from "../types/nutrition.ts";
 import type { ActivityLevel, BodyMetrics, PrimaryGoal, UserProfile } from "../types/user.ts";
+import { deriveDailyTargetPlan } from "./dailyTargets.ts";
 
 export const PROFILE_STORAGE_KEY = "bentley-fuel.profile.v1";
 
@@ -62,6 +63,17 @@ export interface ProfileRepository {
 
 interface StorageLike { getItem(key: string): string | null; setItem(key: string, value: string): void; removeItem(key: string): void }
 
+/**
+ * Adds a derived daily target only at read time. The original stored profile is
+ * left untouched, so an evidence-based baseline can evolve without silently
+ * rewriting onboarding data or pretending the student explicitly chose it.
+ */
+export function withResolvedDailyTargets(profile: UserProfile): UserProfile {
+  if (profile.dailyTargets) return profile;
+  const plan = deriveDailyTargetPlan(profile);
+  return plan ? { ...profile, dailyTargets: plan.targets } : profile;
+}
+
 export function createLocalProfileRepository(storage: StorageLike): ProfileRepository {
   return {
     get() {
@@ -69,7 +81,7 @@ export function createLocalProfileRepository(storage: StorageLike): ProfileRepos
       if (!raw) return null;
       try {
         const parsed: unknown = JSON.parse(raw);
-        return isValidUserProfile(parsed) ? parsed : null;
+        return isValidUserProfile(parsed) ? withResolvedDailyTargets(parsed) : null;
       } catch { return null; }
     },
     save(profile) {

@@ -8,6 +8,7 @@ const memory = () => {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => { values.set(key, value); },
     removeItem: (key: string) => { values.delete(key); },
+    values,
   };
 };
 const baseInput = { primaryGoal: "maintain-weight" as const, dietaryPreferences: ["vegetarian" as const], allergensToAvoid: ["peanuts" as const] };
@@ -24,6 +25,21 @@ test("stores maintenance separately from future daily targets", () => {
   const profile = createUserProfile({ ...baseInput, maintenanceEstimate: { calories: 2400, method: "national-academies-2023-adult-eer" } });
   assert.deepEqual(profile.maintenanceEstimate, { calories: 2400, method: "national-academies-2023-adult-eer" });
   assert.equal(profile.dailyTargets, undefined);
+});
+
+test("resolves a derived baseline at read time without rewriting stored onboarding data", () => {
+  const storage = memory();
+  const repository = createLocalProfileRepository(storage);
+  const profile = createUserProfile({
+    ...baseInput,
+    metrics: { weightKg: 70 },
+    maintenanceEstimate: { calories: 2000, method: "national-academies-2023-adult-eer" },
+  });
+  repository.save(profile);
+  assert.equal(profile.dailyTargets, undefined);
+  assert.deepEqual(repository.get()?.dailyTargets, { calories: 2000, protein: 75, carbs: 275, fat: 67 });
+  const stored = JSON.parse(storage.values.get(PROFILE_STORAGE_KEY) ?? "null");
+  assert.equal(stored.dailyTargets, undefined);
 });
 
 test("goal description saves and reloads", () => {

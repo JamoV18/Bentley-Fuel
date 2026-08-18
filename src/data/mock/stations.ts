@@ -132,6 +132,9 @@ export const stations: Station[] = [
     description: "Illustrative build-your-own bowl and burrito menu.",
     locationId: LOCATION_IDS.dana,
     cuisineType: "Mexican",
+    // The Nest is the morning concept; Blue Chip is modeled as non-breakfast so
+    // the recommendation engine cannot combine concepts that are not open together.
+    mealPeriods: ["lunch", "dinner"],
     provenance: p(),
   },
   {

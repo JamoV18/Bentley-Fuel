@@ -10,6 +10,7 @@ export * from "./recommendationScoring";
 export * from "./recommendationBehavior";
 export * from "./recommendationReplacements";
 export * from "./mealHistoryRepository";
+export * from "./progressRepository";
 export * from "./dailyNutrition";
 export * from "./dailyTargets";
 export * from "./nutritionPlan";

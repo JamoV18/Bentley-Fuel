@@ -33,8 +33,14 @@ const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, v
 const roundScore = (value: number) => Math.round(clamp(value, 0, 100) * 10) / 10;
 
 const selectedGoals = (context: RecommendationContext): PrimaryGoal[] => {
-  const goals = context.profile.goals?.length ? context.profile.goals : [context.profile.primaryGoal];
-  return [...new Set(goals)].slice(0, 3);
+  const primary = context.profile.primaryGoal;
+  const stored = context.profile.goals?.length ? context.profile.goals : [primary];
+  const compatibleSecondary = stored.filter((goal) => {
+    if (goal === primary) return false;
+    if (primary === "maintain-weight" && (goal === "lose-weight" || goal === "gain-weight")) return false;
+    return true;
+  });
+  return [...new Set([primary, ...compatibleSecondary])].slice(0, 3);
 };
 
 /** Primary intent remains dominant while secondary goals materially shape ranking. */

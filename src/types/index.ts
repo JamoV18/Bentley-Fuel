@@ -6,5 +6,6 @@ export * from "./common";
 export * from "./nutrition";
 export * from "./menu";
 export * from "./user";
+export * from "./plan";
 export * from "./meal";
 export * from "./recommendation";

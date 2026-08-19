@@ -33,7 +33,12 @@ export interface MealHistoryEntry {
   id: string;
   locationId: LocationId;
   build: MealBuild;
+  /** When the student selected/saved the meal. Always present for legacy compatibility. */
   selectedAt: string;
+  /** Optional best estimate of when the meal was actually eaten. */
+  eatenAt?: string;
+  /** When the completion response was recorded; may be later than the meal itself. */
+  completionRecordedAt?: string;
   /** Snapshot of the selected meal so later menu changes cannot rewrite history. */
   nutrition?: NutritionFacts;
   /** Optional because the student may skip the follow-up question. */

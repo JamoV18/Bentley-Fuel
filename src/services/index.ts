@@ -12,3 +12,5 @@ export * from "./recommendationReplacements";
 export * from "./mealHistoryRepository";
 export * from "./dailyNutrition";
 export * from "./dailyTargets";
+export * from "./nutritionPlan";
+export * from "./nutritionAnalytics";

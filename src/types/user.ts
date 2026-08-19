@@ -1,10 +1,10 @@
 /**
  * The student profile that drives personalization. The recommendation engine
- * will read `dailyTargets`, `allergensToAvoid`, `dietaryPreferences`, and
- * `dislikedComponentIds` to deterministically score menu items.
+ * reads nutritional goals/restrictions while tracking and plan services layer
+ * longitudinal state on top.
  *
  * No auth here — a profile is created during onboarding and persisted in
- * localStorage during onboarding. The `id` is a stable client-generated UUID.
+ * localStorage during the web prototype. The `id` is a stable client UUID.
  */
 
 import type {
@@ -13,6 +13,7 @@ import type {
   UserId,
 } from "./common";
 import type { Allergen, DietaryTag, Macros } from "./nutrition";
+import type { BehavioralGoal, UnitSystem, WeightGoalPlan } from "./plan";
 
 export type Sex = "male" | "female" | "other" | "prefer-not-to-say";
 
@@ -35,7 +36,8 @@ export type MacroTargets = Macros;
 
 /**
  * Optional body metrics used to estimate adult maintenance energy during
- * onboarding. They are not required for the app to function.
+ * onboarding. They are stored canonically in metric units regardless of how the
+ * student enters or displays them.
  */
 export interface BodyMetrics {
   sex?: Sex;
@@ -49,12 +51,21 @@ export interface UserProfile {
   id: UserId;
   displayName?: string;
 
+  /** Presentation preference only; calculations stay canonical in kg/cm. */
+  unitSystem?: UnitSystem;
+
   /** Optional metrics that seed the target calculator. */
   metrics?: BodyMetrics;
 
   primaryGoal: PrimaryGoal;
   /** Optional context in the student's own words; not interpreted or transmitted. */
   goalDescription?: string;
+
+  /** Secondary outcomes that shape UX/learning without redefining hard nutrition math. */
+  behavioralGoals?: BehavioralGoal[];
+
+  /** Optional explicit weight target/trajectory. Maintenance follows target attainment. */
+  weightGoalPlan?: WeightGoalPlan;
 
   /** Preferred eating styles (soft preferences that boost scoring). */
   dietaryPreferences: DietaryTag[];
@@ -71,7 +82,7 @@ export interface UserProfile {
     method: "national-academies-2023-adult-eer";
   };
 
-  /** Future personalized targets; onboarding does not fabricate these. */
+  /** Personalized targets when explicitly supplied or resolved from the plan layer. */
   dailyTargets?: MacroTargets;
 
   /** Where the student usually eats; used to default location screens. */
@@ -86,7 +97,6 @@ export interface UserProfile {
 
 /**
  * "How much of my day's macros are still available?" — computed from
- * `dailyTargets` minus everything logged so far. Consumed by the engine to
- * answer "what should I eat right now?".
+ * `dailyTargets` minus confirmed consumption so far.
  */
 export type RemainingMacros = Macros;

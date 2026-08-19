@@ -71,16 +71,12 @@ function customSelectionVariants(
   if (eligibleByStep.some(({ step, eligible }) => eligible.length < step.minSelections)) return [];
 
   const raw: NonNullable<MealItemSelection["componentSelections"]>[] = [];
-
-  // Minimal valid seed: required choices only.
   raw.push(
     eligibleByStep.flatMap(({ step, eligible }) =>
       eligible.slice(0, step.minSelections).map((component) => ({ componentId: component.id, quantity: 1 })),
     ),
   );
 
-  // Fuller variants rotate through eligible choices and include one optional
-  // choice from each optional step, producing nutritionally distinct candidates.
   for (let variant = 0; variant < maxVariants - 1; variant += 1) {
     const selections: NonNullable<MealItemSelection["componentSelections"]> = [];
     for (const { step, eligible } of eligibleByStep) {
@@ -92,8 +88,6 @@ function customSelectionVariants(
       }
     }
 
-    // When a required step permits two servings and the chosen component permits
-    // it too, periodically create a double-serving variant (e.g. double chicken).
     if (variant % 2 === 1) {
       const protein = eligibleByStep.find(({ step }) => step.category === "protein" && step.maxSelections >= 2);
       const selectedProtein = protein?.eligible[variant % (protein?.eligible.length || 1)];
@@ -129,9 +123,7 @@ function lineVariantsForItem(
   context: RecommendationContext,
   maxCustomVariants: number,
 ): MealItemSelection[] {
-  if (item.kind === "customizable") {
-    return customSelectionVariants(item, components, context, maxCustomVariants);
-  }
+  if (item.kind === "customizable") return customSelectionVariants(item, components, context, maxCustomVariants);
   return [{ id: `candidate-line-${item.id}`, menuItemId: item.id, quantity: 1 }];
 }
 
@@ -171,11 +163,6 @@ const cartesian = <T>(groups: readonly T[][], cap: number): T[][] => {
 
 const stationDiversity = (items: readonly MenuItem[]) => new Set(items.map((item) => item.stationId)).size;
 
-/**
- * Prefer explicit role metadata. Mock/legacy records predate it, so use a
- * conservative fallback that recognizes common drinks/snacks and otherwise
- * treats a customizable or entree-sized item as the meal's main.
- */
 export function inferMenuItemMealRole(item: MenuItem): MenuItemMealRole {
   if (item.mealRole) return item.mealRole;
   const name = item.name.toLowerCase();
@@ -194,11 +181,6 @@ const roleCounts = (items: readonly MenuItem[]) => {
   return counts;
 };
 
-/**
- * A recommendation may contain one main plus complementary foods, or a small
- * no-main snack/market combination. It may not stack multiple full mains,
- * multiple drinks, or multiple desserts merely to increase macros/calories.
- */
 const isPlausibleMealComposition = (items: readonly MenuItem[]): boolean => {
   const counts = roleCounts(items);
   if (counts.main > 1 || counts.drink > 1 || counts.dessert > 1) return false;
@@ -208,11 +190,7 @@ const isPlausibleMealComposition = (items: readonly MenuItem[]): boolean => {
 
 const roleBalancePriority = (items: readonly MenuItem[]): number => {
   const counts = roleCounts(items);
-  if (counts.main === 1) {
-    return 100 + counts.side * 12 + counts.drink * 5 + counts.snack * 3 - counts.dessert * 2;
-  }
-  // No-main combinations are useful for markets/snack occasions but should not
-  // crowd complete main-based meals out of a bounded candidate pool.
+  if (counts.main === 1) return 100 + counts.side * 12 + counts.drink * 5 + counts.snack * 3 - counts.dessert * 2;
   return counts.side * 8 + counts.snack * 5 + counts.drink * 4 - counts.dessert * 2;
 };
 
@@ -227,9 +205,11 @@ export function generateMealCandidatesFromResources(
   const maxCandidates = Math.max(1, Math.floor(options.maxCandidates ?? DEFAULT_MAX_CANDIDATES));
   const maxCustomVariants = Math.max(1, Math.floor(options.maxCustomVariantsPerItem ?? DEFAULT_MAX_CUSTOM_VARIANTS));
   const availableStationIds = new Set(stations.filter((station) => stationAvailable(station, context)).map((station) => station.id));
+  const excludedMenuItemIds = new Set(context.excludeMenuItemIds ?? []);
 
   const eligible = items.filter((item) => {
     if (!availableStationIds.has(item.stationId)) return false;
+    if (excludedMenuItemIds.has(item.id)) return false;
     return assessMenuItemEligibility(item, context, components).isEligible;
   });
 
@@ -240,7 +220,10 @@ export function generateMealCandidatesFromResources(
 
   const candidateItemSets: MenuItem[][] = [];
   for (let size = 1; size <= Math.min(maxItems, configurable.length); size += 1) {
-    candidateItemSets.push(...combinations(configurable, size).filter(isPlausibleMealComposition));
+    candidateItemSets.push(...combinations(configurable, size).filter((itemSet) => {
+      if (!isPlausibleMealComposition(itemSet)) return false;
+      return !options.requireMain || roleCounts(itemSet).main === 1;
+    }));
   }
 
   candidateItemSets.sort((a, b) => {

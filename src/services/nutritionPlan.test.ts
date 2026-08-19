@@ -29,6 +29,23 @@ test("finite weight goal exposes an estimated trajectory while goal is active", 
   assert.equal(plan.maintenanceAfterGoal, true);
 });
 
+test("weight-loss intensity derives a lower active target without fabricating a weekly pace", () => {
+  const next = createUserProfile({
+    primaryGoal: "athletic-performance",
+    goals: ["athletic-performance", "lose-weight", "eat-healthier"],
+    dietaryPreferences: [],
+    allergensToAvoid: [],
+    metrics: { weightKg: 80 },
+    maintenanceEstimate: { calories: 3000, method: "national-academies-2023-adult-eer" },
+    weightGoalPlan: { weightLossIntensity: "optimal", startDate: "2026-08-19T12:00:00.000Z", maintenanceAfterGoal: true },
+  });
+  const plan = resolveNutritionPlan(next, new Date("2026-08-19T12:00:00.000Z"));
+  assert.equal(plan.weightLossIntensity, "optimal");
+  assert.equal(plan.activeTargets?.calories, 2400);
+  assert.equal(plan.plannedWeeklyWeightChangeKg, undefined);
+  assert.equal(plan.projectedGoalDate, undefined);
+});
+
 test("reaching the target automatically transitions to maintenance targets", () => {
   const plan = resolveNutritionPlan(profile(75, 75), new Date("2026-10-28T12:00:00.000Z"));
   assert.equal(plan.phase, "maintenance");
@@ -48,12 +65,7 @@ test("maintenance is recalculated at the latest observed weight when full EER in
     dailyTargets: { calories: 2700, protein: 150, carbs: 350, fat: 75 },
     unitSystem: "metric",
     behavioralGoals: [],
-    weightGoalPlan: {
-      targetWeightKg: 75,
-      plannedWeeklyWeightChangeKg: -0.5,
-      startDate: "2026-08-19T12:00:00.000Z",
-      maintenanceAfterGoal: true,
-    },
+    weightGoalPlan: { targetWeightKg: 75, plannedWeeklyWeightChangeKg: -0.5, startDate: "2026-08-19T12:00:00.000Z", maintenanceAfterGoal: true },
   });
   const plan = resolveNutritionPlan(complete, new Date("2026-10-28T12:00:00.000Z"), 75);
   assert.equal(plan.phase, "maintenance");

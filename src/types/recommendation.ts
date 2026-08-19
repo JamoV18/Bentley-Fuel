@@ -58,6 +58,8 @@ export interface RecommendationContext {
   remainingMacros?: RemainingMacros;
   /** Newest-first recent history. Omit when the app has no behavioral history yet. */
   recentHistory?: readonly MealHistoryEntry[];
+  /** Menu items that should not be resurfaced for this recommendation occasion. */
+  excludeMenuItemIds?: readonly MenuItemId[];
 }
 
 export type RecommendationEligibilityIssueCode =
@@ -102,4 +104,6 @@ export interface MealCandidateGenerationOptions {
   maxCandidates?: number;
   /** Deterministic sample of valid configurations for each customizable item. */
   maxCustomVariantsPerItem?: number;
+  /** Complete-meal surfaces can require a real main/entree anchor. */
+  requireMain?: boolean;
 }

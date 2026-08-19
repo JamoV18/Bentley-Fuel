@@ -57,7 +57,10 @@ export interface UserProfile {
   /** Optional metrics that seed the target calculator. */
   metrics?: BodyMetrics;
 
+  /** First selected goal; remains the primary nutrition/scoring anchor. */
   primaryGoal: PrimaryGoal;
+  /** Up to three selected goals, ordered with primaryGoal first. */
+  goals?: PrimaryGoal[];
   /** Optional context in the student's own words; not interpreted or transmitted. */
   goalDescription?: string;
 

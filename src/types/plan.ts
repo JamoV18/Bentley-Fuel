@@ -11,16 +11,22 @@ export type BehavioralGoal =
   | "training-fuel"
   | "variety";
 
+/** Product intensity for an estimated-maintenance-based weight-loss plan. */
+export type WeightLossIntensity = "light" | "moderate" | "optimal" | "extreme";
+
 /**
- * Optional explicit weight trajectory. A target can exist without a pace; Bentley
- * Fuel should never fabricate a promised goal date or calorie deficit/surplus.
+ * Optional explicit weight trajectory. A target can exist without a pace, and a
+ * weight-loss intensity can exist without a target weight. Bentley Fuel should
+ * never fabricate a promised goal date from an energy estimate.
  */
 export interface WeightGoalPlan {
-  targetWeightKg: number;
-  /** Signed kg/week: negative for loss, positive for gain. */
+  targetWeightKg?: number;
+  /** Signed kg/week when separately calibrated: negative for loss, positive for gain. */
   plannedWeeklyWeightChangeKg?: number;
+  /** Used only when lose-weight is one of the selected goals. */
+  weightLossIntensity?: WeightLossIntensity;
   startDate: string;
-  /** Product rule: once the target is reached, transition to maintenance. */
+  /** Product rule: once a finite target is reached, transition to maintenance. */
   maintenanceAfterGoal: true;
 }
 
@@ -40,6 +46,7 @@ export interface NutritionPlanSnapshot {
   currentWeightKg?: number;
   targetWeightKg?: number;
   plannedWeeklyWeightChangeKg?: number;
+  weightLossIntensity?: WeightLossIntensity;
   projectedGoalDate?: string;
   goalReached: boolean;
   activeTargets?: Macros;

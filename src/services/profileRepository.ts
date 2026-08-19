@@ -1,5 +1,5 @@
 import { ALL_ALLERGENS, ALL_DIETARY_TAGS } from "../types/nutrition.ts";
-import type { BehavioralGoal, UnitSystem, WeightGoalPlan } from "../types/plan.ts";
+import type { BehavioralGoal, UnitSystem, WeightGoalPlan, WeightLossIntensity } from "../types/plan.ts";
 import type { ActivityLevel, BodyMetrics, PrimaryGoal, UserProfile } from "../types/user.ts";
 import { resolveNutritionPlan } from "./nutritionPlan.ts";
 import { createLocalProgressRepository } from "./progressRepository.ts";
@@ -11,6 +11,7 @@ const ACTIVITIES: ActivityLevel[] = ["inactive", "low-active", "active", "very-a
 const SEXES = ["male", "female", "other", "prefer-not-to-say"];
 const UNITS: UnitSystem[] = ["us", "metric"];
 const BEHAVIORAL_GOALS: BehavioralGoal[] = ["eating-control", "consistency", "healthier-choices", "protein", "training-fuel", "variety"];
+const WEIGHT_LOSS_INTENSITIES: WeightLossIntensity[] = ["light", "moderate", "optimal", "extreme"];
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const finiteInRange = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
 const validIso = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
@@ -26,7 +27,10 @@ function validMetrics(value: unknown): value is BodyMetrics {
 
 function validWeightGoalPlan(value: unknown): value is WeightGoalPlan {
   if (!isRecord(value)) return false;
-  return finiteInRange(value.targetWeightKg, 25, 400) &&
+  const targetValid = value.targetWeightKg === undefined || finiteInRange(value.targetWeightKg, 25, 400);
+  const intensityValid = value.weightLossIntensity === undefined || WEIGHT_LOSS_INTENSITIES.includes(value.weightLossIntensity as WeightLossIntensity);
+  const hasIntent = value.targetWeightKg !== undefined || value.weightLossIntensity !== undefined || value.plannedWeeklyWeightChangeKg !== undefined;
+  return hasIntent && targetValid && intensityValid &&
     (value.plannedWeeklyWeightChangeKg === undefined || finiteInRange(value.plannedWeeklyWeightChangeKg, -2, 2)) &&
     validIso(value.startDate) && value.maintenanceAfterGoal === true;
 }
@@ -35,8 +39,16 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
   if (!isRecord(value)) return false;
   const target = value.dailyTargets;
   const estimate = value.maintenanceEstimate;
+  const goals = value.goals;
+  const goalsValid = goals === undefined || (
+    Array.isArray(goals) &&
+    goals.length >= 1 && goals.length <= 3 &&
+    goals.every((goal) => GOALS.includes(goal as PrimaryGoal)) &&
+    new Set(goals).size === goals.length &&
+    goals[0] === value.primaryGoal
+  );
   return typeof value.id === "string" && value.id.length > 0 &&
-    GOALS.includes(value.primaryGoal as PrimaryGoal) &&
+    GOALS.includes(value.primaryGoal as PrimaryGoal) && goalsValid &&
     (value.unitSystem === undefined || UNITS.includes(value.unitSystem as UnitSystem)) &&
     (value.goalDescription === undefined || (typeof value.goalDescription === "string" && value.goalDescription.length <= 500)) &&
     (value.behavioralGoals === undefined || (Array.isArray(value.behavioralGoals) && value.behavioralGoals.every((goal) => BEHAVIORAL_GOALS.includes(goal as BehavioralGoal)))) &&
@@ -49,12 +61,14 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
 }
 
 export function createUserProfile(
-  input: Pick<UserProfile, "primaryGoal" | "dietaryPreferences" | "allergensToAvoid"> & Pick<UserProfile, "goalDescription" | "maintenanceEstimate" | "dailyTargets" | "unitSystem" | "behavioralGoals" | "weightGoalPlan"> & { metrics?: BodyMetrics },
+  input: Pick<UserProfile, "primaryGoal" | "dietaryPreferences" | "allergensToAvoid"> & Pick<UserProfile, "goals" | "goalDescription" | "maintenanceEstimate" | "dailyTargets" | "unitSystem" | "behavioralGoals" | "weightGoalPlan"> & { metrics?: BodyMetrics },
   previous?: UserProfile,
 ): UserProfile {
   const now = new Date().toISOString();
+  const previousGoals = previous?.primaryGoal === input.primaryGoal ? previous.goals : undefined;
   const profile: UserProfile = {
     ...input,
+    goals: input.goals ?? previousGoals ?? [input.primaryGoal],
     unitSystem: input.unitSystem ?? previous?.unitSystem ?? "us",
     behavioralGoals: input.behavioralGoals ?? previous?.behavioralGoals ?? [],
     id: previous?.id ?? crypto.randomUUID(),
@@ -74,13 +88,13 @@ export interface ProfileRepository {
 
 interface StorageLike { getItem(key: string): string | null; setItem(key: string, value: string): void; removeItem(key: string): void }
 
-/**
- * Resolves defaults and the currently active plan targets at read time. This
- * keeps stored onboarding data unchanged while allowing a reached finite goal to
- * transition every downstream consumer — including recommendations — to maintenance.
- */
 export function withResolvedDailyTargets(profile: UserProfile, currentWeightKg = profile.metrics?.weightKg): UserProfile {
-  const withDefaults: UserProfile = { ...profile, unitSystem: profile.unitSystem ?? "us", behavioralGoals: profile.behavioralGoals ?? [] };
+  const withDefaults: UserProfile = {
+    ...profile,
+    goals: profile.goals ?? [profile.primaryGoal],
+    unitSystem: profile.unitSystem ?? "us",
+    behavioralGoals: profile.behavioralGoals ?? [],
+  };
   const plan = resolveNutritionPlan(withDefaults, new Date(), currentWeightKg);
   return plan.activeTargets ? { ...withDefaults, dailyTargets: plan.activeTargets } : withDefaults;
 }

@@ -17,11 +17,26 @@ const baseInput = { primaryGoal: "maintain-weight" as const, dietaryPreferences:
 test("a completed profile is valid without maintenance or daily targets", () => {
   const profile = createUserProfile(baseInput);
   assert.ok(isValidUserProfile(profile));
+  assert.deepEqual(profile.goals, ["maintain-weight"]);
   assert.equal(profile.goalDescription, undefined);
   assert.equal(profile.dailyTargets, undefined);
   assert.equal(profile.maintenanceEstimate, undefined);
   assert.equal(profile.unitSystem, "us");
   assert.deepEqual(profile.behavioralGoals, []);
+});
+
+test("stores up to three ordered goals and a weight-loss intensity", () => {
+  const profile = createUserProfile({
+    ...baseInput,
+    primaryGoal: "athletic-performance",
+    goals: ["athletic-performance", "lose-weight", "eat-healthier"],
+    weightGoalPlan: { weightLossIntensity: "moderate", startDate: "2026-08-19T12:00:00.000Z", maintenanceAfterGoal: true },
+  });
+  assert.ok(isValidUserProfile(profile));
+  assert.deepEqual(profile.goals, ["athletic-performance", "lose-weight", "eat-healthier"]);
+  assert.equal(profile.weightGoalPlan?.weightLossIntensity, "moderate");
+  assert.equal(isValidUserProfile({ ...profile, goals: ["athletic-performance", "lose-weight", "eat-healthier", "build-muscle"] }), false);
+  assert.equal(isValidUserProfile({ ...profile, goals: ["lose-weight", "athletic-performance"] }), false);
 });
 
 test("stores metric preference behavioral goals and a maintenance-following target", () => {
@@ -48,11 +63,7 @@ test("stores maintenance separately from future daily targets", () => {
 test("resolves a derived baseline at read time without rewriting stored onboarding data", () => {
   const storage = memory();
   const repository = createLocalProfileRepository(storage);
-  const profile = createUserProfile({
-    ...baseInput,
-    metrics: { weightKg: 70 },
-    maintenanceEstimate: { calories: 2000, method: "national-academies-2023-adult-eer" },
-  });
+  const profile = createUserProfile({ ...baseInput, metrics: { weightKg: 70 }, maintenanceEstimate: { calories: 2000, method: "national-academies-2023-adult-eer" } });
   repository.save(profile);
   assert.equal(profile.dailyTargets, undefined);
   assert.deepEqual(repository.get()?.dailyTargets, { calories: 2000, protein: 75, carbs: 275, fat: 67 });
@@ -79,18 +90,21 @@ test("latest progress can transition read-time targets from goal phase to recalc
   assert.equal(stored.dailyTargets.calories, 2700);
 });
 
-test("legacy stored profiles gain read-time unit and behavioral defaults without rewriting storage", () => {
+test("legacy stored profiles gain read-time defaults without rewriting storage", () => {
   const storage = memory();
   const legacy = createUserProfile(baseInput);
   const rawLegacy = { ...legacy } as Record<string, unknown>;
   delete rawLegacy.unitSystem;
   delete rawLegacy.behavioralGoals;
+  delete rawLegacy.goals;
   storage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(rawLegacy));
   const repository = createLocalProfileRepository(storage);
   assert.equal(repository.get()?.unitSystem, "us");
   assert.deepEqual(repository.get()?.behavioralGoals, []);
+  assert.deepEqual(repository.get()?.goals, ["maintain-weight"]);
   const stored = JSON.parse(storage.values.get(PROFILE_STORAGE_KEY) ?? "null");
   assert.equal(stored.unitSystem, undefined);
+  assert.equal(stored.goals, undefined);
 });
 
 test("goal description saves and reloads", () => {
@@ -108,6 +122,7 @@ test("rejects invalid descriptions plan fields and maintenance estimates", () =>
   assert.equal(isValidUserProfile({ ...profile, unitSystem: "stone" }), false);
   assert.equal(isValidUserProfile({ ...profile, behavioralGoals: ["punishment"] }), false);
   assert.equal(isValidUserProfile({ ...profile, weightGoalPlan: { targetWeightKg: 72, startDate: "bad", maintenanceAfterGoal: true } }), false);
+  assert.equal(isValidUserProfile({ ...profile, weightGoalPlan: { weightLossIntensity: "reckless", startDate: "2026-08-19T12:00:00.000Z", maintenanceAfterGoal: true } }), false);
   assert.equal(isValidUserProfile({ ...profile, maintenanceEstimate: { calories: 2400, method: "legacy" } }), false);
 });
 
@@ -117,6 +132,7 @@ test("editing retains identity but drops stale daily targets", () => {
   assert.equal(edited.id, original.id);
   assert.equal(edited.createdAt, original.createdAt);
   assert.equal(edited.dailyTargets, undefined);
+  assert.deepEqual(edited.goals, ["build-muscle"]);
 });
 
 test("malformed stored profiles fail safely without throwing", () => {

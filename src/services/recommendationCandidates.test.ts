@@ -31,13 +31,7 @@ const resourcesFor = (locationId: string) => ({
 
 test("generates same-location complete meals without cross-location lines", () => {
   const resources = resourcesFor("loc-lacava");
-  const candidates = generateMealCandidatesFromResources(
-    resources.items,
-    resources.stations,
-    resources.components,
-    context("loc-lacava"),
-    { maxItemsPerMeal: 3, maxCandidates: 30 },
-  );
+  const candidates = generateMealCandidatesFromResources(resources.items, resources.stations, resources.components, context("loc-lacava"), { maxItemsPerMeal: 3, maxCandidates: 30 });
   assert.ok(candidates.length > 0);
   for (const candidate of candidates) {
     assert.equal(candidate.build.locationId, "loc-lacava");
@@ -47,13 +41,7 @@ test("generates same-location complete meals without cross-location lines", () =
 
 test("prefers station diversity only among plausible complementary meal roles", () => {
   const resources = resourcesFor("loc-lacava");
-  const candidates = generateMealCandidatesFromResources(
-    resources.items,
-    resources.stations,
-    resources.components,
-    context("loc-lacava"),
-    { maxItemsPerMeal: 3, maxCandidates: 10 },
-  );
+  const candidates = generateMealCandidatesFromResources(resources.items, resources.stations, resources.components, context("loc-lacava"), { maxItemsPerMeal: 3, maxCandidates: 10 });
   assert.ok(candidates.length > 0);
   const byId = new Map(resources.items.map((item) => [item.id, item]));
   for (const candidate of candidates) {
@@ -62,19 +50,7 @@ test("prefers station diversity only among plausible complementary meal roles", 
   }
 });
 
-test("Falcon Market candidates can combine Grab & Go with Snacks & Drinks", () => {
-  const resources = resourcesFor("loc-market");
-  const candidates = generateMealCandidatesFromResources(
-    resources.items,
-    resources.stations,
-    resources.components,
-    context("loc-market"),
-    { maxItemsPerMeal: 3, maxCandidates: 20 },
-  );
-  assert.ok(candidates.some((candidate) => candidate.stationIds.length === 2));
-});
-
-test("921 candidate generation never stacks multiple inferred full mains", () => {
+test("complete-meal generation requires a main anchor when requested", () => {
   const resources = resourcesFor("loc-921");
   const byId = new Map(resources.items.map((item) => [item.id, item]));
   const candidates = generateMealCandidatesFromResources(
@@ -82,8 +58,43 @@ test("921 candidate generation never stacks multiple inferred full mains", () =>
     resources.stations,
     resources.components,
     context("loc-921", { primaryGoal: "athletic-performance" }, "lunch"),
-    { maxItemsPerMeal: 3, maxCandidates: 60 },
+    { maxItemsPerMeal: 3, maxCandidates: 60, requireMain: true },
   );
+  assert.ok(candidates.length > 0);
+  for (const candidate of candidates) {
+    const mainCount = candidate.build.items.filter((line) => inferMenuItemMealRole(byId.get(line.menuItemId)!) === "main").length;
+    assert.equal(mainCount, 1);
+  }
+});
+
+test("explicitly excluded same-day foods never enter generated candidates", () => {
+  const resources = resourcesFor("loc-921");
+  const excluded = ["item-921-cheeseburger", "item-921-chicken-teriyaki", "item-921-cheese-pizza"];
+  const nextContext: RecommendationContext = {
+    ...context("loc-921", { primaryGoal: "athletic-performance" }, "lunch"),
+    excludeMenuItemIds: excluded,
+  };
+  const candidates = generateMealCandidatesFromResources(
+    resources.items,
+    resources.stations,
+    resources.components,
+    nextContext,
+    { maxItemsPerMeal: 3, maxCandidates: 60, requireMain: true },
+  );
+  assert.ok(candidates.length > 0);
+  assert.ok(candidates.every((candidate) => candidate.build.items.every((line) => !excluded.includes(line.menuItemId))));
+});
+
+test("Falcon Market candidates can combine Grab & Go with Snacks & Drinks", () => {
+  const resources = resourcesFor("loc-market");
+  const candidates = generateMealCandidatesFromResources(resources.items, resources.stations, resources.components, context("loc-market"), { maxItemsPerMeal: 3, maxCandidates: 20 });
+  assert.ok(candidates.some((candidate) => candidate.stationIds.length === 2));
+});
+
+test("921 candidate generation never stacks multiple inferred full mains", () => {
+  const resources = resourcesFor("loc-921");
+  const byId = new Map(resources.items.map((item) => [item.id, item]));
+  const candidates = generateMealCandidatesFromResources(resources.items, resources.stations, resources.components, context("loc-921", { primaryGoal: "athletic-performance" }, "lunch"), { maxItemsPerMeal: 3, maxCandidates: 60 });
   assert.ok(candidates.length > 0);
   for (const candidate of candidates) {
     const mainCount = candidate.build.items.filter((line) => inferMenuItemMealRole(byId.get(line.menuItemId)!) === "main").length;
@@ -97,13 +108,7 @@ test("921 candidate generation never stacks multiple inferred full mains", () =>
 
 test("hard-ineligible foods never enter generated candidates", () => {
   const resources = resourcesFor("loc-lacava");
-  const candidates = generateMealCandidatesFromResources(
-    resources.items,
-    resources.stations,
-    resources.components,
-    context("loc-lacava", { dietaryPreferences: ["vegan"] }),
-    { maxItemsPerMeal: 3, maxCandidates: 30 },
-  );
+  const candidates = generateMealCandidatesFromResources(resources.items, resources.stations, resources.components, context("loc-lacava", { dietaryPreferences: ["vegan"] }), { maxItemsPerMeal: 3, maxCandidates: 30 });
   const byId = new Map(resources.items.map((item) => [item.id, item]));
   assert.ok(candidates.length > 0);
   for (const candidate of candidates) {
@@ -116,30 +121,19 @@ test("hard-ineligible foods never enter generated candidates", () => {
 });
 
 test("Dana breakfast does not generate Blue Chip candidates", async () => {
-  const candidates = await generateMealCandidates(
-    new MockDiningProvider(),
-    context("loc-dana", {}, "breakfast"),
-  );
+  const candidates = await generateMealCandidates(new MockDiningProvider(), context("loc-dana", {}, "breakfast"));
   assert.equal(candidates.length, 0);
 });
 
 test("Dana lunch generates Blue Chip candidates but not The Nest", async () => {
-  const candidates = await generateMealCandidates(
-    new MockDiningProvider(),
-    context("loc-dana", {}, "lunch"),
-    { maxCandidates: 20 },
-  );
+  const candidates = await generateMealCandidates(new MockDiningProvider(), context("loc-dana", {}, "lunch"), { maxCandidates: 20 });
   assert.ok(candidates.length > 0);
   assert.ok(candidates.every((candidate) => candidate.stationIds.every((id) => id === "stn-dana-blue-chip")));
 });
 
 test("customizable candidates receive valid required-step configuration seeds", async () => {
   const provider = new MockDiningProvider();
-  const candidates = await generateMealCandidates(
-    provider,
-    context("loc-dana", {}, "lunch"),
-    { maxCandidates: 20 },
-  );
+  const candidates = await generateMealCandidates(provider, context("loc-dana", {}, "lunch"), { maxCandidates: 20 });
   const custom = candidates.filter((candidate) => candidate.build.items.length === 1 && candidate.build.items[0].menuItemId === "item-brito-build-your-own");
   assert.ok(custom.length > 0);
   for (const candidate of custom) {
@@ -150,11 +144,7 @@ test("customizable candidates receive valid required-step configuration seeds", 
 
 test("Blue Chip generator emits nutritionally distinct customizable variants", async () => {
   const provider = new MockDiningProvider();
-  const candidates = await generateMealCandidates(
-    provider,
-    context("loc-dana", {}, "lunch"),
-    { maxItemsPerMeal: 1, maxCandidates: 20, maxCustomVariantsPerItem: 8 },
-  );
+  const candidates = await generateMealCandidates(provider, context("loc-dana", {}, "lunch"), { maxItemsPerMeal: 1, maxCandidates: 20, maxCustomVariantsPerItem: 8 });
   const custom = candidates.filter((candidate) => candidate.build.items[0]?.menuItemId === "item-brito-build-your-own");
   assert.ok(custom.length >= 3);
   const nutrition = await Promise.all(custom.map((candidate) => resolveMealBuild(provider, candidate.build)));
@@ -164,11 +154,7 @@ test("Blue Chip generator emits nutritionally distinct customizable variants", a
 });
 
 test("allergen restrictions shape customizable variants instead of rejecting the whole builder", async () => {
-  const candidates = await generateMealCandidates(
-    new MockDiningProvider(),
-    context("loc-dana", { allergensToAvoid: ["soy", "milk", "wheat"] }, "lunch"),
-    { maxCandidates: 20 },
-  );
+  const candidates = await generateMealCandidates(new MockDiningProvider(), context("loc-dana", { allergensToAvoid: ["soy", "milk", "wheat"] }, "lunch"), { maxCandidates: 20 });
   const custom = candidates.filter((candidate) => candidate.build.items.some((line) => line.menuItemId === "item-brito-build-your-own"));
   assert.ok(custom.length > 0);
   for (const candidate of custom) {

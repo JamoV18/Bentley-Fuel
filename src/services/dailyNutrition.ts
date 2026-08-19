@@ -10,7 +10,7 @@ export interface DailyNutritionSummary {
   unconfirmedMeals: number;
 }
 
-const zeroNutrition = (): NutritionFacts => ({
+export const zeroNutrition = (): NutritionFacts => ({
   calories: 0,
   protein: 0,
   carbs: 0,
@@ -24,6 +24,8 @@ const sameLocalCalendarDay = (iso: string, day: Date): boolean => {
     && value.getMonth() === day.getMonth()
     && value.getDate() === day.getDate();
 };
+
+export const mealOccurredAt = (entry: MealHistoryEntry): string => entry.eatenAt ?? entry.selectedAt;
 
 /**
  * Turns lightweight completion feedback into a deterministic daily intake ledger.
@@ -39,7 +41,7 @@ export function summarizeDailyNutrition(
   let unconfirmedMeals = 0;
 
   for (const entry of history) {
-    if (!sameLocalCalendarDay(entry.selectedAt, day)) continue;
+    if (!sameLocalCalendarDay(mealOccurredAt(entry), day)) continue;
     if (entry.completionFraction === undefined || !entry.nutrition) {
       unconfirmedMeals += 1;
       continue;

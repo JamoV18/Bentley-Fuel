@@ -1,4 +1,5 @@
 import type { NutritionPlanSnapshot, PrimaryGoal, UserProfile } from "@/types";
+import { estimateMaintenanceCalories } from "@/lib/energyEstimate";
 import { deriveMaintenanceTargetPlan } from "./dailyTargets";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,6 +34,24 @@ function projectedDate(
 }
 
 /**
+ * Re-estimate maintenance at the latest observed weight when the profile has the
+ * complete supported inputs for the 2023 EER equation. If it does not, preserve
+ * the existing maintenance estimate rather than fabricating a new one.
+ */
+function profileAtObservedWeight(profile: UserProfile, currentWeightKg: number | undefined): UserProfile {
+  if (!currentWeightKg || !profile.metrics) return profile;
+  const metrics = { ...profile.metrics, weightKg: currentWeightKg };
+  const calories = estimateMaintenanceCalories(metrics);
+  return {
+    ...profile,
+    metrics,
+    maintenanceEstimate: calories
+      ? { calories, method: "national-academies-2023-adult-eer" }
+      : profile.maintenanceEstimate,
+  };
+}
+
+/**
  * Produces one canonical plan state for Today, History, widgets and the
  * recommendation engine. A projected date is an estimate, never a promise.
  * The plan automatically moves to maintenance once a finite target is reached.
@@ -43,7 +62,8 @@ export function resolveNutritionPlan(
   currentWeightKg = profile.metrics?.weightKg,
 ): NutritionPlanSnapshot {
   const intent = profile.weightGoalPlan;
-  const maintenanceTargets = deriveMaintenanceTargetPlan(profile)?.targets;
+  const maintenanceProfile = profileAtObservedWeight(profile, currentWeightKg);
+  const maintenanceTargets = deriveMaintenanceTargetPlan(maintenanceProfile)?.targets;
   const goalReached = reachedTarget(profile.primaryGoal, currentWeightKg, intent?.targetWeightKg);
   const phase = goalReached && intent?.maintenanceAfterGoal ? "maintenance" : "goal";
 

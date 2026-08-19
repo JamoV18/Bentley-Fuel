@@ -6,6 +6,7 @@ import Link from "next/link";
 import { estimateMaintenanceCalories } from "@/lib/energyEstimate";
 import { centimetersToFeetAndInches, kilogramsToPounds, parseBodyInput } from "@/lib/onboardingValidation";
 import { ONBOARDING_DIETARY_TAGS } from "@/lib/onboardingOptions";
+import { browserProgressRepository } from "@/services";
 import { browserProfileRepository, createUserProfile } from "@/services/profileRepository";
 import { ALL_ALLERGENS, ALLERGEN_DISCLAIMER, type ActivityLevel, type Allergen, type BehavioralGoal, type DietaryTag, type PrimaryGoal, type Sex, type UnitSystem, type UserProfile } from "@/types";
 
@@ -148,6 +149,11 @@ export default function OnboardingPage() {
       } : undefined,
     }, existing);
     browserProfileRepository().save(profile);
+    const previousWeightKg = existing?.metrics?.weightKg;
+    const currentWeightKg = currentBody.value?.weightKg;
+    if (currentWeightKg !== undefined && (previousWeightKg === undefined || Math.abs(currentWeightKg - previousWeightKg) > 0.01)) {
+      browserProgressRepository().upsert({ id: crypto.randomUUID(), recordedAt: new Date().toISOString(), weightKg: currentWeightKg });
+    }
     router.push("/dashboard");
   }
 

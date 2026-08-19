@@ -11,7 +11,7 @@ const day: DailyNutritionSnapshot = {
   confirmedMeals: 2,
   pendingMeals: 1,
   meals: [],
-  sufficientlyTracked: false,
+  allSavedMealsConfirmed: false,
 };
 
 test("widget remaining mode uses the same remaining numbers as Today", () => {

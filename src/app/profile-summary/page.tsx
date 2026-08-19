@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppNav from "@/components/AppNav";
-import { resolveNutritionPlan } from "@/services";
+import { browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile } from "@/types";
 
@@ -13,15 +13,35 @@ const weight = (kg: number, unitSystem: UserProfile["unitSystem"]) => unitSystem
 
 export default function ProfileSummary() {
   const [profile, setProfile] = useState<UserProfile | null>();
+  const [latestWeightKg, setLatestWeightKg] = useState<number>();
+  const [progressInput, setProgressInput] = useState("");
+  const [progressMessage, setProgressMessage] = useState("");
   const router = useRouter();
 
-  useEffect(() => { queueMicrotask(() => setProfile(browserProfileRepository().get())); }, []);
-  const plan = useMemo(() => profile ? resolveNutritionPlan(profile) : undefined, [profile]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      const nextProfile = browserProfileRepository().get();
+      setProfile(nextProfile);
+      setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
+    });
+  }, []);
+  const plan = useMemo(() => profile ? resolveNutritionPlan(profile, new Date(), latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, latestWeightKg]);
 
   if (profile === undefined) return <main className="summary"><p>Loading your profile…</p></main>;
   if (!profile) return <main className="summary"><h1 className="text-3xl font-bold">No profile yet</h1><p className="mt-2 text-black/60">Complete onboarding to create one.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
 
   const targets = plan?.activeTargets ?? profile.dailyTargets;
+
+  const saveProgress = () => {
+    const entered = Number(progressInput);
+    if (!Number.isFinite(entered) || entered <= 0) return setProgressMessage("Enter a valid weight.");
+    const weightKg = profile.unitSystem === "metric" ? entered : entered * 0.45359237;
+    if (weightKg < 25 || weightKg > 400) return setProgressMessage("That weight is outside the supported range.");
+    browserProgressRepository().upsert({ id: crypto.randomUUID(), recordedAt: new Date().toISOString(), weightKg });
+    setLatestWeightKg(weightKg);
+    setProgressInput("");
+    setProgressMessage("Progress updated.");
+  };
 
   return (
     <main className="summary">
@@ -42,9 +62,14 @@ export default function ProfileSummary() {
           <div className="mt-6 border-t border-black/10 pt-5">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-black/50">Plan trajectory</h2>
             <p className="mt-1 text-2xl font-bold">{plan.phase === "maintenance" ? "Maintenance" : `Target ${weight(plan.targetWeightKg, profile.unitSystem)}`}</p>
+            {plan.currentWeightKg && <p className="mt-2 text-sm"><strong>Current:</strong> {weight(plan.currentWeightKg, profile.unitSystem)}</p>}
             {plan.projectedGoalDate && <p className="mt-2 text-sm text-black/60">Estimated goal date: {plan.projectedGoalDate}. This is a projection, not a guarantee.</p>}
             {!plan.projectedGoalDate && plan.phase === "goal" && <p className="mt-2 text-sm text-black/60">The target is saved. Bentley Fuel will show a projected date only when an explicit pace has been calibrated rather than inventing one.</p>}
             <p className="mt-2 text-sm text-black/60">After the target is reached, Bentley Fuel automatically transitions the plan to maintenance.</p>
+            <div className="mt-4 rounded-xl bg-black/[0.03] p-4">
+              <label className="text-sm font-semibold">Update progress <span className="font-normal text-black/50">Optional</span><div className="mt-2 flex gap-2"><input className="min-w-0 flex-1 rounded-lg border border-black/15 px-3 py-2" inputMode="decimal" type="number" value={progressInput} onChange={(event) => setProgressInput(event.target.value)} placeholder={profile.unitSystem === "metric" ? "Weight in kg" : "Weight in lb"} /><button type="button" className="secondary" onClick={saveProgress}>Save</button></div></label>
+              {progressMessage && <p className="mt-2 text-xs text-black/55">{progressMessage}</p>}
+            </div>
           </div>
         )}
 

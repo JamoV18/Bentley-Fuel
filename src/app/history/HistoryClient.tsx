@@ -21,8 +21,8 @@ const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) =>
 
 const coverageLabel = (value: NutritionPeriodSummary["coverage"]) => ({
   "getting-started": "Getting started",
-  "mostly-tracked": "Mostly tracked",
-  "well-tracked": "Well tracked",
+  "mostly-confirmed": "Mostly confirmed",
+  "well-confirmed": "Well confirmed",
 }[value]);
 
 export default function HistoryClient({
@@ -81,10 +81,10 @@ export default function HistoryClient({
       ) : period ? (
         <>
           <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/45">{range === "week" ? "This week" : "This month"}</p><h2 className="mt-1 text-xl font-bold">{coverageLabel(period.coverage)}</h2></div><p className="text-right text-sm text-black/55">{period.sufficientlyTrackedDays} of {period.trackedDays}<br />tracked days complete</p></div>
-            <p className="mt-3 text-sm leading-relaxed text-black/55">Consistency here describes tracking coverage, not whether you were “good” or “bad.” Days with missing meal information stay incomplete instead of being scored as failures.</p>
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/45">{range === "week" ? "This week" : "This month"}</p><h2 className="mt-1 text-xl font-bold">{coverageLabel(period.coverage)}</h2></div><p className="text-right text-sm text-black/55">{period.daysWithAllSavedMealsConfirmed} of {period.daysWithSavedMeals}<br />days’ saved meals confirmed</p></div>
+            <p className="mt-3 text-sm leading-relaxed text-black/55">This consistency signal only measures whether meals saved in Bentley Fuel received completion check-ins. It does not assume an unlogged meal was skipped or score a day as good or bad.</p>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[{ name: "Avg calories", value: period.averageConsumed.calories, unit: "" }, { name: "Avg protein", value: period.averageConsumed.protein, unit: "g" }, { name: "Avg carbs", value: period.averageConsumed.carbs, unit: "g" }, { name: "Avg fat", value: period.averageConsumed.fat, unit: "g" }].map((item) => <div key={item.name} className="rounded-xl bg-emerald-50 p-3"><p className="text-xl font-bold text-emerald-950">{Math.round(item.value)}{item.unit}</p><p className="text-xs text-emerald-800">{item.name}</p></div>)}
+              {[{ name: "Avg calories", value: period.averageConfirmedConsumption.calories, unit: "" }, { name: "Avg protein", value: period.averageConfirmedConsumption.protein, unit: "g" }, { name: "Avg carbs", value: period.averageConfirmedConsumption.carbs, unit: "g" }, { name: "Avg fat", value: period.averageConfirmedConsumption.fat, unit: "g" }].map((item) => <div key={item.name} className="rounded-xl bg-emerald-50 p-3"><p className="text-xl font-bold text-emerald-950">{Math.round(item.value)}{item.unit}</p><p className="text-xs text-emerald-800">{item.name}</p></div>)}
             </div>
           </section>
           <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">

@@ -13,6 +13,7 @@ import {
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { MealCompletionFraction, MealHistoryEntry, UserProfile } from "@/types";
 
+const PENDING_CHECK_IN_WINDOW_MS = 36 * 60 * 60 * 1000;
 const round = (value: number) => Math.round(value);
 const coverage = (value: number, target: number) => target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
 const formatWeight = (kg: number, units: UserProfile["unitSystem"]) => units === "metric" ? `${Math.round(kg * 10) / 10} kg` : `${Math.round(kg / 0.45359237)} lb`;
@@ -33,7 +34,7 @@ export default function TodayClient({ locationNames, itemNames, isDemo }: { loca
     setProfile(browserProfileRepository().get());
     setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
     setTodayEntries(repository.getByDateRange(start, end));
-    setPending(repository.getPendingCheckIns(4));
+    setPending(repository.getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS)));
   }, []);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
@@ -66,7 +67,7 @@ export default function TodayClient({ locationNames, itemNames, isDemo }: { loca
         {target && <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-white" style={{ width: `${coverage(snapshot.consumed.calories, target.calories)}%` }} /></div>}
       </section>
 
-      {pending.length > 0 && <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Quick check-in</p><h2 className="mt-1 text-xl font-bold">How much did you finish?</h2><p className="mt-2 text-sm text-black/60">One tap keeps today’s nutrition and your next recommendation accurate.</p><div className="mt-4 space-y-4">{pending.map((entry) => <article key={entry.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold">{mealName(entry, itemNames)}</p><p className="mt-1 text-xs text-black/50">{locationNames[entry.locationId] ?? entry.locationId}</p><div className="mt-3 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(entry.id, choice.fraction)}>{choice.label}</button>)}</div></article>)}</div></section>}
+      {pending.length > 0 && <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Quick check-in</p><h2 className="mt-1 text-xl font-bold">How much did you finish?</h2><p className="mt-2 text-sm text-black/60">One tap keeps recent meal history accurate and helps today’s remaining nutrition stay useful.</p><div className="mt-4 space-y-4">{pending.map((entry) => <article key={entry.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold">{mealName(entry, itemNames)}</p><p className="mt-1 text-xs text-black/50">{locationNames[entry.locationId] ?? entry.locationId}</p><div className="mt-3 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(entry.id, choice.fraction)}>{choice.label}</button>)}</div></article>)}</div></section>}
 
       <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
         <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/45">Your plan</p><h2 className="mt-1 text-xl font-bold">{plan?.phase === "maintenance" ? "Maintenance" : "Current goal"}</h2></div><Link href="/profile-summary" className="text-sm font-semibold text-emerald-800 underline">View plan</Link></div>

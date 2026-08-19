@@ -9,9 +9,10 @@ import {
   resolveNutritionPlan,
   summarizeMonth,
   summarizeWeek,
+  type NutritionPeriodSummary,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
-import type { MealHistoryEntry, NutritionPeriodSummary, UserProfile } from "@/types";
+import type { MealHistoryEntry, UserProfile } from "@/types";
 
 type Range = "yesterday" | "week" | "month";
 
@@ -34,24 +35,23 @@ export default function HistoryClient({
   const [profile, setProfile] = useState<UserProfile | null>();
   const [history, setHistory] = useState<MealHistoryEntry[]>([]);
   const [range, setRange] = useState<Range>("week");
+  const [anchor] = useState(() => new Date());
 
   useEffect(() => {
     queueMicrotask(() => {
       setProfile(browserProfileRepository().get());
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, -1);
+      const start = new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1);
+      const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1, 0, 0, 0, -1);
       setHistory(browserMealHistoryRepository().getByDateRange(start, end));
     });
-  }, []);
+  }, [anchor]);
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile) : undefined, [profile]);
   const targets = plan?.activeTargets ?? profile?.dailyTargets;
-  const now = new Date();
-  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const yesterdaySnapshot = useMemo(() => createDailyNutritionSnapshot(history, targets, yesterday), [history, targets]);
-  const week = useMemo(() => summarizeWeek(history, targets, now), [history, targets]);
-  const month = useMemo(() => summarizeMonth(history, targets, now), [history, targets]);
+  const yesterday = useMemo(() => new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - 1), [anchor]);
+  const yesterdaySnapshot = useMemo(() => createDailyNutritionSnapshot(history, targets, yesterday), [history, targets, yesterday]);
+  const week = useMemo(() => summarizeWeek(history, targets, anchor), [history, targets, anchor]);
+  const month = useMemo(() => summarizeMonth(history, targets, anchor), [history, targets, anchor]);
   const period = range === "week" ? week : range === "month" ? month : undefined;
 
   if (profile === undefined) return <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7"><p>Loading history…</p></main>;
@@ -81,7 +81,7 @@ export default function HistoryClient({
       ) : period ? (
         <>
           <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/45">{range === "week" ? "This week" : "This month"}</p><h2 className="mt-1 text-xl font-bold">{coverageLabel(period.coverage)}</h2></div><p className="text-right text-sm text-black/55">{period.sufficientlyTrackedDays} of {period.trackedDays || 0}<br />tracked days complete</p></div>
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/45">{range === "week" ? "This week" : "This month"}</p><h2 className="mt-1 text-xl font-bold">{coverageLabel(period.coverage)}</h2></div><p className="text-right text-sm text-black/55">{period.sufficientlyTrackedDays} of {period.trackedDays}<br />tracked days complete</p></div>
             <p className="mt-3 text-sm leading-relaxed text-black/55">Consistency here describes tracking coverage, not whether you were “good” or “bad.” Days with missing meal information stay incomplete instead of being scored as failures.</p>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[{ name: "Avg calories", value: period.averageConsumed.calories, unit: "" }, { name: "Avg protein", value: period.averageConsumed.protein, unit: "g" }, { name: "Avg carbs", value: period.averageConsumed.carbs, unit: "g" }, { name: "Avg fat", value: period.averageConsumed.fat, unit: "g" }].map((item) => <div key={item.name} className="rounded-xl bg-emerald-50 p-3"><p className="text-xl font-bold text-emerald-950">{Math.round(item.value)}{item.unit}</p><p className="text-xs text-emerald-800">{item.name}</p></div>)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppNav from "@/components/AppNav";
 import {
@@ -36,7 +36,7 @@ export default function TodayClient({
   const [pending, setPending] = useState<MealHistoryEntry[]>([]);
   const [mode, setMode] = useState<"remaining" | "consumed">("remaining");
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     const repository = browserMealHistoryRepository();
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -44,9 +44,9 @@ export default function TodayClient({
     setProfile(browserProfileRepository().get());
     setTodayEntries(repository.getByDateRange(start, end));
     setPending(repository.getPendingCheckIns(4));
-  };
+  }, []);
 
-  useEffect(() => { queueMicrotask(refresh); }, []);
+  useEffect(() => { queueMicrotask(refresh); }, [refresh]);
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile) : undefined, [profile]);
   const snapshot = useMemo(

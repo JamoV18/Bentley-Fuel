@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createLocalProgressRepository } from "./progressRepository.ts";
 import { createLocalProfileRepository, createUserProfile, isValidUserProfile, PROFILE_STORAGE_KEY } from "./profileRepository.ts";
 
 const memory = () => {
@@ -57,6 +58,25 @@ test("resolves a derived baseline at read time without rewriting stored onboardi
   assert.deepEqual(repository.get()?.dailyTargets, { calories: 2000, protein: 75, carbs: 275, fat: 67 });
   const stored = JSON.parse(storage.values.get(PROFILE_STORAGE_KEY) ?? "null");
   assert.equal(stored.dailyTargets, undefined);
+});
+
+test("latest progress can transition read-time targets from goal phase to recalculated maintenance", () => {
+  const storage = memory();
+  const repository = createLocalProfileRepository(storage);
+  const profile = createUserProfile({
+    primaryGoal: "lose-weight",
+    dietaryPreferences: [],
+    allergensToAvoid: [],
+    metrics: { sex: "male", age: 20, heightCm: 178, weightKg: 80, activityLevel: "active" },
+    maintenanceEstimate: { calories: 3220, method: "national-academies-2023-adult-eer" },
+    dailyTargets: { calories: 2700, protein: 150, carbs: 350, fat: 75 },
+    weightGoalPlan: { targetWeightKg: 75, startDate: "2026-08-19T12:00:00.000Z", maintenanceAfterGoal: true },
+  });
+  repository.save(profile);
+  createLocalProgressRepository(storage).upsert({ id: "goal-weight", recordedAt: "2026-10-28T12:00:00.000Z", weightKg: 75 });
+  assert.equal(repository.get()?.dailyTargets?.calories, 3140);
+  const stored = JSON.parse(storage.values.get(PROFILE_STORAGE_KEY) ?? "null");
+  assert.equal(stored.dailyTargets.calories, 2700);
 });
 
 test("legacy stored profiles gain read-time unit and behavioral defaults without rewriting storage", () => {

@@ -1,20 +1,10 @@
 import type { MealBuild, MealCompletionFraction, MealExplicitFeedback, MealHistoryEntry, NutritionFacts } from "@/types";
 
 export const MEAL_HISTORY_STORAGE_KEY = "bentley-fuel.meal-history.v1";
-const MAX_HISTORY_ENTRIES = 50;
 const COMPLETION_VALUES: MealCompletionFraction[] = [0, 0.25, 0.5, 0.8, 1];
 const OPTIONAL_NUTRIENT_KEYS: (keyof NutritionFacts)[] = [
-  "fiber",
-  "sugar",
-  "addedSugar",
-  "saturatedFat",
-  "transFat",
-  "cholesterol",
-  "sodium",
-  "potassium",
-  "calcium",
-  "iron",
-  "vitaminD",
+  "fiber", "sugar", "addedSugar", "saturatedFat", "transFat", "cholesterol",
+  "sodium", "potassium", "calcium", "iron", "vitaminD",
 ];
 
 interface StorageLike {
@@ -25,6 +15,7 @@ interface StorageLike {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+const validIso = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
 
 const validBuild = (value: unknown): value is MealBuild => {
   if (!isRecord(value) || typeof value.locationId !== "string" || !Array.isArray(value.items) || value.items.length === 0) return false;
@@ -53,7 +44,9 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
   return typeof value.id === "string" && value.id.length > 0 &&
     typeof value.locationId === "string" && value.locationId.length > 0 &&
     validBuild(value.build) && value.build.locationId === value.locationId &&
-    typeof value.selectedAt === "string" && !Number.isNaN(Date.parse(value.selectedAt)) &&
+    validIso(value.selectedAt) &&
+    (value.eatenAt === undefined || validIso(value.eatenAt)) &&
+    (value.completionRecordedAt === undefined || validIso(value.completionRecordedAt)) &&
     (value.nutrition === undefined || validNutrition(value.nutrition)) &&
     (completion === undefined || COMPLETION_VALUES.includes(completion as MealCompletionFraction)) &&
     (feedback === undefined || feedback === "like" || feedback === "dislike") &&
@@ -62,10 +55,14 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
 
 export interface MealHistoryRepository {
   getRecent(limit?: number): MealHistoryEntry[];
+  getByDateRange(start: Date, end: Date): MealHistoryEntry[];
+  getPendingCheckIns(limit?: number): MealHistoryEntry[];
   upsert(entry: MealHistoryEntry): void;
   updateFeedback(id: string, completionFraction?: MealCompletionFraction, explicitFeedback?: MealExplicitFeedback): void;
   clear(): void;
 }
+
+const mealTime = (entry: MealHistoryEntry) => new Date(entry.eatenAt ?? entry.selectedAt).getTime();
 
 export function createLocalMealHistoryRepository(storage: StorageLike): MealHistoryRepository {
   const read = (): MealHistoryEntry[] => {
@@ -74,38 +71,57 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
     try {
       const parsed: unknown = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      return parsed.filter(isValidMealHistoryEntry).sort((a, b) => b.selectedAt.localeCompare(a.selectedAt));
+      return parsed.filter(isValidMealHistoryEntry).sort((a, b) => mealTime(b) - mealTime(a));
     } catch {
       return [];
     }
   };
+  // The prototype no longer discards old meals after an arbitrary count. A
+  // production backend can paginate this same repository contract later.
   const write = (entries: readonly MealHistoryEntry[]) =>
-    storage.setItem(MEAL_HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY_ENTRIES)));
+    storage.setItem(MEAL_HISTORY_STORAGE_KEY, JSON.stringify(entries));
 
   return {
     getRecent(limit = 12) {
       return read().slice(0, Math.max(0, Math.floor(limit)));
     },
+    getByDateRange(start, end) {
+      const startMs = start.getTime();
+      const endMs = end.getTime();
+      if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) return [];
+      return read().filter((entry) => {
+        const time = mealTime(entry);
+        return time >= startMs && time <= endMs;
+      });
+    },
+    getPendingCheckIns(limit = 12) {
+      return read().filter((entry) => entry.completionFraction === undefined).slice(0, Math.max(0, Math.floor(limit)));
+    },
     upsert(entry) {
       if (!isValidMealHistoryEntry(entry)) throw new Error("Refusing to store an invalid meal history entry");
-      const existing = read().find((candidate) => candidate.id === entry.id);
+      const current = read();
+      const existing = current.find((candidate) => candidate.id === entry.id);
       const merged: MealHistoryEntry = existing
         ? {
             ...entry,
+            eatenAt: entry.eatenAt ?? existing.eatenAt,
+            completionRecordedAt: entry.completionRecordedAt ?? existing.completionRecordedAt,
             nutrition: entry.nutrition ?? existing.nutrition,
             completionFraction: entry.completionFraction ?? existing.completionFraction,
             explicitFeedback: entry.explicitFeedback ?? existing.explicitFeedback,
           }
         : entry;
-      const next = [merged, ...read().filter((candidate) => candidate.id !== entry.id)]
-        .sort((a, b) => b.selectedAt.localeCompare(a.selectedAt));
+      const next = [merged, ...current.filter((candidate) => candidate.id !== entry.id)]
+        .sort((a, b) => mealTime(b) - mealTime(a));
       write(next);
     },
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");
+      const now = new Date().toISOString();
       const next = read().map((entry) => entry.id === id ? {
         ...entry,
         completionFraction: completionFraction ?? entry.completionFraction,
+        completionRecordedAt: completionFraction !== undefined ? now : entry.completionRecordedAt,
         explicitFeedback: explicitFeedback ?? entry.explicitFeedback,
       } : entry);
       write(next);

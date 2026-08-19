@@ -32,6 +32,19 @@ export interface RankedMealCandidate {
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const roundScore = (value: number) => Math.round(clamp(value, 0, 100) * 10) / 10;
 
+const selectedGoals = (context: RecommendationContext): PrimaryGoal[] => {
+  const goals = context.profile.goals?.length ? context.profile.goals : [context.profile.primaryGoal];
+  return [...new Set(goals)].slice(0, 3);
+};
+
+/** Primary intent remains dominant while secondary goals materially shape ranking. */
+const goalBlend = (context: RecommendationContext): Array<{ goal: PrimaryGoal; weight: number }> => {
+  const goals = selectedGoals(context);
+  if (goals.length === 1) return [{ goal: goals[0], weight: 1 }];
+  const secondaryWeight = 0.4 / (goals.length - 1);
+  return goals.map((goal, index) => ({ goal, weight: index === 0 ? 0.6 : secondaryWeight }));
+};
+
 /**
  * When an individualized daily target exists, Bentley Fuel plans around three
  * primary meals: breakfast 30%, lunch 35%, dinner 35%. This is a product
@@ -98,8 +111,13 @@ const goalOnlyMealPeriodMultiplier = (context: RecommendationContext): number =>
   }
 };
 
-export const deriveGoalOnlyMealCalorieReference = (context: RecommendationContext): number =>
-  GOAL_ONLY_MEAL_CALORIE_REFERENCE[context.profile.primaryGoal] * goalOnlyMealPeriodMultiplier(context);
+export const deriveGoalOnlyMealCalorieReference = (context: RecommendationContext): number => {
+  const blendedReference = goalBlend(context).reduce(
+    (sum, { goal, weight }) => sum + GOAL_ONLY_MEAL_CALORIE_REFERENCE[goal] * weight,
+    0,
+  );
+  return blendedReference * goalOnlyMealPeriodMultiplier(context);
+};
 
 const macroWeights = (goal: PrimaryGoal): Macros => {
   switch (goal) {
@@ -118,6 +136,17 @@ const macroWeights = (goal: PrimaryGoal): Macros => {
   }
 };
 
+const blendedMacroWeights = (context: RecommendationContext): Macros =>
+  goalBlend(context).reduce<Macros>((sum, { goal, weight }) => {
+    const next = macroWeights(goal);
+    return {
+      calories: sum.calories + next.calories * weight,
+      protein: sum.protein + next.protein * weight,
+      carbs: sum.carbs + next.carbs * weight,
+      fat: sum.fat + next.fat * weight,
+    };
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
 const closeness = (actual: number, target: number): number => {
   if (target <= 0) return actual <= 0 ? 1 : 0;
   const relativeError = Math.abs(actual - target) / target;
@@ -134,10 +163,17 @@ export function scoreMacroTargetFit(actual: Macros, target: Macros, goal: Primar
   return roundScore(weighted * 100);
 }
 
+function blendedTargetFit(actual: Macros, target: Macros, context: RecommendationContext): number {
+  return roundScore(goalBlend(context).reduce(
+    (sum, { goal, weight }) => sum + scoreMacroTargetFit(actual, target, goal) * weight,
+    0,
+  ));
+}
+
 function remainingBudgetPenalty(nutrition: Macros, context: RecommendationContext): number {
   const remaining = context.remainingMacros;
   if (!remaining) return 0;
-  const weights = macroWeights(context.profile.primaryGoal);
+  const weights = blendedMacroWeights(context);
   const excess = (actual: number, budget: number) => {
     if (budget <= 0) return actual > 0 ? 1 : 0;
     return clamp((actual - budget) / budget);
@@ -240,6 +276,17 @@ function relativeGoalAlignment(
   return roundScore(score * 100);
 }
 
+function blendedGoalAlignment(
+  meal: ComputedMealBuild,
+  pool: readonly ComputedMealBuild[],
+  context: RecommendationContext,
+): number {
+  return roundScore(goalBlend(context).reduce(
+    (sum, { goal, weight }) => sum + relativeGoalAlignment(meal, pool, goal) * weight,
+    0,
+  ));
+}
+
 const MAX_ALTERNATIVE_SCORE_DROP = 20;
 
 /**
@@ -303,11 +350,11 @@ export function scoreResolvedMeals(
 
   const sorted = valid
     .map(({ candidate, computed }): RankedMealCandidate => {
-      const goalAlignment = relativeGoalAlignment(computed, pool, context.profile.primaryGoal);
+      const goalAlignment = blendedGoalAlignment(computed, pool, context);
       const penalty = remainingBudgetPenalty(computed.nutrition!, context);
       const compositionPenalty = mealCompositionPenalty(computed);
       const targetFit = target
-        ? scoreMacroTargetFit(computed.nutrition!, target, context.profile.primaryGoal)
+        ? blendedTargetFit(computed.nutrition!, target, context)
         : undefined;
       const energyReferenceFit = goalOnlyReference === undefined
         ? undefined
@@ -320,9 +367,6 @@ export function scoreResolvedMeals(
         ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 - penalty - compositionPenalty - energyOvershootPenalty
         : targetFit * 0.80 + goalAlignment * 0.20 - penalty - compositionPenalty);
       const behavior = scoreMealHistory(candidate, context.recentHistory ?? []);
-      // Behavior is intentionally a modest additive correction. It can break ties,
-      // avoid stale repetition, and learn taste, but cannot make a poor nutritional
-      // option look excellent simply because the student ate it before.
       const total = roundScore(nutritionTotal + behavior.totalAdjustment);
       return {
         candidate,

@@ -43,7 +43,7 @@ test("goal-only energy reference blends primary and secondary goals", () => {
   assert.equal(deriveGoalOnlyMealCalorieReference(context()), 670);
 });
 
-test("maintenance override ignores an obsolete loss direction but keeps compatible secondary goals", () => {
+test("maintenance recommendation context ignores the completed loss direction but keeps compatible secondary goals", () => {
   const transitioned = profile({
     primaryGoal: "maintain-weight",
     goals: ["lose-weight", "athletic-performance"],

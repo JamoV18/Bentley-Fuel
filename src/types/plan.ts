@@ -24,6 +24,13 @@ export interface WeightGoalPlan {
   maintenanceAfterGoal: true;
 }
 
+/** Optional longitudinal progress observation; canonical storage stays metric. */
+export interface WeightObservation {
+  id: string;
+  recordedAt: string;
+  weightKg: number;
+}
+
 export type NutritionPlanPhase = "goal" | "maintenance";
 
 /** Canonical, read-only plan state for Today, History, widgets, and recommendations. */

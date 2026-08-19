@@ -14,3 +14,4 @@ export * from "./dailyNutrition";
 export * from "./dailyTargets";
 export * from "./nutritionPlan";
 export * from "./nutritionAnalytics";
+export * from "./widgetNutrition";

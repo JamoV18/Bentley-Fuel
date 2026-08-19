@@ -24,10 +24,10 @@ test("daily snapshot exposes consumed and remaining nutrition from confirmed mea
   assert.equal(snapshot.remaining?.calories, 2000);
   assert.equal(snapshot.confirmedMeals, 1);
   assert.equal(snapshot.pendingMeals, 0);
-  assert.equal(snapshot.sufficientlyTracked, true);
+  assert.equal(snapshot.allSavedMealsConfirmed, true);
 });
 
-test("pending meals make a day incomplete without treating it as failure", () => {
+test("pending meals mark saved-meal check-ins incomplete without judging the day", () => {
   const day = new Date(2026, 7, 19, 12);
   const snapshot = createDailyNutritionSnapshot([
     meal("lunch", "2026-08-19T16:00:00.000Z", 1),
@@ -35,16 +35,16 @@ test("pending meals make a day incomplete without treating it as failure", () =>
   ], targets, day);
   assert.equal(snapshot.confirmedMeals, 1);
   assert.equal(snapshot.pendingMeals, 1);
-  assert.equal(snapshot.sufficientlyTracked, false);
+  assert.equal(snapshot.allSavedMealsConfirmed, false);
 });
 
-test("weekly summary averages only days with confirmed consumption", () => {
+test("weekly summary averages confirmed consumption and reports check-in coverage", () => {
   const summary = summarizeWeek([
     meal("mon", "2026-08-17T16:00:00.000Z", 1),
     meal("tue", "2026-08-18T16:00:00.000Z", 0.5),
   ], targets, new Date(2026, 7, 19, 12));
-  assert.equal(summary.trackedDays, 2);
-  assert.equal(summary.sufficientlyTrackedDays, 2);
-  assert.equal(summary.coverage, "well-tracked");
-  assert.equal(summary.averageConsumed.calories, 600);
+  assert.equal(summary.daysWithSavedMeals, 2);
+  assert.equal(summary.daysWithAllSavedMealsConfirmed, 2);
+  assert.equal(summary.coverage, "well-confirmed");
+  assert.equal(summary.averageConfirmedConsumption.calories, 600);
 });

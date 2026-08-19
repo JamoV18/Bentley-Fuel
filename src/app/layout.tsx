@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Bentley Fuel",
   description:
-    "Personalized dining for Bentley students — what to eat based on your goals, restrictions, remaining macros, and location.",
+    "Personalized Bentley dining and nutrition tracking — recommend what to eat, track what you actually consume, and adapt what comes next.",
 };
 
 // Mobile-first: lock the viewport for an app-like feel.

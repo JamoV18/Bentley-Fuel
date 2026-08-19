@@ -14,7 +14,7 @@ import type { MacroTargets, UserProfile } from "@/types";
  *
  * We deliberately do NOT invent a calorie deficit or surplus. Weight-loss,
  * weight-gain, and muscle-gain energy adjustments depend on desired rate and
- * individual response; those can be layered on later with explicit user input.
+ * individual response; those belong in the explicit plan layer.
  */
 
 const PROTEIN_KCAL_PER_GRAM = 4;
@@ -35,21 +35,15 @@ export interface DailyTargetPlan {
   source: "explicit-profile-targets" | "derived-maintenance-baseline";
   energyBasis: "explicit" | "national-academies-2023-adult-eer-maintenance";
   proteinBasis: "explicit" | "national-academies-planning-pattern" | "resistance-training-1.6-g-per-kg";
-  /** True until a future explicit deficit/surplus target is supplied. */
   usesMaintenanceEnergy: boolean;
 }
 
-export function deriveDailyTargetPlan(profile: UserProfile): DailyTargetPlan | undefined {
-  if (profile.dailyTargets) {
-    return {
-      targets: profile.dailyTargets,
-      source: "explicit-profile-targets",
-      energyBasis: "explicit",
-      proteinBasis: "explicit",
-      usesMaintenanceEnergy: false,
-    };
-  }
-
+/**
+ * Computes the evidence-based maintenance baseline even when an explicit active
+ * target exists. This is the target the plan layer can return to after a finite
+ * weight goal is reached.
+ */
+export function deriveMaintenanceTargetPlan(profile: UserProfile): DailyTargetPlan | undefined {
   const calories = profile.maintenanceEstimate?.calories;
   const weightKg = profile.metrics?.weightKg;
   if (!calories || !Number.isFinite(calories) || calories <= 0 || !weightKg || !Number.isFinite(weightKg) || weightKg <= 0) {
@@ -61,16 +55,12 @@ export function deriveDailyTargetPlan(profile: UserProfile): DailyTargetPlan | u
     ? Math.max(baselineProteinGrams, weightKg * BUILD_MUSCLE_PROTEIN_G_PER_KG)
     : baselineProteinGrams;
 
-  // Keep the complete macro plan within the adult AMDR. In the unusual case
-  // that 1.6 g/kg would exceed 35% of maintenance calories, the AMDR ceiling wins.
   const proteinCalories = Math.min(
     requestedProteinGrams * PROTEIN_KCAL_PER_GRAM,
     calories * MAX_PROTEIN_SHARE,
   );
   const proteinShare = proteinCalories / calories;
 
-  // Prefer the 30% fat planning pattern. If higher protein would squeeze carbs
-  // below their 45% AMDR floor, reduce fat no lower than its 20% AMDR floor.
   const fatShare = Math.max(
     MIN_FAT_SHARE,
     Math.min(BASELINE_FAT_SHARE, 1 - MIN_CARB_SHARE - proteinShare),
@@ -92,6 +82,19 @@ export function deriveDailyTargetPlan(profile: UserProfile): DailyTargetPlan | u
       : "national-academies-planning-pattern",
     usesMaintenanceEnergy: true,
   };
+}
+
+export function deriveDailyTargetPlan(profile: UserProfile): DailyTargetPlan | undefined {
+  if (profile.dailyTargets) {
+    return {
+      targets: profile.dailyTargets,
+      source: "explicit-profile-targets",
+      energyBasis: "explicit",
+      proteinBasis: "explicit",
+      usesMaintenanceEnergy: false,
+    };
+  }
+  return deriveMaintenanceTargetPlan(profile);
 }
 
 export const resolveDailyTargets = (profile: UserProfile): MacroTargets | undefined =>

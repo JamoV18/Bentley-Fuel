@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppNav from "@/components/AppNav";
-import { browserProgressRepository, resolveNutritionPlan } from "@/services";
+import { browserMealHistoryRepository, browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile } from "@/types";
 
@@ -42,6 +42,13 @@ export default function ProfileSummary() {
     setLatestWeightKg(weightKg);
     setProgressInput("");
     setProgressMessage("Progress updated.");
+  };
+
+  const clearAllLocalData = () => {
+    browserMealHistoryRepository().clear();
+    browserProgressRepository().clear();
+    browserProfileRepository().clear();
+    router.push("/onboarding");
   };
 
   return (
@@ -107,7 +114,7 @@ export default function ProfileSummary() {
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link href="/today" className="primary text-center">View today</Link>
         <Link href="/onboarding" className="secondary text-center">Edit profile</Link>
-        <button className="secondary" onClick={() => { browserProfileRepository().clear(); router.push("/onboarding"); }}>Reset onboarding / profile</button>
+        <button className="secondary" onClick={clearAllLocalData}>Clear all local data</button>
       </div>
     </main>
   );

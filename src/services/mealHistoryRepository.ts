@@ -56,7 +56,8 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
 export interface MealHistoryRepository {
   getRecent(limit?: number): MealHistoryEntry[];
   getByDateRange(start: Date, end: Date): MealHistoryEntry[];
-  getPendingCheckIns(limit?: number): MealHistoryEntry[];
+  /** Pending meals, optionally bounded to meals on/after `since`. */
+  getPendingCheckIns(limit?: number, since?: Date): MealHistoryEntry[];
   upsert(entry: MealHistoryEntry): void;
   updateFeedback(id: string, completionFraction?: MealCompletionFraction, explicitFeedback?: MealExplicitFeedback): void;
   clear(): void;
@@ -94,8 +95,11 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
         return time >= startMs && time <= endMs;
       });
     },
-    getPendingCheckIns(limit = 12) {
-      return read().filter((entry) => entry.completionFraction === undefined).slice(0, Math.max(0, Math.floor(limit)));
+    getPendingCheckIns(limit = 12, since) {
+      const sinceMs = since?.getTime();
+      return read()
+        .filter((entry) => entry.completionFraction === undefined && (sinceMs === undefined || (Number.isFinite(sinceMs) && mealTime(entry) >= sinceMs)))
+        .slice(0, Math.max(0, Math.floor(limit)));
     },
     upsert(entry) {
       if (!isValidMealHistoryEntry(entry)) throw new Error("Refusing to store an invalid meal history entry");

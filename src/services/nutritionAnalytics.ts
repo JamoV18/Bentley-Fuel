@@ -9,20 +9,21 @@ export interface DailyNutritionSnapshot {
   confirmedMeals: number;
   pendingMeals: number;
   meals: MealHistoryEntry[];
-  /** Neutral tracking-quality signal; incomplete data is never treated as a failed day. */
-  sufficientlyTracked: boolean;
+  /** True only means every Bentley Fuel meal saved that day has a completion response. */
+  allSavedMealsConfirmed: boolean;
 }
 
-export type TrackingCoverageLabel = "getting-started" | "mostly-tracked" | "well-tracked";
+export type TrackingCoverageLabel = "getting-started" | "mostly-confirmed" | "well-confirmed";
 
 export interface NutritionPeriodSummary {
   startDate: string;
   endDate: string;
   days: DailyNutritionSnapshot[];
-  trackedDays: number;
-  sufficientlyTrackedDays: number;
+  daysWithSavedMeals: number;
+  daysWithAllSavedMealsConfirmed: number;
   coverage: TrackingCoverageLabel;
-  averageConsumed: NutritionFacts;
+  /** Average of confirmed consumption on days with at least one confirmed meal. */
+  averageConfirmedConsumption: NutritionFacts;
 }
 
 const dayKey = (day: Date) => {
@@ -70,14 +71,14 @@ export function createDailyNutritionSnapshot(
     confirmedMeals: summary.confirmedMeals,
     pendingMeals: summary.unconfirmedMeals,
     meals,
-    sufficientlyTracked: summary.confirmedMeals > 0 && summary.unconfirmedMeals === 0,
+    allSavedMealsConfirmed: meals.length > 0 && summary.unconfirmedMeals === 0,
   };
 }
 
-const coverageLabel = (tracked: number, sufficient: number): TrackingCoverageLabel => {
-  if (tracked === 0 || sufficient / tracked < 0.5) return "getting-started";
-  if (sufficient / tracked < 0.8) return "mostly-tracked";
-  return "well-tracked";
+const coverageLabel = (savedDays: number, allConfirmedDays: number): TrackingCoverageLabel => {
+  if (savedDays === 0 || allConfirmedDays / savedDays < 0.5) return "getting-started";
+  if (allConfirmedDays / savedDays < 0.8) return "mostly-confirmed";
+  return "well-confirmed";
 };
 
 export function summarizeNutritionRange(
@@ -92,16 +93,16 @@ export function summarizeNutritionRange(
   for (let cursor = first; cursor <= last; cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1)) {
     days.push(createDailyNutritionSnapshot(history, targets, cursor));
   }
-  const trackedDays = days.filter((day) => day.confirmedMeals > 0 || day.pendingMeals > 0).length;
-  const sufficientlyTrackedDays = days.filter((day) => day.sufficientlyTracked).length;
+  const daysWithSavedMeals = days.filter((day) => day.meals.length > 0).length;
+  const daysWithAllSavedMealsConfirmed = days.filter((day) => day.allSavedMealsConfirmed).length;
   return {
     startDate: dayKey(first),
     endDate: dayKey(last),
     days,
-    trackedDays,
-    sufficientlyTrackedDays,
-    coverage: coverageLabel(trackedDays, sufficientlyTrackedDays),
-    averageConsumed: averageNutrition(days),
+    daysWithSavedMeals,
+    daysWithAllSavedMealsConfirmed,
+    coverage: coverageLabel(daysWithSavedMeals, daysWithAllSavedMealsConfirmed),
+    averageConfirmedConsumption: averageNutrition(days),
   };
 }
 

@@ -7,6 +7,7 @@ import type {
   MealCandidateGenerationOptions,
   MealItemSelection,
   MenuItem,
+  MenuItemMealRole,
   RecommendationContext,
   Station,
 } from "@/types";
@@ -48,7 +49,7 @@ const normalizeSelections = (
 
 /**
  * Produce a small deterministic set of valid seeds for a customizable item.
- * This is intentionally bounded: Phase 7C scores the variants; it does not
+ * This is intentionally bounded: scoring ranks the variants; it does not
  * brute-force every possible bowl/burrito combination.
  */
 function customSelectionVariants(
@@ -170,6 +171,51 @@ const cartesian = <T>(groups: readonly T[][], cap: number): T[][] => {
 
 const stationDiversity = (items: readonly MenuItem[]) => new Set(items.map((item) => item.stationId)).size;
 
+/**
+ * Prefer explicit role metadata. Mock/legacy records predate it, so use a
+ * conservative fallback that recognizes common drinks/snacks and otherwise
+ * treats a customizable or entree-sized item as the meal's main.
+ */
+export function inferMenuItemMealRole(item: MenuItem): MenuItemMealRole {
+  if (item.mealRole) return item.mealRole;
+  const name = item.name.toLowerCase();
+  if (/\b(water|coffee|tea|juice|milk|smoothie|shake|latte|drink|beverage)\b/.test(name)) return "drink";
+  if (/\b(cookie|brownie|cake|ice cream|dessert)\b/.test(name)) return "dessert";
+  if (/\b(muffin|protein bar|granola bar|trail mix|chips|banana|apple|orange|yogurt)\b/.test(name)) return "snack";
+  if (item.kind === "customizable") return "main";
+  const calories = item.nutrition?.calories ?? item.baseNutrition?.calories ?? 0;
+  if (calories >= 350) return "main";
+  return "side";
+}
+
+const roleCounts = (items: readonly MenuItem[]) => {
+  const counts: Record<MenuItemMealRole, number> = { main: 0, side: 0, snack: 0, drink: 0, dessert: 0 };
+  for (const item of items) counts[inferMenuItemMealRole(item)] += 1;
+  return counts;
+};
+
+/**
+ * A recommendation may contain one main plus complementary foods, or a small
+ * no-main snack/market combination. It may not stack multiple full mains,
+ * multiple drinks, or multiple desserts merely to increase macros/calories.
+ */
+const isPlausibleMealComposition = (items: readonly MenuItem[]): boolean => {
+  const counts = roleCounts(items);
+  if (counts.main > 1 || counts.drink > 1 || counts.dessert > 1) return false;
+  if (counts.main === 1 && counts.snack + counts.dessert > 1) return false;
+  return true;
+};
+
+const roleBalancePriority = (items: readonly MenuItem[]): number => {
+  const counts = roleCounts(items);
+  if (counts.main === 1) {
+    return 100 + counts.side * 12 + counts.drink * 5 + counts.snack * 3 - counts.dessert * 2;
+  }
+  // No-main combinations are useful for markets/snack occasions but should not
+  // crowd complete main-based meals out of a bounded candidate pool.
+  return counts.side * 8 + counts.snack * 5 + counts.drink * 4 - counts.dessert * 2;
+};
+
 export function generateMealCandidatesFromResources(
   items: readonly MenuItem[],
   stations: readonly Station[],
@@ -194,10 +240,12 @@ export function generateMealCandidatesFromResources(
 
   const candidateItemSets: MenuItem[][] = [];
   for (let size = 1; size <= Math.min(maxItems, configurable.length); size += 1) {
-    candidateItemSets.push(...combinations(configurable, size));
+    candidateItemSets.push(...combinations(configurable, size).filter(isPlausibleMealComposition));
   }
 
   candidateItemSets.sort((a, b) => {
+    const roleBalance = roleBalancePriority(b) - roleBalancePriority(a);
+    if (roleBalance !== 0) return roleBalance;
     const diversity = stationDiversity(b) - stationDiversity(a);
     if (diversity !== 0) return diversity;
     if (a.length !== b.length) return a.length - b.length;

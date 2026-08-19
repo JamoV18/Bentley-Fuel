@@ -33,7 +33,6 @@ export type PrimaryGoal =
 
 /** Daily macro budget the student is trying to hit. */
 export type MacroTargets = Macros;
-export type DailyTargetsSource = "explicit" | "derived-maintenance";
 
 /**
  * Optional body metrics used to estimate adult maintenance energy during
@@ -85,8 +84,6 @@ export interface UserProfile {
 
   /** Personalized targets when explicitly supplied or resolved from the plan layer. */
   dailyTargets?: MacroTargets;
-  /** Read-time provenance prevents a derived maintenance baseline from masquerading as an explicit goal plan. */
-  dailyTargetsSource?: DailyTargetsSource;
 
   /** Where the student usually eats; used to default location screens. */
   homeLocationId?: LocationId;

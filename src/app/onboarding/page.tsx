@@ -65,6 +65,7 @@ export default function OnboardingPage() {
     const height = profile.metrics?.heightCm ? centimetersToFeetAndInches(profile.metrics.heightCm) : undefined;
     const unitSystem = profile.unitSystem ?? "us";
     const targetWeightKg = profile.weightGoalPlan?.targetWeightKg;
+    const currentWeightKg = browserProgressRepository().getRecent(1)[0]?.weightKg ?? profile.metrics?.weightKg;
     const populated: Form = {
       goal: profile.primaryGoal,
       goalDescription: profile.goalDescription ?? "",
@@ -75,9 +76,9 @@ export default function OnboardingPage() {
       age: profile.metrics?.age?.toString() ?? "",
       feet: height?.feet.toString() ?? "",
       inches: height?.inches.toString() ?? "",
-      pounds: profile.metrics?.weightKg ? Math.round(kilogramsToPounds(profile.metrics.weightKg)).toString() : "",
+      pounds: currentWeightKg ? Math.round(kilogramsToPounds(currentWeightKg)).toString() : "",
       centimeters: profile.metrics?.heightCm ? Math.round(profile.metrics.heightCm).toString() : "",
-      kilograms: profile.metrics?.weightKg ? (Math.round(profile.metrics.weightKg * 10) / 10).toString() : "",
+      kilograms: currentWeightKg ? (Math.round(currentWeightKg * 10) / 10).toString() : "",
       targetWeight: targetWeightKg ? (unitSystem === "metric" ? (Math.round(targetWeightKg * 10) / 10).toString() : Math.round(kilogramsToPounds(targetWeightKg)).toString()) : "",
       sex: profile.metrics?.sex ?? "",
       activity: profile.metrics?.activityLevel ?? "",
@@ -131,7 +132,11 @@ export default function OnboardingPage() {
       if (!Number.isFinite(entered) || entered <= 0) return setError("Enter a valid target weight or leave it blank.");
       targetWeightKg = form.unitSystem === "metric" ? entered : entered * 0.45359237;
       if (targetWeightKg < 25 || targetWeightKg > 400) return setError("Target weight is outside the supported range.");
+      const currentWeightKg = currentBody.value?.weightKg;
+      if (currentWeightKg !== undefined && form.goal === "lose-weight" && targetWeightKg >= currentWeightKg) return setError("For a weight-loss plan, choose a target below your current weight.");
+      if (currentWeightKg !== undefined && (form.goal === "gain-weight" || form.goal === "build-muscle") && targetWeightKg <= currentWeightKg) return setError("For a weight-gain plan, choose a target above your current weight.");
     }
+    const sameExistingPlan = targetWeightKg !== undefined && existing?.primaryGoal === form.goal && existing.weightGoalPlan && Math.abs(existing.weightGoalPlan.targetWeightKg - targetWeightKg) <= 0.01;
     const profile = createUserProfile({
       primaryGoal: form.goal,
       goalDescription: form.goalDescription || undefined,
@@ -143,15 +148,15 @@ export default function OnboardingPage() {
       maintenanceEstimate: currentEstimate ? { calories: currentEstimate, method: "national-academies-2023-adult-eer" } : undefined,
       weightGoalPlan: targetWeightKg ? {
         targetWeightKg,
-        startDate: existing?.weightGoalPlan?.startDate ?? new Date().toISOString(),
+        startDate: sameExistingPlan ? existing!.weightGoalPlan!.startDate : new Date().toISOString(),
         maintenanceAfterGoal: true,
-        plannedWeeklyWeightChangeKg: existing?.weightGoalPlan?.plannedWeeklyWeightChangeKg,
+        plannedWeeklyWeightChangeKg: sameExistingPlan ? existing!.weightGoalPlan!.plannedWeeklyWeightChangeKg : undefined,
       } : undefined,
     }, existing);
     browserProfileRepository().save(profile);
-    const previousWeightKg = existing?.metrics?.weightKg;
+    const latestRecordedWeightKg = browserProgressRepository().getRecent(1)[0]?.weightKg ?? existing?.metrics?.weightKg;
     const currentWeightKg = currentBody.value?.weightKg;
-    if (currentWeightKg !== undefined && (previousWeightKg === undefined || Math.abs(currentWeightKg - previousWeightKg) > 0.01)) {
+    if (currentWeightKg !== undefined && (latestRecordedWeightKg === undefined || Math.abs(currentWeightKg - latestRecordedWeightKg) > 0.01)) {
       browserProgressRepository().upsert({ id: crypto.randomUUID(), recordedAt: new Date().toISOString(), weightKg: currentWeightKg });
     }
     router.push("/dashboard");

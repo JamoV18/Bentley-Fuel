@@ -16,10 +16,10 @@ const profile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
   ...overrides,
 });
 
-const context = (): RecommendationContext => ({
+const context = (profileOverride?: UserProfile): RecommendationContext => ({
   locationId: "loc-921",
   mealPeriod: "lunch",
-  profile: profile(),
+  profile: profileOverride ?? profile(),
 });
 
 const candidate = (id: string): MealCandidate => ({
@@ -41,6 +41,14 @@ const computed = (id: string, nutrition: Macros): ComputedMealBuild => ({
 
 test("goal-only energy reference blends primary and secondary goals", () => {
   assert.equal(deriveGoalOnlyMealCalorieReference(context()), 670);
+});
+
+test("maintenance override ignores an obsolete loss direction but keeps compatible secondary goals", () => {
+  const transitioned = profile({
+    primaryGoal: "maintain-weight",
+    goals: ["lose-weight", "athletic-performance"],
+  });
+  assert.equal(deriveGoalOnlyMealCalorieReference(context(transitioned)), 670);
 });
 
 test("secondary athletic-performance goal materially influences ranking", () => {

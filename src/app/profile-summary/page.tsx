@@ -30,6 +30,7 @@ export default function ProfileSummary() {
   if (profile === undefined) return <main className="summary"><p>Loading your profile…</p></main>;
   if (!profile) return <main className="summary"><h1 className="text-3xl font-bold">No profile yet</h1><p className="mt-2 text-black/60">Complete onboarding to create one.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
 
+  const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const targets = plan?.activeTargets ?? profile.dailyTargets;
   const maintenanceCalories = plan?.maintenanceTargets?.calories ?? profile.maintenanceEstimate?.calories;
 
@@ -59,7 +60,10 @@ export default function ProfileSummary() {
       <AppNav />
 
       <section className="mt-7 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+        <Row name="Goals" value={goals.map(words).join(", ")} />
         <Row name="Primary goal" value={words(profile.primaryGoal)} />
+        {plan?.weightLossIntensity && <Row name="Weight-loss intensity" value={`${words(plan.weightLossIntensity)}${plan.weightLossIntensity === "extreme" ? " — not recommended" : ""}`} />}
+        {plan?.weightLossIntensity === "extreme" && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold leading-relaxed text-red-800">Extreme is not recommended. Aggressive weight loss can be inappropriate for some people; consider qualified medical or dietitian guidance.</p>}
         <Row name="Units" value={profile.unitSystem === "metric" ? "Metric (kg / cm)" : "US (lb / ft-in)"} />
         {profile.behavioralGoals?.length ? <Row name="Also helping with" value={profile.behavioralGoals.map(words).join(", ")} /> : null}
         {profile.goalDescription && <Row name="What you told us" value={profile.goalDescription} />}
@@ -93,6 +97,7 @@ export default function ProfileSummary() {
           <>
             <h2 className="mt-6 border-t border-black/10 pt-5 font-semibold">Current daily nutrition targets</h2>
             <p className="mt-1 text-sm leading-relaxed text-black/60">These same targets power the Today screen, consumed-versus-remaining tracking, and later meal recommendations.</p>
+            {plan?.weightLossIntensity && <p className="mt-2 text-sm leading-relaxed text-black/60">The calorie target reflects your selected {words(plan.weightLossIntensity).toLowerCase()} weight-loss intensity relative to estimated maintenance; it is not a guaranteed rate of weight change.</p>}
             <div className="mt-3 grid grid-cols-2 gap-3">
               {Object.entries(targets).map(([key, value]) => (
                 <div className="rounded-xl bg-emerald-50 p-3" key={key}>

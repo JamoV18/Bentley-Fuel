@@ -1,4 +1,4 @@
-import type { MacroTargets } from "./user";
+import type { Macros } from "./nutrition";
 
 export type UnitSystem = "us" | "metric";
 
@@ -35,7 +35,7 @@ export interface NutritionPlanSnapshot {
   plannedWeeklyWeightChangeKg?: number;
   projectedGoalDate?: string;
   goalReached: boolean;
-  activeTargets?: MacroTargets;
-  maintenanceTargets?: MacroTargets;
+  activeTargets?: Macros;
+  maintenanceTargets?: Macros;
   maintenanceAfterGoal: boolean;
 }

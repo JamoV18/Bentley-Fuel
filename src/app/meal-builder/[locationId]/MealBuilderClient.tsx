@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { getMealOrderReference } from "@/lib/mealOrderReference";
@@ -64,6 +65,7 @@ export default function MealBuilderClient({
   resources: MealBuildResources;
   isDemo: boolean;
 }) {
+  const router = useRouter();
   const [mealPeriod] = useState(() => currentMealPeriodForHour(new Date().getHours()));
   const [build, setBuild] = useState(fallbackBuild);
   const [selected, setSelected] = useState(false);
@@ -99,6 +101,11 @@ export default function MealBuilderClient({
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, -1);
     const todayEntries = historyRepository.getByDateRange(start, end);
+    const excludedTodayMenuItemIds = [...new Set(
+      todayEntries
+        .filter((entry) => entry.completionFraction !== 0)
+        .flatMap((entry) => entry.build.items.map((item) => item.menuItemId)),
+    )];
     const latestWeightKg = browserProgressRepository().getRecent(1)[0]?.weightKg ?? profile.metrics?.weightKg;
     const plan = resolveNutritionPlan(profile, now, latestWeightKg);
     const activeTargets = plan.activeTargets ?? profile.dailyTargets;
@@ -108,20 +115,44 @@ export default function MealBuilderClient({
       primaryGoal: plan.phase === "maintenance" ? "maintain-weight" as const : profile.primaryGoal,
       dailyTargets: activeTargets,
     };
-    const context: RecommendationContext = {
+    const baseContext: RecommendationContext = {
       profile: recommendationProfile,
       locationId: fallbackBuild.locationId,
       mealPeriod,
       remainingMacros: dailySnapshot.remaining,
       recentHistory,
     };
-    const candidates = generateMealCandidatesFromResources(
+    let context: RecommendationContext = {
+      ...baseContext,
+      excludeMenuItemIds: excludedTodayMenuItemIds,
+    };
+    const generationOptions = {
+      maxItemsPerMeal: 3,
+      maxCandidates: 60,
+      maxCustomVariantsPerItem: 10,
+      requireMain: true,
+    };
+    let candidates = generateMealCandidatesFromResources(
       resources.menuItems,
       resources.stations,
       resources.components,
       context,
-      { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 10 },
+      generationOptions,
     );
+
+    // Prefer fresh same-day foods. If a location genuinely has no unused complete
+    // meal left, fall back to the normal history penalty instead of dead-ending.
+    if (candidates.length === 0 && excludedTodayMenuItemIds.length > 0) {
+      context = baseContext;
+      candidates = generateMealCandidatesFromResources(
+        resources.menuItems,
+        resources.stations,
+        resources.components,
+        context,
+        generationOptions,
+      );
+    }
+
     const ranked = scoreResolvedMeals(
       candidates.map((candidate) => ({ candidate, computed: computeMealBuild(candidate.build, resources) })),
       context,
@@ -182,6 +213,7 @@ export default function MealBuilderClient({
       nutrition: computed.nutrition,
       source: recommendationState === "ready" ? "recommended" : "self-built",
     });
+    router.push("/today");
   };
 
   const saveCompletion = (fraction: MealCompletionFraction) => {
@@ -255,9 +287,9 @@ export default function MealBuilderClient({
         <p className={`text-sm font-bold uppercase tracking-wide ${personalized ? "text-emerald-800" : "text-amber-800"}`}>{personalized ? "Personalized recommendation" : "Complete meal"}</p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">{personalized ? "Your meal, ready in one tap" : "A complete meal, ready in one tap"}</h1>
         {recommendationState === "loading" && <p className="mt-3 text-black/60">Building a recommendation from your profile and this location...</p>}
-        {personalized && <p className="mt-3 text-black/60">Built from your goal, dietary constraints, recent meal patterns, and the current eating window. Accept it as-is or correct anything you do not want.</p>}
+        {personalized && <p className="mt-3 text-black/60">Built from your goals, dietary constraints, recent meal patterns, and the current eating window. Accept it as-is or correct anything you do not want.</p>}
         {recommendationState === "missing-profile" && <p className="mt-3 text-black/60">Complete your profile to turn this example into a personalized recommendation. <Link className="font-semibold text-emerald-800 underline" href="/onboarding">Set up profile</Link></p>}
-        {recommendationState === "no-candidates" && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">No eligible recommendation is available for the current eating window with the menu data we have. You can still build your own meal.</p>}
+        {recommendationState === "no-candidates" && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">No eligible complete-meal recommendation is available for the current eating window with the menu data we have. You can still build your own meal.</p>}
         <Link href={`/meal-builder/${build.locationId}?mode=manual`} className="mt-4 inline-flex text-sm font-semibold text-emerald-800 underline">Already know what you want? Build your own meal</Link>
       </header>
       {isDemo && <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">Demo dining data — not current official Bentley Dining information.</p>}

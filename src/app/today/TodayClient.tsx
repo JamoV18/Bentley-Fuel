@@ -18,6 +18,7 @@ const round = (value: number) => Math.round(value);
 const coverage = (value: number, target: number) => target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
 const formatWeight = (kg: number, units: UserProfile["unitSystem"]) => units === "metric" ? `${Math.round(kg * 10) / 10} kg` : `${Math.round(kg / 0.45359237)} lb`;
 const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => itemNames[item.menuItemId] ?? "Meal item").join(" + ");
+const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 
 export default function TodayClient({ locationNames, itemNames, isDemo }: { locationNames: Record<string, string>; itemNames: Record<string, string>; isDemo: boolean }) {
   const [profile, setProfile] = useState<UserProfile | null>();
@@ -50,7 +51,9 @@ export default function TodayClient({ locationNames, itemNames, isDemo }: { loca
   if (profile === undefined) return <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7"><p>Loading today…</p></main>;
   if (!profile) return <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7"><p className="text-sm font-bold text-emerald-700">Bentley Fuel</p><h1 className="mt-4 text-3xl font-bold">Set up your plan first.</h1><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
 
-  const values = mode === "remaining" ? snapshot.remaining : snapshot.consumed;
+  const hasTargets = Boolean(snapshot.targets);
+  const effectiveMode = hasTargets ? mode : "consumed";
+  const values = effectiveMode === "remaining" ? snapshot.remaining : snapshot.consumed;
   const headline = values?.calories ?? snapshot.consumed.calories;
   const target = snapshot.targets;
 
@@ -61,16 +64,21 @@ export default function TodayClient({ locationNames, itemNames, isDemo }: { loca
       {isDemo && <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">Demo dining data — nutrition tracking is functional, but menu information is not current official Bentley Dining data.</p>}
 
       <section className="mt-6 rounded-3xl bg-emerald-950 p-6 text-white shadow-sm">
-        <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-white/70">{mode === "remaining" ? "Remaining today" : "Consumed today"}</p><div className="flex rounded-lg bg-white/10 p-1 text-xs font-semibold"><button type="button" className={`rounded-md px-2 py-1 ${mode === "remaining" ? "bg-white text-emerald-950" : ""}`} onClick={() => setMode("remaining")}>Left</button><button type="button" className={`rounded-md px-2 py-1 ${mode === "consumed" ? "bg-white text-emerald-950" : ""}`} onClick={() => setMode("consumed")}>Consumed</button></div></div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-white/70">{effectiveMode === "remaining" ? "Remaining today" : hasTargets ? "Consumed today" : "Recorded today"}</p>
+          {hasTargets ? <div className="flex rounded-lg bg-white/10 p-1 text-xs font-semibold"><button type="button" className={`rounded-md px-2 py-1 ${mode === "remaining" ? "bg-white text-emerald-950" : ""}`} onClick={() => setMode("remaining")}>Left</button><button type="button" className={`rounded-md px-2 py-1 ${mode === "consumed" ? "bg-white text-emerald-950" : ""}`} onClick={() => setMode("consumed")}>Consumed</button></div> : <span className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white/70">Consumed</span>}
+        </div>
         <p className="mt-2 text-5xl font-bold tracking-tight">{round(headline).toLocaleString()}</p><p className="text-sm text-white/65">calories</p>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">{[{ name: "Protein", value: values?.protein ?? snapshot.consumed.protein }, { name: "Carbs", value: values?.carbs ?? snapshot.consumed.carbs }, { name: "Fat", value: values?.fat ?? snapshot.consumed.fat }].map((macro) => <div key={macro.name} className="rounded-2xl bg-white/10 p-3"><p className="text-xl font-bold">{round(macro.value)}g</p><p className="mt-1 text-xs text-white/65">{macro.name}</p></div>)}</div>
         {target && <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-white" style={{ width: `${coverage(snapshot.consumed.calories, target.calories)}%` }} /></div>}
       </section>
 
+      {!hasTargets && <section className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-sm font-semibold text-emerald-950">Bentley Fuel can track what you eat now, but it does not yet have enough supported body information to calculate what remains.</p><p className="mt-1 text-sm leading-relaxed text-emerald-950/70">Add the supported optional body fields if you want daily targets and a Remaining view. Goal-based meal recommendations still work without them.</p><Link href="/onboarding" className="mt-2 inline-flex text-sm font-semibold text-emerald-800 underline">Add body information</Link></section>}
+
       {pending.length > 0 && <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Quick check-in</p><h2 className="mt-1 text-xl font-bold">How much did you finish?</h2><p className="mt-2 text-sm text-black/60">One tap keeps recent meal history accurate and helps today’s remaining nutrition stay useful.</p><div className="mt-4 space-y-4">{pending.map((entry) => <article key={entry.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold">{mealName(entry, itemNames)}</p><p className="mt-1 text-xs text-black/50">{locationNames[entry.locationId] ?? entry.locationId}</p><div className="mt-3 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(entry.id, choice.fraction)}>{choice.label}</button>)}</div></article>)}</div></section>}
 
       <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/45">Your plan</p><h2 className="mt-1 text-xl font-bold">{plan?.phase === "maintenance" ? "Maintenance" : "Current goal"}</h2></div><Link href="/profile-summary" className="text-sm font-semibold text-emerald-800 underline">View plan</Link></div>
+        <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/45">Your plan</p><h2 className="mt-1 text-xl font-bold">{plan?.phase === "maintenance" ? "Maintenance" : readable(profile.primaryGoal)}</h2></div><Link href="/profile-summary" className="text-sm font-semibold text-emerald-800 underline">View plan</Link></div>
         {plan?.currentWeightKg && plan?.targetWeightKg && <p className="mt-3 text-sm"><strong>Progress:</strong> {formatWeight(plan.currentWeightKg, profile.unitSystem)} → {formatWeight(plan.targetWeightKg, profile.unitSystem)}</p>}
         {plan?.projectedGoalDate && <p className="mt-1 text-sm"><strong>Estimated goal date:</strong> {plan.projectedGoalDate}</p>}
         {plan?.phase === "goal" && plan?.targetWeightKg && !plan.projectedGoalDate && <p className="mt-2 text-sm leading-relaxed text-black/55">Your target is saved. Bentley Fuel will only show a projected date when an explicit pace has been calibrated instead of inventing one.</p>}

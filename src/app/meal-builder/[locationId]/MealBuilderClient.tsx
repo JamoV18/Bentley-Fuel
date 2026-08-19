@@ -8,16 +8,17 @@ import { browserProfileRepository } from "@/services/profileRepository";
 import {
   adjustMealItemQuantity,
   browserMealHistoryRepository,
+  browserProgressRepository,
   computeMealBuild,
+  createDailyNutritionSnapshot,
   editComponentInStep,
   generateMealCandidatesFromResources,
   MEAL_COMPLETION_CHOICES,
-  remainingMacrosFromDailyTargets,
   removeMealItem,
+  resolveNutritionPlan,
   scoreResolvedMeals,
   setComponentSelections,
   suggestMealItemReplacements,
-  summarizeDailyNutrition,
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
@@ -92,16 +93,27 @@ export default function MealBuilderClient({
       return () => { cancelled = true; };
     }
 
-    const history = browserMealHistoryRepository().getRecent(50);
-    const consumedToday = summarizeDailyNutrition(history);
+    const now = new Date();
+    const historyRepository = browserMealHistoryRepository();
+    const recentHistory = historyRepository.getRecent(12);
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, -1);
+    const todayEntries = historyRepository.getByDateRange(start, end);
+    const latestWeightKg = browserProgressRepository().getRecent(1)[0]?.weightKg ?? profile.metrics?.weightKg;
+    const plan = resolveNutritionPlan(profile, now, latestWeightKg);
+    const activeTargets = plan.activeTargets ?? profile.dailyTargets;
+    const dailySnapshot = createDailyNutritionSnapshot(todayEntries, activeTargets, now);
+    const recommendationProfile = {
+      ...profile,
+      primaryGoal: plan.phase === "maintenance" ? "maintain-weight" as const : profile.primaryGoal,
+      dailyTargets: activeTargets,
+    };
     const context: RecommendationContext = {
-      profile,
+      profile: recommendationProfile,
       locationId: fallbackBuild.locationId,
       mealPeriod,
-      remainingMacros: profile.dailyTargets
-        ? remainingMacrosFromDailyTargets(profile.dailyTargets, consumedToday.nutrition)
-        : undefined,
-      recentHistory: history.slice(0, 12),
+      remainingMacros: dailySnapshot.remaining,
+      recentHistory,
     };
     const candidates = generateMealCandidatesFromResources(
       resources.menuItems,

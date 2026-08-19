@@ -4,7 +4,7 @@ import { mockDiningDataset } from "@/data/mock";
 import type { RecommendationContext, UserProfile } from "@/types";
 import { MockDiningProvider } from "./mockDiningProvider";
 import { resolveMealBuild } from "./mealBuilder";
-import { generateMealCandidates, generateMealCandidatesFromResources } from "./recommendationCandidates";
+import { generateMealCandidates, generateMealCandidatesFromResources, inferMenuItemMealRole } from "./recommendationCandidates";
 
 const profile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
   id: "candidate-user",
@@ -45,17 +45,21 @@ test("generates same-location complete meals without cross-location lines", () =
   }
 });
 
-test("prefers station-diverse candidates before same-station combinations", () => {
+test("prefers station diversity only among plausible complementary meal roles", () => {
   const resources = resourcesFor("loc-lacava");
   const candidates = generateMealCandidatesFromResources(
     resources.items,
     resources.stations,
     resources.components,
     context("loc-lacava"),
-    { maxItemsPerMeal: 3, maxCandidates: 1 },
+    { maxItemsPerMeal: 3, maxCandidates: 10 },
   );
-  assert.equal(candidates.length, 1);
-  assert.equal(candidates[0].stationIds.length, 3);
+  assert.ok(candidates.length > 0);
+  const byId = new Map(resources.items.map((item) => [item.id, item]));
+  for (const candidate of candidates) {
+    const mains = candidate.build.items.filter((line) => inferMenuItemMealRole(byId.get(line.menuItemId)!) === "main");
+    assert.ok(mains.length <= 1);
+  }
 });
 
 test("Falcon Market candidates can combine Grab & Go with Snacks & Drinks", () => {
@@ -68,6 +72,27 @@ test("Falcon Market candidates can combine Grab & Go with Snacks & Drinks", () =
     { maxItemsPerMeal: 3, maxCandidates: 20 },
   );
   assert.ok(candidates.some((candidate) => candidate.stationIds.length === 2));
+});
+
+test("921 candidate generation never stacks multiple inferred full mains", () => {
+  const resources = resourcesFor("loc-921");
+  const byId = new Map(resources.items.map((item) => [item.id, item]));
+  const candidates = generateMealCandidatesFromResources(
+    resources.items,
+    resources.stations,
+    resources.components,
+    context("loc-921", { primaryGoal: "athletic-performance" }, "lunch"),
+    { maxItemsPerMeal: 3, maxCandidates: 60 },
+  );
+  assert.ok(candidates.length > 0);
+  for (const candidate of candidates) {
+    const mainCount = candidate.build.items.filter((line) => inferMenuItemMealRole(byId.get(line.menuItemId)!) === "main").length;
+    assert.ok(mainCount <= 1, `candidate stacked ${mainCount} mains: ${candidate.id}`);
+  }
+  assert.ok(!candidates.some((candidate) => {
+    const ids = new Set(candidate.build.items.map((line) => line.menuItemId));
+    return ids.has("item-921-cheeseburger") && ids.has("item-921-chicken-teriyaki");
+  }));
 });
 
 test("hard-ineligible foods never enter generated candidates", () => {

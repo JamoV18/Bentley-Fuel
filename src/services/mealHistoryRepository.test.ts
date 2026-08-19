@@ -87,6 +87,15 @@ test("pending check-ins return meals with no completion response", () => {
   assert.deepEqual(repository.getPendingCheckIns().map((item) => item.id), ["pending"]);
 });
 
+test("pending check-ins can ignore stale meals", () => {
+  const storage = memoryStorage();
+  const repository = createLocalMealHistoryRepository(storage);
+  repository.upsert(entry("stale", "2026-08-15T12:00:00.000Z"));
+  repository.upsert(entry("recent", "2026-08-19T12:00:00.000Z"));
+  const since = new Date("2026-08-18T00:00:00.000Z");
+  assert.deepEqual(repository.getPendingCheckIns(12, since).map((item) => item.id), ["recent"]);
+});
+
 test("history is no longer truncated at fifty meals", () => {
   const storage = memoryStorage();
   const repository = createLocalMealHistoryRepository(storage);

@@ -31,6 +31,7 @@ export default function ProfileSummary() {
   if (!profile) return <main className="summary"><h1 className="text-3xl font-bold">No profile yet</h1><p className="mt-2 text-black/60">Complete onboarding to create one.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
 
   const targets = plan?.activeTargets ?? profile.dailyTargets;
+  const maintenanceCalories = plan?.maintenanceTargets?.calories ?? profile.maintenanceEstimate?.calories;
 
   const saveProgress = () => {
     const entered = Number(progressInput);
@@ -73,11 +74,11 @@ export default function ProfileSummary() {
           </div>
         )}
 
-        {profile.maintenanceEstimate && (
+        {maintenanceCalories && (
           <div className="mt-6 border-t border-black/10 pt-5">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-black/50">Estimated maintenance</h2>
-            <p className="mt-1 text-2xl font-bold">{profile.maintenanceEstimate.calories.toLocaleString()} calories/day</p>
-            <p className="mt-1 text-sm text-black/60">Estimated energy needed to maintain your current body weight. Maintenance stays distinct from any explicit deficit or surplus plan.</p>
+            <p className="mt-1 text-2xl font-bold">{maintenanceCalories.toLocaleString()} calories/day</p>
+            <p className="mt-1 text-sm text-black/60">Estimated energy needed to maintain the current recorded body weight. When enough supported body information exists, Bentley Fuel recalculates this from the latest saved progress weight.</p>
           </div>
         )}
 

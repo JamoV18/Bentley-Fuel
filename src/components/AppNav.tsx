@@ -19,16 +19,12 @@ function Icon({ name }: { name: (typeof items)[number]["icon"] }) {
 
 export default function AppNav() {
   const pathname = usePathname();
+  const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
   return (
     <nav className="app-nav" aria-label="Bentley Fuel app navigation">
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link key={item.href} href={item.href} className="app-nav-item" data-active={active}>
-            <span className="app-nav-icon"><Icon name={item.icon} /></span>
-            <span>{item.label}</span>
-          </Link>
-        );
+        const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        return <Link key={item.href} href={item.href} className="app-nav-item" data-active={active}><span className="app-nav-icon"><Icon name={item.icon} /></span><span>{item.label}</span></Link>;
       })}
     </nav>
   );

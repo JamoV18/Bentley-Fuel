@@ -11,6 +11,7 @@ export default async function TodayPage() {
     <TodayClient
       locationNames={Object.fromEntries(locations.map((location) => [location.id, location.shortName ?? location.name]))}
       itemNames={Object.fromEntries(menuItems.map((item) => [item.id, item.name]))}
+      itemImageUrls={Object.fromEntries(menuItems.map((item) => [item.id, item.imageUrl]))}
       isDemo={provider.dataStatus === "mock"}
     />
   );

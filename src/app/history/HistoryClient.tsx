@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppNav from "@/components/AppNav";
+import MealImage from "@/components/MealImage";
 import {
   browserMealHistoryRepository,
   createDailyNutritionSnapshot,
@@ -18,7 +19,7 @@ type Range = "yesterday" | "week" | "month";
 
 const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) =>
   entry.build.items.map((item) => itemNames[item.menuItemId] ?? "Meal item").join(" + ");
-
+const firstItem = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
 const coverageLabel = (value: NutritionPeriodSummary["coverage"]) => ({
   "getting-started": "Getting started",
   "mostly-confirmed": "Mostly confirmed",
@@ -28,9 +29,11 @@ const coverageLabel = (value: NutritionPeriodSummary["coverage"]) => ({
 export default function HistoryClient({
   locationNames,
   itemNames,
+  itemImageUrls,
 }: {
   locationNames: Record<string, string>;
   itemNames: Record<string, string>;
+  itemImageUrls: Record<string, string | undefined>;
 }) {
   const [profile, setProfile] = useState<UserProfile | null>();
   const [history, setHistory] = useState<MealHistoryEntry[]>([]);
@@ -61,42 +64,65 @@ export default function HistoryClient({
     .sort((a, b) => new Date(b.eatenAt ?? b.selectedAt).getTime() - new Date(a.eatenAt ?? a.selectedAt).getTime())
     .slice(0, 12);
 
+  const stats = range === "yesterday"
+    ? yesterdaySnapshot.consumed
+    : period?.averageConfirmedConsumption;
+
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 pb-12 sm:py-12">
-      <header><p className="text-sm font-bold text-emerald-700">Bentley Fuel</p><h1 className="mt-3 text-4xl font-bold tracking-tight">History</h1><p className="mt-2 text-black/60">See patterns without turning incomplete tracking into a failed day.</p></header>
+    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
+      <header>
+        <p className="brand-kicker">Bentley Fuel</p>
+        <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">History</h1>
+        <p className="mt-2 subtle">Patterns, not judgment. See what you recorded and learn what works.</p>
+      </header>
       <AppNav />
 
-      <div className="mt-6 grid grid-cols-3 gap-2 rounded-xl bg-black/5 p-1">
-        {(["yesterday", "week", "month"] as Range[]).map((option) => <button key={option} type="button" onClick={() => setRange(option)} className={`rounded-lg px-3 py-2 text-sm font-semibold ${range === option ? "bg-white shadow-sm" : ""}`}>{option === "yesterday" ? "Yesterday" : option === "week" ? "Week" : "Month"}</button>)}
+      <div className="mt-6 grid grid-cols-3 gap-1 rounded-2xl border border-black/[.06] bg-white/65 p-1 shadow-sm">
+        {(["yesterday", "week", "month"] as Range[]).map((option) => (
+          <button key={option} type="button" onClick={() => setRange(option)} className={`rounded-xl px-3 py-2.5 text-sm font-bold transition ${range === option ? "bg-emerald-900 text-white shadow" : "text-black/55 hover:bg-white"}`}>
+            {option === "yesterday" ? "Yesterday" : option === "week" ? "Week" : "Month"}
+          </button>
+        ))}
       </div>
 
-      {range === "yesterday" ? (
-        <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-black/45">Yesterday</p>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[{ name: "Recorded calories", value: yesterdaySnapshot.consumed.calories, unit: "" }, { name: "Recorded protein", value: yesterdaySnapshot.consumed.protein, unit: "g" }, { name: "Recorded carbs", value: yesterdaySnapshot.consumed.carbs, unit: "g" }, { name: "Recorded fat", value: yesterdaySnapshot.consumed.fat, unit: "g" }].map((item) => <div key={item.name} className="rounded-xl bg-black/[0.03] p-3"><p className="text-xl font-bold">{Math.round(item.value)}{item.unit}</p><p className="text-xs text-black/50">{item.name}</p></div>)}
+      <section className="surface mt-5 overflow-hidden p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow">{range === "yesterday" ? "Yesterday" : range === "week" ? "This week" : "This month"}</p>
+            <h2 className="mt-1 text-2xl font-bold">{period ? coverageLabel(period.coverage) : "Recorded nutrition"}</h2>
           </div>
-          <p className="mt-4 text-sm text-black/60">{yesterdaySnapshot.confirmedMeals} confirmed meal{yesterdaySnapshot.confirmedMeals === 1 ? "" : "s"}{yesterdaySnapshot.pendingMeals ? ` · ${yesterdaySnapshot.pendingMeals} still awaiting a check-in` : ""}. Unlogged food is not assumed to be zero.</p>
-        </section>
-      ) : period ? (
-        <>
-          <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/45">{range === "week" ? "This week" : "This month"}</p><h2 className="mt-1 text-xl font-bold">{coverageLabel(period.coverage)}</h2></div><p className="text-right text-sm text-black/55">{period.daysWithAllSavedMealsConfirmed} of {period.daysWithSavedMeals}<br />days’ saved meals confirmed</p></div>
-            <p className="mt-3 text-sm leading-relaxed text-black/55">This consistency signal only measures whether meals saved in Bentley Fuel received completion check-ins. It does not assume an unlogged meal was skipped or score a day as good or bad.</p>
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[{ name: "Avg recorded calories", value: period.averageConfirmedConsumption.calories, unit: "" }, { name: "Avg recorded protein", value: period.averageConfirmedConsumption.protein, unit: "g" }, { name: "Avg recorded carbs", value: period.averageConfirmedConsumption.carbs, unit: "g" }, { name: "Avg recorded fat", value: period.averageConfirmedConsumption.fat, unit: "g" }].map((item) => <div key={item.name} className="rounded-xl bg-emerald-50 p-3"><p className="text-xl font-bold text-emerald-950">{Math.round(item.value)}{item.unit}</p><p className="text-xs text-emerald-800">{item.name}</p></div>)}
-            </div>
-          </section>
-          <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold">Daily view</h2>
-            <div className="mt-4 space-y-2">{period.days.filter((day) => day.confirmedMeals > 0 || day.pendingMeals > 0).map((day) => <div key={day.date} className="flex items-center justify-between gap-4 rounded-xl bg-black/[0.03] p-3"><div><p className="font-semibold">{day.date}</p><p className="text-xs text-black/50">{day.confirmedMeals} confirmed · {day.pendingMeals} pending</p></div><p className="text-right text-sm"><strong>{Math.round(day.consumed.calories)}</strong> recorded cal<br /><span className="text-black/50">{Math.round(day.consumed.protein)}g recorded protein</span></p></div>)}</div>
-          </section>
-        </>
-      ) : null}
+          {period && <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-right"><p className="text-lg font-bold text-emerald-950">{period.daysWithAllSavedMealsConfirmed}/{period.daysWithSavedMeals}</p><p className="text-[10px] font-semibold text-emerald-800">days confirmed</p></div>}
+        </div>
+        <p className="mt-3 text-sm leading-relaxed subtle">Bentley Fuel only summarizes meals you saved. Missing logs are never treated as skipped food or a failed day.</p>
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { name: range === "yesterday" ? "Recorded calories" : "Avg calories", value: stats?.calories ?? 0, unit: "" },
+            { name: range === "yesterday" ? "Recorded protein" : "Avg protein", value: stats?.protein ?? 0, unit: "g" },
+            { name: range === "yesterday" ? "Recorded carbs" : "Avg carbs", value: stats?.carbs ?? 0, unit: "g" },
+            { name: range === "yesterday" ? "Recorded fat" : "Avg fat", value: stats?.fat ?? 0, unit: "g" },
+          ].map((item) => <div key={item.name} className="rounded-2xl border border-emerald-900/[.06] bg-emerald-50/70 p-3"><p className="text-xl font-bold text-emerald-950">{Math.round(item.value)}{item.unit}</p><p className="mt-1 text-[11px] font-medium text-emerald-900/60">{item.name}</p></div>)}
+        </div>
+      </section>
 
-      <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between"><h2 className="text-xl font-bold">Recent meals</h2><Link href="/today" className="text-sm font-semibold text-emerald-800 underline">Today</Link></div>
-        {recentMeals.length === 0 ? <p className="mt-3 text-sm text-black/55">No recent meals recorded.</p> : <div className="mt-4 space-y-3">{recentMeals.map((entry) => <article key={entry.id} className="rounded-xl bg-black/[0.03] p-4"><div className="flex justify-between gap-3"><div><p className="font-semibold">{mealName(entry, itemNames)}</p><p className="mt-1 text-xs text-black/50">{locationNames[entry.locationId] ?? entry.locationId} · {new Date(entry.eatenAt ?? entry.selectedAt).toLocaleString()}</p></div>{entry.completionFraction !== undefined && <span className="shrink-0 text-sm font-semibold text-emerald-800">{Math.round(entry.completionFraction * 100)}%</span>}</div>{entry.nutrition && entry.completionFraction !== undefined && <p className="mt-2 text-sm text-black/60">{Math.round(entry.nutrition.calories * entry.completionFraction)} cal · {Math.round(entry.nutrition.protein * entry.completionFraction)}g protein consumed</p>}</article>)}</div>}
+      {period && (
+        <section className="surface mt-5 p-5">
+          <div className="flex items-center justify-between"><div><p className="eyebrow">Consistency</p><h2 className="mt-1 text-xl font-bold">Daily view</h2></div><span className="text-xs subtle">Recorded only</span></div>
+          <div className="mt-4 space-y-2">{period.days.filter((day) => day.confirmedMeals > 0 || day.pendingMeals > 0).map((day) => <div key={day.date} className="flex items-center justify-between gap-4 rounded-2xl bg-black/[.025] p-3.5"><div><p className="font-bold">{new Date(`${day.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", weekday: "short" })}</p><p className="mt-1 text-xs subtle">{day.confirmedMeals} confirmed · {day.pendingMeals} pending</p></div><p className="text-right text-sm"><strong>{Math.round(day.consumed.calories)}</strong> cal<br /><span className="text-xs subtle">{Math.round(day.consumed.protein)}g protein</span></p></div>)}</div>
+        </section>
+      )}
+
+      <section className="surface mt-5 p-5">
+        <div className="flex items-center justify-between"><div><p className="eyebrow">Timeline</p><h2 className="mt-1 text-xl font-bold">Recent meals</h2></div><Link href="/today" className="text-sm font-bold text-emerald-800">Today →</Link></div>
+        {recentMeals.length === 0 ? <p className="mt-4 text-sm subtle">No recent meals recorded.</p> : <div className="mt-4 space-y-3">{recentMeals.map((entry) => (
+          <article key={entry.id} className="meal-row">
+            <MealImage name={mealName(entry, itemNames)} imageUrl={itemImageUrls[firstItem(entry)]} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3"><p className="font-bold leading-tight">{mealName(entry, itemNames)}</p>{entry.completionFraction !== undefined && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800">{Math.round(entry.completionFraction * 100)}%</span>}</div>
+              <p className="mt-1 text-xs subtle">{locationNames[entry.locationId] ?? entry.locationId} · {new Date(entry.eatenAt ?? entry.selectedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+              {entry.nutrition && entry.completionFraction !== undefined && <p className="mt-1.5 text-sm font-medium text-black/65">{Math.round(entry.nutrition.calories * entry.completionFraction)} cal · {Math.round(entry.nutrition.protein * entry.completionFraction)}g protein</p>}
+            </div>
+          </article>
+        ))}</div>}
       </section>
     </main>
   );

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AppNav from "@/components/AppNav";
+import LocationImage from "@/components/LocationImage";
 import MealImage from "@/components/MealImage";
 import { getLocationView } from "@/lib/locationBrowsing";
 import { getDiningProvider } from "@/services";
@@ -27,7 +28,7 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
       )}
 
       <section className="surface mt-6 overflow-hidden p-2">
-        <MealImage name={`${view.location.name} healthy meal`} aspect="hero" className="h-40" />
+        <LocationImage locationId={view.location.id} name={view.location.shortName ?? view.location.name} className="h-40" />
         <div className="p-4">
           <p className="eyebrow">Personalized meal</p>
           <h2 className="mt-1 text-2xl font-bold">What should I eat here?</h2>

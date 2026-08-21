@@ -1,0 +1,39 @@
+/* Small global polish fixes that intentionally sit after page-level styles. */
+
+/* Keep the Today calorie value visually dominant without ever colliding with
+   the progress ring, including 4–5 digit values and comma separators. */
+.calorie-ring-inner {
+  min-width: 0;
+  width: 100%;
+  padding-inline: 1.25rem;
+}
+
+.calorie-ring-inner > strong {
+  max-width: 100%;
+  font-size: clamp(2.15rem, 6.2vw, 3.4rem) !important;
+  line-height: .94 !important;
+  letter-spacing: -.055em !important;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.calorie-ring-inner > span {
+  font-size: .88rem;
+}
+
+.calorie-ring-inner > small {
+  margin-top: .28rem;
+  font-size: .8rem;
+}
+
+.calorie-goal {
+  margin-top: .5rem;
+  padding: .36rem .62rem;
+  font-size: .67rem;
+}
+
+/* Campus imagery should read as location photography, not generic food art. */
+.location-image {
+  background-position: center;
+  background-size: cover;
+}

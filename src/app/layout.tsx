@@ -4,21 +4,15 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Bentley Fuel",
-  description:
-    "Personalized dining for Bentley students — what to eat based on your goals, restrictions, remaining macros, and location.",
+  description: "Personalized Bentley dining and nutrition tracking — recommend what to eat, track what you consume, and adapt what comes next.",
 };
 
-// Mobile-first: lock the viewport for an app-like feel.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#047857",
+  themeColor: "#003b2a",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
-    </html>
-  );
+  return <html lang="en" className="h-full antialiased"><body className="min-h-full flex flex-col">{children}</body></html>;
 }

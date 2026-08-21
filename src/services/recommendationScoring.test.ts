@@ -10,6 +10,7 @@ import type {
 import { MockDiningProvider } from "./mockDiningProvider";
 import { generateMealCandidates } from "./recommendationCandidates";
 import {
+  deriveGoalOnlyMealCalorieReference,
   deriveMealMacroTarget,
   orderRankedMealsForVariety,
   rankMealCandidates,
@@ -104,6 +105,7 @@ const ranked = (meal: MealCandidate, total: number, lineCalories: number[] = [])
     nutritionTotal: total,
     goalAlignment: total,
     remainingBudgetPenalty: 0,
+    energyOvershootPenalty: 0,
     compositionPenalty: 0,
     behavior: {
       preferenceBoost: 0,
@@ -116,9 +118,9 @@ const ranked = (meal: MealCandidate, total: number, lineCalories: number[] = [])
   },
 });
 
-test("derives a meal-sized target from explicit daily targets", () => {
+test("allocates an individualized daily target across three primary meals", () => {
   const result = deriveMealMacroTarget(context({ profile: profile({ dailyTargets: { calories: 2400, protein: 160, carbs: 300, fat: 80 } }) }));
-  assert.deepEqual(result, { calories: 720, protein: 48, carbs: 90, fat: 24 });
+  assert.deepEqual(result, { calories: 840, protein: 56, carbs: 105, fat: 28 });
 });
 
 test("remaining macros cap the meal-sized target instead of inventing extra budget", () => {
@@ -126,11 +128,16 @@ test("remaining macros cap the meal-sized target instead of inventing extra budg
     profile: profile({ dailyTargets: { calories: 2400, protein: 160, carbs: 300, fat: 80 } }),
     remainingMacros: { calories: 500, protein: 30, carbs: 200, fat: 10 },
   }));
-  assert.deepEqual(result, { calories: 500, protein: 30, carbs: 90, fat: 10 });
+  assert.deepEqual(result, { calories: 500, protein: 30, carbs: 105, fat: 10 });
 });
 
-test("does not fabricate a macro target when onboarding has none", () => {
+test("does not fabricate an individualized macro target when onboarding has none", () => {
   assert.equal(deriveMealMacroTarget(context()), undefined);
+});
+
+test("goal-only mode uses a conservative goal-specific meal reference rather than a fake daily prescription", () => {
+  assert.equal(deriveGoalOnlyMealCalorieReference(context({ profile: profile({ primaryGoal: "athletic-performance" }) })), 700);
+  assert.equal(deriveGoalOnlyMealCalorieReference(context({ mealPeriod: "breakfast", profile: profile({ primaryGoal: "athletic-performance" }) })), 630);
 });
 
 test("exact macro fit scores above a materially worse fit", () => {
@@ -149,12 +156,22 @@ test("build-muscle goal ranks higher-protein candidates above otherwise similar 
   assert.equal(result[0].candidate.id, "high");
 });
 
-test("athletic-performance goal rewards carbohydrate availability when protein is comparable", () => {
+test("athletic-performance goal rewards carbohydrate availability when energy and protein are comparable", () => {
   const result = scoreResolvedMeals([
     { candidate: candidate("low-carb"), computed: computed("low-carb", { calories: 650, protein: 45, carbs: 30, fat: 35 }) },
     { candidate: candidate("higher-carb"), computed: computed("higher-carb", { calories: 650, protein: 45, carbs: 90, fat: 18 }) },
   ], context({ profile: profile({ primaryGoal: "athletic-performance" }) }));
   assert.equal(result[0].candidate.id, "higher-carb");
+});
+
+test("goal-only athletic scoring does not reward a 1650-calorie stack over a balanced meal", () => {
+  const result = scoreResolvedMeals([
+    { candidate: candidate("balanced"), computed: computed("balanced", { calories: 700, protein: 50, carbs: 90, fat: 20 }) },
+    { candidate: candidate("huge"), computed: computed("huge", { calories: 1650, protein: 95, carbs: 220, fat: 55 }) },
+  ], context({ profile: profile({ primaryGoal: "athletic-performance" }) }));
+  assert.equal(result[0].candidate.id, "balanced");
+  const huge = result.find((entry) => entry.candidate.id === "huge");
+  assert.ok((huge?.score.energyOvershootPenalty ?? 0) > 0);
 });
 
 test("remaining-macro overshoot penalizes an otherwise attractive candidate", () => {

@@ -132,6 +132,15 @@ export interface FoodComponent {
 export type MenuItemKind = "predefined" | "customizable";
 
 /**
+ * Functional role when Bentley Fuel combines foods into one meal. This is not a
+ * nutrition claim; it prevents the recommendation engine from treating several
+ * full entrees as if they were complementary sides simply because their macros
+ * add up. Real dining data should supply this when available. Until then the
+ * recommendation service uses a conservative fallback inference.
+ */
+export type MenuItemMealRole = "main" | "side" | "snack" | "drink" | "dessert";
+
+/**
  * One step in a customizable builder, e.g. "Choose your base (1)". References
  * components by ID; the builder enforces min/max selection counts.
  */
@@ -168,6 +177,8 @@ export interface MenuItem {
   customization?: CustomizationStep[];
 
   /* --- Shared metadata --- */
+  /** Role used when assembling a complete recommendation. */
+  mealRole?: MenuItemMealRole;
   /** Aggregate known allergens (union of components for predefined items). */
   allergens: Allergen[];
   mayContainAllergens?: Allergen[];

@@ -11,9 +11,13 @@ export interface NutritionScoreBreakdown {
   /** Nutrition-only score before behavior/history adjustment. */
   nutritionTotal: number;
   targetFit?: number;
+  /** Goal-only fallback fit to a conservative meal-energy reference. */
+  energyReferenceFit?: number;
   goalAlignment: number;
   remainingBudgetPenalty: number;
-  /** Temporary meal-composition sanity guard until authoritative meal-role metadata exists. */
+  /** Additional guard against extreme meal size when no individualized target exists. */
+  energyOvershootPenalty: number;
+  /** Temporary calorie-based sanity guard until every upstream item has authoritative meal-role metadata. */
   compositionPenalty: number;
   behavior: MealHistoryScore;
   mode: NutritionScoringMode;
@@ -28,22 +32,43 @@ export interface RankedMealCandidate {
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const roundScore = (value: number) => Math.round(clamp(value, 0, 100) * 10) / 10;
 
+const selectedGoals = (context: RecommendationContext): PrimaryGoal[] => {
+  const primary = context.profile.primaryGoal;
+  const stored = context.profile.goals?.length ? context.profile.goals : [primary];
+  const compatibleSecondary = stored.filter((goal) => {
+    if (goal === primary) return false;
+    if (primary === "maintain-weight" && (goal === "lose-weight" || goal === "gain-weight")) return false;
+    return true;
+  });
+  return [...new Set([primary, ...compatibleSecondary])].slice(0, 3);
+};
+
+/** Primary intent remains dominant while secondary goals materially shape ranking. */
+const goalBlend = (context: RecommendationContext): Array<{ goal: PrimaryGoal; weight: number }> => {
+  const goals = selectedGoals(context);
+  if (goals.length === 1) return [{ goal: goals[0], weight: 1 }];
+  const secondaryWeight = 0.4 / (goals.length - 1);
+  return goals.map((goal, index) => ({ goal, weight: index === 0 ? 0.6 : secondaryWeight }));
+};
+
 /**
- * Product allocation heuristic, not a clinical prescription. It simply gives
- * daily targets a meal-sized reference so candidate ranking does not reward the
- * largest meal by default. These shares are deliberately centralized/tunable.
+ * When an individualized daily target exists, Bentley Fuel plans around three
+ * primary meals: breakfast 30%, lunch 35%, dinner 35%. This is a product
+ * allocation heuristic, not a claim that one universal meal distribution is
+ * physiologically superior. Brunch/all-day use a main-meal share; late-night is
+ * intentionally smaller. Remaining daily nutrition can always cap the target.
  */
 export const MEAL_PERIOD_TARGET_SHARE: Record<NonNullable<RecommendationContext["mealPeriod"]>, number> = {
-  breakfast: 0.25,
-  brunch: 0.3,
-  lunch: 0.3,
+  breakfast: 0.30,
+  brunch: 0.35,
+  lunch: 0.35,
   dinner: 0.35,
   "late-night": 0.15,
-  "all-day": 0.3,
+  "all-day": 0.35,
 };
 
 const targetShare = (context: RecommendationContext) =>
-  context.mealPeriod ? MEAL_PERIOD_TARGET_SHARE[context.mealPeriod] : 0.3;
+  context.mealPeriod ? MEAL_PERIOD_TARGET_SHARE[context.mealPeriod] : 0.35;
 
 export function deriveMealMacroTarget(context: RecommendationContext): Macros | undefined {
   const daily = context.profile.dailyTargets;
@@ -64,6 +89,42 @@ export function deriveMealMacroTarget(context: RecommendationContext): Macros | 
   };
 }
 
+/**
+ * Goal-only mode has no individualized energy prescription. These numbers are
+ * deliberately conservative *meal-size references* used only to stop relative
+ * scoring from rewarding a 1,500+ kcal stack because it contains more protein
+ * and carbohydrate. They are never exposed as the user's daily calorie target.
+ */
+export const GOAL_ONLY_MEAL_CALORIE_REFERENCE: Record<PrimaryGoal, number> = {
+  "lose-weight": 550,
+  "maintain-weight": 650,
+  "eat-healthier": 650,
+  "athletic-performance": 700,
+  "build-muscle": 750,
+  "gain-weight": 800,
+};
+
+const goalOnlyMealPeriodMultiplier = (context: RecommendationContext): number => {
+  switch (context.mealPeriod) {
+    case "breakfast": return 0.9;
+    case "late-night": return 0.55;
+    case "brunch":
+    case "lunch":
+    case "dinner":
+    case "all-day":
+    default:
+      return 1;
+  }
+};
+
+export const deriveGoalOnlyMealCalorieReference = (context: RecommendationContext): number => {
+  const blendedReference = goalBlend(context).reduce(
+    (sum, { goal, weight }) => sum + GOAL_ONLY_MEAL_CALORIE_REFERENCE[goal] * weight,
+    0,
+  );
+  return blendedReference * goalOnlyMealPeriodMultiplier(context);
+};
+
 const macroWeights = (goal: PrimaryGoal): Macros => {
   switch (goal) {
     case "lose-weight":
@@ -81,6 +142,17 @@ const macroWeights = (goal: PrimaryGoal): Macros => {
   }
 };
 
+const blendedMacroWeights = (context: RecommendationContext): Macros =>
+  goalBlend(context).reduce<Macros>((sum, { goal, weight }) => {
+    const next = macroWeights(goal);
+    return {
+      calories: sum.calories + next.calories * weight,
+      protein: sum.protein + next.protein * weight,
+      carbs: sum.carbs + next.carbs * weight,
+      fat: sum.fat + next.fat * weight,
+    };
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
 const closeness = (actual: number, target: number): number => {
   if (target <= 0) return actual <= 0 ? 1 : 0;
   const relativeError = Math.abs(actual - target) / target;
@@ -97,10 +169,17 @@ export function scoreMacroTargetFit(actual: Macros, target: Macros, goal: Primar
   return roundScore(weighted * 100);
 }
 
+function blendedTargetFit(actual: Macros, target: Macros, context: RecommendationContext): number {
+  return roundScore(goalBlend(context).reduce(
+    (sum, { goal, weight }) => sum + scoreMacroTargetFit(actual, target, goal) * weight,
+    0,
+  ));
+}
+
 function remainingBudgetPenalty(nutrition: Macros, context: RecommendationContext): number {
   const remaining = context.remainingMacros;
   if (!remaining) return 0;
-  const weights = macroWeights(context.profile.primaryGoal);
+  const weights = blendedMacroWeights(context);
   const excess = (actual: number, budget: number) => {
     if (budget <= 0) return actual > 0 ? 1 : 0;
     return clamp((actual - budget) / budget);
@@ -116,15 +195,26 @@ function remainingBudgetPenalty(nutrition: Macros, context: RecommendationContex
 const SUBSTANTIAL_LINE_CALORIES = 350;
 
 /**
- * Prevents the current mock-data generator from treating multiple full entrees as
- * "better" merely because stacking them raises protein/carbs. This is deliberately
- * conservative and temporary: authoritative menu-role metadata (main/side/drink)
- * should eventually replace the calorie proxy.
+ * Backstop for legacy/mock items that do not yet carry role metadata. Candidate
+ * generation now prevents multiple inferred mains; this remains useful for odd
+ * legacy combinations whose calorie structure still looks implausible.
  */
 function mealCompositionPenalty(meal: ComputedMealBuild): number {
   const substantialLines = meal.lines.filter((line) => (line.nutrition?.calories ?? 0) >= SUBSTANTIAL_LINE_CALORIES).length;
   if (substantialLines <= 1) return 0;
   return Math.min(30, (substantialLines - 1) * 18);
+}
+
+/**
+ * Goal-only mode cannot know a person's true energy requirement. Once a meal is
+ * >35% above its conservative reference, add a rapidly increasing penalty so a
+ * huge stack cannot win merely by maximizing protein/carbohydrate. This is a
+ * ranking guardrail, not an intake ceiling for a known high-energy athlete.
+ */
+function goalOnlyEnergyOvershootPenalty(calories: number, reference: number): number {
+  if (reference <= 0 || calories <= reference * 1.35) return 0;
+  const excessRatio = calories / reference - 1.35;
+  return Math.min(45, Math.round(excessRatio * 55 * 10) / 10);
 }
 
 type Features = {
@@ -173,13 +263,13 @@ function relativeGoalAlignment(
       score = normalized("calories", true) * 0.45 + normalized("protein") * 0.25 + normalized("proteinDensity") * 0.3;
       break;
     case "gain-weight":
-      score = normalized("calories") * 0.45 + normalized("protein") * 0.35 + normalized("carbs") * 0.2;
+      score = normalized("calories") * 0.35 + normalized("protein") * 0.35 + normalized("carbs") * 0.2 + normalized("proteinDensity") * 0.1;
       break;
     case "build-muscle":
-      score = normalized("protein") * 0.55 + normalized("proteinDensity") * 0.3 + normalized("calories") * 0.15;
+      score = normalized("protein") * 0.5 + normalized("proteinDensity") * 0.3 + normalized("carbs") * 0.15 + normalized("calories") * 0.05;
       break;
     case "athletic-performance":
-      score = normalized("protein") * 0.35 + normalized("carbs") * 0.35 + normalized("calories") * 0.2 + normalized("fat", true) * 0.1;
+      score = normalized("protein") * 0.35 + normalized("carbs") * 0.35 + normalized("proteinDensity") * 0.15 + normalized("fat", true) * 0.15;
       break;
     case "eat-healthier":
       score = normalized("fiberDensity") * 0.4 + normalized("proteinDensity") * 0.3 + normalized("calories", true) * 0.2 + normalized("protein") * 0.1;
@@ -192,12 +282,23 @@ function relativeGoalAlignment(
   return roundScore(score * 100);
 }
 
+function blendedGoalAlignment(
+  meal: ComputedMealBuild,
+  pool: readonly ComputedMealBuild[],
+  context: RecommendationContext,
+): number {
+  return roundScore(goalBlend(context).reduce(
+    (sum, { goal, weight }) => sum + relativeGoalAlignment(meal, pool, goal) * weight,
+    0,
+  ));
+}
+
 const MAX_ALTERNATIVE_SCORE_DROP = 20;
 
 /**
- * Until menu-role metadata exists, the highest-calorie line is a pragmatic proxy
- * for the meal's "anchor" or main food. Alternative ordering should prefer changing
- * this anchor before merely swapping one snack/add-on for another.
+ * Until menu-role metadata exists everywhere, the highest-calorie line is a
+ * pragmatic proxy for the meal's main anchor. Alternative ordering should
+ * prefer changing this anchor before merely swapping one small add-on.
  */
 function mealAnchorMenuItemId(meal: RankedMealCandidate): string | undefined {
   const rankedLines = meal.computed.lines
@@ -206,12 +307,6 @@ function mealAnchorMenuItemId(meal: RankedMealCandidate): string | undefined {
   return rankedLines[0]?.selection.menuItemId;
 }
 
-/**
- * Keeps the top recommendation untouched, then prefers a meaningfully different
- * meal anchor when one is still close enough in quality. Within that pool, lower
- * overall meal similarity wins. This makes "Show me another option" change the
- * meal concept before it cycles through tiny snack permutations.
- */
 export function orderRankedMealsForVariety(
   sorted: readonly RankedMealCandidate[],
 ): RankedMealCandidate[] {
@@ -257,22 +352,27 @@ export function scoreResolvedMeals(
   const pool = valid.map(({ computed }) => computed);
   const target = deriveMealMacroTarget(context);
   const mode: NutritionScoringMode = target ? "daily-targets" : "goal-only";
+  const goalOnlyReference = target ? undefined : deriveGoalOnlyMealCalorieReference(context);
 
   const sorted = valid
     .map(({ candidate, computed }): RankedMealCandidate => {
-      const goalAlignment = relativeGoalAlignment(computed, pool, context.profile.primaryGoal);
+      const goalAlignment = blendedGoalAlignment(computed, pool, context);
       const penalty = remainingBudgetPenalty(computed.nutrition!, context);
       const compositionPenalty = mealCompositionPenalty(computed);
       const targetFit = target
-        ? scoreMacroTargetFit(computed.nutrition!, target, context.profile.primaryGoal)
+        ? blendedTargetFit(computed.nutrition!, target, context)
         : undefined;
+      const energyReferenceFit = goalOnlyReference === undefined
+        ? undefined
+        : roundScore(closeness(computed.nutrition!.calories, goalOnlyReference) * 100);
+      const energyOvershootPenalty = goalOnlyReference === undefined
+        ? 0
+        : goalOnlyEnergyOvershootPenalty(computed.nutrition!.calories, goalOnlyReference);
+
       const nutritionTotal = roundScore(targetFit === undefined
-        ? goalAlignment - penalty - compositionPenalty
-        : targetFit * 0.75 + goalAlignment * 0.25 - penalty - compositionPenalty);
+        ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 - penalty - compositionPenalty - energyOvershootPenalty
+        : targetFit * 0.80 + goalAlignment * 0.20 - penalty - compositionPenalty);
       const behavior = scoreMealHistory(candidate, context.recentHistory ?? []);
-      // Behavior is intentionally a modest additive correction. It can break ties,
-      // avoid stale repetition, and learn taste, but cannot make a poor nutritional
-      // option look excellent simply because the student ate it before.
       const total = roundScore(nutritionTotal + behavior.totalAdjustment);
       return {
         candidate,
@@ -281,8 +381,10 @@ export function scoreResolvedMeals(
           total,
           nutritionTotal,
           targetFit,
+          energyReferenceFit,
           goalAlignment,
           remainingBudgetPenalty: penalty,
+          energyOvershootPenalty,
           compositionPenalty,
           behavior,
           mode,

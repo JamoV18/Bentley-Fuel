@@ -33,7 +33,12 @@ export interface MealHistoryEntry {
   id: string;
   locationId: LocationId;
   build: MealBuild;
+  /** When the student selected/saved the meal. Always present for legacy compatibility. */
   selectedAt: string;
+  /** Optional best estimate of when the meal was actually eaten. */
+  eatenAt?: string;
+  /** When the completion response was recorded; may be later than the meal itself. */
+  completionRecordedAt?: string;
   /** Snapshot of the selected meal so later menu changes cannot rewrite history. */
   nutrition?: NutritionFacts;
   /** Optional because the student may skip the follow-up question. */
@@ -53,6 +58,8 @@ export interface RecommendationContext {
   remainingMacros?: RemainingMacros;
   /** Newest-first recent history. Omit when the app has no behavioral history yet. */
   recentHistory?: readonly MealHistoryEntry[];
+  /** Menu items that should not be resurfaced for this recommendation occasion. */
+  excludeMenuItemIds?: readonly MenuItemId[];
 }
 
 export type RecommendationEligibilityIssueCode =
@@ -97,4 +104,6 @@ export interface MealCandidateGenerationOptions {
   maxCandidates?: number;
   /** Deterministic sample of valid configurations for each customizable item. */
   maxCustomVariantsPerItem?: number;
+  /** Complete-meal surfaces can require a real main/entree anchor. */
+  requireMain?: boolean;
 }

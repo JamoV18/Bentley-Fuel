@@ -7,6 +7,7 @@ import type {
   MealCandidateGenerationOptions,
   MealItemSelection,
   MenuItem,
+  MenuItemMealRole,
   RecommendationContext,
   Station,
 } from "@/types";
@@ -48,7 +49,7 @@ const normalizeSelections = (
 
 /**
  * Produce a small deterministic set of valid seeds for a customizable item.
- * This is intentionally bounded: Phase 7C scores the variants; it does not
+ * This is intentionally bounded: scoring ranks the variants; it does not
  * brute-force every possible bowl/burrito combination.
  */
 function customSelectionVariants(
@@ -70,16 +71,12 @@ function customSelectionVariants(
   if (eligibleByStep.some(({ step, eligible }) => eligible.length < step.minSelections)) return [];
 
   const raw: NonNullable<MealItemSelection["componentSelections"]>[] = [];
-
-  // Minimal valid seed: required choices only.
   raw.push(
     eligibleByStep.flatMap(({ step, eligible }) =>
       eligible.slice(0, step.minSelections).map((component) => ({ componentId: component.id, quantity: 1 })),
     ),
   );
 
-  // Fuller variants rotate through eligible choices and include one optional
-  // choice from each optional step, producing nutritionally distinct candidates.
   for (let variant = 0; variant < maxVariants - 1; variant += 1) {
     const selections: NonNullable<MealItemSelection["componentSelections"]> = [];
     for (const { step, eligible } of eligibleByStep) {
@@ -91,8 +88,6 @@ function customSelectionVariants(
       }
     }
 
-    // When a required step permits two servings and the chosen component permits
-    // it too, periodically create a double-serving variant (e.g. double chicken).
     if (variant % 2 === 1) {
       const protein = eligibleByStep.find(({ step }) => step.category === "protein" && step.maxSelections >= 2);
       const selectedProtein = protein?.eligible[variant % (protein?.eligible.length || 1)];
@@ -128,9 +123,7 @@ function lineVariantsForItem(
   context: RecommendationContext,
   maxCustomVariants: number,
 ): MealItemSelection[] {
-  if (item.kind === "customizable") {
-    return customSelectionVariants(item, components, context, maxCustomVariants);
-  }
+  if (item.kind === "customizable") return customSelectionVariants(item, components, context, maxCustomVariants);
   return [{ id: `candidate-line-${item.id}`, menuItemId: item.id, quantity: 1 }];
 }
 
@@ -170,6 +163,37 @@ const cartesian = <T>(groups: readonly T[][], cap: number): T[][] => {
 
 const stationDiversity = (items: readonly MenuItem[]) => new Set(items.map((item) => item.stationId)).size;
 
+export function inferMenuItemMealRole(item: MenuItem): MenuItemMealRole {
+  if (item.mealRole) return item.mealRole;
+  const name = item.name.toLowerCase();
+  if (/\b(water|coffee|tea|juice|milk|smoothie|shake|latte|drink|beverage)\b/.test(name)) return "drink";
+  if (/\b(cookie|brownie|cake|ice cream|dessert)\b/.test(name)) return "dessert";
+  if (/\b(muffin|protein bar|granola bar|trail mix|chips|banana|apple|orange|yogurt)\b/.test(name)) return "snack";
+  if (item.kind === "customizable") return "main";
+  const calories = item.nutrition?.calories ?? item.baseNutrition?.calories ?? 0;
+  if (calories >= 350) return "main";
+  return "side";
+}
+
+const roleCounts = (items: readonly MenuItem[]) => {
+  const counts: Record<MenuItemMealRole, number> = { main: 0, side: 0, snack: 0, drink: 0, dessert: 0 };
+  for (const item of items) counts[inferMenuItemMealRole(item)] += 1;
+  return counts;
+};
+
+const isPlausibleMealComposition = (items: readonly MenuItem[]): boolean => {
+  const counts = roleCounts(items);
+  if (counts.main > 1 || counts.drink > 1 || counts.dessert > 1) return false;
+  if (counts.main === 1 && counts.snack + counts.dessert > 1) return false;
+  return true;
+};
+
+const roleBalancePriority = (items: readonly MenuItem[]): number => {
+  const counts = roleCounts(items);
+  if (counts.main === 1) return 100 + counts.side * 12 + counts.drink * 5 + counts.snack * 3 - counts.dessert * 2;
+  return counts.side * 8 + counts.snack * 5 + counts.drink * 4 - counts.dessert * 2;
+};
+
 export function generateMealCandidatesFromResources(
   items: readonly MenuItem[],
   stations: readonly Station[],
@@ -181,9 +205,11 @@ export function generateMealCandidatesFromResources(
   const maxCandidates = Math.max(1, Math.floor(options.maxCandidates ?? DEFAULT_MAX_CANDIDATES));
   const maxCustomVariants = Math.max(1, Math.floor(options.maxCustomVariantsPerItem ?? DEFAULT_MAX_CUSTOM_VARIANTS));
   const availableStationIds = new Set(stations.filter((station) => stationAvailable(station, context)).map((station) => station.id));
+  const excludedMenuItemIds = new Set(context.excludeMenuItemIds ?? []);
 
   const eligible = items.filter((item) => {
     if (!availableStationIds.has(item.stationId)) return false;
+    if (excludedMenuItemIds.has(item.id)) return false;
     return assessMenuItemEligibility(item, context, components).isEligible;
   });
 
@@ -194,10 +220,15 @@ export function generateMealCandidatesFromResources(
 
   const candidateItemSets: MenuItem[][] = [];
   for (let size = 1; size <= Math.min(maxItems, configurable.length); size += 1) {
-    candidateItemSets.push(...combinations(configurable, size));
+    candidateItemSets.push(...combinations(configurable, size).filter((itemSet) => {
+      if (!isPlausibleMealComposition(itemSet)) return false;
+      return !options.requireMain || roleCounts(itemSet).main === 1;
+    }));
   }
 
   candidateItemSets.sort((a, b) => {
+    const roleBalance = roleBalancePriority(b) - roleBalancePriority(a);
+    if (roleBalance !== 0) return roleBalance;
     const diversity = stationDiversity(b) - stationDiversity(a);
     if (diversity !== 0) return diversity;
     if (a.length !== b.length) return a.length - b.length;

@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Allow the local-network address used to preview Bentley Fuel on a phone
+  // while the Next.js development server is running on the Mac.
+  allowedDevOrigins: ["10.100.171.201"],
 };
 
 export default nextConfig;

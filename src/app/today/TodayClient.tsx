@@ -107,7 +107,7 @@ export default function TodayClient({
   return (
     <main className="today-shell">
       <header className="today-header">
-        <Link href="/profile-summary" className="profile-orb" aria-label="Open profile and plan">B</Link>
+        <Link href="/profile" className="profile-orb" aria-label="Open profile">B</Link>
         <div className="min-w-0 flex-1">
           <p className="today-greeting">{isToday ? "Today" : new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(selectedDate)}</p>
           <p className="today-date">{new Intl.DateTimeFormat("en-US", { weekday: isToday ? "long" : undefined, month: "short", day: "numeric" }).format(selectedDate)}</p>
@@ -145,7 +145,7 @@ export default function TodayClient({
         </article>
 
         <article className="nutrition-card macro-card">
-          <div className="carousel-card-heading"><div><p className="eyebrow">Nutrition</p><h2>Macros at a glance</h2></div><Link href="/profile-summary">Edit goals</Link></div>
+          <div className="carousel-card-heading"><div><p className="eyebrow">Nutrition</p><h2>Macros at a glance</h2></div><Link href="/profile-summary">View plan</Link></div>
           <div className="macro-detail-grid">
             {macros.map((macro) => <div className="macro-detail" key={macro.name}><div className={`mini-ring ${macro.tone}`} style={{ "--mini-progress": `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` } as React.CSSProperties}><strong>{macro.target ? coverage(macro.consumed, macro.target) : 0}%</strong></div><span>{macro.name}</span><strong>{round(macro.consumed)}g</strong><small>{macro.target ? `of ${round(macro.target)}g` : "consumed"}</small></div>)}
           </div>

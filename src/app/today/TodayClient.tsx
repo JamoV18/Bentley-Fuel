@@ -21,6 +21,20 @@ const formatWeight = (kg: number, units: UserProfile["unitSystem"]) => units ===
 const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => itemNames[item.menuItemId] ?? "Meal item").join(" + ");
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
+const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+function dayLabel(date: Date) {
+  return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(date);
+}
+
+function MealProgress({ fraction }: { fraction?: number }) {
+  const pct = fraction === undefined ? 0 : Math.round(Math.max(0, Math.min(1, fraction)) * 100);
+  return (
+    <div className="meal-progress" style={{ "--meal-progress": `${pct}%` } as React.CSSProperties} aria-label={`${pct}% completed`}>
+      <span>{fraction === undefined ? "" : pct === 100 ? "✓" : `${pct}%`}</span>
+    </div>
+  );
+}
 
 export default function TodayClient({
   locationNames,
@@ -35,110 +49,149 @@ export default function TodayClient({
 }) {
   const [profile, setProfile] = useState<UserProfile | null>();
   const [latestWeightKg, setLatestWeightKg] = useState<number>();
-  const [todayEntries, setTodayEntries] = useState<MealHistoryEntry[]>([]);
+  const [entries, setEntries] = useState<MealHistoryEntry[]>([]);
   const [pending, setPending] = useState<MealHistoryEntry[]>([]);
-  const [mode, setMode] = useState<"remaining" | "consumed">("remaining");
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+
+  const isToday = sameDay(selectedDate, new Date());
 
   const refresh = useCallback(() => {
     const repository = browserMealHistoryRepository();
+    const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1, 0, 0, 0, -1);
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, -1);
     setProfile(browserProfileRepository().get());
     setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
-    setTodayEntries(repository.getByDateRange(start, end));
-    setPending(repository.getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS)));
-  }, []);
+    setEntries(repository.getByDateRange(start, end));
+    setPending(isToday ? repository.getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS)) : []);
+  }, [selectedDate, isToday]);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
 
-  const plan = useMemo(() => profile ? resolveNutritionPlan(profile, new Date(), latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, latestWeightKg]);
-  const snapshot = useMemo(() => createDailyNutritionSnapshot(todayEntries, plan?.activeTargets ?? profile?.dailyTargets), [todayEntries, plan?.activeTargets, profile?.dailyTargets]);
+  const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);
+  const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets), [entries, plan?.activeTargets, profile?.dailyTargets]);
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     browserMealHistoryRepository().updateFeedback(id, fraction);
     refresh();
   };
 
-  if (profile === undefined) return <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7"><p>Loading today…</p></main>;
-  if (!profile) return <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7"><p className="brand-kicker">Bentley Fuel</p><h1 className="mt-5 text-4xl font-bold tracking-tight">Build your nutrition plan.</h1><p className="mt-2 subtle">A few choices unlock personalized dining recommendations and daily tracking.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
+  const changeDay = (amount: number) => {
+    setSelectedDate((current) => {
+      const next = new Date(current);
+      next.setDate(current.getDate() + amount);
+      return next;
+    });
+  };
 
-  const hasTargets = Boolean(snapshot.targets);
-  const values = mode === "remaining" ? snapshot.remaining : snapshot.consumed;
-  const headline = mode === "remaining" && !hasTargets ? undefined : (values?.calories ?? snapshot.consumed.calories);
+  if (profile === undefined) return <main className="today-shell"><p>Loading today…</p></main>;
+  if (!profile) return <main className="today-shell"><p className="brand-kicker">Bentley Fuel</p><h1 className="mt-5 text-4xl font-bold tracking-tight">Build your nutrition plan.</h1><p className="mt-2 subtle">A few choices unlock personalized dining recommendations and daily tracking.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
+
   const target = snapshot.targets;
+  const remainingCalories = target ? Math.max(0, snapshot.remaining?.calories ?? target.calories - snapshot.consumed.calories) : undefined;
   const calorieCoverage = target ? coverage(snapshot.consumed.calories, target.calories) : 0;
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const planLabel = plan?.phase === "maintenance" ? "Maintenance" : goals.map(readable).join(" · ");
-  const dateLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" }).format(new Date());
   const firstPending = pending[0];
 
+  const yesterday = new Date(selectedDate); yesterday.setDate(selectedDate.getDate() - 1);
+  const tomorrow = new Date(selectedDate); tomorrow.setDate(selectedDate.getDate() + 1);
+
+  const macros = [
+    { name: "Carbs", consumed: snapshot.consumed.carbs, remaining: snapshot.remaining?.carbs, target: target?.carbs, tone: "carbs" },
+    { name: "Protein", consumed: snapshot.consumed.protein, remaining: snapshot.remaining?.protein, target: target?.protein, tone: "protein" },
+    { name: "Fat", consumed: snapshot.consumed.fat, remaining: snapshot.remaining?.fat, target: target?.fat, tone: "fat" },
+  ];
+
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
-      <header className="flex items-end justify-between gap-4">
-        <div>
-          <p className="brand-kicker">Bentley Fuel</p>
-          <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Today</h1>
-          <p className="mt-1 text-sm font-medium subtle">{dateLabel}</p>
+    <main className="today-shell">
+      <header className="today-header">
+        <Link href="/profile-summary" className="profile-orb" aria-label="Open profile and plan">B</Link>
+        <div className="min-w-0 flex-1">
+          <p className="today-greeting">{isToday ? "Today" : new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(selectedDate)}</p>
+          <p className="today-date">{new Intl.DateTimeFormat("en-US", { weekday: isToday ? "long" : undefined, month: "short", day: "numeric" }).format(selectedDate)}</p>
         </div>
-        <div className="hidden rounded-full border border-emerald-900/10 bg-white/80 px-3 py-2 text-xs font-semibold text-emerald-900 shadow-sm sm:block">Smart nutrition · simple tracking</div>
+        <Link href="/profile-summary" className="plan-pill">Your plan <span>›</span></Link>
       </header>
 
-      <AppNav />
-      {isDemo && <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">Demo menu data · tracking and personalization are functional, but menu information is not current official Bentley Dining data.</p>}
+      <div className="day-switcher" aria-label="Choose day">
+        <button type="button" className="day-arrow" onClick={() => changeDay(-1)} aria-label="Previous day">‹</button>
+        <button type="button" className="day-slot" onClick={() => changeDay(-1)}><span>Previous</span><strong>{dayLabel(yesterday)}</strong></button>
+        <button type="button" className="day-slot day-slot-active" onClick={() => setSelectedDate(new Date())}><span>{isToday ? "Today" : "Selected"}</span><strong>{dayLabel(selectedDate)}</strong></button>
+        <button type="button" className="day-slot" onClick={() => changeDay(1)}><span>Next</span><strong>{dayLabel(tomorrow)}</strong></button>
+        <button type="button" className="day-arrow" onClick={() => changeDay(1)} aria-label="Next day">›</button>
+      </div>
 
-      <section className="nutrition-hero mt-6">
-        <div className="relative z-10 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[.12em] text-white/60">{mode === "remaining" ? "Remaining today" : hasTargets ? "Consumed today" : "Recorded today"}</p>
-            <p className="mt-2 text-5xl font-bold tracking-[-0.05em]">{headline === undefined ? "—" : round(headline).toLocaleString()}</p>
-            <p className="mt-1 text-sm text-white/60">calories</p>
-          </div>
-          {target ? (
-            <div className="progress-ring" style={{ "--value": `${calorieCoverage}%` } as React.CSSProperties}>
-              <div className="text-center"><p className="text-lg font-bold">{calorieCoverage}%</p><p className="text-[9px] uppercase tracking-wide text-white/55">of goal</p></div>
+      {isDemo && <p className="demo-note">Demo menu data · tracking and personalization are functional; menu information is not current official Bentley Dining data.</p>}
+
+      <section className="nutrition-carousel" aria-label="Daily nutrition summary">
+        <article className="nutrition-card calorie-card">
+          <div className="calorie-layout">
+            <div className="side-stat"><span className="stat-icon">⌁</span><strong>{round(snapshot.consumed.calories).toLocaleString()}</strong><small>eaten</small></div>
+            <div className="calorie-ring" style={{ "--calorie-progress": `${calorieCoverage}%` } as React.CSSProperties}>
+              <div className="calorie-ring-inner">
+                <span>Calories</span>
+                <strong>{remainingCalories === undefined ? round(snapshot.consumed.calories).toLocaleString() : round(remainingCalories).toLocaleString()}</strong>
+                <small>{target ? "remaining" : "recorded"}</small>
+                {target && <Link href="/profile-summary" className="calorie-goal">of {round(target.calories).toLocaleString()} ✎</Link>}
+              </div>
             </div>
-          ) : null}
-        </div>
-        <div className="relative z-10 mt-5 flex justify-end">
-          <div className="flex rounded-xl border border-white/10 bg-white/[.07] p-1 text-xs font-bold">
-            <button type="button" className={`rounded-lg px-3 py-1.5 transition ${mode === "remaining" ? "bg-white text-emerald-950 shadow" : "text-white/65"}`} onClick={() => setMode("remaining")}>Left</button>
-            <button type="button" className={`rounded-lg px-3 py-1.5 transition ${mode === "consumed" ? "bg-white text-emerald-950 shadow" : "text-white/65"}`} onClick={() => setMode("consumed")}>Consumed</button>
+            <div className="side-stat"><span className="stat-icon stat-icon-warm">↗</span><strong>0</strong><small>burned</small></div>
           </div>
-        </div>
-        <div className="macro-strip relative z-10 mt-4">
-          {[{ name: "Protein", value: values?.protein }, { name: "Carbs", value: values?.carbs }, { name: "Fat", value: values?.fat }].map((macro) => (
-            <div key={macro.name} className="macro-tile"><p className="text-xl font-bold">{macro.value === undefined ? "—" : `${round(macro.value)}g`}</p><p className="mt-1 text-[11px] text-white/55">{macro.name}</p></div>
-          ))}
-        </div>
-      </section>
+          <div className="macro-glance">
+            {macros.map((macro) => <div key={macro.name}><span className={`macro-name ${macro.tone}`}>{macro.name}</span><strong>{round(macro.consumed)}{macro.target ? ` / ${round(macro.target)}g` : "g"}</strong><div className="macro-track"><span className={macro.tone} style={{ width: `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` }} /></div><small>{macro.remaining === undefined ? "tracked" : `${round(macro.remaining)}g left`}</small></div>)}
+          </div>
+        </article>
 
-      {!hasTargets && <section className="surface-soft mt-4 p-4"><p className="text-sm font-bold text-emerald-950">Tracking is active. Daily targets need a little more information.</p><p className="mt-1 text-sm leading-relaxed text-emerald-950/65">Bentley Fuel will not invent a calorie target. Add supported body information to unlock a meaningful Remaining view.</p><Link href="/onboarding" className="mt-2 inline-flex text-sm font-bold text-emerald-800 underline">Add body information</Link></section>}
+        <article className="nutrition-card macro-card">
+          <div className="carousel-card-heading"><div><p className="eyebrow">Nutrition</p><h2>Macros at a glance</h2></div><Link href="/profile-summary">Edit goals</Link></div>
+          <div className="macro-detail-grid">
+            {macros.map((macro) => <div className="macro-detail" key={macro.name}><div className={`mini-ring ${macro.tone}`} style={{ "--mini-progress": `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` } as React.CSSProperties}><strong>{macro.target ? coverage(macro.consumed, macro.target) : 0}%</strong></div><span>{macro.name}</span><strong>{round(macro.consumed)}g</strong><small>{macro.target ? `of ${round(macro.target)}g` : "consumed"}</small></div>)}
+          </div>
+          <p className="macro-card-note">Swipe back for calories, or keep this card nearby for a fast macro check.</p>
+        </article>
+      </section>
+      <div className="carousel-dots" aria-hidden="true"><span className="active" /><span /></div>
+
+      <Link href="/dashboard" className="eat-cta">
+        <span className="eat-cta-icon">+</span>
+        <span><strong>Time to eat?</strong><small>Get a personalized recommendation or build a meal.</small></span>
+        <span className="eat-cta-arrow">→</span>
+      </Link>
 
       {firstPending && (
-        <section className="surface mt-5 overflow-hidden p-4 sm:p-5">
-          <div className="flex items-center justify-between"><p className="eyebrow">Your next check-in</p><span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">Waiting</span></div>
-          <div className="mt-3 flex gap-4">
+        <section className="today-card checkin-card">
+          <div className="section-heading"><div><p className="eyebrow">Did you finish?</p><h2>Quick meal check-in</h2></div><span className="status-pill">Waiting</span></div>
+          <div className="checkin-meal">
             <MealImage name={mealName(firstPending, itemNames)} imageUrl={itemImageUrls[primaryItemId(firstPending)]} aspect="wide" />
-            <div className="min-w-0 flex-1"><h2 className="text-lg font-bold leading-tight">{mealName(firstPending, itemNames)}</h2><p className="mt-1 text-xs subtle">{locationNames[firstPending.locationId] ?? firstPending.locationId}</p>{firstPending.nutrition && <p className="mt-2 text-sm font-semibold text-emerald-900">{round(firstPending.nutrition.calories)} cal · {round(firstPending.nutrition.protein)}g protein</p>}</div>
+            <div className="min-w-0 flex-1"><h3>{mealName(firstPending, itemNames)}</h3><p>{locationNames[firstPending.locationId] ?? firstPending.locationId}</p>{firstPending.nutrition && <strong>{round(firstPending.nutrition.calories)} cal · {round(firstPending.nutrition.protein)}g protein</strong>}</div>
           </div>
-          <div className="mt-4 border-t border-black/[.06] pt-4"><p className="text-sm font-bold">How much did you finish?</p><div className="mt-3 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(firstPending.id, choice.fraction)}>{choice.label}</button>)}</div></div>
+          <div className="checkin-choices">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(firstPending.id, choice.fraction)}>{choice.label}</button>)}</div>
         </section>
       )}
 
-      {pending.length > 1 && <section className="surface-soft mt-4 p-4"><p className="text-xs font-bold text-emerald-900">{pending.length - 1} more recent meal{pending.length - 1 === 1 ? "" : "s"} awaiting a check-in</p><div className="mt-3 space-y-3">{pending.slice(1).map((entry) => <div key={entry.id} className="meal-row"><MealImage name={mealName(entry, itemNames)} imageUrl={itemImageUrls[primaryItemId(entry)]} /><div className="min-w-0 flex-1"><p className="font-bold leading-tight">{mealName(entry, itemNames)}</p><div className="mt-2 flex flex-wrap gap-1.5">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip px-2 py-1 text-xs" onClick={() => saveCompletion(entry.id, choice.fraction)}>{choice.label}</button>)}</div></div></div>)}</div></section>}
-
-      <section className="surface mt-5 p-5">
-        <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">Your plan</p><h2 className="mt-1 text-lg font-bold">{planLabel}</h2></div><Link href="/profile-summary" className="text-sm font-bold text-emerald-800">View plan →</Link></div>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">{plan?.weightLossIntensity && <span className="rounded-full bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-900">{readable(plan.weightLossIntensity)} intensity{plan.weightLossIntensity === "extreme" ? " · not recommended" : ""}</span>}{plan?.currentWeightKg && plan?.targetWeightKg && <span className="rounded-full bg-black/[.035] px-3 py-1.5 font-semibold">{formatWeight(plan.currentWeightKg, profile.unitSystem)} → {formatWeight(plan.targetWeightKg, profile.unitSystem)}</span>}</div>
+      <section className="today-card meals-card">
+        <div className="section-heading"><div><p className="eyebrow">{isToday ? "Today’s meals" : dayLabel(selectedDate)}</p><h2>{isToday ? "Meals for today" : "Meals recorded"}</h2></div><Link href="/history">View all →</Link></div>
+        {snapshot.meals.length === 0 ? (
+          <div className="empty-meals"><p>No meals recorded for this day.</p>{isToday && <Link href="/dashboard">Find my next meal</Link>}</div>
+        ) : (
+          <div className="meal-list">{snapshot.meals.map((entry) => (
+            <article key={entry.id} className="today-meal-row">
+              <div className="meal-visual"><MealImage name={mealName(entry, itemNames)} imageUrl={itemImageUrls[primaryItemId(entry)]} /><MealProgress fraction={entry.completionFraction} /></div>
+              <div className="min-w-0 flex-1"><h3>{mealName(entry, itemNames)}</h3><p>{locationNames[entry.locationId] ?? entry.locationId}</p>{entry.nutrition && <strong>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</strong>}</div>
+              <span className="row-chevron">›</span>
+            </article>
+          ))}</div>
+        )}
       </section>
 
-      <section className="surface mt-5 p-5">
-        <div className="flex items-center justify-between"><div><p className="eyebrow">Meals</p><h2 className="mt-1 text-xl font-bold">Today’s meals</h2></div><Link href="/history" className="text-sm font-bold text-emerald-800">History →</Link></div>
-        {snapshot.meals.length === 0 ? <div className="mt-4 rounded-2xl border border-dashed border-black/10 bg-black/[.018] p-5 text-center"><p className="text-sm subtle">No meals recorded yet.</p><Link href="/dashboard" className="mt-2 inline-block text-sm font-bold text-emerald-800">Find my next meal</Link></div> : <div className="mt-4 space-y-3">{snapshot.meals.map((entry) => <article key={entry.id} className="meal-row"><MealImage name={mealName(entry, itemNames)} imageUrl={itemImageUrls[primaryItemId(entry)]} /><div className="min-w-0 flex-1"><p className="font-bold leading-tight">{mealName(entry, itemNames)}</p><p className="mt-1 text-xs subtle">{locationNames[entry.locationId] ?? entry.locationId}</p>{entry.nutrition && <p className="mt-1.5 text-sm font-medium text-black/65">{entry.completionFraction === undefined ? "Awaiting completion check-in" : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein consumed`}</p>}</div><span className="text-lg text-black/25">›</span></article>)}</div>}
+      <section className="today-card compact-plan-card">
+        <div><p className="eyebrow">Your plan</p><h2>{planLabel}</h2></div>
+        <div className="plan-meta">{plan?.weightLossIntensity && <span>{readable(plan.weightLossIntensity)} intensity</span>}{plan?.currentWeightKg && plan?.targetWeightKg && <span>{formatWeight(plan.currentWeightKg, profile.unitSystem)} → {formatWeight(plan.targetWeightKg, profile.unitSystem)}</span>}</div>
+        <Link href="/profile-summary">View plan →</Link>
       </section>
 
-      <Link href="/dashboard" className="primary mt-5 block text-center">Find my next meal</Link>
+      <AppNav />
     </main>
   );
 }

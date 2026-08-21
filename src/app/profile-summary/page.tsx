@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import AppNav from "@/components/AppNav";
-import { browserMealHistoryRepository, browserProgressRepository, resolveNutritionPlan } from "@/services";
+import { browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile, WeightLossIntensity } from "@/types";
 
@@ -23,7 +22,7 @@ export default function ProfileSummary() {
   const [progressInput, setProgressInput] = useState("");
   const [progressMessage, setProgressMessage] = useState("");
   const [planMessage, setPlanMessage] = useState("");
-  const router = useRouter();
+  const [editingPlan, setEditingPlan] = useState(false);
 
   useEffect(() => { queueMicrotask(() => { const nextProfile = browserProfileRepository().get(); setProfile(nextProfile); setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg); }); }, []);
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, new Date(), latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, latestWeightKg]);
@@ -36,6 +35,8 @@ export default function ProfileSummary() {
   const maintenanceCalories = plan?.maintenanceTargets?.calories ?? profile.maintenanceEstimate?.calories;
   const currentWeight = plan?.currentWeightKg ?? latestWeightKg ?? profile.metrics?.weightKg;
   const isWeightLossPlan = goals.includes("lose-weight");
+  const currentIntensity = plan?.weightLossIntensity;
+  const currentIntensityMeta = INTENSITIES.find((choice) => choice.value === currentIntensity);
 
   const saveProgress = () => {
     const entered = Number(progressInput);
@@ -47,6 +48,7 @@ export default function ProfileSummary() {
   };
 
   const setIntensity = (intensity: WeightLossIntensity) => {
+    if (!editingPlan) return;
     const next: UserProfile = {
       ...profile,
       weightGoalPlan: {
@@ -63,8 +65,6 @@ export default function ProfileSummary() {
     setPlanMessage(`${words(intensity)} intensity saved.`);
   };
 
-  const clearAllLocalData = () => { browserMealHistoryRepository().clear(); browserProgressRepository().clear(); browserProfileRepository().clear(); router.push("/onboarding"); };
-
   return (
     <main className="summary">
       <header className="flex items-start justify-between gap-4">
@@ -73,7 +73,9 @@ export default function ProfileSummary() {
           <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em]">Your plan</h1>
           <p className="mt-1 text-sm subtle">Goals, targets, and progress at a glance.</p>
         </div>
-        <Link href="/onboarding" className="secondary mt-1 whitespace-nowrap text-sm">Edit plan</Link>
+        <button type="button" className="secondary mt-1 whitespace-nowrap text-sm" onClick={() => { setEditingPlan((value) => !value); setPlanMessage(""); }}>
+          {editingPlan ? "Done" : "Edit plan"}
+        </button>
       </header>
       <AppNav />
 
@@ -96,21 +98,30 @@ export default function ProfileSummary() {
       </section>
 
       {isWeightLossPlan && <section className="surface mt-4 p-5 sm:p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div><p className="eyebrow">Intensity</p><h2 className="mt-1 text-xl font-bold">Choose your pace</h2></div>
-          <Link href="/onboarding" className="text-xs font-bold text-[var(--brand-900)]">Goals & target →</Link>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {INTENSITIES.map((choice) => {
-            const selected = plan?.weightLossIntensity === choice.value;
-            return <button key={choice.value} type="button" className="choice min-h-0 p-3 text-center" data-selected={selected} aria-pressed={selected} onClick={() => setIntensity(choice.value)}>
-              <span className="block text-sm font-bold">{choice.label}</span>
-              <span className="mt-1 block text-[11px] font-medium subtle">{choice.deficit}</span>
-            </button>;
-          })}
-        </div>
-        <div className="mt-3 flex items-start justify-between gap-3 text-xs subtle"><p>Relative to estimated maintenance.</p>{planMessage && <p className="font-semibold text-[var(--brand-900)]">{planMessage}</p>}</div>
-        {plan?.weightLossIntensity === "extreme" && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold leading-relaxed text-red-700">Extreme is aggressive and may be inappropriate for some people. Consider qualified medical or dietitian guidance.</p>}
+        {!editingPlan ? (
+          <div className="flex items-center justify-between gap-4">
+            <div><p className="eyebrow">Intensity</p><h2 className="mt-1 text-xl font-bold">{currentIntensity ? words(currentIntensity) : "Not set"}</h2><p className="mt-1 text-xs subtle">{currentIntensityMeta ? `${currentIntensityMeta.deficit} below estimated maintenance` : "Use Edit plan to choose a pace."}</p></div>
+            <span className="rounded-full bg-[rgba(127,169,154,.14)] px-3 py-2 text-xs font-bold text-[var(--brand-900)]">Locked</span>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <div><p className="eyebrow">Editing intensity</p><h2 className="mt-1 text-xl font-bold">Choose your pace</h2></div>
+              <Link href="/onboarding" className="text-xs font-bold text-[var(--brand-900)]">Goals & target →</Link>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {INTENSITIES.map((choice) => {
+                const selected = currentIntensity === choice.value;
+                return <button key={choice.value} type="button" className="choice min-h-0 p-3 text-center" data-selected={selected} aria-pressed={selected} onClick={() => setIntensity(choice.value)}>
+                  <span className="block text-sm font-bold">{choice.label}</span>
+                  <span className="mt-1 block text-[11px] font-medium subtle">{choice.deficit}</span>
+                </button>;
+              })}
+            </div>
+            <div className="mt-3 flex items-start justify-between gap-3 text-xs subtle"><p>Relative to estimated maintenance.</p>{planMessage && <p className="font-semibold text-[var(--brand-900)]">{planMessage}</p>}</div>
+            {currentIntensity === "extreme" && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold leading-relaxed text-red-700">Extreme is aggressive and may be inappropriate for some people. Consider qualified medical or dietitian guidance.</p>}
+          </>
+        )}
       </section>}
 
       <section className="surface mt-4 p-5 sm:p-6">
@@ -119,29 +130,13 @@ export default function ProfileSummary() {
         {progressMessage && <p className="mt-2 text-xs subtle">{progressMessage}</p>}
       </section>
 
-      <section className="surface mt-4 p-5 sm:p-6">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {maintenanceCalories && <div className="rounded-[1.2rem] bg-[rgba(221,209,190,.24)] p-4"><p className="eyebrow">Maintenance</p><p className="mt-1 text-2xl font-bold">{Math.round(maintenanceCalories).toLocaleString()} <span className="text-xs font-medium subtle">cal/day</span></p></div>}
-          <Link href="/onboarding" className="flex min-h-24 items-center justify-between rounded-[1.2rem] bg-[rgba(127,169,154,.13)] p-4"><div><p className="eyebrow">Plan settings</p><p className="mt-1 font-bold">Change goals, target, or profile</p></div><span className="text-2xl text-[var(--brand-900)]">›</span></Link>
-        </div>
-      </section>
+      {maintenanceCalories && <section className="surface mt-4 p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-4"><div><p className="eyebrow">Maintenance</p><p className="mt-1 text-2xl font-bold">{Math.round(maintenanceCalories).toLocaleString()} <span className="text-xs font-medium subtle">cal/day</span></p></div>{editingPlan && <Link href="/onboarding" className="text-xs font-bold text-[var(--brand-900)]">Change goals & target →</Link>}</div>
+      </section>}
 
-      <details className="surface mt-4 p-5 sm:p-6">
-        <summary className="cursor-pointer list-none font-bold"><span className="flex items-center justify-between"><span>Profile details</span><span className="text-sm font-medium subtle">Preferences & restrictions +</span></span></summary>
-        <div className="mt-5 grid gap-4 border-t border-[var(--line)] pt-5 sm:grid-cols-2">
-          <Row name="Units" value={profile.unitSystem === "metric" ? "Metric (kg / cm)" : "US (lb / ft-in)"} />
-          {profile.behavioralGoals?.length ? <Row name="Also helping with" value={profile.behavioralGoals.map(words).join(", ")} /> : null}
-          <Row name="Dietary preferences" value={profile.dietaryPreferences.length ? profile.dietaryPreferences.map(words).join(", ") : "None selected"} />
-          <Row name="Allergens to avoid" value={profile.allergensToAvoid.length ? profile.allergensToAvoid.map(words).join(", ") : "None selected"} />
-          {profile.goalDescription && <div className="sm:col-span-2"><Row name="Your note" value={profile.goalDescription} /></div>}
-        </div>
-      </details>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2"><Link href="/today" className="primary text-center">Back to Today</Link><Link href="/onboarding" className="secondary text-center">Edit full plan</Link></div>
-      <button className="mt-5 w-full text-center text-xs font-bold text-red-700/65" onClick={clearAllLocalData}>Clear all local data</button>
+      <div className="mt-4"><Link href="/today" className="primary block text-center">Back to Today</Link></div>
     </main>
   );
 }
 
 function Stat({ label, value, suffix }: { label: string; value: string; suffix?: string }) { return <div className="rounded-[1.2rem] bg-[rgba(127,169,154,.11)] p-3.5"><p className="text-xl font-bold">{value} {suffix && <span className="text-[10px] font-medium subtle">{suffix}</span>}</p><p className="mt-1 text-[11px] font-semibold subtle">{label}</p></div>; }
-function Row({ name, value }: { name: string; value: string }) { return <div><h3 className="text-[10px] font-bold uppercase tracking-[.1em] subtle">{name}</h3><p className="mt-1 text-sm font-medium leading-relaxed">{value}</p></div>; }

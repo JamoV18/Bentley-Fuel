@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AppNav from "@/components/AppNav";
-import MealImage from "@/components/MealImage";
+import LocationImage from "@/components/LocationImage";
 import { getDiningProvider } from "@/services";
 
 export default async function DashboardPage() {
@@ -27,7 +27,7 @@ export default async function DashboardPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {cards.map(({ location, stationCount }) => (
           <Link key={location.id} href={`/locations/${location.id}`} className="group surface overflow-hidden p-2 transition hover:-translate-y-1 hover:border-emerald-700/30 hover:shadow-xl">
-            <MealImage name={`${location.name} healthy food`} aspect="hero" className="h-36" />
+            <LocationImage locationId={location.id} name={location.shortName ?? location.name} className="h-36" />
             <div className="p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div><p className="eyebrow">Dining location</p><h2 className="mt-1 text-2xl font-bold tracking-tight group-hover:text-emerald-800">{location.shortName ?? location.name}</h2></div>

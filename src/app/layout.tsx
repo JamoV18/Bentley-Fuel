@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import "./app-overrides.css";
 
 export const metadata: Metadata = {
   title: "Bentley Fuel",
@@ -10,9 +11,15 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#003b2a",
+  themeColor: "#F6F2E9",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en" className="h-full antialiased"><body className="min-h-full flex flex-col">{children}</body></html>;
+  return (
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
+    </html>
+  );
 }

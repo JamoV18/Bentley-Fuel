@@ -1,0 +1,7 @@
+.today-shell .app-nav {
+  left: 50%;
+  right: auto;
+  width: min(calc(100vw - 1.5rem), 42rem);
+  margin: 0;
+  transform: translateX(-50%);
+}

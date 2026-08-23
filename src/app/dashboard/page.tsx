@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
       <header className="flex items-center justify-between gap-4">
-        <p className="text-sm font-bold text-emerald-700">Bentley Fuel</p>
+        <p className="text-sm font-bold text-emerald-700">Falcon Fuel</p>
         <Link href="/profile-summary" className="text-sm font-semibold text-black/60 underline underline-offset-4">Profile</Link>
       </header>
 
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
 
       <section className={RECORDING_DEMO_ENABLED ? "mt-10" : "mt-8"}>
         <h1 className={`${RECORDING_DEMO_ENABLED ? "text-3xl" : "text-4xl"} font-bold tracking-tight`}>Where are you eating?</h1>
-        <p className="mt-2 text-black/60">Choose a campus dining location.</p>
+        <p className="mt-2 text-black/60">Choose a campus dining location. Falcon Fuel will recommend the best fit from that location only.</p>
         {provider.dataStatus === "mock" && !RECORDING_DEMO_ENABLED && (
           <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">
             Demo dining data — not current official Bentley Dining information.

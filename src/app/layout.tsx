@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Bentley Fuel",
+  title: "Falcon Fuel",
   description:
     "Personalized dining for Bentley students — what to eat based on your goals, restrictions, remaining macros, and location.",
 };

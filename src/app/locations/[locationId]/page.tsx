@@ -30,7 +30,7 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
         <p className="text-sm font-semibold uppercase tracking-wide text-emerald-900/65">Personalized meal</p>
         <h2 className="mt-1 text-xl font-bold">What should I eat here?</h2>
         <p className="mt-2 text-sm leading-relaxed text-black/65">
-          Bentley Fuel can combine eligible foods across the stations and concepts at {view.location.shortName ?? view.location.name}, then rank complete meals using your profile, goals, restrictions, and recent meal patterns.
+          Falcon Fuel can combine eligible foods across the stations and concepts at {view.location.shortName ?? view.location.name}, then rank complete meals using your profile, goals, restrictions, and recent meal patterns. Recommendations stay inside this dining location.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link

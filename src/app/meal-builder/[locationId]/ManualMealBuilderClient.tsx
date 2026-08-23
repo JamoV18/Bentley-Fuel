@@ -99,7 +99,7 @@ export default function ManualMealBuilderClient({
       <header className="mt-6">
         <p className="text-sm font-bold uppercase tracking-wide text-emerald-800">Build my own meal</p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">Already know what you are eating?</h1>
-        <p className="mt-3 text-black/60">Add foods from any available station here. Bentley Fuel will total the meal and save it to your meal history without making the choices for you.</p>
+        <p className="mt-3 text-black/60">Add foods from any available station here. Falcon Fuel will total the meal and save it to your meal history without making the choices for you.</p>
         <Link href={`/meal-builder/${locationId}`} className="mt-4 inline-flex text-sm font-semibold text-emerald-800 underline">Want help deciding instead? Get a recommendation</Link>
       </header>
 
@@ -183,11 +183,17 @@ export default function ManualMealBuilderClient({
         )}
 
         {computed.nutrition && (
-          <dl className="mt-5 grid grid-cols-4 gap-2 border-t border-black/10 pt-5 text-center">
-            {[["Calories", computed.nutrition.calories, "cal"], ["Protein", computed.nutrition.protein, "g"], ["Carbs", computed.nutrition.carbs, "g"], ["Fat", computed.nutrition.fat, "g"]].map(([label, value, unit]) => (
-              <div key={label}><dt className="text-xs text-black/55">{label}</dt><dd className="font-bold">{value}{unit}</dd></div>
-            ))}
-          </dl>
+          <>
+            <dl className="mt-5 grid grid-cols-4 gap-2 border-t border-black/10 pt-5 text-center">
+              {[["Calories", computed.nutrition.calories, "cal"], ["Protein", computed.nutrition.protein, "g"], ["Carbs", computed.nutrition.carbs, "g"], ["Fat", computed.nutrition.fat, "g"]].map(([label, value, unit]) => (
+                <div key={label}><dt className="text-xs text-black/55">{label}</dt><dd className="font-bold">{value}{unit}</dd></div>
+              ))}
+            </dl>
+            <details className="mt-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+              <summary className="cursor-pointer text-sm font-semibold">ⓘ About these nutrition numbers</summary>
+              <p className="mt-2 text-xs leading-relaxed text-black/60">Nutrition information is based on Bentley Dining/Chartwells menu data when available and standardized serving estimates where exact portions are not published. Actual portions and preparation may vary.</p>
+            </details>
+          </>
         )}
 
         {build.items.length > 0 && !computed.isValid && (

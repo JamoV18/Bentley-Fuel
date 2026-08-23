@@ -4,9 +4,38 @@ import Link from "next/link";
 import { useState } from "react";
 import { recordingDemoDinner } from "@/lib/recordingDemo";
 
+type RecommendationFeedback = "good" | "not-for-me";
+
+const NOT_FOR_ME_REASONS = [
+  "Didn't like the food",
+  "Portion was wrong",
+  "Not available",
+  "Nutrition seemed wrong",
+  "Other",
+] as const;
+
 export default function DemoDinnerPage() {
   const [selected, setSelected] = useState(false);
+  const [feedback, setFeedback] = useState<RecommendationFeedback>();
+  const [feedbackReason, setFeedbackReason] = useState<string>();
   const meal = recordingDemoDinner;
+
+  const saveFeedback = (value: RecommendationFeedback, reason?: string) => {
+    setFeedback(value);
+    setFeedbackReason(reason);
+    const storageKey = "falcon-fuel-recommendation-feedback";
+    const previous = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]") as unknown[];
+    window.localStorage.setItem(storageKey, JSON.stringify([
+      ...previous,
+      {
+        meal: meal.name,
+        location: meal.location,
+        feedback: value,
+        reason,
+        recordedAt: new Date().toISOString(),
+      },
+    ]));
+  };
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
@@ -61,6 +90,13 @@ export default function DemoDinnerPage() {
           ))}
         </dl>
 
+        <details className="mt-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+          <summary className="cursor-pointer text-sm font-semibold">ⓘ About these nutrition numbers</summary>
+          <p className="mt-2 text-xs leading-relaxed text-black/60">
+            Nutrition information is based on Bentley Dining/Chartwells menu data when available and standardized serving estimates where exact portions are not published. Actual portions and preparation may vary.
+          </p>
+        </details>
+
         <details className="mt-5 rounded-xl bg-emerald-50 p-4" open>
           <summary className="cursor-pointer font-semibold text-emerald-950">Why this meal?</summary>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-emerald-950/80">
@@ -76,7 +112,29 @@ export default function DemoDinnerPage() {
           <div className="mt-6 rounded-xl bg-emerald-50 p-4">
             <p className="font-bold text-emerald-800">Meal selected</p>
             <p className="mt-1 text-sm text-black/60">Your dinner now completes today’s calorie and protein targets.</p>
-            <Link href="/dashboard" className="mt-3 inline-flex text-sm font-semibold text-emerald-800 underline">Back to today</Link>
+
+            <div className="mt-4 border-t border-emerald-900/10 pt-4">
+              <p className="font-semibold text-emerald-950">How was this recommendation?</p>
+              {!feedback ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" className="rounded-lg border border-emerald-900/15 bg-white px-3 py-2 text-sm font-semibold" onClick={() => saveFeedback("good")}>👍 Good</button>
+                  <button type="button" className="rounded-lg border border-emerald-900/15 bg-white px-3 py-2 text-sm font-semibold" onClick={() => setFeedback("not-for-me")}>👎 Not for me</button>
+                </div>
+              ) : feedback === "not-for-me" && !feedbackReason ? (
+                <div className="mt-3">
+                  <p className="text-xs text-black/60">What was off?</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {NOT_FOR_ME_REASONS.map((reason) => (
+                      <button key={reason} type="button" className="rounded-full border border-emerald-900/15 bg-white px-3 py-2 text-xs font-semibold" onClick={() => saveFeedback("not-for-me", reason)}>{reason}</button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-emerald-900/75">Thanks — Falcon Fuel will use that feedback to improve future recommendations.</p>
+              )}
+            </div>
+
+            <Link href="/dashboard" className="mt-4 inline-flex text-sm font-semibold text-emerald-800 underline">Back to today</Link>
           </div>
         )}
       </section>

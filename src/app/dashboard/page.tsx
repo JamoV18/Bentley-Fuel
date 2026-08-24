@@ -14,9 +14,9 @@ export default async function DashboardPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
       <header>
-        <p className="brand-kicker">Bentley Fuel</p>
+        <p className="brand-kicker">Falcon Fuel</p>
         <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">What sounds good?</h1>
-        <p className="mt-2 subtle">Pick where you’re eating. Bentley Fuel handles the nutritional reasoning and ranks complete meals for you.</p>
+        <p className="mt-2 subtle">Pick where you’re eating first. Falcon Fuel then ranks complete meals from that dining location only, using your plan and what you have left today.</p>
       </header>
       <AppNav />
       {provider.dataStatus === "mock" && (

@@ -1,0 +1,7 @@
+.history-screen .meal-row { box-shadow:none !important; }
+.history-screen .meal-image { border-radius:.85rem !important; }
+.history-meal-copy { min-width:0; flex:1; }
+.history-meal-copy strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.78rem; }
+.history-meal-copy p { margin-top:.18rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#737982; font-size:.61rem; }
+.history-meal-copy span { display:block; margin-top:.28rem; color:#4f5660; font-size:.62rem; font-weight:650; }
+.history-meal-percent { flex:0 0 auto; border-radius:999px; background:#eaf7f0; padding:.3rem .45rem; color:#0d6b46; font-size:.58rem; font-weight:760; }

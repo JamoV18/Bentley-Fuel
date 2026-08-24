@@ -1,172 +1,368 @@
-/*
- * Falcon Fuel unified visual system.
- * Today is the source of truth: navy ink, blue primary, teal accent,
- * cool white surfaces, soft blue-gray borders and shadows.
+/* Falcon Fuel product polish layer.
+ * Design direction: native-feeling health app, bright neutral canvas,
+ * restrained Falcon green, one secondary data blue, flatter surfaces,
+ * stronger type hierarchy, and less decorative chrome.
  */
 :root {
-  --background: #f7fafc;
-  --foreground: #132536;
-  --brand-950: #132536;
-  --brand-900: #385375;
-  --brand-800: #315f82;
-  --brand-700: #1175b9;
-  --brand-600: #2f9e95;
-  --brand-100: #dcecf5;
-  --brand-50: #edf6fc;
-  --accent-blue: #1175b9;
-  --accent-sky: #edf6fc;
-  --surface: rgba(255,255,255,.95);
+  --background: #f6f8f7;
+  --foreground: #111820;
+  --brand-950: #12372e;
+  --brand-900: #0f6b52;
+  --brand-800: #11795b;
+  --brand-700: #148d68;
+  --brand-600: #1aa879;
+  --brand-100: #d9efe7;
+  --brand-50: #edf8f4;
+  --accent-blue: #4b78e6;
+  --accent-sky: #eef3ff;
+  --surface: #ffffff;
   --surface-solid: #ffffff;
-  --line: rgba(56,83,117,.09);
-  --muted: #687989;
-  --shadow: 0 16px 42px rgba(45,72,95,.09), 0 2px 8px rgba(45,72,95,.04);
-  --shadow-soft: 0 10px 28px rgba(45,72,95,.07);
+  --line: #e5eae8;
+  --muted: #6d7680;
+  --shadow: 0 12px 34px rgba(22, 34, 31, .065);
+  --shadow-soft: 0 6px 22px rgba(22, 34, 31, .05);
 }
 
 html { background: var(--background); }
 body {
-  background:
-    radial-gradient(circle at 96% 0%, rgba(17,117,185,.08), transparent 31rem),
-    radial-gradient(circle at 4% 28%, rgba(47,158,149,.055), transparent 27rem),
-    linear-gradient(180deg, #ffffff 0%, #f8fafc 55%, #f5f8fb 100%);
+  background: var(--background) !important;
   color: var(--foreground);
+  letter-spacing: -.012em;
+  font-feature-settings: "kern" 1, "tnum" 1;
+}
+body::before { display: none !important; }
+::selection { background: #dcefe8; color: #10271f; }
+button, a, input, select, textarea { outline-color: var(--brand-700); }
+strong, [class*="text-2xl"], [class*="text-3xl"], [class*="text-4xl"] { font-variant-numeric: tabular-nums; }
+h1, h2, h3 { color: #111820; }
+main > header h1,
+.summary h1 {
+  font-weight: 760 !important;
+  letter-spacing: -.048em !important;
+}
+main > header > .subtle,
+.summary > .subtle {
+  line-height: 1.55;
+}
+.summary,
+main[class*="max-w-2xl"],
+main[class*="max-w-lg"] {
+  padding-left: 1.1rem !important;
+  padding-right: 1.1rem !important;
 }
 
-::selection { background: #dcecf8; color: #132536; }
-button, a, input, select, textarea { outline-color: #1175b9; }
-
-/* Shared controls now match Today's action language. */
-.primary {
-  background: linear-gradient(115deg, #385375 0%, #0d659d 65%, #2f9e95 135%);
+/* Brand: keep the serif display moment, simplify everything around it. */
+.brand-kicker {
+  gap: .5rem;
+  color: var(--brand-800);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+.brand-kicker::before {
+  content: "F";
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: .55rem;
+  background: #123d31;
   color: #fff;
-  box-shadow: 0 14px 30px rgba(37,83,118,.18);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: .95rem;
+  box-shadow: 0 5px 14px rgba(18,61,49,.13);
+}
+.display-brand {
+  color: var(--brand-900) !important;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  letter-spacing: -.03em;
+}
+.eyebrow {
+  color: var(--brand-800);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.subtle { color: var(--muted); }
+
+/* Controls: solid, quiet, tactile. */
+.primary {
+  border: 1px solid #0f7458;
+  border-radius: 1rem;
+  background: #0f7d5d;
+  color: #fff;
+  box-shadow: 0 7px 18px rgba(15,125,93,.16);
+  transition: background .16s ease, box-shadow .16s ease, transform .12s ease;
 }
 .primary:hover {
-  box-shadow: 0 17px 34px rgba(37,83,118,.22);
-  filter: brightness(1.02);
+  background: #0d7356;
+  box-shadow: 0 9px 22px rgba(15,125,93,.19);
+  filter: none;
+  transform: translateY(-1px);
 }
+.primary:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(15,125,93,.14); }
 .secondary,
 .choice,
 .chip {
-  border-color: rgba(56,83,117,.10);
-  background: rgba(255,255,255,.95);
-  color: #132536;
-  box-shadow: 0 6px 18px rgba(45,72,95,.05);
+  border-color: var(--line);
+  background: #fff;
+  color: #182129;
+  box-shadow: 0 2px 8px rgba(17,24,32,.025);
 }
 .secondary:hover,
 .choice:hover,
 .chip:hover {
-  border-color: rgba(17,117,185,.24);
+  border-color: #cbd7d2;
   background: #fff;
+  box-shadow: 0 4px 12px rgba(17,24,32,.04);
 }
 .choice[data-selected="true"],
 .chip[data-selected="true"] {
-  border-color: rgba(17,117,185,.45);
-  background: #edf6fc;
-  color: #244b69;
-  box-shadow: inset 0 0 0 1px rgba(17,117,185,.16), 0 7px 18px rgba(45,72,95,.06);
+  border-color: #a8d4c3;
+  background: #edf8f4;
+  color: #0d654d;
+  box-shadow: inset 0 0 0 1px rgba(20,141,104,.08);
 }
 .field input,
 .field select,
 .field textarea {
-  border-color: rgba(56,83,117,.11);
+  border-color: var(--line);
   background: #fff;
-  color: #132536;
+  color: #111820;
+  box-shadow: none;
 }
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
-  border-color: #1175b9;
-  box-shadow: 0 0 0 4px rgba(17,117,185,.09);
+  border-color: #5fb395;
+  box-shadow: 0 0 0 4px rgba(20,141,104,.08);
 }
 
-/* Brand badge follows the F used on Today. */
-.brand-kicker { color: #315f82; }
-.brand-kicker::before {
-  content: "F";
-  background: linear-gradient(145deg, #0075b9, #385375);
-  color: #fff;
-  box-shadow: 0 7px 18px rgba(43,79,112,.17);
-}
-.eyebrow { color: #1175b9; }
-.subtle { color: #687989; }
-
-/* Universal surfaces. */
+/* Surfaces: fewer gradients, less glass, less nesting. */
 .surface,
 .meal-row {
-  border-color: rgba(56,83,117,.08);
-  background: rgba(255,255,255,.95);
-  box-shadow: 0 12px 34px rgba(45,72,95,.07);
+  border-color: var(--line);
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: none;
 }
+.surface { border-radius: 1.45rem; }
 .surface-soft {
-  border-color: rgba(56,83,117,.08);
-  background: linear-gradient(145deg, #f4f8fb, #ffffff);
+  border-color: #e8eceb;
+  background: #f7f9f8;
 }
-.meal-image { background-color: #edf2f6; border-color: rgba(56,83,117,.08); }
+.meal-row {
+  border-radius: 1.1rem;
+  box-shadow: 0 2px 10px rgba(17,24,32,.035);
+}
+.meal-image {
+  border-color: transparent;
+  background-color: #eef1ef;
+  box-shadow: none;
+}
+.group.surface:hover,
+a.surface:hover {
+  transform: none !important;
+  border-color: #dce4e1 !important;
+  box-shadow: 0 10px 28px rgba(22,34,31,.075) !important;
+}
 
-/* Shared navigation is identical in spirit to Today. */
+/* Shared navigation: native tab-bar feel, not a segmented website nav. */
 .app-nav {
-  border-color: rgba(56,83,117,.09);
-  background: rgba(255,255,255,.93);
-  box-shadow: 0 12px 34px rgba(45,72,95,.08);
+  gap: .18rem;
+  border-color: #e4e9e7;
+  border-radius: 1.35rem;
+  background: rgba(255,255,255,.97);
+  padding: .34rem;
+  box-shadow: 0 8px 26px rgba(19,31,27,.07);
+  backdrop-filter: blur(18px);
 }
-.app-nav-item { color: #6b7a87; }
-.app-nav-item:hover { color: #385375; background: #f1f6f9; }
-.app-nav-item[data-active="true"] { color: #1175b9; background: #edf6fc; }
+.app-nav-item {
+  border-radius: 1rem;
+  color: #747d84;
+  font-size: .76rem;
+  font-weight: 680;
+}
+.app-nav-item:hover { color: #305347; background: #f6f8f7; }
+.app-nav-item[data-active="true"] {
+  color: #0e7658;
+  background: #eaf6f1;
+}
+.app-nav-icon svg { stroke-width: 1.8; }
 
-/* Re-theme legacy emerald Tailwind utilities still present in older screens. */
-[class~="text-emerald-950"] { color: #132536 !important; }
-[class~="text-emerald-900"] { color: #385375 !important; }
-[class~="text-emerald-800"] { color: #1175b9 !important; }
-[class~="text-emerald-700"] { color: #1175b9 !important; }
-[class~="bg-emerald-950"] { background-color: #132536 !important; }
-[class~="bg-emerald-900"] { background-color: #385375 !important; }
-[class~="bg-emerald-800"] { background-color: #1175b9 !important; }
-[class~="bg-emerald-700"] { background-color: #1175b9 !important; }
-[class~="bg-emerald-50"] { background-color: #edf6fc !important; }
+/* Legacy emerald utilities are intentionally remapped to the cleaner brand system. */
+[class~="text-emerald-950"] { color: #132d25 !important; }
+[class~="text-emerald-900"] { color: #184d3e !important; }
+[class~="text-emerald-800"],
+[class~="text-emerald-700"] { color: #0f7d5d !important; }
+[class~="bg-emerald-950"] { background-color: #12372e !important; }
+[class~="bg-emerald-900"] { background-color: #0f7d5d !important; }
+[class~="bg-emerald-800"],
+[class~="bg-emerald-700"] { background-color: #148d68 !important; }
+[class~="bg-emerald-50"] { background-color: #edf8f4 !important; }
 [class~="bg-emerald-50/70"],
 [class~="bg-emerald-50/75"],
-[class~="bg-emerald-50/90"] { background-color: rgba(237,246,252,.9) !important; }
+[class~="bg-emerald-50/90"] { background-color: #f1f9f6 !important; }
 [class~="border-emerald-900/15"],
 [class~="border-emerald-900/[.06]"],
-[class~="border-emerald-200"] { border-color: rgba(17,117,185,.16) !important; }
-[class~="accent-emerald-700"] { accent-color: #1175b9 !important; }
-[class~="hover:bg-emerald-900"]:hover { background-color: #315f82 !important; }
-[class~="hover:text-emerald-800"]:hover { color: #1175b9 !important; }
+[class~="border-emerald-200"] { border-color: #dcebe5 !important; }
+[class~="accent-emerald-700"] { accent-color: #148d68 !important; }
+[class~="hover:bg-emerald-900"]:hover { background-color: #0d7356 !important; }
+[class~="hover:text-emerald-800"]:hover { color: #0f7d5d !important; }
 
-/* Dark nutrition surfaces use the same navy-to-blue family as Today. */
+/* Dark nutrition modules are the single high-contrast surface on a page. */
 .nutrition-hero {
-  background:
-    radial-gradient(circle at 82% 10%, rgba(47,158,149,.20), transparent 18rem),
-    linear-gradient(145deg, #385375, #174f76 72%);
-  box-shadow: 0 18px 42px rgba(45,72,95,.20);
+  border-color: rgba(255,255,255,.06);
+  background: #15352c;
+  box-shadow: 0 12px 30px rgba(21,53,44,.15);
 }
-.progress-ring::before { background: #294e69; }
+.nutrition-hero::after { opacity: .55; }
+.progress-ring::before { background: #15352c; }
 
-/* Calorie ring: the value must always have visible clearance from the ring. */
+/* Today is the visual north star: one hero metric, quieter supporting detail. */
+.today-shell {
+  --ink: #111820;
+  --muted-ink: #6d7680;
+  --blue: #148d68;
+  --blue-deep: #0f6b52;
+  --teal: #4b78e6;
+  --violet: #8a6fca;
+  --gold: #d8a52f;
+  --success: #1ca571;
+  width: min(100%, 50rem);
+  padding-top: 2rem;
+}
+.profile-orb {
+  background: #0f6b52;
+  box-shadow: 0 6px 16px rgba(15,107,82,.13), inset 0 0 0 4px #fff;
+}
+.today-greeting {
+  color: #111820;
+  font-weight: 760;
+  letter-spacing: -.055em;
+}
+.plan-pill {
+  border-color: #e4e9e7;
+  background: #fff;
+  color: #285346;
+  box-shadow: 0 3px 10px rgba(17,24,32,.04);
+}
+.day-arrow,
+.day-slot {
+  border-color: #e6ebe9;
+  background: #fff;
+}
+.day-slot-active {
+  border-color: #0f6b52;
+  background: #0f6b52;
+  box-shadow: 0 7px 18px rgba(15,107,82,.14);
+}
+.demo-note {
+  border: 1px solid #f1dfad;
+  background: #fff9e8;
+  color: #785f22;
+}
+.nutrition-card,
+.today-card {
+  border-color: #e6ebe9;
+  background: #fff;
+  box-shadow: 0 7px 24px rgba(17,24,32,.055);
+}
+.nutrition-card { border-radius: 1.65rem; }
+.today-card { border-radius: 1.5rem; }
+.calorie-card { padding-top: 1.05rem; }
+.calorie-ring::before { background: #fff; }
+.calorie-ring-inner > strong {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  color: #0f6b52 !important;
+  -webkit-text-fill-color: #0f6b52 !important;
+}
+.calorie-goal { background: #f3f6f5; color: #59645f; }
+.macro-glance {
+  border-top-color: #edf0ef;
+  background: #fbfcfb;
+}
+.macro-track { background: #e9eeec; }
+.macro-name.carbs { color: #148d68; }
+.macro-name.protein { color: #4b78e6; }
+.macro-name.fat { color: #b88a21; }
+.macro-track span.carbs { background: #1aa879; }
+.macro-track span.protein { background: #4b78e6; }
+.macro-track span.fat { background: #d8a52f; }
+.mini-ring.carbs { color: #1aa879; }
+.mini-ring.protein { color: #4b78e6; }
+.mini-ring.fat { color: #d8a52f; }
+.macro-card-note { background: #f5f7f6; }
+.eat-cta {
+  background: #0f7d5d;
+  box-shadow: 0 8px 20px rgba(15,125,93,.16);
+}
+.eat-cta-icon { color: #0f6b52; }
+.status-pill { background: #fff5dc; color: #80631c; }
+
+/* Calorie ring safety: large values always retain visible ring clearance. */
 .today-shell .calorie-ring-inner {
   width: 100%;
-  padding-inline: 1.4rem;
+  padding-inline: 1.55rem;
 }
 .today-shell .calorie-ring-inner > strong {
   width: 100%;
-  max-width: 10.2rem;
-  font-size: clamp(2.35rem, 5.8vw, 3.35rem) !important;
-  line-height: .94 !important;
+  max-width: 9.6rem;
+  font-size: clamp(2.2rem, 5.1vw, 3.05rem) !important;
+  line-height: .95 !important;
   letter-spacing: -.055em !important;
   white-space: nowrap;
   text-align: center;
 }
 
-@media (max-width: 620px) {
-  body {
-    background:
-      radial-gradient(circle at 100% 0%, rgba(17,117,185,.075), transparent 19rem),
-      linear-gradient(180deg, #ffffff 0%, #f7fafc 60%, #f4f8fb 100%);
+/* Dashboard / status polish. */
+.app-nav + p[class*="amber"] {
+  border-color: #efe5c9 !important;
+  border-radius: .9rem !important;
+  background: #fffaf0 !important;
+  color: #746238 !important;
+  font-size: .75rem !important;
+}
+main > header > p.subtle { max-width: 38rem; font-size: .94rem; }
+main > div[class~="mt-6"][class~="grid"] > a.surface {
+  border-radius: 1.5rem;
+  box-shadow: 0 6px 22px rgba(17,24,32,.05);
+}
+
+@media (max-width: 639px) {
+  body { background: #f6f8f7 !important; }
+  main { padding-bottom: 7.7rem !important; }
+  .summary,
+  main[class*="max-w-2xl"],
+  main[class*="max-w-lg"] {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
   }
-  .today-shell .calorie-ring-inner { padding-inline: 1.15rem; }
+  .app-nav {
+    left: max(.7rem, env(safe-area-inset-left));
+    right: max(.7rem, env(safe-area-inset-right));
+    bottom: max(.65rem, env(safe-area-inset-bottom));
+    max-width: 28.5rem;
+    border-radius: 1.5rem;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 10px 30px rgba(18,31,27,.12), inset 0 1px 0 #fff;
+  }
+  .app-nav-item {
+    gap: .18rem;
+    padding: .52rem .3rem .46rem;
+    font-size: .64rem;
+  }
+  .today-shell { padding-top: 1.45rem; }
+  .today-shell .calorie-ring-inner { padding-inline: 1.35rem; }
   .today-shell .calorie-ring-inner > strong {
-    max-width: 8.7rem;
-    font-size: clamp(2.15rem, 10vw, 2.85rem) !important;
+    max-width: 8.2rem;
+    font-size: clamp(2rem, 9vw, 2.6rem) !important;
   }
+  .nutrition-card,
+  .today-card,
+  .surface { border-radius: 1.35rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary:hover, .choice:hover, .chip:hover, a.surface:hover { transform: none !important; }
 }

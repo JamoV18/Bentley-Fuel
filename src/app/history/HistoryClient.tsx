@@ -71,7 +71,7 @@ export default function HistoryClient({
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
       <header>
-        <p className="brand-kicker">Bentley Fuel</p>
+        <p className="brand-kicker">Falcon Fuel</p>
         <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">History</h1>
         <p className="mt-2 subtle">Patterns, not judgment. See what you recorded and learn what works.</p>
       </header>
@@ -93,7 +93,7 @@ export default function HistoryClient({
           </div>
           {period && <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-right"><p className="text-lg font-bold text-emerald-950">{period.daysWithAllSavedMealsConfirmed}/{period.daysWithSavedMeals}</p><p className="text-[10px] font-semibold text-emerald-800">days confirmed</p></div>}
         </div>
-        <p className="mt-3 text-sm leading-relaxed subtle">Bentley Fuel only summarizes meals you saved. Missing logs are never treated as skipped food or a failed day.</p>
+        <p className="mt-3 text-sm leading-relaxed subtle">Falcon Fuel only summarizes meals you saved. Missing logs are never treated as skipped food or a failed day.</p>
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { name: range === "yesterday" ? "Recorded calories" : "Avg calories", value: stats?.calories ?? 0, unit: "" },

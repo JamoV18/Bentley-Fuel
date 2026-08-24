@@ -28,6 +28,9 @@ const readable = (value: string) => value.split("-").map((word) => word[0].toUpp
 const goalLabel = (goal: RecommendationContext["profile"]["primaryGoal"]) => readable(goal).toLowerCase();
 const completionLabel = (fraction: MealCompletionFraction) =>
   MEAL_COMPLETION_CHOICES.find((choice) => choice.fraction === fraction)?.label ?? `${Math.round(fraction * 100)}%`;
+const NOT_FOR_ME_REASONS = ["Didn't like the food", "Portion was wrong", "Not available", "Nutrition seemed wrong", "Other"] as const;
+
+type RecommendationFeedback = "good" | "not-for-me";
 
 function reasonsFor(ranked: RankedMealCandidate | undefined, context: RecommendationContext | undefined): string[] {
   if (!ranked?.computed.nutrition || !context) return [];
@@ -76,6 +79,8 @@ export default function MealBuilderClient({
   const [replacementPrompt, setReplacementPrompt] = useState<ReplacementPrompt>();
   const [showCompletionCheckIn, setShowCompletionCheckIn] = useState(false);
   const [completionFraction, setCompletionFraction] = useState<MealCompletionFraction>();
+  const [recommendationFeedback, setRecommendationFeedback] = useState<RecommendationFeedback>();
+  const [recommendationFeedbackReason, setRecommendationFeedbackReason] = useState<string>();
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
@@ -162,6 +167,8 @@ export default function MealBuilderClient({
     setSelectedAt(now);
     setShowCompletionCheckIn(false);
     setCompletionFraction(undefined);
+    setRecommendationFeedback(undefined);
+    setRecommendationFeedbackReason(undefined);
     browserMealHistoryRepository().upsert({
       id: historyId,
       locationId: build.locationId,
@@ -179,6 +186,18 @@ export default function MealBuilderClient({
     setShowCompletionCheckIn(false);
   };
 
+  const saveRecommendationFeedback = (value: RecommendationFeedback, reason?: string) => {
+    if (!selectedHistoryId) return;
+    setRecommendationFeedback(value);
+    setRecommendationFeedbackReason(reason);
+    const storageKey = "falcon-fuel-recommendation-feedback";
+    const previous = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]") as unknown[];
+    window.localStorage.setItem(storageKey, JSON.stringify([
+      ...previous,
+      { historyId: selectedHistoryId, locationId: build.locationId, feedback: value, reason, recordedAt: new Date().toISOString() },
+    ]));
+  };
+
   const showAnother = () => {
     if (rankings.length < 2) return;
     const next = (recommendationIndex + 1) % rankings.length;
@@ -189,6 +208,8 @@ export default function MealBuilderClient({
     setReplacementPrompt(undefined);
     setShowCompletionCheckIn(false);
     setCompletionFraction(undefined);
+    setRecommendationFeedback(undefined);
+    setRecommendationFeedbackReason(undefined);
   };
 
   const removeWithSuggestions = (lineId: string) => {
@@ -243,7 +264,7 @@ export default function MealBuilderClient({
         <p className={`text-sm font-bold uppercase tracking-wide ${personalized ? "text-emerald-800" : "text-amber-800"}`}>{personalized ? "Personalized recommendation" : "Complete meal"}</p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">{personalized ? "Your meal, ready in one tap" : "A complete meal, ready in one tap"}</h1>
         {recommendationState === "loading" && <p className="mt-3 text-black/60">Building a recommendation from your profile and this location...</p>}
-        {personalized && <p className="mt-3 text-black/60">Built from your goal, dietary constraints, recent meal patterns, and the current eating window. Accept it as-is or correct anything you do not want.</p>}
+        {personalized && <p className="mt-3 text-black/60">Built from your goal, dietary constraints, recent meal patterns, and the current eating window. Recommendations use foods from this dining location only. Accept it as-is or correct anything you do not want.</p>}
         {recommendationState === "missing-profile" && <p className="mt-3 text-black/60">Complete your profile to turn this example into a personalized recommendation. <Link className="font-semibold text-emerald-800 underline" href="/onboarding">Set up profile</Link></p>}
         {recommendationState === "no-candidates" && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">No eligible recommendation is available for the current eating window with the menu data we have. You can still build your own meal.</p>}
         <Link href={`/meal-builder/${build.locationId}?mode=manual`} className="mt-4 inline-flex text-sm font-semibold text-emerald-800 underline">Already know what you want? Build your own meal</Link>
@@ -273,7 +294,15 @@ export default function MealBuilderClient({
           </ul>
         ) : <p className="mt-4 text-sm text-black/55">Your current edit is empty. Add a replacement from the stations below.</p>}
 
-        {computed.nutrition ? <dl className="mt-5 grid grid-cols-4 gap-2 border-t border-black/10 pt-5 text-center">{[["Calories", computed.nutrition.calories, "cal"], ["Protein", computed.nutrition.protein, "g"], ["Carbs", computed.nutrition.carbs, "g"], ["Fat", computed.nutrition.fat, "g"]].map(([label, value, unit]) => <div key={label}><dt className="text-xs text-black/55">{label}</dt><dd className="font-bold">{value}{unit}</dd></div>)}</dl> : build.items.length > 0 && <div className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-900"><strong>Complete total unavailable.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((entry, index) => <li key={`${entry.code}-${index}`}>{entry.message}</li>)}</ul></div>}
+        {computed.nutrition ? (
+          <>
+            <dl className="mt-5 grid grid-cols-4 gap-2 border-t border-black/10 pt-5 text-center">{[["Calories", computed.nutrition.calories, "cal"], ["Protein", computed.nutrition.protein, "g"], ["Carbs", computed.nutrition.carbs, "g"], ["Fat", computed.nutrition.fat, "g"]].map(([label, value, unit]) => <div key={label}><dt className="text-xs text-black/55">{label}</dt><dd className="font-bold">{value}{unit}</dd></div>)}</dl>
+            <details className="mt-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+              <summary className="cursor-pointer text-sm font-semibold">ⓘ About these nutrition numbers</summary>
+              <p className="mt-2 text-xs leading-relaxed text-black/60">Nutrition information is based on Bentley Dining/Chartwells menu data when available and standardized serving estimates where exact portions are not published. Actual portions and preparation may vary.</p>
+            </details>
+          </>
+        ) : build.items.length > 0 && <div className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-900"><strong>Complete total unavailable.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((entry, index) => <li key={`${entry.code}-${index}`}>{entry.message}</li>)}</ul></div>}
 
         {personalized && reasons.length > 0 && <details className="mt-5 rounded-xl bg-emerald-50 p-4"><summary className="cursor-pointer font-semibold text-emerald-950">Why this meal?</summary><ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-emerald-950/80">{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></details>}
 
@@ -285,8 +314,29 @@ export default function MealBuilderClient({
         ) : (
           <div className="mt-6">
             {computed.isValid ? <p className="font-bold text-emerald-800">Meal selected</p> : <p className="font-bold text-red-800">Meal selection needs attention</p>}
-            <p className="mt-1 text-sm text-black/55">Your choice is saved locally so Bentley Fuel can learn preference and variety patterns.</p>
+            <p className="mt-1 text-sm text-black/55">Your choice is saved locally so Falcon Fuel can learn preference and variety patterns.</p>
             <button className="secondary mt-3 w-full" onClick={() => setCustomizing((value) => !value)}>{customizing ? "Done customizing" : "Customize"}</button>
+
+            {personalized && (
+              <div className="mt-4 border-t border-black/10 pt-4">
+                <p className="text-sm font-semibold">How was this recommendation?</p>
+                {!recommendationFeedback ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button type="button" className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-semibold" onClick={() => saveRecommendationFeedback("good")}>👍 Good</button>
+                    <button type="button" className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-semibold" onClick={() => setRecommendationFeedback("not-for-me")}>👎 Not for me</button>
+                  </div>
+                ) : recommendationFeedback === "not-for-me" && !recommendationFeedbackReason ? (
+                  <div className="mt-3">
+                    <p className="text-xs text-black/55">What was off?</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {NOT_FOR_ME_REASONS.map((reason) => <button key={reason} type="button" className="rounded-full border border-black/10 bg-white px-3 py-2 text-xs font-semibold" onClick={() => saveRecommendationFeedback("not-for-me", reason)}>{reason}</button>)}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs leading-relaxed text-black/50">Saved. Falcon Fuel can use this signal to improve future recommendations.</p>
+                )}
+              </div>
+            )}
 
             <div className="mt-4 border-t border-black/10 pt-4">
               {completionFraction === undefined ? (
@@ -303,7 +353,7 @@ export default function MealBuilderClient({
               {showCompletionCheckIn && (
                 <div className="mt-3 rounded-xl bg-emerald-50 p-4">
                   <p className="font-semibold text-emerald-950">How much did you finish?</p>
-                  <p className="mt-1 text-xs leading-relaxed text-emerald-950/70">Optional. This tells Bentley Fuel how much nutrition you actually consumed so later meals can adjust, while also helping preference learning.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-emerald-950/70">Optional. This tells Falcon Fuel how much nutrition you actually consumed so later meals can adjust, while also helping preference learning.</p>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                     {MEAL_COMPLETION_CHOICES.map((choice) => (
                       <button
@@ -386,7 +436,7 @@ export default function MealBuilderClient({
 
           {replacementPrompt && (
             <section className="mt-6 rounded-2xl border border-emerald-800/15 bg-emerald-50 p-5" aria-labelledby="replacement-heading">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Bentley Fuel replacements</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Falcon Fuel replacements</p>
               <h2 id="replacement-heading" className="mt-1 text-xl font-bold">Replace {replacementPrompt.removedName}?</h2>
               {replacementPrompt.suggestions.length > 0 ? (
                 <>

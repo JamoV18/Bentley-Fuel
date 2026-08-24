@@ -57,73 +57,95 @@ export default function HistoryClient({
   const month = useMemo(() => summarizeMonth(history, targets, anchor), [history, targets, anchor]);
   const period = range === "week" ? week : range === "month" ? month : undefined;
 
-  if (profile === undefined) return <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7"><p>Loading history…</p></main>;
-  if (!profile) return <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7"><h1 className="text-3xl font-bold">No profile yet.</h1><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
+  if (profile === undefined) return <main className="app-screen history-screen" data-app-screen="true"><p>Loading history…</p></main>;
+  if (!profile) return <main className="app-screen history-screen" data-app-screen="true"><h1 className="native-title">No profile yet.</h1><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
 
   const recentMeals = [...history]
     .sort((a, b) => new Date(b.eatenAt ?? b.selectedAt).getTime() - new Date(a.eatenAt ?? a.selectedAt).getTime())
-    .slice(0, 12);
+    .slice(0, 10);
 
-  const stats = range === "yesterday"
-    ? yesterdaySnapshot.consumed
-    : period?.averageConfirmedConsumption;
+  const stats = range === "yesterday" ? yesterdaySnapshot.consumed : period?.averageConfirmedConsumption;
+  const primaryCalories = Math.round(stats?.calories ?? 0);
+  const coverageText = period
+    ? `${period.daysWithAllSavedMealsConfirmed}/${period.daysWithSavedMeals} confirmed`
+    : "Recorded only";
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
-      <header>
+    <main className="app-screen history-screen" data-app-screen="true">
+      <header className="native-header">
         <p className="brand-kicker">Falcon Fuel</p>
-        <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">History</h1>
-        <p className="mt-2 subtle">Patterns, not judgment. See what you recorded and learn what works.</p>
+        <h1 className="native-title">History</h1>
+        <p className="native-subtitle">A clean view of what you recorded and the patterns that are starting to form.</p>
       </header>
-      <AppNav />
 
-      <div className="mt-6 grid grid-cols-3 gap-1 rounded-2xl border border-black/[.06] bg-white/65 p-1 shadow-sm">
+      <div className="history-range" aria-label="History range">
         {(["yesterday", "week", "month"] as Range[]).map((option) => (
-          <button key={option} type="button" onClick={() => setRange(option)} className={`rounded-xl px-3 py-2.5 text-sm font-bold transition ${range === option ? "bg-emerald-900 text-white shadow" : "text-black/55 hover:bg-white"}`}>
+          <button key={option} type="button" data-active={range === option} onClick={() => setRange(option)}>
             {option === "yesterday" ? "Yesterday" : option === "week" ? "Week" : "Month"}
           </button>
         ))}
       </div>
 
-      <section className="surface mt-5 overflow-hidden p-5">
-        <div className="flex items-start justify-between gap-4">
+      <section className="history-hero">
+        <div className="history-hero-top">
           <div>
-            <p className="eyebrow">{range === "yesterday" ? "Yesterday" : range === "week" ? "This week" : "This month"}</p>
-            <h2 className="mt-1 text-2xl font-bold">{period ? coverageLabel(period.coverage) : "Recorded nutrition"}</h2>
+            <p className="eyebrow">{range === "yesterday" ? "Recorded" : range === "week" ? "This week" : "This month"}</p>
+            <p className="history-hero-value">{primaryCalories.toLocaleString()}<small>cal</small></p>
+            <p className="native-section-copy">{period ? coverageLabel(period.coverage) : "Yesterday's recorded nutrition"}</p>
           </div>
-          {period && <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-right"><p className="text-lg font-bold text-emerald-950">{period.daysWithAllSavedMealsConfirmed}/{period.daysWithSavedMeals}</p><p className="text-[10px] font-semibold text-emerald-800">days confirmed</p></div>}
+          <span className="history-coverage">{coverageText}</span>
         </div>
-        <p className="mt-3 text-sm leading-relaxed subtle">Falcon Fuel only summarizes meals you saved. Missing logs are never treated as skipped food or a failed day.</p>
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { name: range === "yesterday" ? "Recorded calories" : "Avg calories", value: stats?.calories ?? 0, unit: "" },
-            { name: range === "yesterday" ? "Recorded protein" : "Avg protein", value: stats?.protein ?? 0, unit: "g" },
-            { name: range === "yesterday" ? "Recorded carbs" : "Avg carbs", value: stats?.carbs ?? 0, unit: "g" },
-            { name: range === "yesterday" ? "Recorded fat" : "Avg fat", value: stats?.fat ?? 0, unit: "g" },
-          ].map((item) => <div key={item.name} className="rounded-2xl border border-emerald-900/[.06] bg-emerald-50/70 p-3"><p className="text-xl font-bold text-emerald-950">{Math.round(item.value)}{item.unit}</p><p className="mt-1 text-[11px] font-medium text-emerald-900/60">{item.name}</p></div>)}
+        <div className="history-mini-metrics">
+          <div className="history-mini-metric"><strong>{Math.round(stats?.protein ?? 0)}g</strong><span>Protein</span></div>
+          <div className="history-mini-metric"><strong>{Math.round(stats?.carbs ?? 0)}g</strong><span>Carbs</span></div>
+          <div className="history-mini-metric"><strong>{Math.round(stats?.fat ?? 0)}g</strong><span>Fat</span></div>
         </div>
       </section>
 
       {period && (
-        <section className="surface mt-5 p-5">
-          <div className="flex items-center justify-between"><div><p className="eyebrow">Consistency</p><h2 className="mt-1 text-xl font-bold">Daily view</h2></div><span className="text-xs subtle">Recorded only</span></div>
-          <div className="mt-4 space-y-2">{period.days.filter((day) => day.confirmedMeals > 0 || day.pendingMeals > 0).map((day) => <div key={day.date} className="flex items-center justify-between gap-4 rounded-2xl bg-black/[.025] p-3.5"><div><p className="font-bold">{new Date(`${day.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", weekday: "short" })}</p><p className="mt-1 text-xs subtle">{day.confirmedMeals} confirmed · {day.pendingMeals} pending</p></div><p className="text-right text-sm"><strong>{Math.round(day.consumed.calories)}</strong> cal<br /><span className="text-xs subtle">{Math.round(day.consumed.protein)}g protein</span></p></div>)}</div>
+        <section className="history-section">
+          <p className="eyebrow">Consistency</p>
+          <h2 className="native-section-title">Daily view</h2>
+          <p className="native-section-copy">Only days with saved meals are shown.</p>
+          <div className="history-list">
+            {period.days.filter((day) => day.confirmedMeals > 0 || day.pendingMeals > 0).map((day) => (
+              <div key={day.date} className="history-day-row">
+                <div>
+                  <strong>{new Date(`${day.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", weekday: "short" })}</strong>
+                  <p>{day.confirmedMeals} confirmed · {day.pendingMeals} pending</p>
+                </div>
+                <div className="history-day-stat"><strong>{Math.round(day.consumed.calories)} cal</strong><p>{Math.round(day.consumed.protein)}g protein</p></div>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
-      <section className="surface mt-5 p-5">
-        <div className="flex items-center justify-between"><div><p className="eyebrow">Timeline</p><h2 className="mt-1 text-xl font-bold">Recent meals</h2></div><Link href="/today" className="text-sm font-bold text-emerald-800">Today →</Link></div>
-        {recentMeals.length === 0 ? <p className="mt-4 text-sm subtle">No recent meals recorded.</p> : <div className="mt-4 space-y-3">{recentMeals.map((entry) => (
-          <article key={entry.id} className="meal-row">
-            <MealImage name={mealName(entry, itemNames)} imageUrl={itemImageUrls[firstItem(entry)]} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3"><p className="font-bold leading-tight">{mealName(entry, itemNames)}</p>{entry.completionFraction !== undefined && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800">{Math.round(entry.completionFraction * 100)}%</span>}</div>
-              <p className="mt-1 text-xs subtle">{locationNames[entry.locationId] ?? entry.locationId} · {new Date(entry.eatenAt ?? entry.selectedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
-              {entry.nutrition && entry.completionFraction !== undefined && <p className="mt-1.5 text-sm font-medium text-black/65">{Math.round(entry.nutrition.calories * entry.completionFraction)} cal · {Math.round(entry.nutrition.protein * entry.completionFraction)}g protein</p>}
-            </div>
-          </article>
-        ))}</div>}
+      <section className="history-section">
+        <div className="native-header-row">
+          <div><p className="eyebrow">Timeline</p><h2 className="native-section-title">Recent meals</h2></div>
+          <Link href="/today" className="text-xs font-bold text-emerald-800">Today →</Link>
+        </div>
+        {recentMeals.length === 0 ? (
+          <p className="native-section-copy">No recent meals recorded.</p>
+        ) : (
+          <div className="history-meals">
+            {recentMeals.map((entry) => (
+              <article key={entry.id} className="meal-row">
+                <MealImage name={mealName(entry, itemNames)} imageUrl={itemImageUrls[firstItem(entry)]} />
+                <div className="history-meal-copy">
+                  <strong>{mealName(entry, itemNames)}</strong>
+                  <p>{locationNames[entry.locationId] ?? entry.locationId} · {new Date(entry.eatenAt ?? entry.selectedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+                  {entry.nutrition && entry.completionFraction !== undefined && <span>{Math.round(entry.nutrition.calories * entry.completionFraction)} cal · {Math.round(entry.nutrition.protein * entry.completionFraction)}g protein</span>}
+                </div>
+                {entry.completionFraction !== undefined && <span className="history-meal-percent">{Math.round(entry.completionFraction * 100)}%</span>}
+              </article>
+            ))}
+          </div>
+        )}
       </section>
+
+      <AppNav />
     </main>
   );
 }

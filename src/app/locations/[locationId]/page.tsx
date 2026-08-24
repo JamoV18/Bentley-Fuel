@@ -15,7 +15,7 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
       <Link href="/dashboard" className="text-sm font-bold text-emerald-800">← All locations</Link>
       <header className="mt-5">
-        <p className="brand-kicker">Bentley Fuel</p>
+        <p className="brand-kicker">Falcon Fuel</p>
         <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{view.location.name}</h1>
         {view.location.building && <p className="mt-2 subtle">{view.location.building}</p>}
       </header>
@@ -32,7 +32,7 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
           <p className="eyebrow">Personalized meal</p>
           <h2 className="mt-1 text-2xl font-bold">What should I eat here?</h2>
           <p className="mt-2 text-sm leading-relaxed subtle">
-            Bentley Fuel compares eligible foods across {view.location.shortName ?? view.location.name} and ranks complete meals around your goals, restrictions, current nutrition, and recent variety.
+            Falcon Fuel compares eligible foods only within {view.location.shortName ?? view.location.name} and ranks complete meals around your goals, restrictions, current nutrition, and recent variety.
           </p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <Link href={`/meal-builder/${view.location.id}`} className="primary text-center">Get my recommendation</Link>

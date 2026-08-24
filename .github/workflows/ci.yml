@@ -1,4 +1,4 @@
-name: Validate Bentley Fuel
+name: Validate Falcon Fuel
 
 on:
   pull_request:

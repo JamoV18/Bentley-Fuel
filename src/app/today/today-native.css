@@ -1,0 +1,168 @@
+.today-shell {
+  --today-green: #138a5b;
+  --today-green-dark: #0d6b46;
+  --today-blue: #3b7ddd;
+  --today-teal: #20a38a;
+  --today-gold: #d89b28;
+  --today-ink: #111827;
+  --today-muted: #737982;
+  padding-top: 1.35rem !important;
+  padding-bottom: 7.5rem !important;
+}
+
+.today-header { display:flex; align-items:center; gap:.8rem; }
+.profile-orb {
+  display:grid; place-items:center; width:2.7rem; height:2.7rem; flex:0 0 auto;
+  border-radius:.9rem; background:var(--today-green); color:white;
+  font:700 1.05rem/1 Georgia,serif; box-shadow:none;
+}
+.today-greeting { font-size:2.45rem; line-height:.95; font-weight:830; letter-spacing:-.06em; }
+.today-date { margin-top:.32rem; color:var(--today-muted); font-size:.78rem; font-weight:560; }
+.plan-pill {
+  display:inline-flex; align-items:center; gap:.28rem; border:1px solid #e6e8eb; border-radius:999px;
+  background:white; padding:.58rem .72rem; color:var(--today-ink); font-size:.69rem; font-weight:720;
+  box-shadow:none;
+}
+.plan-pill span { font-size:.9rem; }
+
+/* Compact day control: remove desktop-looking five-button calendar strip. */
+.day-switcher {
+  display:grid; grid-template-columns:2.65rem 1fr 2.65rem; align-items:center; gap:.45rem;
+  margin-top:1.2rem;
+}
+.day-switcher > .day-slot:not(.day-slot-active) { display:none; }
+.day-arrow {
+  height:2.65rem; border:1px solid #e7e9ed; border-radius:50%; background:white;
+  color:#616872; font-size:1.35rem;
+}
+.day-slot-active {
+  min-width:0; border:0; border-radius:.9rem; background:transparent; padding:.42rem .5rem; text-align:center;
+  color:var(--today-muted); box-shadow:none;
+}
+.day-slot-active span { display:none; }
+.day-slot-active strong { color:var(--today-ink); font-size:.8rem; font-weight:730; }
+
+.demo-note {
+  margin-top:.85rem; border:0; border-radius:.8rem; background:#fff8e8; padding:.55rem .7rem;
+  color:#7a6127; font-size:.65rem; line-height:1.4;
+}
+
+/* One hero card — no redundant carousel. */
+.nutrition-carousel { display:block; overflow:visible; margin-top:1rem; }
+.nutrition-card {
+  border:1px solid #e7e9ed; border-radius:1.55rem; background:white; box-shadow:0 8px 24px rgba(17,24,39,.055);
+}
+.calorie-card { overflow:hidden; padding:1rem 1rem 0; }
+.macro-card, .carousel-dots { display:none !important; }
+
+.calorie-layout {
+  display:grid; grid-template-columns:4.2rem minmax(0,1fr) 4.2rem; align-items:center; gap:.25rem;
+  min-height:15.8rem;
+}
+.side-stat { display:flex; flex-direction:column; align-items:center; text-align:center; }
+.side-stat .stat-icon { display:none; }
+.side-stat strong { font-size:1.18rem; line-height:1; letter-spacing:-.04em; font-weight:780; }
+.side-stat small { margin-top:.28rem; color:var(--today-muted); font-size:.62rem; }
+
+.calorie-ring {
+  --calorie-progress: 0%;
+  position:relative; display:grid; place-items:center; width:min(12.7rem,100%); aspect-ratio:1; margin:0 auto;
+  border-radius:50%;
+  background:conic-gradient(from 210deg, var(--today-green) 0 var(--calorie-progress), #e8ecea var(--calorie-progress) 82%, transparent 82% 100%);
+}
+.calorie-ring::before {
+  content:""; position:absolute; inset:.66rem; border-radius:50%; background:white; box-shadow:none;
+}
+.calorie-ring-inner {
+  position:relative; z-index:1; display:flex; width:100%; padding-inline:1rem; flex-direction:column; align-items:center; text-align:center;
+}
+.calorie-ring-inner > span { color:var(--today-muted); font-size:.7rem; font-weight:680; }
+.calorie-ring-inner > strong {
+  width:100%; max-width:8.3rem; margin-top:.2rem; color:var(--today-ink) !important;
+  background:none !important; font-size:clamp(2.15rem,9vw,2.85rem) !important; line-height:.94 !important;
+  letter-spacing:-.06em !important; white-space:nowrap; text-align:center;
+}
+.calorie-ring-inner > small { margin-top:.22rem; color:var(--today-muted); font-size:.69rem; }
+.calorie-goal {
+  margin-top:.45rem; border-radius:999px; background:#f2f4f5; padding:.3rem .52rem;
+  color:#666d76; font-size:.6rem; font-weight:650;
+}
+
+.macro-glance {
+  display:grid; grid-template-columns:repeat(3,1fr); margin:0 -1rem; border-top:1px solid #eceef0;
+  background:#fbfbfc; padding:.82rem .65rem .9rem;
+}
+.macro-glance > div { min-width:0; padding:0 .5rem; }
+.macro-glance > div + div { border-left:1px solid #eceef0; }
+.macro-name { display:block; font-size:.62rem; font-weight:760; }
+.macro-name.carbs { color:var(--today-blue); }
+.macro-name.protein { color:var(--today-teal); }
+.macro-name.fat { color:var(--today-gold); }
+.macro-glance strong { display:block; margin-top:.25rem; font-size:.75rem; letter-spacing:-.02em; }
+.macro-glance small { display:block; margin-top:.28rem; color:var(--today-muted); font-size:.57rem; }
+.macro-track { overflow:hidden; height:.22rem; margin-top:.42rem; border-radius:999px; background:#e7e9ed; }
+.macro-track span { display:block; height:100%; border-radius:inherit; }
+.macro-track span.carbs { background:var(--today-blue); }
+.macro-track span.protein { background:var(--today-teal); }
+.macro-track span.fat { background:var(--today-gold); }
+.calorie-card details { margin:.65rem 0 .8rem !important; padding-top:.65rem; border-top:1px solid #eceef0; }
+.calorie-card details summary { color:#858b93; font-size:.62rem; font-weight:650; }
+
+/* Primary action reads like a native recommendation card, not a gradient banner. */
+.eat-cta {
+  display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:.8rem;
+  margin-top:1rem; border-radius:1.35rem; background:var(--today-green); padding:.9rem 1rem; color:white;
+  box-shadow:none;
+}
+.eat-cta-icon {
+  display:grid; place-items:center; width:2.55rem; height:2.55rem; border-radius:.85rem;
+  background:rgba(255,255,255,.16); color:white; font-size:1.25rem;
+}
+.eat-cta strong { display:block; font-size:1rem; font-weight:780; letter-spacing:-.025em; }
+.eat-cta small { display:block; margin-top:.16rem; color:rgba(255,255,255,.76); font-size:.62rem; line-height:1.35; }
+.eat-cta-arrow { display:grid; place-items:center; width:2.2rem; height:2.2rem; border-radius:50%; background:white; color:var(--today-green-dark); font-size:.95rem; }
+
+.today-card {
+  margin-top:1rem; border:1px solid #e7e9ed; border-radius:1.3rem; background:white; padding:1rem; box-shadow:none;
+}
+.section-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; }
+.section-heading h2, .compact-plan-card h2 { margin-top:.16rem; font-size:1.05rem; font-weight:790; letter-spacing:-.03em; }
+.section-heading > a, .compact-plan-card > a { color:var(--today-green-dark); font-size:.68rem; font-weight:730; }
+.status-pill { border-radius:999px; background:#fff5df; padding:.34rem .52rem; color:#8d681a; font-size:.58rem; font-weight:740; }
+.checkin-meal { display:flex; align-items:center; gap:.72rem; margin-top:.75rem; }
+.checkin-meal .meal-image { width:4.8rem !important; height:3.7rem !important; border-radius:.85rem !important; }
+.checkin-meal h3 { font-size:.8rem; font-weight:760; }
+.checkin-meal p { margin-top:.16rem; color:var(--today-muted); font-size:.62rem; }
+.checkin-meal strong { display:block; margin-top:.3rem; color:var(--today-ink); font-size:.64rem; }
+.checkin-choices { display:flex; flex-wrap:wrap; gap:.38rem; margin-top:.7rem; }
+.checkin-choices .chip { padding:.42rem .6rem !important; font-size:.64rem !important; }
+
+.meal-list { margin-top:.6rem; }
+.today-meal-row { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:.72rem; padding:.72rem 0; }
+.today-meal-row + .today-meal-row { border-top:1px solid #eceef0; }
+.meal-visual { position:relative; width:3.5rem; height:3.5rem; }
+.meal-visual .meal-image { width:3rem !important; height:3rem !important; margin:.25rem; border-radius:.85rem !important; }
+.meal-progress {
+  --meal-progress:0%; position:absolute; inset:0; display:grid; place-items:center; border-radius:1rem;
+  background:conic-gradient(var(--today-green) var(--meal-progress), #e5e9e7 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0);
+  mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0);
+}
+.today-meal-row h3 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.78rem; font-weight:760; }
+.today-meal-row p { margin-top:.15rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--today-muted); font-size:.6rem; }
+.today-meal-row strong { display:block; margin-top:.22rem; color:#4f5660; font-size:.62rem; font-weight:650; }
+.row-chevron { color:#b2b6bc; font-size:1.1rem; }
+.empty-meals { padding:1.4rem .25rem .4rem; color:var(--today-muted); text-align:center; font-size:.72rem; }
+.empty-meals a { display:inline-block; margin-top:.55rem; color:var(--today-green-dark); font-weight:730; }
+
+.compact-plan-card { display:grid; grid-template-columns:1fr auto; align-items:center; gap:.65rem 1rem; }
+.compact-plan-card > div:first-child { grid-column:1; }
+.plan-meta { grid-column:1; display:flex; flex-wrap:wrap; gap:.35rem .6rem; color:var(--today-muted); font-size:.61rem; }
+.compact-plan-card > a { grid-column:2; grid-row:1 / span 2; align-self:center; }
+
+@media (max-width: 390px) {
+  .today-greeting { font-size:2.2rem; }
+  .calorie-layout { grid-template-columns:3.65rem minmax(0,1fr) 3.65rem; }
+  .side-stat strong { font-size:1.03rem; }
+  .calorie-ring-inner > strong { max-width:7.5rem; font-size:2.35rem !important; }
+}

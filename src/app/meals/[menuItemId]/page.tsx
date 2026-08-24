@@ -30,7 +30,7 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
       {location ? <Link href={`/locations/${location.id}`} className="text-sm font-bold text-emerald-800">← {location.shortName ?? location.name}</Link> : <Link href="/dashboard" className="text-sm font-bold text-emerald-800">← All locations</Link>}
-      <div className="mt-5"><p className="brand-kicker">Bentley Fuel</p></div>
+      <div className="mt-5"><p className="brand-kicker">Falcon Fuel</p></div>
       <AppNav />
 
       <section className="surface mt-6 overflow-hidden p-2">
@@ -52,6 +52,7 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
             {([ ["Calories", item.nutrition.calories, "cal"], ["Protein", item.nutrition.protein, "g"], ["Carbs", item.nutrition.carbs, "g"], ["Fat", item.nutrition.fat, "g"] ] as const).map(([label, value, unit]) => <div key={label} className="rounded-2xl bg-emerald-50/70 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-emerald-900/55">{label}</dt><dd className="mt-1 text-2xl font-bold text-emerald-950">{value}<span className="ml-0.5 text-xs font-semibold text-emerald-900/50">{unit}</span></dd></div>)}
           </dl>
           {item.serving && <p className="mt-3 text-xs subtle">Serving: {servingText(item.serving)}</p>}
+          <details className="mt-3 rounded-xl bg-black/[.025] p-3"><summary className="cursor-pointer text-xs font-bold">ⓘ About these nutrition numbers</summary><p className="mt-2 text-xs leading-relaxed subtle">Nutrition information is based on Bentley Dining/Chartwells menu data when available and standardized serving estimates where exact portions are not published. Actual portions and preparation may vary.</p></details>
           {extraNutrition.length > 0 && <div className="mt-5 border-t border-black/[.06] pt-4"><h3 className="text-sm font-bold">More nutrition</h3><dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">{extraNutrition.map(([key, label, unit]) => <div key={key} className="flex justify-between gap-3 border-b border-black/[.05] pb-2"><dt className="subtle">{label}</dt><dd className="font-bold">{item.nutrition?.[key]}{unit}</dd></div>)}</dl></div>}
         </section>
       )}

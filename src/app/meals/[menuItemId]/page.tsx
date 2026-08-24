@@ -93,6 +93,10 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
               </div>
             ))}
           </dl>
+          <details className="mt-4 rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+            <summary className="cursor-pointer text-sm font-semibold">ⓘ About these nutrition numbers</summary>
+            <p className="mt-2 text-xs leading-relaxed text-black/60">Nutrition information is based on Bentley Dining/Chartwells menu data when available and standardized serving estimates where exact portions are not published. Actual portions and preparation may vary.</p>
+          </details>
           {extraNutrition.length > 0 && (
             <div className="mt-7 border-t border-black/10 pt-5">
               <h2 className="font-bold">More nutrition</h2>

@@ -74,12 +74,14 @@ export default function TodayClient({
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(RECOMMENDATION_FEEDBACK_KEY);
-      if (raw) setRecommendationFeedback(JSON.parse(raw) as Record<string, RecommendationFeedback>);
-    } catch {
-      setRecommendationFeedback({});
-    }
+    queueMicrotask(() => {
+      try {
+        const raw = window.localStorage.getItem(RECOMMENDATION_FEEDBACK_KEY);
+        if (raw) setRecommendationFeedback(JSON.parse(raw) as Record<string, RecommendationFeedback>);
+      } catch {
+        setRecommendationFeedback({});
+      }
+    });
   }, []);
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);

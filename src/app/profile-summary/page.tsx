@@ -7,6 +7,7 @@ import AppNav from "@/components/AppNav";
 import { browserMealHistoryRepository, browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile } from "@/types";
+import "./plan.css";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KCAL_PER_KG_ENERGY_EQUIVALENT = 7700;
@@ -24,8 +25,18 @@ export default function ProfileSummary() {
   const [selectedProjectionDay, setSelectedProjectionDay] = useState(0);
   const router = useRouter();
 
-  useEffect(() => { queueMicrotask(() => { const nextProfile = browserProfileRepository().get(); setProfile(nextProfile); setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg); }); }, []);
-  const plan = useMemo(() => profile ? resolveNutritionPlan(profile, new Date(), latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, latestWeightKg]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      const nextProfile = browserProfileRepository().get();
+      setProfile(nextProfile);
+      setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
+    });
+  }, []);
+
+  const plan = useMemo(
+    () => profile ? resolveNutritionPlan(profile, new Date(), latestWeightKg ?? profile.metrics?.weightKg) : undefined,
+    [profile, latestWeightKg],
+  );
 
   if (profile === undefined) return <main className="summary"><p>Loading your profile…</p></main>;
   if (!profile) return <main className="summary"><p className="brand-kicker">Falcon Fuel</p><h1 className="mt-5 text-4xl font-bold">Build your plan.</h1><p className="mt-2 subtle">Complete onboarding to create a personalized nutrition profile.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
@@ -55,10 +66,25 @@ export default function ProfileSummary() {
     ? targetWeightKg > currentWeightKg ? Math.min(targetWeightKg, rawExpectedWeight) : Math.max(targetWeightKg, rawExpectedWeight)
     : undefined;
   const progressPct = projectedDays ? Math.round((sliderDay / projectedDays) * 100) : 0;
-  const startY = currentWeightKg && targetWeightKg ? (currentWeightKg >= targetWeightKg ? 36 : 126) : 80;
-  const endY = currentWeightKg && targetWeightKg ? (currentWeightKg >= targetWeightKg ? 126 : 36) : 80;
-  const markerX = 32 + (progressPct / 100) * 296;
+  const weeksRemaining = projectedDays ? Math.max(1, Math.ceil(projectedDays / 7)) : undefined;
+
+  const chartLeft = 42;
+  const chartRight = 388;
+  const chartTop = 48;
+  const chartBottom = 172;
+  const startY = currentWeightKg && targetWeightKg ? (currentWeightKg >= targetWeightKg ? chartTop : chartBottom) : 110;
+  const endY = currentWeightKg && targetWeightKg ? (currentWeightKg >= targetWeightKg ? chartBottom : chartTop) : 110;
+  const markerX = chartLeft + (progressPct / 100) * (chartRight - chartLeft);
   const markerY = startY + ((endY - startY) * progressPct) / 100;
+  const tooltipX = Math.min(322, Math.max(8, markerX - 49));
+  const tooltipY = markerY < 88 ? markerY + 18 : markerY - 58;
+  const adjustmentLabel = dailyEnergyAdjustment === undefined
+    ? "Not calculated"
+    : dailyEnergyAdjustment < 0
+      ? `${Math.abs(dailyEnergyAdjustment).toLocaleString()} kcal deficit`
+      : dailyEnergyAdjustment > 0
+        ? `+${dailyEnergyAdjustment.toLocaleString()} kcal surplus`
+        : "Maintenance";
 
   const saveProgress = () => {
     const entered = Number(progressInput);
@@ -66,70 +92,153 @@ export default function ProfileSummary() {
     const weightKg = profile.unitSystem === "metric" ? entered : entered * 0.45359237;
     if (weightKg < 25 || weightKg > 400) return setProgressMessage("That weight is outside the supported range.");
     browserProgressRepository().upsert({ id: crypto.randomUUID(), recordedAt: new Date().toISOString(), weightKg });
-    setLatestWeightKg(weightKg); setSelectedProjectionDay(0); setProgressInput(""); setProgressMessage("Progress updated. Your projection now starts from this weight.");
+    setLatestWeightKg(weightKg);
+    setSelectedProjectionDay(0);
+    setProgressInput("");
+    setProgressMessage("Progress updated. Your projection now starts from this weight.");
   };
 
-  const clearAllLocalData = () => { browserMealHistoryRepository().clear(); browserProgressRepository().clear(); browserProfileRepository().clear(); router.push("/onboarding"); };
-  const adjustmentLabel = dailyEnergyAdjustment === undefined ? "Not calculated" : dailyEnergyAdjustment < 0 ? `${Math.abs(dailyEnergyAdjustment).toLocaleString()} kcal deficit/day` : dailyEnergyAdjustment > 0 ? `+${dailyEnergyAdjustment.toLocaleString()} kcal/day` : "Maintenance calories";
+  const clearAllLocalData = () => {
+    browserMealHistoryRepository().clear();
+    browserProgressRepository().clear();
+    browserProfileRepository().clear();
+    router.push("/onboarding");
+  };
 
   return (
     <main className="summary">
       <p className="brand-kicker">Falcon Fuel</p>
       <div className="mt-4 flex items-start justify-between gap-4">
-        <div><h1 className="text-4xl font-bold tracking-[-0.04em]">Your plan</h1><p className="mt-2 subtle">See the path, the daily adjustment, and where your current progress points next.</p></div>
+        <div>
+          <h1 className="text-4xl font-bold tracking-[-0.04em]">Your plan</h1>
+          <p className="mt-2 subtle">See the path, the daily adjustment, and where your current progress points next.</p>
+        </div>
         <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">Locked</span>
       </div>
       <p className="mt-3 text-sm subtle">Your goal and intensity stay read-only here until you explicitly choose Edit plan.</p>
       <AppNav />
 
       {targetWeightKg && currentWeightKg && (
-        <section className="surface mt-6 overflow-hidden p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><p className="eyebrow">Plan trajectory</p><h2 className="mt-1 text-2xl font-bold">{plan?.phase === "maintenance" ? "Goal reached · maintenance" : `${weight(currentWeightKg, profile.unitSystem)} → ${weight(targetWeightKg, profile.unitSystem)}`}</h2></div>
-            {projectedGoalDate && <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">Est. {shortDateLabel(projectedGoalDate)}</span>}
+        <section className="plan-trajectory-card mt-6">
+          <div className="plan-trajectory-glow plan-trajectory-glow-a" />
+          <div className="plan-trajectory-glow plan-trajectory-glow-b" />
+
+          <div className="plan-trajectory-header">
+            <div>
+              <p className="plan-trajectory-kicker">Plan trajectory</p>
+              <div className="plan-trajectory-title-row">
+                <h2>{plan?.phase === "maintenance" ? "Goal reached" : `${weight(currentWeightKg, profile.unitSystem)} → ${weight(targetWeightKg, profile.unitSystem)}`}</h2>
+                <span className="plan-trajectory-status">{plan?.phase === "maintenance" ? "Maintenance" : "Active plan"}</span>
+              </div>
+              <p className="plan-trajectory-subtitle">A live projection of your current nutrition plan—not a generic target line.</p>
+            </div>
+            {projectedGoalDate && <div className="plan-goal-date"><span>Projected goal</span><strong>{dateLabel(projectedGoalDate)}</strong></div>}
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <PlanStat label="Now" value={weight(currentWeightKg, profile.unitSystem)} />
-            <PlanStat label="Goal" value={weight(targetWeightKg, profile.unitSystem)} />
-            <PlanStat label="Daily change" value={adjustmentLabel} />
-            <PlanStat label="Trend pace" value={weeklyPaceKg ? `≈ ${weight(Math.abs(weeklyPaceKg), profile.unitSystem)}/week` : "Not calibrated"} />
+          <div className="plan-metric-strip">
+            <PlanMetric label="Daily adjustment" value={adjustmentLabel} tone="teal" />
+            <PlanMetric label="Projected pace" value={weeklyPaceKg ? `≈ ${weight(Math.abs(weeklyPaceKg), profile.unitSystem)} / wk` : "Not calibrated"} />
+            <PlanMetric label="Time to target" value={weeksRemaining ? `≈ ${weeksRemaining} ${weeksRemaining === 1 ? "week" : "weeks"}` : "Not calibrated"} />
           </div>
 
-          {projectedDays && expectedWeightKg !== undefined ? (
+          {projectedDays && expectedWeightKg !== undefined && projectedGoalDate ? (
             <>
-              <div className="mt-5 rounded-2xl border border-blue-900/[.06] bg-gradient-to-b from-[#f6faff] to-white p-3">
-                <svg viewBox="0 0 360 172" className="h-auto w-full" role="img" aria-label={`Projected weight path from ${weight(currentWeightKg, profile.unitSystem)} to ${weight(targetWeightKg, profile.unitSystem)}`}>
-                  <defs><linearGradient id="plan-path-gradient" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#385375" /><stop offset="58%" stopColor="#1175b9" /><stop offset="100%" stopColor="#2f9e95" /></linearGradient></defs>
-                  <line x1="32" y1={startY} x2="328" y2={endY} stroke="#e3ebf1" strokeWidth="14" strokeLinecap="round" />
-                  <line x1="32" y1={startY} x2="328" y2={endY} stroke="url(#plan-path-gradient)" strokeWidth="7" strokeLinecap="round" />
-                  <circle cx="32" cy={startY} r="8" fill="#385375" stroke="white" strokeWidth="4" />
-                  <circle cx="328" cy={endY} r="8" fill="#2f9e95" stroke="white" strokeWidth="4" />
-                  <circle cx={markerX} cy={markerY} r="9" fill="#1175b9" stroke="white" strokeWidth="4" />
-                  <line x1={markerX} y1={markerY + 12} x2={markerX} y2="145" stroke="#b9c9d5" strokeWidth="1.5" strokeDasharray="4 5" />
-                  <text x="32" y="160" fill="#687989" fontSize="11">Now</text>
-                  <text x="328" y="160" textAnchor="end" fill="#687989" fontSize="11">{shortDateLabel(projectedGoalDate)}</text>
+              <div className="plan-chart-stage">
+                <div className="plan-chart-stage-header">
+                  <div><span>Projected weight</span><strong>{weight(expectedWeightKg, profile.unitSystem)}</strong></div>
+                  <div className="plan-chart-selected-date"><span>Selected day</span><strong>{dateLabel(selectedDate)}</strong></div>
+                </div>
+
+                <svg viewBox="0 0 430 232" className="plan-chart-svg" role="img" aria-label={`Projected weight path from ${weight(currentWeightKg, profile.unitSystem)} to ${weight(targetWeightKg, profile.unitSystem)}`}>
+                  <defs>
+                    <linearGradient id="projection-line-gradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#8aa7c2" />
+                      <stop offset="52%" stopColor="#71c7da" />
+                      <stop offset="100%" stopColor="#61d8c8" />
+                    </linearGradient>
+                    <linearGradient id="projection-fill-gradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6fcfd0" stopOpacity="0.27" />
+                      <stop offset="100%" stopColor="#6fcfd0" stopOpacity="0" />
+                    </linearGradient>
+                    <filter id="projection-marker-glow" x="-100%" y="-100%" width="300%" height="300%">
+                      <feGaussianBlur stdDeviation="5" result="blur" />
+                      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                  </defs>
+
+                  {[48, 89, 130, 172].map((y) => <line key={y} x1="42" x2="388" y1={y} y2={y} className="plan-chart-grid-line" />)}
+                  {[42, 128.5, 215, 301.5, 388].map((x) => <line key={x} x1={x} x2={x} y1="42" y2="184" className="plan-chart-grid-line plan-chart-grid-line-vertical" />)}
+
+                  <line x1="42" y1={endY} x2="388" y2={endY} className="plan-chart-goal-guide" />
+                  <path d={`M ${chartLeft} ${startY} L ${chartRight} ${endY} L ${chartRight} 184 L ${chartLeft} 184 Z`} fill="url(#projection-fill-gradient)" />
+                  <path d={`M ${chartLeft} ${startY} L ${chartRight} ${endY}`} className="plan-chart-path-shadow" />
+                  <path d={`M ${chartLeft} ${startY} L ${chartRight} ${endY}`} stroke="url(#projection-line-gradient)" className="plan-chart-path" />
+
+                  {[0.25, 0.5, 0.75].map((fraction) => {
+                    const x = chartLeft + fraction * (chartRight - chartLeft);
+                    const y = startY + fraction * (endY - startY);
+                    return <circle key={fraction} cx={x} cy={y} r="3.5" className="plan-chart-milestone" />;
+                  })}
+
+                  <circle cx={chartLeft} cy={startY} r="6" className="plan-chart-anchor plan-chart-anchor-start" />
+                  <circle cx={chartRight} cy={endY} r="8" className="plan-chart-anchor plan-chart-anchor-goal" />
+                  <circle cx={chartRight} cy={endY} r="15" className="plan-chart-goal-halo" />
+
+                  <line x1={markerX} x2={markerX} y1={markerY + 13} y2="184" className="plan-chart-marker-guide" />
+                  <circle cx={markerX} cy={markerY} r="15" className="plan-chart-marker-halo" />
+                  <circle cx={markerX} cy={markerY} r="7" className="plan-chart-marker" filter="url(#projection-marker-glow)" />
+
+                  <g transform={`translate(${tooltipX} ${tooltipY})`}>
+                    <rect width="98" height="42" rx="12" className="plan-chart-tooltip" />
+                    <text x="49" y="17" textAnchor="middle" className="plan-chart-tooltip-label">{shortDateLabel(selectedDate)}</text>
+                    <text x="49" y="32" textAnchor="middle" className="plan-chart-tooltip-value">{weight(expectedWeightKg, profile.unitSystem)}</text>
+                  </g>
+
+                  <text x="42" y="216" className="plan-chart-axis-label">Today</text>
+                  <text x="388" y="216" textAnchor="end" className="plan-chart-axis-label">{shortDateLabel(projectedGoalDate)}</text>
                 </svg>
               </div>
 
-              <div className="mt-4 rounded-2xl bg-[#f4f8fb] p-4">
-                <div className="flex items-end justify-between gap-4">
-                  <div><p className="text-[10px] font-bold uppercase tracking-[.11em] text-blue-700">Expected on {dateLabel(selectedDate)}</p><p className="mt-1 text-3xl font-bold tracking-[-0.045em] text-[#132536]">{weight(expectedWeightKg, profile.unitSystem)}</p></div>
-                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#385375] shadow-sm">{progressPct}% of timeline</span>
+              <div className="plan-projection-scrubber">
+                <div className="plan-scrubber-copy">
+                  <div>
+                    <span>Expected on {dateLabel(selectedDate)}</span>
+                    <strong>{weight(expectedWeightKg, profile.unitSystem)}</strong>
+                  </div>
+                  <span className="plan-progress-chip">{progressPct}% of plan</span>
                 </div>
-                <input aria-label="Choose a day in your projected plan" className="mt-5 h-2 w-full cursor-pointer accent-[#1175b9]" type="range" min="0" max={projectedDays} step="1" value={sliderDay} onChange={(event) => setSelectedProjectionDay(Number(event.target.value))} />
-                <div className="mt-2 flex justify-between text-[11px] font-semibold text-[#687989]"><span>Today</span><span>Projected goal</span></div>
-                <p className="mt-3 text-xs leading-relaxed subtle">This is an energy-equivalent planning trend based on your current calorie target and estimated maintenance, not a promise of scale weight on a specific day. Normal day-to-day weight can vary.</p>
+                <input
+                  aria-label="Choose a day in your projected plan"
+                  className="plan-range"
+                  type="range"
+                  min="0"
+                  max={projectedDays}
+                  step="1"
+                  value={sliderDay}
+                  style={{ background: `linear-gradient(90deg, #62d3c6 0%, #62d3c6 ${progressPct}%, rgba(255,255,255,.16) ${progressPct}%, rgba(255,255,255,.16) 100%)` }}
+                  onChange={(event) => setSelectedProjectionDay(Number(event.target.value))}
+                />
+                <div className="plan-range-labels"><span>Today</span><span>Projected goal</span></div>
               </div>
+
+              <p className="plan-projection-note">Energy-equivalent planning estimate based on the current calorie target and estimated maintenance. Real scale weight can move above or below this line from day to day.</p>
             </>
           ) : (
-            <div className="mt-5 rounded-2xl bg-[#f4f8fb] p-4 text-sm leading-relaxed subtle">Your start and target are saved, but Falcon Fuel does not yet have a calibrated pace for a day-by-day weight projection. The nutrition adjustment above remains the active plan.</div>
+            <div className="plan-unavailable-state">Your start and target are saved, but Falcon Fuel does not yet have enough calibrated pace data for a day-by-day weight projection. The nutrition adjustment above remains the active plan.</div>
           )}
+        </section>
+      )}
 
-          <div className="mt-4 rounded-2xl border border-black/[.05] bg-white p-4">
-            <label className="text-sm font-bold">Update your actual weight <span className="font-normal subtle">optional</span><div className="mt-2 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white px-3 py-2.5" inputMode="decimal" type="number" value={progressInput} onChange={(event) => setProgressInput(event.target.value)} placeholder={profile.unitSystem === "metric" ? "Weight in kg" : "Weight in lb"} /><button type="button" className="secondary" onClick={saveProgress}>Save</button></div></label>
-            {progressMessage && <p className="mt-2 text-xs subtle">{progressMessage}</p>}
+      {targetWeightKg && currentWeightKg && (
+        <section className="surface mt-4 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div><p className="eyebrow">Actual progress</p><h2 className="mt-1 text-xl font-bold">Update your current weight</h2><p className="mt-1 text-sm subtle">A new entry resets the projection from your latest recorded weight.</p></div>
           </div>
+          <label className="mt-4 block text-sm font-bold">
+            Weight <span className="font-normal subtle">optional</span>
+            <div className="mt-2 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white px-3 py-2.5" inputMode="decimal" type="number" value={progressInput} onChange={(event) => setProgressInput(event.target.value)} placeholder={profile.unitSystem === "metric" ? "Weight in kg" : "Weight in lb"} /><button type="button" className="secondary" onClick={saveProgress}>Save</button></div>
+          </label>
+          {progressMessage && <p className="mt-2 text-xs subtle">{progressMessage}</p>}
         </section>
       )}
 
@@ -154,5 +263,10 @@ export default function ProfileSummary() {
   );
 }
 
-function PlanStat({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-[#f4f8fb] p-3"><p className="text-[10px] font-bold uppercase tracking-[.1em] text-[#687989]">{label}</p><p className="mt-1 text-sm font-bold leading-snug text-[#132536]">{value}</p></div>; }
-function Row({ name, value }: { name: string; value: string }) { return <div><h3 className="text-[10px] font-bold uppercase tracking-[.1em] subtle">{name}</h3><p className="mt-1 text-sm font-medium leading-relaxed">{value}</p></div>; }
+function PlanMetric({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "teal" }) {
+  return <div className={`plan-metric ${tone === "teal" ? "plan-metric-teal" : ""}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function Row({ name, value }: { name: string; value: string }) {
+  return <div><h3 className="text-[10px] font-bold uppercase tracking-[.1em] subtle">{name}</h3><p className="mt-1 text-sm font-medium leading-relaxed">{value}</p></div>;
+}

@@ -1,0 +1,91 @@
+/* Premium Plan trajectory: a dark, finance-grade projection surface that still uses Today's blue/teal language. */
+.plan-trajectory-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(67,201,190,.18), transparent 19rem),
+    radial-gradient(circle at 6% 96%, rgba(71,135,183,.20), transparent 18rem),
+    linear-gradient(145deg, #213a50 0%, #173d5a 48%, #0c5569 112%);
+  padding: 1.45rem;
+  color: #f8fbfd;
+  box-shadow: 0 22px 58px rgba(25,57,82,.24), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.plan-trajectory-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 72%);
+}
+.plan-trajectory-card > *:not(.plan-trajectory-glow) { position: relative; z-index: 2; }
+.plan-trajectory-glow { position: absolute; border-radius: 999px; filter: blur(1px); pointer-events: none; opacity: .55; }
+.plan-trajectory-glow-a { width: 15rem; height: 15rem; right: -8rem; top: -8rem; background: radial-gradient(circle, rgba(99,222,203,.20), transparent 68%); }
+.plan-trajectory-glow-b { width: 18rem; height: 18rem; left: -11rem; bottom: -12rem; background: radial-gradient(circle, rgba(68,139,198,.20), transparent 68%); }
+.plan-trajectory-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.plan-trajectory-kicker { color: #8bd9d2; font-size: .68rem; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+.plan-trajectory-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin-top: .45rem; }
+.plan-trajectory-title-row h2 { font-size: clamp(1.55rem, 5vw, 2.2rem); line-height: 1; font-weight: 790; letter-spacing: -.045em; }
+.plan-trajectory-status { border: 1px solid rgba(255,255,255,.12); border-radius: 999px; background: rgba(255,255,255,.075); padding: .36rem .58rem; color: rgba(255,255,255,.78); font-size: .64rem; font-weight: 760; backdrop-filter: blur(12px); }
+.plan-trajectory-subtitle { max-width: 32rem; margin-top: .7rem; color: rgba(238,247,251,.62); font-size: .77rem; line-height: 1.5; }
+.plan-goal-date { flex: 0 0 auto; border: 1px solid rgba(255,255,255,.10); border-radius: 1.1rem; background: rgba(255,255,255,.075); padding: .7rem .82rem; text-align: right; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); backdrop-filter: blur(14px); }
+.plan-goal-date span { display: block; color: rgba(255,255,255,.52); font-size: .58rem; font-weight: 740; letter-spacing: .09em; text-transform: uppercase; }
+.plan-goal-date strong { display: block; margin-top: .28rem; font-size: .75rem; font-weight: 760; }
+.plan-metric-strip { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .55rem; margin-top: 1.15rem; }
+.plan-metric { min-width: 0; border: 1px solid rgba(255,255,255,.08); border-radius: 1.15rem; background: rgba(255,255,255,.055); padding: .78rem .82rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.035); backdrop-filter: blur(12px); }
+.plan-metric span { display: block; color: rgba(255,255,255,.46); font-size: .58rem; font-weight: 760; letter-spacing: .075em; text-transform: uppercase; }
+.plan-metric strong { display: block; margin-top: .34rem; overflow-wrap: anywhere; color: #f9fcfd; font-size: .82rem; line-height: 1.25; font-weight: 760; }
+.plan-metric-teal { background: linear-gradient(145deg, rgba(88,208,194,.14), rgba(255,255,255,.045)); border-color: rgba(109,223,208,.14); }
+.plan-metric-teal strong { color: #a9eee4; }
+.plan-chart-stage { margin-top: 1rem; overflow: hidden; border: 1px solid rgba(255,255,255,.085); border-radius: 1.45rem; background: linear-gradient(180deg, rgba(7,27,43,.27), rgba(14,45,65,.15)); box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 14px 30px rgba(4,25,42,.11); }
+.plan-chart-stage-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1rem .1rem; }
+.plan-chart-stage-header span { display: block; color: rgba(255,255,255,.46); font-size: .6rem; font-weight: 760; letter-spacing: .08em; text-transform: uppercase; }
+.plan-chart-stage-header strong { display: block; margin-top: .22rem; font-size: 1.12rem; font-weight: 790; letter-spacing: -.025em; }
+.plan-chart-selected-date { text-align: right; }
+.plan-chart-selected-date strong { color: #b9e9e4; font-size: .76rem; letter-spacing: -.01em; }
+.plan-chart-svg { display: block; width: 100%; height: auto; padding: 0 .15rem .2rem; overflow: visible; }
+.plan-chart-grid-line { stroke: rgba(255,255,255,.075); stroke-width: 1; }
+.plan-chart-grid-line-vertical { stroke: rgba(255,255,255,.045); stroke-dasharray: 3 7; }
+.plan-chart-goal-guide { stroke: rgba(103,219,204,.26); stroke-width: 1.2; stroke-dasharray: 5 7; }
+.plan-chart-path-shadow { fill: none; stroke: rgba(4,18,29,.32); stroke-width: 10; stroke-linecap: round; }
+.plan-chart-path { fill: none; stroke-width: 4.5; stroke-linecap: round; }
+.plan-chart-milestone { fill: #5bc6c1; stroke: #173d59; stroke-width: 2.2; opacity: .92; }
+.plan-chart-anchor { stroke: rgba(255,255,255,.94); stroke-width: 3; }
+.plan-chart-anchor-start { fill: #7d9cb8; }
+.plan-chart-anchor-goal { fill: #62d3c6; }
+.plan-chart-goal-halo { fill: none; stroke: rgba(98,211,198,.22); stroke-width: 5; }
+.plan-chart-marker-guide { stroke: rgba(197,228,237,.28); stroke-width: 1.2; stroke-dasharray: 3 6; }
+.plan-chart-marker-halo { fill: rgba(91,199,202,.12); stroke: rgba(122,218,215,.20); stroke-width: 1.2; }
+.plan-chart-marker { fill: #e9ffff; stroke: #62d3c6; stroke-width: 3.2; }
+.plan-chart-tooltip { fill: rgba(249,253,254,.97); stroke: rgba(255,255,255,.82); stroke-width: 1; filter: drop-shadow(0 6px 12px rgba(3,23,37,.20)); }
+.plan-chart-tooltip-label { fill: #687989; font-size: 8.2px; font-weight: 700; letter-spacing: .02em; }
+.plan-chart-tooltip-value { fill: #132536; font-size: 11.2px; font-weight: 800; }
+.plan-chart-axis-label { fill: rgba(234,245,249,.52); font-size: 9px; font-weight: 650; }
+.plan-projection-scrubber { margin-top: .8rem; border: 1px solid rgba(255,255,255,.085); border-radius: 1.25rem; background: rgba(255,255,255,.055); padding: .9rem 1rem .85rem; backdrop-filter: blur(12px); }
+.plan-scrubber-copy { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+.plan-scrubber-copy span { display: block; color: rgba(255,255,255,.50); font-size: .6rem; font-weight: 760; letter-spacing: .07em; text-transform: uppercase; }
+.plan-scrubber-copy strong { display: block; margin-top: .22rem; font-size: 1.5rem; line-height: 1; font-weight: 800; letter-spacing: -.04em; }
+.plan-progress-chip { flex: 0 0 auto; border: 1px solid rgba(255,255,255,.09); border-radius: 999px; background: rgba(255,255,255,.07); padding: .45rem .65rem; color: rgba(255,255,255,.72) !important; font-size: .58rem !important; letter-spacing: .03em !important; text-transform: none !important; }
+.plan-range { width: 100%; height: 5px; margin-top: 1rem; border-radius: 999px; appearance: none; -webkit-appearance: none; outline: none; }
+.plan-range::-webkit-slider-thumb { width: 20px; height: 20px; border: 4px solid #173f5c; border-radius: 50%; appearance: none; -webkit-appearance: none; background: #f7ffff; box-shadow: 0 0 0 2px #62d3c6, 0 5px 14px rgba(3,25,41,.30); cursor: grab; }
+.plan-range::-webkit-slider-thumb:active { cursor: grabbing; }
+.plan-range::-moz-range-thumb { width: 14px; height: 14px; border: 4px solid #173f5c; border-radius: 50%; background: #f7ffff; box-shadow: 0 0 0 2px #62d3c6, 0 5px 14px rgba(3,25,41,.30); cursor: grab; }
+.plan-range-labels { display: flex; justify-content: space-between; margin-top: .48rem; color: rgba(255,255,255,.42); font-size: .6rem; font-weight: 650; }
+.plan-projection-note { margin-top: .75rem; color: rgba(235,246,250,.47); font-size: .63rem; line-height: 1.55; }
+.plan-unavailable-state { margin-top: 1rem; border: 1px solid rgba(255,255,255,.08); border-radius: 1.25rem; background: rgba(255,255,255,.055); padding: 1rem; color: rgba(255,255,255,.68); font-size: .76rem; line-height: 1.55; }
+@media (max-width: 620px) {
+  .plan-trajectory-card { border-radius: 1.65rem; padding: 1.05rem; }
+  .plan-trajectory-header { flex-direction: column; }
+  .plan-goal-date { align-self: stretch; display: flex; align-items: center; justify-content: space-between; text-align: left; }
+  .plan-goal-date strong { margin-top: 0; }
+  .plan-metric-strip { grid-template-columns: 1fr; }
+  .plan-metric { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .72rem .8rem; }
+  .plan-metric strong { margin-top: 0; text-align: right; }
+  .plan-chart-stage-header { padding: .85rem .8rem 0; }
+  .plan-chart-selected-date { max-width: 8rem; }
+  .plan-chart-selected-date strong { font-size: .69rem; }
+  .plan-scrubber-copy strong { font-size: 1.3rem; }
+}

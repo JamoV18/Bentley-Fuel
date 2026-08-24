@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import "./unified-theme.css";
 
 export const metadata: Metadata = {
   title: "Falcon Fuel",
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#003b2a",
+  themeColor: "#385375",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

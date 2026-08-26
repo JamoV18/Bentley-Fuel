@@ -1,4 +1,5 @@
 import Link from "next/link";
+import * as motion from "motion/react-client";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import { getDiningProvider } from "@/services";
@@ -26,18 +27,25 @@ export default async function DashboardPage() {
       )}
       <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ location, stationCount }) => (
-          <Link key={location.id} href={`/locations/${location.id}`} className="group surface overflow-hidden p-2 transition hover:-translate-y-1 hover:border-emerald-700/30 hover:shadow-xl">
-            <MealImage name={`${location.name} healthy food`} aspect="hero" className="h-40" />
-            <div className="p-3.5">
-              <div className="flex items-start justify-between gap-3">
-                <div><p className="eyebrow">Dining location</p><h2 className="mt-1 text-2xl font-bold tracking-tight group-hover:text-emerald-800">{location.shortName ?? location.name}</h2></div>
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-emerald-50 text-lg font-bold text-emerald-800">→</span>
+          <motion.div
+            key={location.id}
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ y: 0, scale: 0.985 }}
+            transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.55 }}
+          >
+            <Link href={`/locations/${location.id}`} className="group surface block h-full overflow-hidden p-2 transition hover:border-emerald-700/30 hover:shadow-xl">
+              <MealImage name={`${location.name} healthy food`} aspect="hero" className="h-40" />
+              <div className="p-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div><p className="eyebrow">Dining location</p><h2 className="mt-1 text-2xl font-bold tracking-tight group-hover:text-emerald-800">{location.shortName ?? location.name}</h2></div>
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-emerald-50 text-lg font-bold text-emerald-800">→</span>
+                </div>
+                {location.building && <p className="mt-1 text-sm font-semibold subtle">{location.building}</p>}
+                {location.description && <p className="mt-3 line-clamp-2 text-sm leading-relaxed subtle">{location.description}</p>}
+                <p className="mt-4 text-xs font-bold text-emerald-800">{stationCount} {stationCount === 1 ? "dining concept" : "dining concepts"}</p>
               </div>
-              {location.building && <p className="mt-1 text-sm font-semibold subtle">{location.building}</p>}
-              {location.description && <p className="mt-3 line-clamp-2 text-sm leading-relaxed subtle">{location.description}</p>}
-              <p className="mt-4 text-xs font-bold text-emerald-800">{stationCount} {stationCount === 1 ? "dining concept" : "dining concepts"}</p>
-            </div>
-          </Link>
+            </Link>
+          </motion.div>
         ))}
       </div>
     </main>

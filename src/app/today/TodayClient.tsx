@@ -1,8 +1,9 @@
 "use client";
 
 import "./today.css";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import {
@@ -33,6 +34,51 @@ function MealProgress({ fraction }: { fraction?: number }) {
   return (
     <div className="meal-progress" style={{ "--meal-progress": `${pct}%` } as React.CSSProperties} aria-label={`${pct}% completed`}>
       <span>{fraction === undefined ? "" : pct === 100 ? "✓" : `${pct}%`}</span>
+    </div>
+  );
+}
+
+function AnimatedCalorieRing({ progress, children }: { progress: number; children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  const value = useMotionValue(reduceMotion ? progress : 0);
+  const cssProgress = useTransform(value, (latest) => `${latest}%`);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      value.set(progress);
+      return;
+    }
+    value.set(0);
+    const controls = animate(value, progress, {
+      type: "spring",
+      stiffness: 80,
+      damping: 18,
+      mass: 0.9,
+    });
+    return () => controls.stop();
+  }, [progress, reduceMotion, value]);
+
+  return (
+    <motion.div
+      className="calorie-ring"
+      style={{ "--calorie-progress": cssProgress } as unknown as React.CSSProperties}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function AnimatedMacroTrack({ progress, tone, delay }: { progress: number; tone: string; delay: number }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <div className="macro-track">
+      <motion.span
+        className={tone}
+        initial={reduceMotion ? false : { scaleX: 0 }}
+        animate={{ scaleX: Math.max(0, Math.min(100, progress)) / 100 }}
+        transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 80, damping: 18, mass: 0.9, delay }}
+        style={{ transformOrigin: "left center" }}
+      />
     </div>
   );
 }
@@ -131,18 +177,21 @@ export default function TodayClient({
         <article className="nutrition-card calorie-card">
           <div className="calorie-layout">
             <div className="side-stat"><span className="stat-icon">⌁</span><strong>{round(snapshot.consumed.calories).toLocaleString()}</strong><small>eaten</small></div>
-            <div className="calorie-ring" style={{ "--calorie-progress": `${calorieCoverage}%` } as React.CSSProperties}>
+            <AnimatedCalorieRing progress={calorieCoverage}>
               <div className="calorie-ring-inner">
                 <span>Calories</span>
                 <strong>{remainingCalories === undefined ? round(snapshot.consumed.calories).toLocaleString() : round(remainingCalories).toLocaleString()}</strong>
                 <small>{target ? "remaining" : "recorded"}</small>
                 {target && <Link href="/profile-summary" className="calorie-goal">of {round(target.calories).toLocaleString()} ✎</Link>}
               </div>
-            </div>
+            </AnimatedCalorieRing>
             <div className="side-stat"><span className="stat-icon stat-icon-warm">↗</span><strong>0</strong><small>burned</small></div>
           </div>
           <div className="macro-glance">
-            {macros.map((macro) => <div key={macro.name}><span className={`macro-name ${macro.tone}`}>{macro.name}</span><strong>{round(macro.consumed)}{macro.target ? ` / ${round(macro.target)}g` : "g"}</strong><div className="macro-track"><span className={macro.tone} style={{ width: `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` }} /></div><small>{macro.remaining === undefined ? "tracked" : `${round(macro.remaining)}g left`}</small></div>)}
+            {macros.map((macro, index) => {
+              const progress = macro.target ? coverage(macro.consumed, macro.target) : 0;
+              return <div key={macro.name}><span className={`macro-name ${macro.tone}`}>{macro.name}</span><strong>{round(macro.consumed)}{macro.target ? ` / ${round(macro.target)}g` : "g"}</strong><AnimatedMacroTrack progress={progress} tone={macro.tone} delay={0.08 + index * 0.08} /><small>{macro.remaining === undefined ? "tracked" : `${round(macro.remaining)}g left`}</small></div>;
+            })}
           </div>
         </article>
 

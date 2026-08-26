@@ -1,4 +1,5 @@
 import Link from "next/link";
+import * as motion from "motion/react-client";
 import { RECORDING_DEMO_ENABLED, recordingDemoDay } from "@/lib/recordingDemo";
 import { getDiningProvider } from "@/services";
 
@@ -12,6 +13,8 @@ export default async function DashboardPage() {
 
   const calorieProgress = Math.round((recordingDemoDay.consumed.calories / recordingDemoDay.targets.calories) * 100);
   const proteinProgress = Math.round((recordingDemoDay.consumed.protein / recordingDemoDay.targets.protein) * 100);
+  const calorieScale = Math.min(calorieProgress, 100) / 100;
+  const proteinScale = Math.min(proteinProgress, 100) / 100;
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
@@ -36,7 +39,13 @@ export default async function DashboardPage() {
                 <p className="text-sm font-semibold text-black/45">of {recordingDemoDay.targets.calories.toLocaleString()}</p>
               </div>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/5">
-                <div className="h-full rounded-full bg-emerald-700" style={{ width: `${calorieProgress}%` }} />
+                <motion.div
+                  className="h-full w-full rounded-full bg-emerald-700"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: calorieScale }}
+                  transition={{ type: "spring", stiffness: 95, damping: 20, mass: 0.8, delay: 0.08 }}
+                  style={{ transformOrigin: "left center" }}
+                />
               </div>
               <p className="mt-2 text-xs text-black/45">{recordingDemoDay.consumed.calories.toLocaleString()} consumed</p>
             </article>
@@ -50,7 +59,13 @@ export default async function DashboardPage() {
                 <p className="text-sm font-semibold text-black/45">of {recordingDemoDay.targets.protein}g</p>
               </div>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/5">
-                <div className="h-full rounded-full bg-emerald-700" style={{ width: `${proteinProgress}%` }} />
+                <motion.div
+                  className="h-full w-full rounded-full bg-emerald-700"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: proteinScale }}
+                  transition={{ type: "spring", stiffness: 95, damping: 20, mass: 0.8, delay: 0.16 }}
+                  style={{ transformOrigin: "left center" }}
+                />
               </div>
               <p className="mt-2 text-xs text-black/45">{recordingDemoDay.consumed.protein}g consumed</p>
             </article>

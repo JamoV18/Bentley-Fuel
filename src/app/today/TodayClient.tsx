@@ -115,6 +115,8 @@ export default function TodayClient({
         <Link href="/profile-summary" className="plan-pill">Your plan <span>›</span></Link>
       </header>
 
+      <AppNav />
+
       <div className="day-switcher" aria-label="Choose day">
         <button type="button" className="day-arrow" onClick={() => changeDay(-1)} aria-label="Previous day">‹</button>
         <button type="button" className="day-slot" onClick={() => changeDay(-1)}><span>Previous</span><strong>{dayLabel(yesterday)}</strong></button>
@@ -149,10 +151,9 @@ export default function TodayClient({
           <div className="macro-detail-grid">
             {macros.map((macro) => <div className="macro-detail" key={macro.name}><div className={`mini-ring ${macro.tone}`} style={{ "--mini-progress": `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` } as React.CSSProperties}><strong>{macro.target ? coverage(macro.consumed, macro.target) : 0}%</strong></div><span>{macro.name}</span><strong>{round(macro.consumed)}g</strong><small>{macro.target ? `of ${round(macro.target)}g` : "consumed"}</small></div>)}
           </div>
-          <p className="macro-card-note">Swipe back for calories, or keep this card nearby for a fast macro check.</p>
+          <p className="macro-card-note">A clean snapshot of how today’s intake is tracking against your plan.</p>
         </article>
       </section>
-      <div className="carousel-dots" aria-hidden="true"><span className="active" /><span /></div>
 
       <Link href="/dashboard" className="eat-cta">
         <span className="eat-cta-icon">+</span>
@@ -191,8 +192,6 @@ export default function TodayClient({
         <div className="plan-meta">{plan?.weightLossIntensity && <span>{readable(plan.weightLossIntensity)} intensity</span>}{plan?.currentWeightKg && plan?.targetWeightKg && <span>{formatWeight(plan.currentWeightKg, profile.unitSystem)} → {formatWeight(plan.targetWeightKg, profile.unitSystem)}</span>}</div>
         <Link href="/profile-summary">View plan →</Link>
       </section>
-
-      <AppNav />
     </main>
   );
 }

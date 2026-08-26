@@ -43,7 +43,7 @@ export default async function DashboardPage() {
                   className="h-full w-full rounded-full bg-emerald-700"
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: calorieScale }}
-                  transition={{ type: "spring", stiffness: 95, damping: 20, mass: 0.8, delay: 0.08 }}
+                  transition={{ type: "spring", stiffness: 80, damping: 18, mass: 0.9, delay: 0.08 }}
                   style={{ transformOrigin: "left center" }}
                 />
               </div>
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
                   className="h-full w-full rounded-full bg-emerald-700"
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: proteinScale }}
-                  transition={{ type: "spring", stiffness: 95, damping: 20, mass: 0.8, delay: 0.16 }}
+                  transition={{ type: "spring", stiffness: 80, damping: 18, mass: 0.9, delay: 0.16 }}
                   style={{ transformOrigin: "left center" }}
                 />
               </div>

@@ -104,12 +104,19 @@ export default async function DashboardPage() {
         )}
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {cards.map(({ location, stationCount }) => (
-            <Link key={location.id} href={`/locations/${location.id}`} className="group min-h-40 rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition hover:border-emerald-700 hover:shadow-md">
-              <h2 className="text-2xl font-bold group-hover:text-emerald-800">{location.shortName ?? location.name}</h2>
-              {location.building && <p className="mt-1 text-sm font-medium text-black/55">{location.building}</p>}
-              {location.description && <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-black/65">{location.description}</p>}
-              <p className="mt-4 text-sm font-semibold text-emerald-800">{stationCount} {stationCount === 1 ? "dining concept" : "dining concepts"} <span aria-hidden="true">→</span></p>
-            </Link>
+            <motion.div
+              key={location.id}
+              whileHover={{ y: -3, scale: 1.01 }}
+              whileTap={{ y: 0, scale: 0.985 }}
+              transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.55 }}
+            >
+              <Link href={`/locations/${location.id}`} className="group block min-h-40 rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition hover:border-emerald-700 hover:shadow-md">
+                <h2 className="text-2xl font-bold group-hover:text-emerald-800">{location.shortName ?? location.name}</h2>
+                {location.building && <p className="mt-1 text-sm font-medium text-black/55">{location.building}</p>}
+                {location.description && <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-black/65">{location.description}</p>}
+                <p className="mt-4 text-sm font-semibold text-emerald-800">{stationCount} {stationCount === 1 ? "dining concept" : "dining concepts"} <span aria-hidden="true">→</span></p>
+              </Link>
+            </motion.div>
           ))}
         </div>
       </section>

@@ -40,15 +40,14 @@ export default function AppNav() {
                 aria-hidden="true"
                 className="absolute inset-0 z-0 rounded-[.95rem] bg-emerald-50/95"
                 layoutId="app-nav-active-pill"
-                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 23, mass: 0.62 }}
-                style={{ boxShadow: "inset 0 0 0 1px rgba(8,122,88,.10), 0 5px 14px rgba(8,122,88,.08)" }}
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38, mass: 0.45 }}
+                style={{ boxShadow: "inset 0 0 0 1px rgba(8,122,88,.10), 0 3px 10px rgba(8,122,88,.06)" }}
               />
             )}
             <motion.span
               className="relative z-10 inline-flex items-center justify-center gap-[.42rem]"
-              animate={reduceMotion ? undefined : active ? { y: -1, scale: 1.035 } : { y: 0, scale: 1 }}
-              whileTap={reduceMotion ? undefined : { scale: 0.93, y: 1 }}
-              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 28, mass: 0.5 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
             >
               <span className="app-nav-icon"><Icon name={item.icon} /></span>
               <span>{item.label}</span>

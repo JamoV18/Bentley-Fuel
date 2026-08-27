@@ -275,6 +275,33 @@ h1, h2, h3 { text-wrap: balance; }
   text-align: center;
 }
 
+/* Quiet disclosure motion for recommendation reasoning. */
+details.surface-soft > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  list-style: none;
+}
+details.surface-soft > summary::-webkit-details-marker { display: none; }
+details.surface-soft > summary::after {
+  content: "›";
+  flex: 0 0 auto;
+  color: var(--brand-700);
+  font-size: 1.35rem;
+  line-height: 1;
+  transform: rotate(90deg);
+  transition: transform .22s cubic-bezier(.22,1,.36,1);
+}
+details.surface-soft[open] > summary::after { transform: rotate(-90deg); }
+details.surface-soft[open] > ul {
+  animation: disclosure-enter .28s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes disclosure-enter {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 639px) {
   body { background: #f6f8f6; }
   main { padding-bottom: 7.5rem !important; }

@@ -33,17 +33,26 @@ export default function AppNav() {
             href={item.href}
             className="app-nav-item relative isolate overflow-hidden"
             data-active={active}
+            style={active ? { background: "transparent" } : undefined}
           >
             {active && (
               <motion.span
                 aria-hidden="true"
-                className="absolute inset-0 -z-10 rounded-[.95rem] bg-emerald-50/95 shadow-[inset_0_0_0_1px_rgba(8,122,88,.08)]"
+                className="absolute inset-0 z-0 rounded-[.95rem] bg-emerald-50/95"
                 layoutId="app-nav-active-pill"
-                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34, mass: 0.7 }}
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 23, mass: 0.62 }}
+                style={{ boxShadow: "inset 0 0 0 1px rgba(8,122,88,.10), 0 5px 14px rgba(8,122,88,.08)" }}
               />
             )}
-            <span className="app-nav-icon relative z-10"><Icon name={item.icon} /></span>
-            <span className="relative z-10">{item.label}</span>
+            <motion.span
+              className="relative z-10 inline-flex items-center justify-center gap-[.42rem]"
+              animate={reduceMotion ? undefined : active ? { y: -1, scale: 1.035 } : { y: 0, scale: 1 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.93, y: 1 }}
+              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 28, mass: 0.5 }}
+            >
+              <span className="app-nav-icon"><Icon name={item.icon} /></span>
+              <span>{item.label}</span>
+            </motion.span>
           </Link>
         );
       })}

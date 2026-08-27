@@ -6,7 +6,7 @@ import MealImage from "@/components/MealImage";
 import { getLocationView } from "@/lib/locationBrowsing";
 import { getDiningProvider } from "@/services";
 
-const settle = { duration: 0.24, ease: [0.22, 1, 0.36, 1] } as const;
+const settle = { duration: 0.34, ease: [0.22, 1, 0.36, 1] } as const;
 
 export default async function LocationPage({ params }: { params: Promise<{ locationId: string }> }) {
   const { locationId } = await params;
@@ -49,9 +49,9 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
           <motion.section
             key={station.id}
             aria-labelledby={`${station.id}-heading`}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 9 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ ...settle, delay: Math.min(stationIndex * 0.045, 0.14) }}
+            transition={{ ...settle, delay: Math.min(stationIndex * 0.12, 0.45) }}
           >
             <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">Dining concept</p><h2 id={`${station.id}-heading`} className="mt-1 text-2xl font-bold">{station.name}</h2></div><span className="text-xs font-semibold subtle">{menuItems.length} item{menuItems.length === 1 ? "" : "s"}</span></div>
             {station.description && <p className="mt-1 text-sm leading-relaxed subtle">{station.description}</p>}
@@ -62,9 +62,9 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
                 {menuItems.map((item, itemIndex) => (
                   <motion.li
                     key={item.id}
-                    initial={{ opacity: 0, y: 5 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ ...settle, delay: Math.min(stationIndex * 0.045 + itemIndex * 0.025, 0.2) }}
+                    transition={{ ...settle, delay: Math.min(stationIndex * 0.12 + itemIndex * 0.07, 0.75) }}
                   >
                     <article className="meal-row items-start">
                       <MealImage name={item.name} imageUrl={item.imageUrl} aspect="wide" />

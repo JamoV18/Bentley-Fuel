@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
 
 const items = [
   { href: "/today", label: "Today", icon: "home" },
@@ -19,12 +20,32 @@ function Icon({ name }: { name: (typeof items)[number]["icon"] }) {
 
 export default function AppNav() {
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
   const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
+
   return (
     <nav className="app-nav" aria-label="Bentley Fuel app navigation">
       {items.map((item) => {
         const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return <Link key={item.href} href={item.href} className="app-nav-item" data-active={active}><span className="app-nav-icon"><Icon name={item.icon} /></span><span>{item.label}</span></Link>;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="app-nav-item relative isolate overflow-hidden"
+            data-active={active}
+          >
+            {active && (
+              <motion.span
+                aria-hidden="true"
+                className="absolute inset-0 -z-10 rounded-[.95rem] bg-emerald-50/95 shadow-[inset_0_0_0_1px_rgba(8,122,88,.08)]"
+                layoutId="app-nav-active-pill"
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34, mass: 0.7 }}
+              />
+            )}
+            <span className="app-nav-icon relative z-10"><Icon name={item.icon} /></span>
+            <span className="relative z-10">{item.label}</span>
+          </Link>
+        );
       })}
     </nav>
   );

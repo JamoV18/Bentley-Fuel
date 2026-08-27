@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
 import AppNav from "@/components/AppNav";
 import { browserMealHistoryRepository, browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
@@ -18,15 +19,18 @@ function WeightProgressChart({
   initialWeightKg,
   targetWeightKg,
   startDate,
+  animationKey,
 }: {
   observations: WeightObservation[];
   unitSystem: UserProfile["unitSystem"];
   initialWeightKg?: number;
   targetWeightKg?: number;
   startDate?: string;
+  animationKey: number;
 }) {
-  const unit = unitSystem === "metric" ? "kg" : "lb";
+  const reduceMotion = useReducedMotion();
   const recorded = [...observations].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
+  const unit = unitSystem === "metric" ? "kg" : "lb";
   const syntheticStart: WeightObservation | undefined = initialWeightKg ? {
     id: "plan-start",
     recordedAt: startDate ?? new Date().toISOString(),
@@ -59,10 +63,14 @@ function WeightProgressChart({
     y: yAt(displayWeight(point.weightKg, unitSystem)),
     value: displayWeight(point.weightKg, unitSystem),
   }));
-  const linePoints = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
   const targetValue = targetWeightKg ? displayWeight(targetWeightKg, unitSystem) : undefined;
   const first = series[0];
   const last = series[series.length - 1];
+  const priorCoordinates = coordinates.slice(0, -1);
+  const priorLinePoints = priorCoordinates.map((point) => `${point.x},${point.y}`).join(" ");
+  const previousPoint = coordinates.length > 1 ? coordinates[coordinates.length - 2] : undefined;
+  const latestPoint = coordinates[coordinates.length - 1];
+  const animateUpdate = animationKey > 0 && !reduceMotion;
 
   return (
     <div className="mt-5 rounded-2xl border border-emerald-900/[.06] bg-gradient-to-b from-emerald-50/75 to-white p-5">
@@ -80,8 +88,35 @@ function WeightProgressChart({
           return <line key={step} x1={padX} x2={width - padX} y1={y} y2={y} stroke="currentColor" opacity="0.08" strokeWidth="1" />;
         })}
         {targetValue !== undefined && <line x1={padX} x2={width - padX} y1={yAt(targetValue)} y2={yAt(targetValue)} stroke="currentColor" opacity="0.35" strokeWidth="2" strokeDasharray="7 7" />}
-        {coordinates.length > 1 && <polyline points={linePoints} fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />}
-        {coordinates.map((point, index) => <circle key={`${point.x}-${index}`} cx={point.x} cy={point.y} r={index === coordinates.length - 1 ? 6 : 4.5} fill="white" stroke="currentColor" strokeWidth={index === coordinates.length - 1 ? 4 : 3} />)}
+        {priorCoordinates.length > 1 && <polyline points={priorLinePoints} fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />}
+        {previousPoint && latestPoint && (
+          <motion.line
+            key={`latest-segment-${animationKey}-${last.id}`}
+            x1={previousPoint.x}
+            y1={previousPoint.y}
+            x2={latestPoint.x}
+            y2={latestPoint.y}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="4"
+            strokeLinecap="round"
+            initial={animateUpdate ? { pathLength: 0, opacity: 0.4 } : false}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={animateUpdate ? { duration: 0.42, ease: [0.22, 1, 0.36, 1] } : { duration: 0 }}
+          />
+        )}
+        {coordinates.slice(0, -1).map((point, index) => <circle key={`${point.x}-${index}`} cx={point.x} cy={point.y} r="4.5" fill="white" stroke="currentColor" strokeWidth="3" />)}
+        <motion.circle
+          key={`latest-point-${animationKey}-${last.id}`}
+          cx={latestPoint.x}
+          cy={latestPoint.y}
+          fill="white"
+          stroke="currentColor"
+          strokeWidth="4"
+          initial={animateUpdate ? { r: 2.5, opacity: 0.35 } : false}
+          animate={{ r: 6, opacity: 1 }}
+          transition={animateUpdate ? { type: "spring", stiffness: 430, damping: 24, mass: 0.55, delay: 0.22 } : { duration: 0 }}
+        />
       </svg>
 
       <div className="flex items-center justify-between gap-4 text-xs subtle">
@@ -99,6 +134,7 @@ export default function ProfileSummary() {
   const [progressHistory, setProgressHistory] = useState<WeightObservation[]>([]);
   const [progressInput, setProgressInput] = useState("");
   const [progressMessage, setProgressMessage] = useState("");
+  const [chartAnimationKey, setChartAnimationKey] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -132,6 +168,7 @@ export default function ProfileSummary() {
     setLatestWeightKg(progress[0]?.weightKg);
     setProgressInput("");
     setProgressMessage("Progress updated.");
+    setChartAnimationKey((value) => value + 1);
   };
 
   const clearAllLocalData = () => { browserMealHistoryRepository().clear(); browserProgressRepository().clear(); browserProfileRepository().clear(); router.push("/onboarding"); };
@@ -157,7 +194,7 @@ export default function ProfileSummary() {
           {plan?.projectedGoalDate && <p className="mt-2 text-sm subtle">Estimated goal date: {plan.projectedGoalDate}. This is a projection, not a guarantee.</p>}
           {!plan?.projectedGoalDate && plan?.phase === "goal" && plan?.targetWeightKg && <p className="mt-2 text-sm subtle">Your target is saved. Bentley Fuel only shows a projected date when an explicit pace has been calibrated.</p>}
 
-          <WeightProgressChart observations={progressHistory} unitSystem={profile.unitSystem} initialWeightKg={profile.metrics?.weightKg} targetWeightKg={plan?.targetWeightKg} startDate={plan?.startDate} />
+          <WeightProgressChart observations={progressHistory} unitSystem={profile.unitSystem} initialWeightKg={profile.metrics?.weightKg} targetWeightKg={plan?.targetWeightKg} startDate={plan?.startDate} animationKey={chartAnimationKey} />
 
           <div className="mt-5 rounded-2xl border border-black/[.06] bg-black/[.02] p-4">
             <label className="text-sm font-bold">Update progress <span className="font-normal subtle">Optional</span><div className="mt-2 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white px-3 py-2.5" inputMode="decimal" type="number" value={progressInput} onChange={(event) => setProgressInput(event.target.value)} placeholder={profile.unitSystem === "metric" ? "Weight in kg" : "Weight in lb"} /><button type="button" className="secondary" onClick={saveProgress}>Save</button></div></label>

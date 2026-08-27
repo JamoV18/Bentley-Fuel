@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import * as motion from "motion/react-client";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import { getLocationView } from "@/lib/locationBrowsing";
 import { getDiningProvider } from "@/services";
+
+const settle = { duration: 0.24, ease: [0.22, 1, 0.36, 1] } as const;
 
 export default async function LocationPage({ params }: { params: Promise<{ locationId: string }> }) {
   const { locationId } = await params;
@@ -42,16 +45,27 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
       </section>
 
       <div className="mt-8 space-y-8">
-        {view.sections.map(({ station, menuItems }) => (
-          <section key={station.id} aria-labelledby={`${station.id}-heading`}>
+        {view.sections.map(({ station, menuItems }, stationIndex) => (
+          <motion.section
+            key={station.id}
+            aria-labelledby={`${station.id}-heading`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...settle, delay: Math.min(stationIndex * 0.045, 0.14) }}
+          >
             <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">Dining concept</p><h2 id={`${station.id}-heading`} className="mt-1 text-2xl font-bold">{station.name}</h2></div><span className="text-xs font-semibold subtle">{menuItems.length} item{menuItems.length === 1 ? "" : "s"}</span></div>
             {station.description && <p className="mt-1 text-sm leading-relaxed subtle">{station.description}</p>}
             {menuItems.length === 0 ? (
               <p className="mt-4 rounded-2xl border border-dashed border-black/10 bg-white/70 p-4 text-sm subtle">Menu details not added yet.</p>
             ) : (
               <ul className="mt-4 space-y-3">
-                {menuItems.map((item) => (
-                  <li key={item.id}>
+                {menuItems.map((item, itemIndex) => (
+                  <motion.li
+                    key={item.id}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...settle, delay: Math.min(stationIndex * 0.045 + itemIndex * 0.025, 0.2) }}
+                  >
                     <article className="meal-row items-start">
                       <MealImage name={item.name} imageUrl={item.imageUrl} aspect="wide" />
                       <div className="min-w-0 flex-1 py-1">
@@ -66,11 +80,11 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
                         </div>
                       </div>
                     </article>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             )}
-          </section>
+          </motion.section>
         ))}
       </div>
     </main>

@@ -9,7 +9,7 @@ export default function FlowHeader({ backHref, backLabel }: { backHref: string; 
       </Link>
       <div className="flex items-center gap-1 rounded-full border border-black/[.06] bg-white/70 p-1 text-xs font-bold shadow-sm backdrop-blur">
         <Link href="/today" className="rounded-full px-3 py-1.5 text-black/55 transition hover:bg-emerald-50 hover:text-emerald-900">Today</Link>
-        <Link href="/dashboard" className="rounded-full px-3 py-1.5 text-black/55 transition hover:bg-emerald-50 hover:text-emerald-900">All dining</Link>
+        {backHref !== "/dashboard" && <Link href="/dashboard" className="rounded-full px-3 py-1.5 text-black/55 transition hover:bg-emerald-50 hover:text-emerald-900">All dining</Link>}
       </div>
     </div>
   );

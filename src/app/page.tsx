@@ -18,7 +18,7 @@ export default function Home() {
         </section>
 
         <section className="surface overflow-hidden p-2">
-          <MealImage name="healthy performance bowl" aspect="hero" className="h-72 sm:h-96 lg:h-[32rem]" />
+          <MealImage name="healthy performance bowl" aspect="hero" className="min-h-72 sm:min-h-96 lg:min-h-[32rem]" />
           <div className="grid grid-cols-3 gap-2 p-4 text-center">
             <div><p className="text-xl font-bold text-emerald-950">1 tap</p><p className="mt-1 text-[11px] subtle">meal choices</p></div>
             <div><p className="text-xl font-bold text-emerald-950">Live</p><p className="mt-1 text-[11px] subtle">daily macros</p></div>

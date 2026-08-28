@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import * as motion from "motion/react-client";
-import AppNav from "@/components/AppNav";
+import FlowHeader from "@/components/FlowHeader";
 import MealImage from "@/components/MealImage";
 import { getLocationView } from "@/lib/locationBrowsing";
 import { getDiningProvider } from "@/services";
@@ -15,39 +15,49 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
   if (!view) notFound();
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-7 sm:py-12">
-      <Link href="/dashboard" className="text-sm font-bold text-emerald-800">← All locations</Link>
-      <header className="mt-5">
-        <p className="brand-kicker">Bentley Fuel</p>
-        <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{view.location.name}</h1>
-        {view.location.building && <p className="mt-2 subtle">{view.location.building}</p>}
+    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
+      <FlowHeader backHref="/dashboard" backLabel="All locations" />
+
+      <header className="mt-8 flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="brand-kicker">Bentley Fuel</p>
+          <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{view.location.name}</h1>
+          {view.location.building && <p className="mt-2 subtle">{view.location.building}</p>}
+        </div>
+        <p className="max-w-md text-sm leading-relaxed subtle">Choose the fastest path: let Bentley Fuel rank a complete meal for you, or browse exactly what is available here.</p>
       </header>
-      <AppNav />
+
       {provider.dataStatus === "mock" && (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
           Demo menu data · not current official Bentley Dining information.
         </p>
       )}
 
-      <section className="surface mt-6 overflow-hidden p-2">
-        <MealImage name={`${view.location.name} healthy meal`} aspect="hero" className="h-40" />
-        <div className="p-4">
+      <section className="surface mt-6 grid overflow-hidden p-2 lg:grid-cols-[.9fr_1.1fr]">
+        <MealImage name={`${view.location.name} healthy meal`} aspect="hero" className="h-full min-h-64 lg:min-h-80" />
+        <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-9">
           <p className="eyebrow">Personalized meal</p>
-          <h2 className="mt-1 text-2xl font-bold">What should I eat here?</h2>
-          <p className="mt-2 text-sm leading-relaxed subtle">
+          <h2 className="mt-1 text-3xl font-bold tracking-[-0.03em]">What should I eat here?</h2>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed subtle">
             Bentley Fuel compares eligible foods across {view.location.shortName ?? view.location.name} and ranks complete meals around your goals, restrictions, current nutrition, and recent variety.
           </p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <Link href={`/meal-builder/${view.location.id}`} className="primary text-center">Get my recommendation</Link>
             <Link href={`/meal-builder/${view.location.id}?mode=manual`} className="secondary text-center">Build my own meal</Link>
           </div>
         </div>
       </section>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-9 flex items-end justify-between gap-4">
+        <div><p className="eyebrow">Available here</p><h2 className="mt-1 text-2xl font-bold">Browse by station</h2></div>
+        <p className="hidden text-xs subtle sm:block">Open a food for details or add it directly to a meal.</p>
+      </div>
+
+      <div className="mt-5 grid items-start gap-6 lg:grid-cols-2">
         {view.sections.map(({ station, menuItems }, stationIndex) => (
           <motion.section
             key={station.id}
+            className="surface p-5"
             aria-labelledby={`${station.id}-heading`}
             initial={{ opacity: 0, y: 9 }}
             animate={{ opacity: 1, y: 0 }}

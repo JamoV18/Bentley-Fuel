@@ -25,10 +25,19 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 const originalText = new WeakMap<Text, string>();
 const originalAttributes = new WeakMap<Element, Map<string, string>>();
 const TRANSLATABLE_ATTRIBUTES = ["aria-label", "placeholder", "title"] as const;
+const ALL_LANGUAGES: AppLanguage[] = ["en", "es", "zh"];
 
 function isSkipped(node: Node) {
   const element = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement;
   return Boolean(element?.closest("[data-i18n-skip]")) || element?.tagName === "SCRIPT" || element?.tagName === "STYLE";
+}
+
+function isTextVariant(source: string, value: string) {
+  return ALL_LANGUAGES.some((language) => translatePreservingWhitespace(source, language) === value);
+}
+
+function isAttributeVariant(source: string, value: string) {
+  return ALL_LANGUAGES.some((language) => translateText(source, language) === value);
 }
 
 function translateTextNode(node: Text, language: AppLanguage) {
@@ -38,12 +47,9 @@ function translateTextNode(node: Text, language: AppLanguage) {
   if (source === undefined) {
     source = current;
     originalText.set(node, source);
-  } else {
-    const expected = translatePreservingWhitespace(source, language);
-    if (current !== expected && current !== source) {
-      source = current;
-      originalText.set(node, source);
-    }
+  } else if (!isTextVariant(source, current)) {
+    source = current;
+    originalText.set(node, source);
   }
   const next = translatePreservingWhitespace(source, language);
   if (node.nodeValue !== next) node.nodeValue = next;
@@ -63,12 +69,9 @@ function translateElementAttributes(element: Element, language: AppLanguage) {
     if (source === undefined) {
       source = current;
       sources.set(attribute, source);
-    } else {
-      const expected = translateText(source, language);
-      if (current !== expected && current !== source) {
-        source = current;
-        sources.set(attribute, source);
-      }
+    } else if (!isAttributeVariant(source, current)) {
+      source = current;
+      sources.set(attribute, source);
     }
     const next = translateText(source, language);
     if (current !== next) element.setAttribute(attribute, next);
@@ -157,7 +160,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       setOnboardingHeader(null);
       return;
     }
-    const findHeader = () => setOnboardingHeader(document.querySelector("main > header"));
+    const findHeader = () => setOnboardingHeader(document.querySelector<HTMLElement>("main > header"));
     findHeader();
     const frame = requestAnimationFrame(findHeader);
     return () => cancelAnimationFrame(frame);

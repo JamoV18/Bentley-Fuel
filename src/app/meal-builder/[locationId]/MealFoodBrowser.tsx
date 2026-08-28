@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import MealImage from "@/components/MealImage";
 import { addManualMenuItem } from "@/lib/manualMealSelection";
 import type { MealBuildResources } from "@/services";
@@ -8,6 +9,7 @@ import type { MealBuild, MealPeriod } from "@/types";
 const periodAvailable = (periods: readonly MealPeriod[] | undefined, current: MealPeriod) => !periods || periods.length === 0 || periods.includes("all-day") || periods.includes(current);
 
 export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildChange }: { build: MealBuild; resources: MealBuildResources; mealPeriod: MealPeriod; onBuildChange(build: MealBuild): void }) {
+  const reduceMotion = useReducedMotion();
   const availableStations = resources.stations.filter((station) => periodAvailable(station.mealPeriods, mealPeriod));
   const addItem = (itemId: string) => {
     const item = resources.menuItems.find((candidate) => candidate.id === itemId);
@@ -35,8 +37,33 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                     return (
                       <li key={item.id} className="meal-row">
                         <MealImage name={item.name} imageUrl={item.imageUrl} />
-                        <div className="min-w-0 flex-1"><p className="font-bold leading-tight">{item.name}</p><p className="mt-1 text-xs subtle">{item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein` : "Nutrition shown after adding"}{item.price !== undefined && ` · $${item.price.toFixed(2)}`}</p>{servings > 0 && <p className="mt-1.5 text-xs font-bold text-emerald-800">In your meal: {servings} serving{servings === 1 ? "" : "s"}</p>}</div>
-                        <button type="button" className="secondary shrink-0 px-3 py-2 text-xs" onClick={() => addItem(item.id)}>{item.kind === "customizable" && matchingLines.length > 0 ? "Add another" : "Add"}</button>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold leading-tight">{item.name}</p>
+                          <p className="mt-1 text-xs subtle">{item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein` : "Nutrition shown after adding"}{item.price !== undefined && ` · $${item.price.toFixed(2)}`}</p>
+                          <AnimatePresence initial={false} mode="wait">
+                            {servings > 0 && (
+                              <motion.p
+                                key={servings}
+                                className="mt-1.5 text-xs font-bold text-emerald-800"
+                                initial={reduceMotion ? false : { opacity: 0, y: 3 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -2 }}
+                                transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                              >
+                                In your meal: {servings} serving{servings === 1 ? "" : "s"}
+                              </motion.p>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                        <motion.button
+                          type="button"
+                          className="secondary shrink-0 px-3 py-2 text-xs"
+                          onClick={() => addItem(item.id)}
+                          whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+                          transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 30, mass: 0.45 }}
+                        >
+                          {item.kind === "customizable" && matchingLines.length > 0 ? "Add another" : "Add"}
+                        </motion.button>
                       </li>
                     );
                   })}

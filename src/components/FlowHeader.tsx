@@ -11,6 +11,35 @@ export default function FlowHeader({ backHref, backLabel }: { backHref: string; 
   return (
     <>
       <style>{`
+        .flow-glass {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, .72);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, .78), rgba(244, 250, 247, .54) 58%, rgba(223, 245, 236, .52));
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, .9),
+            inset 0 -1px 0 rgba(0, 59, 42, .035),
+            0 8px 24px rgba(20, 45, 34, .075);
+          backdrop-filter: blur(18px) saturate(1.15);
+          -webkit-backdrop-filter: blur(18px) saturate(1.15);
+        }
+
+        .flow-glass::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          background: linear-gradient(118deg, rgba(255, 255, 255, .58), transparent 35%, rgba(223, 245, 236, .14) 70%, rgba(255, 255, 255, .32));
+        }
+
+        .flow-glass > * {
+          position: relative;
+          z-index: 1;
+        }
+
         @media (min-width: 768px) {
           main:has(> .flow-header) {
             max-width: 80rem !important;
@@ -47,19 +76,19 @@ export default function FlowHeader({ backHref, backLabel }: { backHref: string; 
         }
       `}</style>
       <div className="flow-header flex items-center justify-between gap-4">
-        <motion.div whileTap={press} transition={transition}>
+        <motion.div className="flow-glass rounded-full px-3 py-2" whileTap={press} transition={transition}>
           <Link href={backHref} className="inline-flex items-center gap-1 text-sm font-bold text-emerald-800 transition hover:text-emerald-950">
             <motion.span aria-hidden="true" whileHover={reduceMotion ? undefined : { x: -2 }} transition={transition}>←</motion.span>
             <span>{backLabel}</span>
           </Link>
         </motion.div>
-        <div className="flex items-center gap-1 rounded-full border border-black/[.06] bg-white/70 p-1 text-xs font-bold shadow-sm backdrop-blur">
+        <div className="flow-glass flex items-center gap-1 rounded-full p-1 text-xs font-bold">
           <motion.div whileTap={press} transition={transition}>
-            <Link href="/today" className="block rounded-full px-3 py-1.5 text-black/55 transition hover:bg-emerald-50 hover:text-emerald-900">Today</Link>
+            <Link href="/today" className="block rounded-full px-3 py-1.5 text-black/55 transition hover:bg-white/62 hover:text-emerald-900">Today</Link>
           </motion.div>
           {backHref !== "/dashboard" && (
             <motion.div whileTap={press} transition={transition}>
-              <Link href="/dashboard" className="block rounded-full px-3 py-1.5 text-black/55 transition hover:bg-emerald-50 hover:text-emerald-900">All dining</Link>
+              <Link href="/dashboard" className="block rounded-full px-3 py-1.5 text-black/55 transition hover:bg-white/62 hover:text-emerald-900">All dining</Link>
             </motion.div>
           )}
         </div>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import AppNav from "@/components/AppNav";
+import HistoryConsistencyHeatmap from "@/components/HistoryConsistencyHeatmap";
 import MealImage from "@/components/MealImage";
 import {
   browserMealHistoryRepository,
@@ -45,7 +46,7 @@ export default function HistoryClient({
   useEffect(() => {
     queueMicrotask(() => {
       setProfile(browserProfileRepository().get());
-      const start = new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1);
+      const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - 90);
       const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1, 0, 0, 0, -1);
       setHistory(browserMealHistoryRepository().getByDateRange(start, end));
     });
@@ -129,12 +130,7 @@ export default function HistoryClient({
           </motion.div>
         </section>
 
-        {period && (
-          <section className="surface p-5">
-            <div className="flex items-center justify-between"><div><p className="eyebrow">Consistency</p><h2 className="mt-1 text-xl font-bold">Daily view</h2></div><span className="text-xs subtle">Recorded only</span></div>
-            <div className="mt-4 space-y-2">{period.days.filter((day) => day.confirmedMeals > 0 || day.pendingMeals > 0).map((day) => <div key={day.date} className="flex items-center justify-between gap-4 rounded-2xl bg-black/[.025] p-3.5"><div><p className="font-bold">{new Date(`${day.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", weekday: "short" })}</p><p className="mt-1 text-xs subtle">{day.confirmedMeals} confirmed · {day.pendingMeals} pending</p></div><p className="text-right text-sm"><strong>{Math.round(day.consumed.calories)}</strong> cal<br /><span className="text-xs subtle">{Math.round(day.consumed.protein)}g protein</span></p></div>)}</div>
-          </section>
-        )}
+        <HistoryConsistencyHeatmap history={history} anchor={anchor} />
       </div>
 
       <section className="surface mt-5 p-5">

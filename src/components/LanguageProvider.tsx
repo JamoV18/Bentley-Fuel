@@ -13,6 +13,7 @@ import {
   translateText,
   type AppLanguage,
 } from "@/lib/i18n";
+import { translateRuntimeText } from "@/lib/runtimeTranslations";
 
 type LanguageContextValue = {
   language: AppLanguage;
@@ -29,7 +30,10 @@ const ALL_LANGUAGES: AppLanguage[] = ["en", "es", "zh"];
 
 function translateAny(source: string, language: AppLanguage) {
   const uiTranslation = translateText(source, language);
-  return uiTranslation !== source ? uiTranslation : translateDiningText(source, language);
+  if (uiTranslation !== source) return uiTranslation;
+  const diningTranslation = translateDiningText(source, language);
+  if (diningTranslation !== source) return diningTranslation;
+  return translateRuntimeText(source, language);
 }
 
 function translateAnyPreservingWhitespace(value: string, language: AppLanguage) {

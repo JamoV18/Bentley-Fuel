@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { translateDiningText } from "@/lib/diningTranslations";
+import { translateFrenchText } from "@/lib/frenchTranslations";
+import { translateProfileText } from "@/lib/profileTranslations";
 import {
   isAppLanguage,
   LANGUAGE_OPTIONS,
@@ -15,9 +17,18 @@ import {
 } from "@/lib/i18n";
 import { translateRuntimeText } from "@/lib/runtimeTranslations";
 
+export type SupportedLanguage = AppLanguage | "fr";
+
+export const SUPPORTED_LANGUAGE_OPTIONS: Array<{ code: SupportedLanguage; label: string; greeting: string; locale: string }> = [
+  LANGUAGE_OPTIONS.find((option) => option.code === "en")!,
+  LANGUAGE_OPTIONS.find((option) => option.code === "es")!,
+  { code: "fr", label: "Français", greeting: "Bonjour", locale: "fr-FR" },
+  LANGUAGE_OPTIONS.find((option) => option.code === "zh")!,
+];
+
 type LanguageContextValue = {
-  language: AppLanguage;
-  setLanguage(language: AppLanguage): void;
+  language: SupportedLanguage;
+  setLanguage(language: SupportedLanguage): void;
   t(source: string): string;
   locale: string;
 };
@@ -26,17 +37,21 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 const originalText = new WeakMap<Text, string>();
 const originalAttributes = new WeakMap<Element, Map<string, string>>();
 const TRANSLATABLE_ATTRIBUTES = ["aria-label", "placeholder", "title"] as const;
-const ALL_LANGUAGES: AppLanguage[] = ["en", "es", "zh"];
+const ALL_LANGUAGES: SupportedLanguage[] = ["en", "es", "fr", "zh"];
 
-function translateAny(source: string, language: AppLanguage) {
-  const uiTranslation = translateText(source, language);
+function translateAny(source: string, language: SupportedLanguage) {
+  const profileTranslation = translateProfileText(source, language);
+  if (profileTranslation !== source) return profileTranslation;
+  if (language === "fr") return translateFrenchText(source);
+  const appLanguage = language as AppLanguage;
+  const uiTranslation = translateText(source, appLanguage);
   if (uiTranslation !== source) return uiTranslation;
-  const diningTranslation = translateDiningText(source, language);
+  const diningTranslation = translateDiningText(source, appLanguage);
   if (diningTranslation !== source) return diningTranslation;
-  return translateRuntimeText(source, language);
+  return translateRuntimeText(source, appLanguage);
 }
 
-function translateAnyPreservingWhitespace(value: string, language: AppLanguage) {
+function translateAnyPreservingWhitespace(value: string, language: SupportedLanguage) {
   const match = value.match(/^(\s*)(.*?)(\s*)$/s);
   if (!match) return value;
   const [, before, core, after] = match;
@@ -57,7 +72,7 @@ function isAttributeVariant(source: string, value: string) {
   return ALL_LANGUAGES.some((language) => translateAny(source, language) === value);
 }
 
-function translateTextNode(node: Text, language: AppLanguage) {
+function translateTextNode(node: Text, language: SupportedLanguage) {
   if (isSkipped(node)) return;
   const current = node.nodeValue ?? "";
   let source = originalText.get(node);
@@ -72,7 +87,7 @@ function translateTextNode(node: Text, language: AppLanguage) {
   if (node.nodeValue !== next) node.nodeValue = next;
 }
 
-function translateElementAttributes(element: Element, language: AppLanguage) {
+function translateElementAttributes(element: Element, language: SupportedLanguage) {
   if (isSkipped(element)) return;
   let sources = originalAttributes.get(element);
   if (!sources) {
@@ -95,7 +110,7 @@ function translateElementAttributes(element: Element, language: AppLanguage) {
   }
 }
 
-function translateTree(root: Node, language: AppLanguage) {
+function translateTree(root: Node, language: SupportedLanguage) {
   if (root.nodeType === Node.TEXT_NODE) {
     translateTextNode(root as Text, language);
     return;
@@ -113,9 +128,9 @@ function translateTree(root: Node, language: AppLanguage) {
   }
 }
 
-function OnboardingLanguageChooser({ value, onChange, t }: { value: AppLanguage; onChange(language: AppLanguage): void; t(source: string): string }) {
+function OnboardingLanguageChooser({ value, onChange, t }: { value: SupportedLanguage; onChange(language: SupportedLanguage): void; t(source: string): string }) {
   const reduceMotion = useReducedMotion();
-  const selected = LANGUAGE_OPTIONS.find((option) => option.code === value) ?? LANGUAGE_OPTIONS[0];
+  const selected = SUPPORTED_LANGUAGE_OPTIONS.find((option) => option.code === value) ?? SUPPORTED_LANGUAGE_OPTIONS[0];
 
   return (
     <section data-i18n-skip className="mt-5 overflow-hidden rounded-2xl border border-emerald-900/[.08] bg-white/75 p-4 shadow-sm backdrop-blur sm:p-5" aria-label="Language">
@@ -139,8 +154,8 @@ function OnboardingLanguageChooser({ value, onChange, t }: { value: AppLanguage;
             </span>
           </div>
         </div>
-        <div className="flex rounded-2xl bg-black/[.04] p-1" role="group" aria-label="Language options">
-          {LANGUAGE_OPTIONS.map((option) => {
+        <div className="flex flex-wrap justify-end rounded-2xl bg-black/[.04] p-1" role="group" aria-label="Language options">
+          {SUPPORTED_LANGUAGE_OPTIONS.map((option) => {
             const active = option.code === value;
             return (
               <button
@@ -164,12 +179,12 @@ function OnboardingLanguageChooser({ value, onChange, t }: { value: AppLanguage;
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [language, setLanguageState] = useState<AppLanguage>("en");
+  const [language, setLanguageState] = useState<SupportedLanguage>("en");
   const [onboardingHeader, setOnboardingHeader] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (isAppLanguage(stored)) setLanguageState(stored);
+    if (stored === "fr" || isAppLanguage(stored)) setLanguageState(stored);
   }, []);
 
   useEffect(() => {
@@ -183,7 +198,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return () => cancelAnimationFrame(frame);
   }, [pathname]);
 
-  const setLanguage = (next: AppLanguage) => {
+  const setLanguage = (next: SupportedLanguage) => {
     setLanguageState(next);
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
   };
@@ -191,7 +206,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const value = useMemo<LanguageContextValue>(() => ({
     language,
     setLanguage,
-    locale: localeForLanguage(language),
+    locale: language === "fr" ? "fr-FR" : localeForLanguage(language as AppLanguage),
     t: (source: string) => translateAny(source, language),
   }), [language]);
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
+import ProfileMenu from "@/components/ProfileMenu";
 import {
   browserMealHistoryRepository,
   browserProgressRepository,
@@ -171,7 +172,7 @@ export default function TodayClient({
   return (
     <main className="today-shell">
       <header className="today-header">
-        <Link href="/profile-summary" className="profile-orb" aria-label="Open profile and plan">B</Link>
+        <ProfileMenu profile={profile} />
         <div className="min-w-0 flex-1">
           <p className="today-greeting">{isToday ? "Today" : new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(selectedDate)}</p>
           <p className="today-date">{new Intl.DateTimeFormat("en-US", { weekday: isToday ? "long" : undefined, month: "short", day: "numeric" }).format(selectedDate)}</p>

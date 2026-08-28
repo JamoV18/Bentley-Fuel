@@ -7,6 +7,7 @@ import { getLocationView } from "@/lib/locationBrowsing";
 import { getDiningProvider } from "@/services";
 
 const settle = { duration: 0.34, ease: [0.22, 1, 0.36, 1] } as const;
+const ctaMotion = { type: "spring", stiffness: 460, damping: 32, mass: 0.5 } as const;
 
 export default async function LocationPage({ params }: { params: Promise<{ locationId: string }> }) {
   const { locationId } = await params;
@@ -42,8 +43,12 @@ export default async function LocationPage({ params }: { params: Promise<{ locat
             Bentley Fuel compares eligible foods across {view.location.shortName ?? view.location.name} and ranks complete meals around your goals, restrictions, current nutrition, and recent variety.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <Link href={`/meal-builder/${view.location.id}`} className="primary text-center">Get my recommendation</Link>
-            <Link href={`/meal-builder/${view.location.id}?mode=manual`} className="secondary text-center">Build my own meal</Link>
+            <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={ctaMotion}>
+              <Link href={`/meal-builder/${view.location.id}`} className="primary block text-center">Get my recommendation</Link>
+            </motion.div>
+            <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={ctaMotion}>
+              <Link href={`/meal-builder/${view.location.id}?mode=manual`} className="secondary block text-center">Build my own meal</Link>
+            </motion.div>
           </div>
         </div>
       </section>

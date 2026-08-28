@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import MealImage from "@/components/MealImage";
 import { addManualMenuItem } from "@/lib/manualMealSelection";
@@ -10,11 +11,17 @@ const periodAvailable = (periods: readonly MealPeriod[] | undefined, current: Me
 
 export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildChange, embedded = false }: { build: MealBuild; resources: MealBuildResources; mealPeriod: MealPeriod; onBuildChange(build: MealBuild): void; embedded?: boolean }) {
   const reduceMotion = useReducedMotion();
+  const [lastAddedItemId, setLastAddedItemId] = useState<string>();
   const availableStations = resources.stations.filter((station) => periodAvailable(station.mealPeriods, mealPeriod));
   const addItem = (itemId: string) => {
     const item = resources.menuItems.find((candidate) => candidate.id === itemId);
     if (!item) return;
     onBuildChange(addManualMenuItem(build, item, resources.components, crypto.randomUUID()));
+    if (reduceMotion) return;
+    setLastAddedItemId(itemId);
+    window.setTimeout(() => {
+      setLastAddedItemId((current) => current === itemId ? undefined : current);
+    }, 430);
   };
 
   return (
@@ -34,8 +41,18 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                   {items.map((item) => {
                     const matchingLines = build.items.filter((line) => line.menuItemId === item.id);
                     const servings = matchingLines.reduce((sum, line) => sum + line.quantity, 0);
+                    const justAdded = lastAddedItemId === item.id;
                     return (
-                      <li key={item.id} className="meal-row">
+                      <motion.li
+                        key={item.id}
+                        className="meal-row"
+                        initial={false}
+                        animate={reduceMotion ? undefined : {
+                          backgroundColor: justAdded ? "rgba(223,245,236,0.95)" : "rgba(255,255,255,0.88)",
+                          scale: justAdded ? 1.006 : 1,
+                        }}
+                        transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      >
                         <MealImage name={item.name} imageUrl={item.imageUrl} />
                         <div className="min-w-0 flex-1">
                           <p className="font-bold leading-tight">{item.name}</p>
@@ -64,7 +81,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                         >
                           {item.kind === "customizable" && matchingLines.length > 0 ? "Add another" : "Add"}
                         </motion.button>
-                      </li>
+                      </motion.li>
                     );
                   })}
                 </ul>

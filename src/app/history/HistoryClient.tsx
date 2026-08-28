@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import AppNav from "@/components/AppNav";
+import BklitHistoryKpiCard from "@/components/BklitHistoryKpiCard";
 import HistoryConsistencyHeatmap from "@/components/HistoryConsistencyHeatmap";
 import MealImage from "@/components/MealImage";
 import {
@@ -27,6 +28,7 @@ const coverageLabel = (value: NutritionPeriodSummary["coverage"]) => ({
   "mostly-confirmed": "Mostly confirmed",
   "well-confirmed": "Well confirmed",
 }[value]);
+const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 export default function HistoryClient({
   locationNames,
@@ -70,6 +72,21 @@ export default function HistoryClient({
   const stats = range === "yesterday"
     ? yesterdaySnapshot.consumed
     : period?.averageConfirmedConsumption;
+  const yesterdayKey = dateKey(yesterday);
+  const todayKey = dateKey(anchor);
+  const yesterdayMeals = history.filter((entry) => dateKey(new Date(entry.eatenAt ?? entry.selectedAt)) === yesterdayKey).length;
+  const selectedDays = range === "yesterday"
+    ? [{ date: yesterdayKey, calories: yesterdaySnapshot.consumed.calories, protein: yesterdaySnapshot.consumed.protein, meals: yesterdayMeals }]
+    : (period?.days ?? [])
+      .filter((day) => day.date <= todayKey)
+      .map((day) => ({
+        date: day.date,
+        calories: day.consumed.calories,
+        protein: day.consumed.protein,
+        meals: day.confirmedMeals + day.pendingMeals,
+      }));
+  const mealsRecorded = selectedDays.reduce((total, day) => total + day.meals, 0);
+  const rangeContext = range === "yesterday" ? "1 day" : range === "week" ? "7 days" : "month";
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
@@ -116,17 +133,30 @@ export default function HistoryClient({
           <p className="mt-3 text-sm leading-relaxed subtle">Bentley Fuel only summarizes meals you saved. Missing logs are never treated as skipped food or a failed day.</p>
           <motion.div
             key={range}
-            className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4"
-            initial={reduceMotion ? false : { opacity: 0.82, y: 3 }}
+            className="mt-5 grid gap-3 sm:grid-cols-3"
+            initial={reduceMotion ? false : { opacity: 0.84, y: 2 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           >
-            {[
-              { name: range === "yesterday" ? "Recorded calories" : "Avg calories", value: stats?.calories ?? 0, unit: "" },
-              { name: range === "yesterday" ? "Recorded protein" : "Avg protein", value: stats?.protein ?? 0, unit: "g" },
-              { name: range === "yesterday" ? "Recorded carbs" : "Avg carbs", value: stats?.carbs ?? 0, unit: "g" },
-              { name: range === "yesterday" ? "Recorded fat" : "Avg fat", value: stats?.fat ?? 0, unit: "g" },
-            ].map((item) => <div key={item.name} className="rounded-2xl border border-emerald-900/[.06] bg-emerald-50/70 p-3"><p className="text-xl font-bold text-emerald-950">{Math.round(item.value)}{item.unit}</p><p className="mt-1 text-[11px] font-medium text-emerald-900/60">{item.name}</p></div>)}
+            <BklitHistoryKpiCard
+              label={range === "yesterday" ? "Recorded calories" : "Avg calories"}
+              value={stats?.calories ?? 0}
+              values={selectedDays.map((day) => day.calories)}
+              context={rangeContext}
+            />
+            <BklitHistoryKpiCard
+              label={range === "yesterday" ? "Recorded protein" : "Avg protein"}
+              value={stats?.protein ?? 0}
+              unit="g"
+              values={selectedDays.map((day) => day.protein)}
+              context={rangeContext}
+            />
+            <BklitHistoryKpiCard
+              label="Meals recorded"
+              value={mealsRecorded}
+              values={selectedDays.map((day) => day.meals)}
+              context={rangeContext}
+            />
           </motion.div>
         </section>
 

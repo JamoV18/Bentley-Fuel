@@ -5,20 +5,19 @@ import OnboardingIntro from "@/components/OnboardingIntro";
 import { browserProfileRepository } from "@/services/profileRepository";
 
 export default function OnboardingLayout({ children }: { children: ReactNode }) {
-  const [showIntro, setShowIntro] = useState<boolean | null>(null);
+  // Render the first-time experience immediately instead of blocking the route
+  // behind a hydration placeholder. Existing profiles are switched straight to
+  // the editable onboarding form as soon as client storage is available.
+  const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
     const profile = browserProfileRepository().get();
-    queueMicrotask(() => setShowIntro(!profile));
+    if (profile) setShowIntro(false);
   }, []);
 
   return (
     <>
-      {showIntro === null ? (
-        <main className="mx-auto flex min-h-[100svh] w-full max-w-6xl flex-1 items-center justify-center px-6" aria-hidden="true">
-          <div className="h-8 w-28 rounded-full bg-emerald-900/[.06]" />
-        </main>
-      ) : showIntro ? (
+      {showIntro ? (
         <OnboardingIntro onStart={() => setShowIntro(false)} />
       ) : (
         children

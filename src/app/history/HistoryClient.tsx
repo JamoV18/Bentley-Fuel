@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import {
@@ -39,6 +40,7 @@ export default function HistoryClient({
   const [history, setHistory] = useState<MealHistoryEntry[]>([]);
   const [range, setRange] = useState<Range>("week");
   const [anchor] = useState(() => new Date());
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -78,11 +80,27 @@ export default function HistoryClient({
       <AppNav />
 
       <div className="mt-6 grid grid-cols-3 gap-1 rounded-2xl border border-black/[.06] bg-white/65 p-1 shadow-sm">
-        {(["yesterday", "week", "month"] as Range[]).map((option) => (
-          <button key={option} type="button" onClick={() => setRange(option)} className={`rounded-xl px-3 py-2.5 text-sm font-bold transition ${range === option ? "bg-emerald-900 text-white shadow" : "text-black/55 hover:bg-white"}`}>
-            {option === "yesterday" ? "Yesterday" : option === "week" ? "Week" : "Month"}
-          </button>
-        ))}
+        {(["yesterday", "week", "month"] as Range[]).map((option) => {
+          const active = range === option;
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setRange(option)}
+              className={`relative isolate overflow-hidden rounded-xl px-3 py-2.5 text-sm font-bold transition-colors ${active ? "text-white" : "text-black/55 hover:text-emerald-900"}`}
+            >
+              {active && (
+                <motion.span
+                  aria-hidden="true"
+                  className="absolute inset-0 z-0 rounded-xl bg-emerald-900 shadow"
+                  layoutId="history-range-active"
+                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 430, damping: 34, mass: 0.58 }}
+                />
+              )}
+              <span className="relative z-10">{option === "yesterday" ? "Yesterday" : option === "week" ? "Week" : "Month"}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
@@ -95,14 +113,20 @@ export default function HistoryClient({
             {period && <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-right"><p className="text-lg font-bold text-emerald-950">{period.daysWithAllSavedMealsConfirmed}/{period.daysWithSavedMeals}</p><p className="text-[10px] font-semibold text-emerald-800">days confirmed</p></div>}
           </div>
           <p className="mt-3 text-sm leading-relaxed subtle">Bentley Fuel only summarizes meals you saved. Missing logs are never treated as skipped food or a failed day.</p>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <motion.div
+            key={range}
+            className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4"
+            initial={reduceMotion ? false : { opacity: 0.82, y: 3 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          >
             {[
               { name: range === "yesterday" ? "Recorded calories" : "Avg calories", value: stats?.calories ?? 0, unit: "" },
               { name: range === "yesterday" ? "Recorded protein" : "Avg protein", value: stats?.protein ?? 0, unit: "g" },
               { name: range === "yesterday" ? "Recorded carbs" : "Avg carbs", value: stats?.carbs ?? 0, unit: "g" },
               { name: range === "yesterday" ? "Recorded fat" : "Avg fat", value: stats?.fat ?? 0, unit: "g" },
             ].map((item) => <div key={item.name} className="rounded-2xl border border-emerald-900/[.06] bg-emerald-50/70 p-3"><p className="text-xl font-bold text-emerald-950">{Math.round(item.value)}{item.unit}</p><p className="mt-1 text-[11px] font-medium text-emerald-900/60">{item.name}</p></div>)}
-          </div>
+          </motion.div>
         </section>
 
         {period && (

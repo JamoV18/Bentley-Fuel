@@ -19,7 +19,6 @@ const COMMON: Record<string, Entry> = {
   "About 25% below estimated maintenance.": { es: "Aproximadamente 25% por debajo del mantenimiento estimado.", zh: "约低于估算维持热量 25%。" },
   "Aggressive weight loss can be inappropriate for some people. Consider qualified medical or dietitian guidance.": { es: "La pérdida de peso agresiva puede no ser apropiada para algunas personas. Considera orientación médica o de un dietista cualificado.", zh: "激进减重对部分人可能不合适。建议咨询合格的医疗专业人员或注册营养师。" },
   "After you reach it, the plan transitions to maintenance.": { es: "Cuando lo alcances, el plan pasará a mantenimiento.", zh: "达到目标后，计划会转为维持阶段。" },
-  "A planning level relative to estimated maintenance — not a promised weekly loss rate.": { es: "Un nivel de planificación relativo al mantenimiento estimado, no una tasa semanal de pérdida garantizada.", zh: "相对于估算维持热量的计划强度，并不代表保证的每周减重速度。" },
   "Your chosen intensity creates a lower daily target from this estimate. It is not a promised rate of weight change.": { es: "La intensidad elegida crea un objetivo diario menor a partir de esta estimación. No garantiza una velocidad de cambio de peso.", zh: "你选择的强度会基于该估算生成更低的每日目标，但不代表保证的体重变化速度。" },
   "There isn’t enough supported body information for an individualized calorie target yet. Goal-based recommendations still work.": { es: "Aún no hay suficiente información corporal compatible para calcular un objetivo calórico individual. Las recomendaciones basadas en objetivos siguen funcionando.", zh: "目前支持的身体信息不足以生成个性化卡路里目标，但基于目标的推荐仍然可用。" },
   "Extreme is not recommended. Qualified medical or dietitian guidance is recommended for aggressive weight-loss planning.": { es: "La opción extrema no se recomienda. Para una planificación agresiva de pérdida de peso se recomienda orientación médica o de un dietista cualificado.", zh: "不建议选择极高强度。进行激进减重计划时，建议获得合格医疗专业人员或注册营养师的指导。" },
@@ -38,19 +37,19 @@ const COMMON: Record<string, Entry> = {
   "Late night": { es: "Noche", zh: "深夜" }
 };
 
-const MONTHS: Record<string, { es: string; zh: string; month: number }> = {
-  Jan: { es: "ene", zh: "1月", month: 1 }, January: { es: "enero", zh: "1月", month: 1 },
-  Feb: { es: "feb", zh: "2月", month: 2 }, February: { es: "febrero", zh: "2月", month: 2 },
-  Mar: { es: "mar", zh: "3月", month: 3 }, March: { es: "marzo", zh: "3月", month: 3 },
-  Apr: { es: "abr", zh: "4月", month: 4 }, April: { es: "abril", zh: "4月", month: 4 },
-  May: { es: "may", zh: "5月", month: 5 },
-  Jun: { es: "jun", zh: "6月", month: 6 }, June: { es: "junio", zh: "6月", month: 6 },
-  Jul: { es: "jul", zh: "7月", month: 7 }, July: { es: "julio", zh: "7月", month: 7 },
-  Aug: { es: "ago", zh: "8月", month: 8 }, August: { es: "agosto", zh: "8月", month: 8 },
-  Sep: { es: "sept", zh: "9月", month: 9 }, September: { es: "septiembre", zh: "9月", month: 9 },
-  Oct: { es: "oct", zh: "10月", month: 10 }, October: { es: "octubre", zh: "10月", month: 10 },
-  Nov: { es: "nov", zh: "11月", month: 11 }, November: { es: "noviembre", zh: "11月", month: 11 },
-  Dec: { es: "dic", zh: "12月", month: 12 }, December: { es: "diciembre", zh: "12月", month: 12 }
+const MONTHS: Record<string, { es: string; zh: string }> = {
+  Jan: { es: "ene", zh: "1月" }, January: { es: "enero", zh: "1月" },
+  Feb: { es: "feb", zh: "2月" }, February: { es: "febrero", zh: "2月" },
+  Mar: { es: "mar", zh: "3月" }, March: { es: "marzo", zh: "3月" },
+  Apr: { es: "abr", zh: "4月" }, April: { es: "abril", zh: "4月" },
+  May: { es: "may", zh: "5月" },
+  Jun: { es: "jun", zh: "6月" }, June: { es: "junio", zh: "6月" },
+  Jul: { es: "jul", zh: "7月" }, July: { es: "julio", zh: "7月" },
+  Aug: { es: "ago", zh: "8月" }, August: { es: "agosto", zh: "8月" },
+  Sep: { es: "sept", zh: "9月" }, September: { es: "septiembre", zh: "9月" },
+  Oct: { es: "oct", zh: "10月" }, October: { es: "octubre", zh: "10月" },
+  Nov: { es: "nov", zh: "11月" }, November: { es: "noviembre", zh: "11月" },
+  Dec: { es: "dic", zh: "12月" }, December: { es: "diciembre", zh: "12月" }
 };
 
 const WEEKDAYS: Record<string, Entry> = {

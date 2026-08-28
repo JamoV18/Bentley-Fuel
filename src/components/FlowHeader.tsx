@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function FlowHeader({ backHref, backLabel }: { backHref: string; backLabel: string }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flow-header flex items-center justify-between gap-4">
       <Link href={backHref} className="inline-flex items-center gap-1 text-sm font-bold text-emerald-800 transition hover:text-emerald-950">
         <span aria-hidden="true">←</span>
         <span>{backLabel}</span>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import FlowHeader from "@/components/FlowHeader";
 import MealImage from "@/components/MealImage";
@@ -53,6 +53,7 @@ type ReplacementPrompt = { removedName: string; suggestions: MealReplacementSugg
 export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: { fallbackBuild: MealBuild; resources: MealBuildResources; isDemo: boolean }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const carouselRef = useRef<HTMLDivElement>(null);
   const [mealPeriod] = useState(() => currentMealPeriodForHour(new Date().getHours()));
   const [build, setBuild] = useState(fallbackBuild);
   const [selected, setSelected] = useState(false);
@@ -142,11 +143,24 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
     setCompletionFraction(fraction); setShowCompletionCheckIn(false);
   };
 
-  const showAnother = () => {
-    if (rankings.length < 2) return;
-    const next = (recommendationIndex + 1) % rankings.length;
+  const selectRecommendation = (index: number) => {
+    const ranking = rankings[index];
+    if (!ranking || index === recommendationIndex) return;
     setWhyOpen(false);
-    setRecommendationIndex(next); setBuild(rankings[next].candidate.build); setSelected(false); setCustomizing(false); setReplacementPrompt(undefined); setShowCompletionCheckIn(false); setCompletionFraction(undefined);
+    setRecommendationIndex(index);
+    setBuild(ranking.candidate.build);
+    setSelected(false);
+    setCustomizing(false);
+    setReplacementPrompt(undefined);
+    setShowCompletionCheckIn(false);
+    setCompletionFraction(undefined);
+    requestAnimationFrame(() => {
+      const container = carouselRef.current;
+      const card = container?.querySelector<HTMLElement>(`[data-recommendation-index="${index}"]`);
+      if (!container || !card) return;
+      const left = card.offsetLeft - (container.clientWidth - card.clientWidth) / 2;
+      container.scrollTo({ left: Math.max(0, left), behavior: reduceMotion ? "auto" : "smooth" });
+    });
   };
 
   const removeWithSuggestions = (lineId: string) => {
@@ -167,6 +181,7 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
   const personalized = recommendationState === "ready";
   const mealHeading = personalized ? "Recommended complete meal" : "Example complete meal";
   const heroName = computed.lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || mealHeading;
+  const topRecommendations = rankings.slice(0, 6);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
@@ -185,6 +200,55 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
       </header>
 
       {isDemo && <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">Demo menu data · not current official Bentley Dining information.</p>}
+
+      {personalized && topRecommendations.length > 1 && (
+        <section className="mt-6" aria-labelledby="top-matches-heading">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="eyebrow">Ranked for this location</p>
+              <h2 id="top-matches-heading" className="mt-1 text-2xl font-bold">Top matches</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="mr-1 hidden text-xs font-semibold subtle sm:inline">{recommendationIndex + 1} of {topRecommendations.length}</span>
+              <button type="button" className="secondary grid h-10 w-10 place-items-center p-0 disabled:opacity-35" aria-label="Previous recommendation" disabled={recommendationIndex === 0} onClick={() => selectRecommendation(recommendationIndex - 1)}>←</button>
+              <button type="button" className="secondary grid h-10 w-10 place-items-center p-0 disabled:opacity-35" aria-label="Next recommendation" disabled={recommendationIndex >= topRecommendations.length - 1} onClick={() => selectRecommendation(recommendationIndex + 1)}>→</button>
+            </div>
+          </div>
+
+          <div ref={carouselRef} className="mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pr-[12%] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {topRecommendations.map((ranking, index) => {
+              const cardLines = ranking.computed.lines;
+              const cardName = cardLines.map((line) => line.item?.name).filter(Boolean).join(" + ") || `Meal option ${index + 1}`;
+              const cardStations = [...new Set(cardLines.map((line) => line.station?.name).filter(Boolean))].join(" · ");
+              const nutrition = ranking.computed.nutrition;
+              const active = recommendationIndex === index;
+              return (
+                <motion.button
+                  key={`${ranking.candidate.build.locationId}-${index}-${cardLines.map((line) => line.selection.menuItemId).join("-")}`}
+                  type="button"
+                  data-recommendation-index={index}
+                  onClick={() => selectRecommendation(index)}
+                  className={`group min-w-[17rem] snap-center overflow-hidden rounded-[1.4rem] border bg-white p-2 text-left shadow-sm transition-[border-color,box-shadow] sm:min-w-[19rem] lg:min-w-[20.5rem] ${active ? "border-emerald-800/45 shadow-[0_14px_34px_rgba(20,45,34,.12)]" : "border-black/[.07] hover:border-emerald-800/20"}`}
+                  aria-pressed={active}
+                  whileTap={reduceMotion ? undefined : { scale: 0.99 }}
+                  transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <div className="relative">
+                    <MealImage name={cardName} imageUrl={imageFor(cardLines[0]?.selection.menuItemId)} aspect="wide" className="h-36 w-full" />
+                    <span className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur ${index === 0 ? "bg-emerald-900 text-white" : "bg-white/90 text-emerald-950"}`}>{index === 0 ? "Best match" : `#${index + 1}`}</span>
+                    {active && <span className="absolute right-3 top-3 rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-bold text-emerald-800 shadow-sm backdrop-blur">Viewing</span>}
+                  </div>
+                  <div className="p-3">
+                    <h3 className="line-clamp-2 min-h-10 font-bold leading-tight text-emerald-950">{cardName}</h3>
+                    {cardStations && <p className="mt-1.5 line-clamp-1 text-xs subtle">{cardStations}</p>}
+                    {nutrition && <div className="mt-3 flex items-center gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold text-emerald-900">{nutrition.calories} cal</span><span className="rounded-full bg-black/[.035] px-2.5 py-1 font-semibold text-black/60">{nutrition.protein}g protein</span></div>}
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {selected && build.items.length > 0 && (
         <aside className="surface mt-5 p-4" aria-label="Your selected meal order reference">
@@ -205,14 +269,14 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
         >
           {build.items.length > 0 && <MealImage name={heroName} imageUrl={imageFor(computed.lines[0]?.selection.menuItemId)} aspect="hero" className="h-full min-h-72 lg:min-h-[34rem]" />}
           <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-8">
-            <div className="flex items-center justify-between gap-3"><div><p className="eyebrow">{personalized ? "High match" : "Complete meal"}</p><h2 id="candidate-heading" className="mt-1 text-3xl font-bold tracking-[-0.03em]">{mealHeading}</h2></div>{personalized && <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-800">Personalized</span>}</div>
+            <div className="flex items-center justify-between gap-3"><div><p className="eyebrow">{personalized ? `Match #${recommendationIndex + 1}` : "Complete meal"}</p><h2 id="candidate-heading" className="mt-1 text-3xl font-bold tracking-[-0.03em]">{mealHeading}</h2></div>{personalized && <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-800">Personalized</span>}</div>
             {build.items.length > 0 ? <ul className="mt-5 space-y-3">{computed.lines.map((line) => <li key={line.selection.id} className="meal-row"><MealImage name={line.item?.name ?? line.selection.menuItemId} imageUrl={line.item?.imageUrl} /><div className="min-w-0 flex-1"><strong className="leading-tight">{line.item?.name ?? line.selection.menuItemId}</strong><span className="mt-1 block text-xs subtle">{line.station?.name ?? "Station unavailable"}</span></div><span className="shrink-0 text-sm font-bold">×{line.selection.quantity}</span></li>)}</ul> : <p className="mt-4 text-sm subtle">Your current edit is empty. Add a replacement from the stations below.</p>}
 
             {computed.nutrition ? <dl className="mt-5 grid grid-cols-2 gap-2 border-t border-black/[.06] pt-5 text-center sm:grid-cols-4">{[["Calories", computed.nutrition.calories, "cal"], ["Protein", computed.nutrition.protein, "g"], ["Carbs", computed.nutrition.carbs, "g"], ["Fat", computed.nutrition.fat, "g"]].map(([label, value, unit]) => <div key={label} className="rounded-xl bg-emerald-50/70 p-2.5"><dt className="text-[10px] font-semibold text-emerald-900/55">{label}</dt><dd className="mt-1 font-bold text-emerald-950">{value}{unit}</dd></div>)}</dl> : build.items.length > 0 && <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-900"><strong>Complete total unavailable.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((entry, index) => <li key={`${entry.code}-${index}`}>{entry.message}</li>)}</ul></div>}
 
             {personalized && reasons.length > 0 && <div className="surface-soft mt-5 overflow-hidden"><button type="button" className="flex w-full items-center justify-between gap-3 p-4 text-left font-bold text-emerald-950" onClick={() => setWhyOpen((value) => !value)} aria-expanded={whyOpen}><span>Why this meal?</span><motion.span animate={{ rotate: whyOpen ? 180 : 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }} aria-hidden="true">⌄</motion.span></button><AnimatePresence initial={false}>{whyOpen && <motion.div initial={reduceMotion ? false : { opacity: 0, y: -5, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -3, height: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden"><ul className="px-4 pb-4 list-disc space-y-1 pl-9 text-sm leading-relaxed text-emerald-950/75">{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></motion.div>}</AnimatePresence></div>}
 
-            {!selected ? <div className="mt-5 space-y-3"><button className="primary w-full" disabled={!computed.isValid || recommendationState === "loading" || recommendationState === "no-candidates"} onClick={chooseMeal}>{personalized ? "Choose this meal" : "Use this meal"}</button>{personalized && rankings.length > 1 && <button className="secondary w-full" onClick={showAnother}>Show me another option</button>}</div> : <div className="mt-5"><p className={computed.isValid ? "font-bold text-emerald-800" : "font-bold text-red-800"}>{computed.isValid ? "Meal selected" : "Meal selection needs attention"}</p><p className="mt-1 text-sm subtle">Your choice is saved so Bentley Fuel can learn preference and variety patterns.</p><button className="secondary mt-3 w-full" onClick={() => setCustomizing((value) => !value)}>{customizing ? "Done customizing" : "Customize"}</button><div className="mt-4 border-t border-black/[.06] pt-4">{completionFraction === undefined ? <button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn((value) => !value)}>Finished eating? Add a quick check-in</button> : <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm"><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div>}{showCompletionCheckIn && <div className="surface-soft mt-3 p-4"><p className="font-bold text-emerald-950">How much did you finish?</p><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className={`rounded-xl border px-3 py-2 text-sm font-bold ${completionFraction === choice.fraction ? "border-emerald-800 bg-emerald-800 text-white" : "border-emerald-900/15 bg-white text-emerald-950"}`} onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div><button type="button" className="mt-3 text-xs font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(false)}>Not now</button></div>}</div></div>}
+            {!selected ? <div className="mt-5"><button className="primary w-full" disabled={!computed.isValid || recommendationState === "loading" || recommendationState === "no-candidates"} onClick={chooseMeal}>{personalized ? "Choose this meal" : "Use this meal"}</button></div> : <div className="mt-5"><p className={computed.isValid ? "font-bold text-emerald-800" : "font-bold text-red-800"}>{computed.isValid ? "Meal selected" : "Meal selection needs attention"}</p><p className="mt-1 text-sm subtle">Your choice is saved so Bentley Fuel can learn preference and variety patterns.</p><button className="secondary mt-3 w-full" onClick={() => setCustomizing((value) => !value)}>{customizing ? "Done customizing" : "Customize"}</button><div className="mt-4 border-t border-black/[.06] pt-4">{completionFraction === undefined ? <button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn((value) => !value)}>Finished eating? Add a quick check-in</button> : <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm"><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div>}{showCompletionCheckIn && <div className="surface-soft mt-3 p-4"><p className="font-bold text-emerald-950">How much did you finish?</p><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className={`rounded-xl border px-3 py-2 text-sm font-bold ${completionFraction === choice.fraction ? "border-emerald-800 bg-emerald-800 text-white" : "border-emerald-900/15 bg-white text-emerald-950"}`} onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div><button type="button" className="mt-3 text-xs font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(false)}>Not now</button></div>}</div></div>}
           </div>
         </motion.section>
       </AnimatePresence>

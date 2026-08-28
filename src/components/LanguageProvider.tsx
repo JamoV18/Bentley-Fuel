@@ -4,12 +4,12 @@ import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useStat
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { translateDiningText } from "@/lib/diningTranslations";
 import {
   isAppLanguage,
   LANGUAGE_OPTIONS,
   LANGUAGE_STORAGE_KEY,
   localeForLanguage,
-  translatePreservingWhitespace,
   translateText,
   type AppLanguage,
 } from "@/lib/i18n";
@@ -27,17 +27,30 @@ const originalAttributes = new WeakMap<Element, Map<string, string>>();
 const TRANSLATABLE_ATTRIBUTES = ["aria-label", "placeholder", "title"] as const;
 const ALL_LANGUAGES: AppLanguage[] = ["en", "es", "zh"];
 
+function translateAny(source: string, language: AppLanguage) {
+  const uiTranslation = translateText(source, language);
+  return uiTranslation !== source ? uiTranslation : translateDiningText(source, language);
+}
+
+function translateAnyPreservingWhitespace(value: string, language: AppLanguage) {
+  const match = value.match(/^(\s*)(.*?)(\s*)$/s);
+  if (!match) return value;
+  const [, before, core, after] = match;
+  if (!core) return value;
+  return `${before}${translateAny(core, language)}${after}`;
+}
+
 function isSkipped(node: Node) {
   const element = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement;
   return Boolean(element?.closest("[data-i18n-skip]")) || element?.tagName === "SCRIPT" || element?.tagName === "STYLE";
 }
 
 function isTextVariant(source: string, value: string) {
-  return ALL_LANGUAGES.some((language) => translatePreservingWhitespace(source, language) === value);
+  return ALL_LANGUAGES.some((language) => translateAnyPreservingWhitespace(source, language) === value);
 }
 
 function isAttributeVariant(source: string, value: string) {
-  return ALL_LANGUAGES.some((language) => translateText(source, language) === value);
+  return ALL_LANGUAGES.some((language) => translateAny(source, language) === value);
 }
 
 function translateTextNode(node: Text, language: AppLanguage) {
@@ -51,7 +64,7 @@ function translateTextNode(node: Text, language: AppLanguage) {
     source = current;
     originalText.set(node, source);
   }
-  const next = translatePreservingWhitespace(source, language);
+  const next = translateAnyPreservingWhitespace(source, language);
   if (node.nodeValue !== next) node.nodeValue = next;
 }
 
@@ -73,7 +86,7 @@ function translateElementAttributes(element: Element, language: AppLanguage) {
       source = current;
       sources.set(attribute, source);
     }
-    const next = translateText(source, language);
+    const next = translateAny(source, language);
     if (current !== next) element.setAttribute(attribute, next);
   }
 }
@@ -175,7 +188,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     language,
     setLanguage,
     locale: localeForLanguage(language),
-    t: (source: string) => translateText(source, language),
+    t: (source: string) => translateAny(source, language),
   }), [language]);
 
   useLayoutEffect(() => {

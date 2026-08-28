@@ -70,55 +70,57 @@ export default function ProfilePage() {
 
       <AppNav />
 
-      <section className="surface mt-6 overflow-hidden p-2">
-        <div className="grid items-stretch lg:grid-cols-[.72fr_1.28fr]">
-          <div className="flex min-h-64 flex-col justify-between rounded-[1.35rem] bg-gradient-to-br from-emerald-950 to-emerald-700 p-6 text-white sm:p-7">
-            <div className="grid h-20 w-20 place-items-center rounded-full bg-white/12 text-3xl font-bold ring-1 ring-white/20">{initial}</div>
-            <div className="mt-10">
-              <p className="text-xs font-bold uppercase tracking-[.18em] text-white/55">Personal profile</p>
+      <div className="mt-6 grid auto-rows-min gap-5 lg:grid-cols-12">
+        <section className="surface overflow-hidden p-2 lg:col-span-4 lg:row-span-2">
+          <div className="flex h-full min-h-80 flex-col justify-between rounded-[1.35rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-700 p-6 text-white sm:p-7">
+            <div>
+              <div className="grid h-20 w-20 place-items-center rounded-full bg-white/12 text-3xl font-bold ring-1 ring-white/20">{initial}</div>
+              <p className="mt-8 text-xs font-bold uppercase tracking-[.18em] text-white/55">Personal profile</p>
               <h2 className="mt-2 text-3xl font-bold tracking-[-0.035em]">{name}</h2>
               <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/68">Your information stays on this device in the current prototype.</p>
             </div>
-          </div>
-
-          <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-9">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div><p className="eyebrow">Body information</p><h2 className="mt-1 text-2xl font-bold">Body details</h2></div>
-              <Link href="/onboarding" className="secondary text-sm">Edit onboarding details</Link>
+            <div className="mt-10 border-t border-white/12 pt-5">
+              <div className="flex items-center justify-between gap-4 text-sm"><span className="text-white/55">Member since</span><strong>{joined}</strong></div>
+              <div className="mt-3 flex items-center justify-between gap-4 text-sm"><span className="text-white/55">Profile home</span><strong>Today</strong></div>
+              <Link href="/profile-summary" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-white">View plan <span aria-hidden="true">→</span></Link>
             </div>
-            <dl className="mt-5 grid gap-x-8 sm:grid-cols-2">
-              <Row name="Age" value={age} />
-              <Row name="Sex" value={sex} />
-              <Row name="Height" value={height} />
-              <Row name="Weight" value={weight} />
-              <Row name="Activity level" value={activity} />
-              <Row name="Units" value={units === "metric" ? "Metric (kg / cm)" : "US (lb / ft-in)"} />
-            </dl>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <section className="surface p-5 sm:p-6">
+        <section className="surface p-5 sm:p-6 lg:col-span-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div><p className="eyebrow">Body information</p><h2 className="mt-1 text-2xl font-bold">Body details</h2></div>
+            <Link href="/onboarding" className="secondary text-sm">Edit onboarding details</Link>
+          </div>
+          <dl className="mt-5 grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
+            <Row name="Age" value={age} />
+            <Row name="Sex" value={sex} />
+            <Row name="Height" value={height} />
+            <Row name="Weight" value={weight} />
+            <Row name="Activity level" value={activity} />
+            <Row name="Units" value={units === "metric" ? "Metric (kg / cm)" : "US (lb / ft-in)"} />
+          </dl>
+        </section>
+
+        <section className="surface p-5 sm:p-6 lg:col-span-5">
           <p className="eyebrow">Nutrition preferences</p>
           <h2 className="mt-1 text-2xl font-bold">Dietary preferences</h2>
           {profile.dietaryPreferences.length ? <div className="mt-4 flex flex-wrap gap-2">{profile.dietaryPreferences.map((item) => <span key={item} className="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-900">{words(item)}</span>)}</div> : <p className="mt-4 text-sm subtle">No dietary preferences selected.</p>}
-          <div className="mt-6 border-t border-black/[.06] pt-5"><p className="text-sm font-bold">Allergens to avoid</p>{profile.allergensToAvoid.length ? <div className="mt-3 flex flex-wrap gap-2">{profile.allergensToAvoid.map((item) => <span key={item} className="rounded-full bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900">{words(item)}</span>)}</div> : <p className="mt-3 text-sm subtle">No allergens selected.</p>}</div>
+          <div className="mt-6 border-t border-black/[.06] pt-5">
+            <p className="text-sm font-bold">Allergens to avoid</p>
+            {profile.allergensToAvoid.length ? <div className="mt-3 flex flex-wrap gap-2">{profile.allergensToAvoid.map((item) => <span key={item} className="rounded-full bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900">{words(item)}</span>)}</div> : <p className="mt-3 text-sm subtle">No allergens selected.</p>}
+          </div>
         </section>
 
-        <section className="surface p-5 sm:p-6">
+        <section className="surface p-5 sm:p-6 lg:col-span-3">
           <p className="eyebrow">Account</p>
           <h2 className="mt-1 text-2xl font-bold">Profile & settings</h2>
           <div className="mt-5">
-            <div className="flex items-center justify-between gap-4"><div><p className="text-sm font-bold">App language</p><p className="mt-1 text-xs subtle">Choose the language Bentley Fuel uses across the app.</p></div><span className="text-xs font-bold text-emerald-800">{SUPPORTED_LANGUAGE_OPTIONS.find((option) => option.code === language)?.label}</span></div>
-            <div data-i18n-skip className="mt-3 grid grid-cols-4 gap-1 rounded-2xl bg-black/[.035] p-1">
+            <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">App language</p><p className="mt-1 text-xs leading-relaxed subtle">Choose the language Bentley Fuel uses across the app.</p></div><span className="text-xs font-bold text-emerald-800">{SUPPORTED_LANGUAGE_OPTIONS.find((option) => option.code === language)?.label}</span></div>
+            <div data-i18n-skip className="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-black/[.035] p-1">
               {SUPPORTED_LANGUAGE_OPTIONS.map((option) => <button key={option.code} type="button" onClick={() => setLanguage(option.code)} aria-pressed={language === option.code} className={`rounded-xl px-2 py-2.5 text-sm font-bold transition ${language === option.code ? "bg-white text-emerald-950 shadow-sm" : "text-black/45 hover:text-emerald-900"}`}>{option.code === "zh" ? "中文" : option.label}</button>)}
             </div>
           </div>
-          <dl className="mt-5 border-t border-black/[.06] pt-2">
-            <Row name="Member since" value={joined} />
-            <Row name="Profile home" value="Today" />
-          </dl>
         </section>
       </div>
     </main>

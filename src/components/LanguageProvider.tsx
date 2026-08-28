@@ -214,11 +214,27 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = language === "zh" ? "zh-CN" : language;
     translateTree(document.body, language);
 
+    // English is already the authored UI, so observing every DOM mutation is unnecessary.
+    if (language === "en") return;
+
+    const pending = new Set<Node>();
+    let frame: number | null = null;
+    const flush = () => {
+      frame = null;
+      const nodes = Array.from(pending);
+      pending.clear();
+      nodes.forEach((node) => translateTree(node, language));
+    };
+    const schedule = (node: Node) => {
+      pending.add(node);
+      if (frame === null) frame = requestAnimationFrame(flush);
+    };
+
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        if (mutation.type === "characterData") translateTree(mutation.target, language);
-        if (mutation.type === "childList") mutation.addedNodes.forEach((node) => translateTree(node, language));
-        if (mutation.type === "attributes") translateElementAttributes(mutation.target as Element, language);
+        if (mutation.type === "characterData") schedule(mutation.target);
+        if (mutation.type === "childList") mutation.addedNodes.forEach(schedule);
+        if (mutation.type === "attributes") schedule(mutation.target);
       }
     });
     observer.observe(document.body, {
@@ -228,7 +244,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       attributes: true,
       attributeFilter: [...TRANSLATABLE_ATTRIBUTES],
     });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
   }, [language, pathname]);
 
   return (

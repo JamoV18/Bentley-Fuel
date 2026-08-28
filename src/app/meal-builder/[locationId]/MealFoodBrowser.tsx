@@ -8,7 +8,7 @@ import type { MealBuild, MealPeriod } from "@/types";
 
 const periodAvailable = (periods: readonly MealPeriod[] | undefined, current: MealPeriod) => !periods || periods.length === 0 || periods.includes("all-day") || periods.includes(current);
 
-export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildChange }: { build: MealBuild; resources: MealBuildResources; mealPeriod: MealPeriod; onBuildChange(build: MealBuild): void }) {
+export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildChange, embedded = false }: { build: MealBuild; resources: MealBuildResources; mealPeriod: MealPeriod; onBuildChange(build: MealBuild): void; embedded?: boolean }) {
   const reduceMotion = useReducedMotion();
   const availableStations = resources.stations.filter((station) => periodAvailable(station.mealPeriods, mealPeriod));
   const addItem = (itemId: string) => {
@@ -18,16 +18,16 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
   };
 
   return (
-    <section className="mt-8" aria-labelledby="food-browser-heading">
+    <section className={embedded ? "" : "mt-8"} aria-labelledby="food-browser-heading">
       <p className="eyebrow">Build it yourself</p>
       <h2 id="food-browser-heading" className="mt-1 text-2xl font-bold">Add food by station</h2>
-      <p className="mt-1 text-sm leading-relaxed subtle">Already know what you are getting? Add it here and Bentley Fuel will total the meal for you.</p>
+      <p className="mt-1 max-w-2xl text-sm leading-relaxed subtle">Already know what you are getting? Add it here and Bentley Fuel will total the meal for you.</p>
 
-      <div className="mt-5 space-y-6">
+      <div className="mt-5 space-y-5">
         {availableStations.map((station) => {
           const items = resources.menuItems.filter((item) => item.stationId === station.id && periodAvailable(item.availability, mealPeriod));
           return (
-            <section key={station.id} className="surface p-4" aria-labelledby={`${station.id}-manual-heading`}>
+            <section key={station.id} className="surface p-4 sm:p-5" aria-labelledby={`${station.id}-manual-heading`}>
               <div className="flex items-end justify-between gap-3"><div><h3 id={`${station.id}-manual-heading`} className="text-xl font-bold">{station.name}</h3>{station.description && <p className="mt-1 text-sm subtle">{station.description}</p>}</div><span className="text-xs font-semibold subtle">{items.length} items</span></div>
               {items.length === 0 ? <p className="mt-4 text-sm subtle">No menu items are loaded for this eating window yet.</p> : (
                 <ul className="mt-4 space-y-3">

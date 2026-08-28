@@ -3,130 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "motion/react";
 import AppNav from "@/components/AppNav";
+import BklitWeightProgressChart from "@/components/BklitWeightProgressChart";
 import { browserMealHistoryRepository, browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile, WeightObservation } from "@/types";
 
 const words = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const weight = (kg: number, unitSystem: UserProfile["unitSystem"]) => unitSystem === "metric" ? `${Math.round(kg * 10) / 10} kg` : `${Math.round(kg / 0.45359237)} lb`;
-const displayWeight = (kg: number, unitSystem: UserProfile["unitSystem"]) => unitSystem === "metric" ? kg : kg / 0.45359237;
-
-function WeightProgressChart({
-  observations,
-  unitSystem,
-  initialWeightKg,
-  targetWeightKg,
-  startDate,
-  animationKey,
-}: {
-  observations: WeightObservation[];
-  unitSystem: UserProfile["unitSystem"];
-  initialWeightKg?: number;
-  targetWeightKg?: number;
-  startDate?: string;
-  animationKey: number;
-}) {
-  const reduceMotion = useReducedMotion();
-  const recorded = [...observations].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
-  const unit = unitSystem === "metric" ? "kg" : "lb";
-  const syntheticStart: WeightObservation | undefined = initialWeightKg ? {
-    id: "plan-start",
-    recordedAt: startDate ?? new Date().toISOString(),
-    weightKg: initialWeightKg,
-  } : undefined;
-  const series = syntheticStart ? [syntheticStart, ...recorded] : recorded;
-
-  if (series.length === 0) {
-    return <div className="mt-5 rounded-2xl border border-emerald-900/[.06] bg-emerald-50/60 p-5"><p className="font-bold text-emerald-950">Progress chart</p><p className="mt-1 text-sm subtle">Log a weight below to start your progress line.</p></div>;
-  }
-
-  const values = series.map((point) => displayWeight(point.weightKg, unitSystem));
-  if (targetWeightKg) values.push(displayWeight(targetWeightKg, unitSystem));
-  const rawMin = Math.min(...values);
-  const rawMax = Math.max(...values);
-  const margin = Math.max((rawMax - rawMin) * 0.18, unitSystem === "metric" ? 1.5 : 3);
-  const min = rawMin - margin;
-  const max = rawMax + margin;
-  const span = Math.max(1, max - min);
-  const width = 760;
-  const height = 240;
-  const padX = 34;
-  const padY = 24;
-  const plotWidth = width - padX * 2;
-  const plotHeight = height - padY * 2;
-  const xAt = (index: number) => series.length === 1 ? width / 2 : padX + (index / (series.length - 1)) * plotWidth;
-  const yAt = (value: number) => padY + ((max - value) / span) * plotHeight;
-  const coordinates = series.map((point, index) => ({
-    x: xAt(index),
-    y: yAt(displayWeight(point.weightKg, unitSystem)),
-    value: displayWeight(point.weightKg, unitSystem),
-  }));
-  const targetValue = targetWeightKg ? displayWeight(targetWeightKg, unitSystem) : undefined;
-  const first = series[0];
-  const last = series[series.length - 1];
-  const priorCoordinates = coordinates.slice(0, -1);
-  const priorLinePoints = priorCoordinates.map((point) => `${point.x},${point.y}`).join(" ");
-  const previousPoint = coordinates.length > 1 ? coordinates[coordinates.length - 2] : undefined;
-  const latestPoint = coordinates[coordinates.length - 1];
-  const animateUpdate = animationKey > 0 && !reduceMotion;
-
-  return (
-    <div className="mt-5 rounded-2xl border border-emerald-900/[.06] bg-gradient-to-b from-emerald-50/75 to-white p-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div><p className="eyebrow">Progress</p><h3 className="mt-1 text-xl font-bold">Weight trend</h3><p className="mt-1 text-xs subtle">Only weights you record are used.</p></div>
-        <div className="flex gap-5 text-right">
-          <div><p className="text-[10px] font-bold uppercase tracking-wide subtle">Current</p><p className="mt-1 text-lg font-bold text-emerald-950">{last ? `${Math.round(displayWeight(last.weightKg, unitSystem) * 10) / 10} ${unit}` : "—"}</p></div>
-          {targetValue !== undefined && <div><p className="text-[10px] font-bold uppercase tracking-wide subtle">Target</p><p className="mt-1 text-lg font-bold text-emerald-800">{Math.round(targetValue * 10) / 10} {unit}</p></div>}
-        </div>
-      </div>
-
-      <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 h-64 w-full overflow-visible text-emerald-700" role="img" aria-label="Weight progress over time">
-        {[0, 1, 2, 3, 4].map((step) => {
-          const y = padY + (step / 4) * plotHeight;
-          return <line key={step} x1={padX} x2={width - padX} y1={y} y2={y} stroke="currentColor" opacity="0.08" strokeWidth="1" />;
-        })}
-        {targetValue !== undefined && <line x1={padX} x2={width - padX} y1={yAt(targetValue)} y2={yAt(targetValue)} stroke="currentColor" opacity="0.35" strokeWidth="2" strokeDasharray="7 7" />}
-        {priorCoordinates.length > 1 && <polyline points={priorLinePoints} fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />}
-        {previousPoint && latestPoint && (
-          <motion.line
-            key={`latest-segment-${animationKey}-${last.id}`}
-            x1={previousPoint.x}
-            y1={previousPoint.y}
-            x2={latestPoint.x}
-            y2={latestPoint.y}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="4"
-            strokeLinecap="round"
-            initial={animateUpdate ? { pathLength: 0, opacity: 0.4 } : false}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={animateUpdate ? { duration: 0.42, ease: [0.22, 1, 0.36, 1] } : { duration: 0 }}
-          />
-        )}
-        {coordinates.slice(0, -1).map((point, index) => <circle key={`${point.x}-${index}`} cx={point.x} cy={point.y} r="4.5" fill="white" stroke="currentColor" strokeWidth="3" />)}
-        <motion.circle
-          key={`latest-point-${animationKey}-${last.id}`}
-          cx={latestPoint.x}
-          cy={latestPoint.y}
-          fill="white"
-          stroke="currentColor"
-          strokeWidth="4"
-          initial={animateUpdate ? { r: 2.5, opacity: 0.35 } : false}
-          animate={{ r: 6, opacity: 1 }}
-          transition={animateUpdate ? { type: "spring", stiffness: 430, damping: 24, mass: 0.55, delay: 0.22 } : { duration: 0 }}
-        />
-      </svg>
-
-      <div className="flex items-center justify-between gap-4 text-xs subtle">
-        <span>{new Date(first.recordedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-        {targetValue !== undefined && <span className="font-semibold text-emerald-800">Dashed line = target</span>}
-        <span>{new Date(last.recordedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-      </div>
-    </div>
-  );
-}
 
 export default function ProfileSummary() {
   const [profile, setProfile] = useState<UserProfile | null>();
@@ -194,7 +78,7 @@ export default function ProfileSummary() {
           {plan?.projectedGoalDate && <p className="mt-2 text-sm subtle">Estimated goal date: {plan.projectedGoalDate}. This is a projection, not a guarantee.</p>}
           {!plan?.projectedGoalDate && plan?.phase === "goal" && plan?.targetWeightKg && <p className="mt-2 text-sm subtle">Your target is saved. Bentley Fuel only shows a projected date when an explicit pace has been calibrated.</p>}
 
-          <WeightProgressChart observations={progressHistory} unitSystem={profile.unitSystem} initialWeightKg={profile.metrics?.weightKg} targetWeightKg={plan?.targetWeightKg} startDate={plan?.startDate} animationKey={chartAnimationKey} />
+          <BklitWeightProgressChart observations={progressHistory} unitSystem={profile.unitSystem} initialWeightKg={profile.metrics?.weightKg} targetWeightKg={plan?.targetWeightKg} startDate={plan?.startDate} animationKey={chartAnimationKey} />
 
           <div className="mt-5 rounded-2xl border border-black/[.06] bg-black/[.02] p-4">
             <label className="text-sm font-bold">Update progress <span className="font-normal subtle">Optional</span><div className="mt-2 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white px-3 py-2.5" inputMode="decimal" type="number" value={progressInput} onChange={(event) => setProgressInput(event.target.value)} placeholder={profile.unitSystem === "metric" ? "Weight in kg" : "Weight in lb"} /><button type="button" className="secondary" onClick={saveProgress}>Save</button></div></label>

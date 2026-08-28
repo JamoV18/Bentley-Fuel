@@ -3,7 +3,7 @@
 import "./today.css";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import {
@@ -24,6 +24,13 @@ const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) =>
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+
+const nutritionSwapVariants = {
+  enter: (direction: number) => ({ opacity: 0.72, x: direction * 10 }),
+  center: { opacity: 1, x: 0 },
+  exit: (direction: number) => ({ opacity: 0.48, x: direction * -7 }),
+};
 
 function dayLabel(date: Date) {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(date);
@@ -99,6 +106,9 @@ export default function TodayClient({
   const [entries, setEntries] = useState<MealHistoryEntry[]>([]);
   const [pending, setPending] = useState<MealHistoryEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [loadedDayKey, setLoadedDayKey] = useState(() => dayKey(new Date()));
+  const [dayDirection, setDayDirection] = useState<1 | -1>(1);
+  const reduceMotion = useReducedMotion();
 
   const isToday = sameDay(selectedDate, new Date());
 
@@ -111,6 +121,7 @@ export default function TodayClient({
     setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
     setEntries(repository.getByDateRange(start, end));
     setPending(isToday ? repository.getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS)) : []);
+    setLoadedDayKey(dayKey(selectedDate));
   }, [selectedDate, isToday]);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
@@ -124,11 +135,18 @@ export default function TodayClient({
   };
 
   const changeDay = (amount: number) => {
+    setDayDirection(amount > 0 ? 1 : -1);
     setSelectedDate((current) => {
       const next = new Date(current);
       next.setDate(current.getDate() + amount);
       return next;
     });
+  };
+
+  const jumpToToday = () => {
+    const today = new Date();
+    if (!sameDay(today, selectedDate)) setDayDirection(today > selectedDate ? 1 : -1);
+    setSelectedDate(today);
   };
 
   if (profile === undefined) return <main className="today-shell"><p>Loading today…</p></main>;
@@ -166,43 +184,55 @@ export default function TodayClient({
       <div className="day-switcher" aria-label="Choose day">
         <button type="button" className="day-arrow" onClick={() => changeDay(-1)} aria-label="Previous day">‹</button>
         <button type="button" className="day-slot" onClick={() => changeDay(-1)}><span>Previous</span><strong>{dayLabel(yesterday)}</strong></button>
-        <button type="button" className="day-slot day-slot-active" onClick={() => setSelectedDate(new Date())}><span>{isToday ? "Today" : "Selected"}</span><strong>{dayLabel(selectedDate)}</strong></button>
+        <button type="button" className="day-slot day-slot-active" onClick={jumpToToday}><span>{isToday ? "Today" : "Selected"}</span><strong>{dayLabel(selectedDate)}</strong></button>
         <button type="button" className="day-slot" onClick={() => changeDay(1)}><span>Next</span><strong>{dayLabel(tomorrow)}</strong></button>
         <button type="button" className="day-arrow" onClick={() => changeDay(1)} aria-label="Next day">›</button>
       </div>
 
       {isDemo && <p className="demo-note">Demo menu data · tracking and personalization are functional; menu information is not current official Bentley Dining data.</p>}
 
-      <section className="nutrition-carousel" aria-label="Daily nutrition summary">
-        <article className="nutrition-card calorie-card">
-          <div className="calorie-layout">
-            <div className="side-stat"><span className="stat-icon">⌁</span><strong>{round(snapshot.consumed.calories).toLocaleString()}</strong><small>eaten</small></div>
-            <AnimatedCalorieRing progress={calorieCoverage}>
-              <div className="calorie-ring-inner">
-                <span>Calories</span>
-                <strong>{remainingCalories === undefined ? round(snapshot.consumed.calories).toLocaleString() : round(remainingCalories).toLocaleString()}</strong>
-                <small>{target ? "remaining" : "recorded"}</small>
-                {target && <Link href="/profile-summary" className="calorie-goal">of {round(target.calories).toLocaleString()} ✎</Link>}
-              </div>
-            </AnimatedCalorieRing>
-            <div className="side-stat"><span className="stat-icon stat-icon-warm">↗</span><strong>0</strong><small>burned</small></div>
-          </div>
-          <div className="macro-glance">
-            {macros.map((macro, index) => {
-              const progress = macro.target ? coverage(macro.consumed, macro.target) : 0;
-              return <div key={macro.name}><span className={`macro-name ${macro.tone}`}>{macro.name}</span><strong>{round(macro.consumed)}{macro.target ? ` / ${round(macro.target)}g` : "g"}</strong><AnimatedMacroTrack progress={progress} tone={macro.tone} delay={0.08 + index * 0.08} /><small>{macro.remaining === undefined ? "tracked" : `${round(macro.remaining)}g left`}</small></div>;
-            })}
-          </div>
-        </article>
+      <AnimatePresence initial={false} mode="wait" custom={dayDirection}>
+        <motion.section
+          key={loadedDayKey}
+          custom={dayDirection}
+          variants={nutritionSwapVariants}
+          initial={reduceMotion ? false : "enter"}
+          animate="center"
+          exit="exit"
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          className="nutrition-carousel"
+          aria-label="Daily nutrition summary"
+        >
+          <article className="nutrition-card calorie-card">
+            <div className="calorie-layout">
+              <div className="side-stat"><span className="stat-icon">⌁</span><strong>{round(snapshot.consumed.calories).toLocaleString()}</strong><small>eaten</small></div>
+              <AnimatedCalorieRing progress={calorieCoverage}>
+                <div className="calorie-ring-inner">
+                  <span>Calories</span>
+                  <strong>{remainingCalories === undefined ? round(snapshot.consumed.calories).toLocaleString() : round(remainingCalories).toLocaleString()}</strong>
+                  <small>{target ? "remaining" : "recorded"}</small>
+                  {target && <Link href="/profile-summary" className="calorie-goal">of {round(target.calories).toLocaleString()} ✎</Link>}
+                </div>
+              </AnimatedCalorieRing>
+              <div className="side-stat"><span className="stat-icon stat-icon-warm">↗</span><strong>0</strong><small>burned</small></div>
+            </div>
+            <div className="macro-glance">
+              {macros.map((macro, index) => {
+                const progress = macro.target ? coverage(macro.consumed, macro.target) : 0;
+                return <div key={macro.name}><span className={`macro-name ${macro.tone}`}>{macro.name}</span><strong>{round(macro.consumed)}{macro.target ? ` / ${round(macro.target)}g` : "g"}</strong><AnimatedMacroTrack progress={progress} tone={macro.tone} delay={0.08 + index * 0.08} /><small>{macro.remaining === undefined ? "tracked" : `${round(macro.remaining)}g left`}</small></div>;
+              })}
+            </div>
+          </article>
 
-        <article className="nutrition-card macro-card">
-          <div className="carousel-card-heading"><div><p className="eyebrow">Nutrition</p><h2>Macros at a glance</h2></div><Link href="/profile-summary">Edit goals</Link></div>
-          <div className="macro-detail-grid">
-            {macros.map((macro) => <div className="macro-detail" key={macro.name}><div className={`mini-ring ${macro.tone}`} style={{ "--mini-progress": `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` } as React.CSSProperties}><strong>{macro.target ? coverage(macro.consumed, macro.target) : 0}%</strong></div><span>{macro.name}</span><strong>{round(macro.consumed)}g</strong><small>{macro.target ? `of ${round(macro.target)}g` : "consumed"}</small></div>)}
-          </div>
-          <p className="macro-card-note">A clean snapshot of how today’s intake is tracking against your plan.</p>
-        </article>
-      </section>
+          <article className="nutrition-card macro-card">
+            <div className="carousel-card-heading"><div><p className="eyebrow">Nutrition</p><h2>Macros at a glance</h2></div><Link href="/profile-summary">Edit goals</Link></div>
+            <div className="macro-detail-grid">
+              {macros.map((macro) => <div className="macro-detail" key={macro.name}><div className={`mini-ring ${macro.tone}`} style={{ "--mini-progress": `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` } as React.CSSProperties}><strong>{macro.target ? coverage(macro.consumed, macro.target) : 0}%</strong></div><span>{macro.name}</span><strong>{round(macro.consumed)}g</strong><small>{macro.target ? `of ${round(macro.target)}g` : "consumed"}</small></div>)}
+            </div>
+            <p className="macro-card-note">A clean snapshot of how today’s intake is tracking against your plan.</p>
+          </article>
+        </motion.section>
+      </AnimatePresence>
 
       <Link href="/dashboard" className="eat-cta">
         <span className="eat-cta-icon">+</span>

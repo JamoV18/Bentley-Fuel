@@ -1,0 +1,51 @@
+/* React Bits-inspired Border Glow: reserve it for the #1 recommendation. */
+[data-recommendation-index="0"] {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent !important;
+}
+
+[data-recommendation-index="0"]::before {
+  content: "";
+  position: absolute;
+  inset: -58%;
+  z-index: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    rgba(7, 90, 66, 0) 0deg 122deg,
+    rgba(7, 90, 66, 0.20) 145deg,
+    rgba(10, 154, 110, 0.64) 166deg,
+    rgba(49, 185, 138, 0.82) 180deg,
+    rgba(8, 122, 88, 0.48) 197deg,
+    rgba(7, 90, 66, 0.10) 218deg,
+    rgba(7, 90, 66, 0) 242deg 360deg
+  );
+  animation: react-bits-best-match-glow 8s linear infinite;
+}
+
+[data-recommendation-index="0"]::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: calc(1.4rem - 1px);
+  background: white;
+}
+
+[data-recommendation-index="0"] > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes react-bits-best-match-glow {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-recommendation-index="0"]::before {
+    animation: none;
+    transform: rotate(18deg);
+  }
+}

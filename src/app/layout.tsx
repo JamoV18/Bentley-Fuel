@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import "./globals.css";
+import "./react-bits.css";
 
 export const metadata: Metadata = {
   title: "Bentley Fuel",

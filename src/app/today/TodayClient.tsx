@@ -1,7 +1,7 @@
 "use client";
 
 import "./today.css";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import AnimatedCounter from "@/components/AnimatedCounter";
@@ -49,20 +49,32 @@ function MealProgress({ fraction }: { fraction?: number }) {
 
 function AnimatedCalorieRing({ progress, children }: { progress: number; children: ReactNode }) {
   const reduceMotion = useReducedMotion();
-  const value = useMotionValue(reduceMotion ? progress : 0);
+  const value = useMotionValue(progress);
   const cssProgress = useTransform(value, (latest) => `${latest}%`);
+  const previous = useRef(progress);
+  const mounted = useRef(false);
 
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      previous.current = progress;
+      value.set(progress);
+      return;
+    }
+
+    const from = previous.current;
+    previous.current = progress;
+    if (from === progress) return;
+
     if (reduceMotion) {
       value.set(progress);
       return;
     }
-    value.set(0);
+
+    value.set(from);
     const controls = animate(value, progress, {
-      type: "spring",
-      stiffness: 80,
-      damping: 18,
-      mass: 0.9,
+      duration: 0.46,
+      ease: [0.22, 1, 0.36, 1],
     });
     return () => controls.stop();
   }, [progress, reduceMotion, value]);

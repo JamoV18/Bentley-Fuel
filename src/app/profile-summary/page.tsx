@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AppNav from "@/components/AppNav";
 import BklitWeightProgressChart from "@/components/BklitWeightProgressChart";
 import PlanEditControl from "@/components/PlanEditControl";
+import SuccessMorphLabel from "@/components/SuccessMorphLabel";
 import { browserMealHistoryRepository, browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile, WeightObservation } from "@/types";
@@ -19,6 +20,7 @@ export default function ProfileSummary() {
   const [progressHistory, setProgressHistory] = useState<WeightObservation[]>([]);
   const [progressInput, setProgressInput] = useState("");
   const [progressMessage, setProgressMessage] = useState("");
+  const [progressSaved, setProgressSaved] = useState(false);
   const [chartAnimationKey, setChartAnimationKey] = useState(0);
   const router = useRouter();
 
@@ -42,6 +44,7 @@ export default function ProfileSummary() {
   const maintenanceCalories = plan?.maintenanceTargets?.calories ?? profile.maintenanceEstimate?.calories;
 
   const saveProgress = () => {
+    if (progressSaved) return;
     const entered = Number(progressInput);
     if (!Number.isFinite(entered) || entered <= 0) return setProgressMessage("Enter a valid weight.");
     const weightKg = profile.unitSystem === "metric" ? entered : entered * 0.45359237;
@@ -52,8 +55,13 @@ export default function ProfileSummary() {
     setProgressHistory(progress);
     setLatestWeightKg(progress[0]?.weightKg);
     setProgressInput("");
-    setProgressMessage("Progress updated.");
+    setProgressMessage("");
+    setProgressSaved(true);
     setChartAnimationKey((value) => value + 1);
+    window.setTimeout(() => {
+      setProgressSaved(false);
+      setProgressMessage("Progress updated.");
+    }, 900);
   };
 
   const clearAllLocalData = () => { browserMealHistoryRepository().clear(); browserProgressRepository().clear(); browserProfileRepository().clear(); router.push("/onboarding"); };
@@ -83,7 +91,7 @@ export default function ProfileSummary() {
           <BklitWeightProgressChart observations={progressHistory} unitSystem={profile.unitSystem} initialWeightKg={profile.metrics?.weightKg} targetWeightKg={plan?.targetWeightKg} startDate={plan?.startDate} animationKey={chartAnimationKey} />
 
           <div className="mt-5 rounded-2xl border border-black/[.06] bg-black/[.02] p-4">
-            <label className="text-sm font-bold">Update progress <span className="font-normal subtle">Optional</span><div className="mt-2 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white px-3 py-2.5" inputMode="decimal" type="number" value={progressInput} onChange={(event) => setProgressInput(event.target.value)} placeholder={profile.unitSystem === "metric" ? "Weight in kg" : "Weight in lb"} /><button type="button" className="secondary" onClick={saveProgress}>Save</button></div></label>
+            <label className="text-sm font-bold">Update progress <span className="font-normal subtle">Optional</span><div className="mt-2 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white px-3 py-2.5" inputMode="decimal" type="number" value={progressInput} onChange={(event) => setProgressInput(event.target.value)} placeholder={profile.unitSystem === "metric" ? "Weight in kg" : "Weight in lb"} disabled={progressSaved} /><button type="button" className="secondary" onClick={saveProgress} disabled={progressSaved}><SuccessMorphLabel success={progressSaved} idleLabel="Save" successLabel="Updated" /></button></div></label>
             {progressMessage && <p className="mt-2 text-xs subtle">{progressMessage}</p>}
           </div>
         </section>

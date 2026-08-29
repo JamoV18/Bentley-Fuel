@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
+import SuccessMorphLabel from "@/components/SuccessMorphLabel";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile, WeightLossIntensity } from "@/types";
 
@@ -27,6 +28,7 @@ export default function PlanEditControl({
   const [targetWeight, setTargetWeight] = useState("");
   const [intensity, setIntensity] = useState<WeightLossIntensity>(profile.weightGoalPlan?.weightLossIntensity ?? "optimal");
   const [message, setMessage] = useState("");
+  const [saved, setSaved] = useState(false);
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const weightLossPlan = goals.includes("lose-weight");
   const units = profile.unitSystem ?? "us";
@@ -35,15 +37,18 @@ export default function PlanEditControl({
     setTargetWeight(profile.weightGoalPlan?.targetWeightKg ? String(toDisplayWeight(profile.weightGoalPlan.targetWeightKg, units)) : "");
     setIntensity(profile.weightGoalPlan?.weightLossIntensity ?? "optimal");
     setMessage("");
+    setSaved(false);
     setEditing(true);
   };
 
   const cancelEditing = () => {
+    if (saved) return;
     setEditing(false);
     setMessage("");
   };
 
   const save = () => {
+    if (saved) return;
     const trimmed = targetWeight.trim();
     const entered = trimmed ? Number(trimmed) : undefined;
     if (entered !== undefined && (!Number.isFinite(entered) || entered <= 0)) {
@@ -73,8 +78,13 @@ export default function PlanEditControl({
 
     browserProfileRepository().save(nextProfile);
     onSaved(nextProfile);
-    setEditing(false);
-    setMessage("Plan updated.");
+    setMessage("");
+    setSaved(true);
+    window.setTimeout(() => {
+      setEditing(false);
+      setSaved(false);
+      setMessage("Plan updated.");
+    }, reduceMotion ? 80 : 620);
   };
 
   return (
@@ -116,11 +126,12 @@ export default function PlanEditControl({
                   value={targetWeight}
                   onChange={(event) => setTargetWeight(event.target.value)}
                   placeholder={units === "metric" ? "Target kg" : "Target lb"}
+                  disabled={saved}
                 />
               </label>
 
               {weightLossPlan ? (
-                <fieldset>
+                <fieldset disabled={saved}>
                   <legend className="text-sm font-bold">Weight-loss intensity</legend>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     {intensities.map((option) => (
@@ -149,8 +160,10 @@ export default function PlanEditControl({
             {message && <p className="mt-3 text-sm font-semibold text-red-700">{message}</p>}
 
             <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-black/[.06] pt-4">
-              <button type="button" className="secondary" onClick={cancelEditing}>Cancel</button>
-              <button type="button" className="primary" onClick={save}>Save plan</button>
+              <button type="button" className="secondary" onClick={cancelEditing} disabled={saved}>Cancel</button>
+              <button type="button" className="primary" onClick={save} disabled={saved}>
+                <SuccessMorphLabel success={saved} idleLabel="Save plan" successLabel="Plan saved" />
+              </button>
             </div>
           </motion.div>
         )}

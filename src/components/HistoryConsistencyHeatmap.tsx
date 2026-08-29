@@ -164,14 +164,13 @@ export default function HistoryConsistencyHeatmap({ history, anchor }: { history
       byDay.set(key, current);
     }
 
-    let previousMonth = -1;
     return Array.from({ length: 12 }, (_, weekIndex) => {
       const weekStart = addDays(start, weekIndex * 7);
       const month = weekStart.getMonth();
-      const monthLabel = weekIndex === 0 || month !== previousMonth
+      const priorMonth = weekIndex === 0 ? -1 : addDays(start, (weekIndex - 1) * 7).getMonth();
+      const monthLabel = weekIndex === 0 || month !== priorMonth
         ? weekStart.toLocaleDateString(locale, { month: "short" })
         : "";
-      previousMonth = month;
 
       const days = Array.from({ length: 7 }, (_, dayIndex) => {
         const date = addDays(weekStart, dayIndex);

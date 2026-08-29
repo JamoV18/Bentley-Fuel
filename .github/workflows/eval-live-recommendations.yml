@@ -24,3 +24,5 @@ jobs:
       - run: npm ci
       - name: Print live 921 recommendation rankings
         run: npx tsx scripts/eval_live_recommendations.ts
+
+# Retry after wrapping evaluator in an async entry point.

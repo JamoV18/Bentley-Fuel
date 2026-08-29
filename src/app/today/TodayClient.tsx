@@ -8,6 +8,7 @@ import AnimatedCounter from "@/components/AnimatedCounter";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import ProfileMenu from "@/components/ProfileMenu";
+import SuccessMorphLabel from "@/components/SuccessMorphLabel";
 import {
   browserMealHistoryRepository,
   browserProgressRepository,
@@ -122,6 +123,8 @@ export default function TodayClient({
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [loadedDayKey, setLoadedDayKey] = useState(() => dayKey(new Date()));
   const [dayDirection, setDayDirection] = useState<1 | -1>(1);
+  const [savingCheckIn, setSavingCheckIn] = useState<{ id: string; fraction: MealCompletionFraction }>();
+  const checkInTimer = useRef<number | null>(null);
   const reduceMotion = useReducedMotion();
 
   const isToday = sameDay(selectedDate, new Date());
@@ -139,13 +142,30 @@ export default function TodayClient({
   }, [selectedDate, isToday]);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
+  useEffect(() => () => {
+    if (checkInTimer.current !== null) window.clearTimeout(checkInTimer.current);
+  }, []);
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);
   const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets), [entries, plan?.activeTargets, profile?.dailyTargets]);
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
+    if (savingCheckIn) return;
     browserMealHistoryRepository().updateFeedback(id, fraction);
-    refresh();
+    setSavingCheckIn({ id, fraction });
+
+    const finish = () => {
+      setSavingCheckIn(undefined);
+      refresh();
+      checkInTimer.current = null;
+    };
+
+    if (reduceMotion) {
+      finish();
+      return;
+    }
+
+    checkInTimer.current = window.setTimeout(finish, 360);
   };
 
   const changeDay = (amount: number) => {
@@ -172,6 +192,7 @@ export default function TodayClient({
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const planLabel = plan?.phase === "maintenance" ? "Maintenance" : goals.map(readable).join(" · ");
   const firstPending = pending[0];
+  const savingFirstPending = firstPending ? savingCheckIn?.id === firstPending.id : false;
 
   const yesterday = new Date(selectedDate); yesterday.setDate(selectedDate.getDate() - 1);
   const tomorrow = new Date(selectedDate); tomorrow.setDate(selectedDate.getDate() + 1);
@@ -259,16 +280,32 @@ export default function TodayClient({
           <motion.section
             key={firstPending.id}
             className="today-card checkin-card"
+            animate={savingFirstPending && !reduceMotion ? { scale: 0.996 } : { scale: 1 }}
             exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -3, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
             style={{ overflow: "hidden" }}
           >
-            <div className="section-heading"><div><p className="eyebrow">Did you finish?</p><h2>Quick meal check-in</h2></div><span className="status-pill">Waiting</span></div>
+            <div className="section-heading"><div><p className="eyebrow">Did you finish?</p><h2>Quick meal check-in</h2></div><span className={`status-pill ${savingFirstPending ? "bg-emerald-900 text-white" : ""}`}>{savingFirstPending ? "Recorded" : "Waiting"}</span></div>
             <div className="checkin-meal">
               <MealImage name={mealName(firstPending, itemNames)} imageUrl={itemImageUrls[primaryItemId(firstPending)]} aspect="wide" />
               <div className="min-w-0 flex-1"><h3>{mealName(firstPending, itemNames)}</h3><p>{locationNames[firstPending.locationId] ?? firstPending.locationId}</p>{firstPending.nutrition && <strong>{round(firstPending.nutrition.calories)} cal · {round(firstPending.nutrition.protein)}g protein</strong>}</div>
             </div>
-            <div className="checkin-choices">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(firstPending.id, choice.fraction)}>{choice.label}</button>)}</div>
+            <div className="checkin-choices">
+              {MEAL_COMPLETION_CHOICES.map((choice) => {
+                const selectedChoice = savingFirstPending && savingCheckIn?.fraction === choice.fraction;
+                return (
+                  <button
+                    key={choice.label}
+                    type="button"
+                    className={`chip transition-[background-color,color,border-color,box-shadow] duration-200 disabled:cursor-default ${selectedChoice ? "border-emerald-900 bg-emerald-900 text-white shadow-sm" : savingFirstPending ? "opacity-45" : ""}`}
+                    disabled={savingFirstPending}
+                    onClick={() => saveCompletion(firstPending.id, choice.fraction)}
+                  >
+                    <SuccessMorphLabel success={selectedChoice} idleLabel={choice.label} successLabel="Recorded" />
+                  </button>
+                );
+              })}
+            </div>
           </motion.section>
         )}
       </AnimatePresence>

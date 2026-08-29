@@ -21,8 +21,9 @@ import type { MealHistoryEntry, UserProfile } from "@/types";
 type Range = "yesterday" | "week" | "month";
 
 const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) =>
-  entry.build.items.map((item) => itemNames[item.menuItemId] ?? "Meal item").join(" + ");
+  entry.build.items.map((item) => item.display?.name ?? itemNames[item.menuItemId] ?? "Meal item").join(" + ");
 const firstItem = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
+const mealImageUrl = (entry: MealHistoryEntry, itemImageUrls: Record<string, string | undefined>) => entry.build.items[0]?.display?.imageUrl ?? itemImageUrls[firstItem(entry)];
 const coverageLabel = (value: NutritionPeriodSummary["coverage"]) => ({
   "getting-started": "Getting started",
   "mostly-confirmed": "Mostly confirmed",
@@ -167,7 +168,7 @@ export default function HistoryClient({
         <div className="flex items-center justify-between"><div><p className="eyebrow">Timeline</p><h2 className="mt-1 text-xl font-bold">Recent meals</h2></div><Link href="/today" className="text-sm font-bold text-emerald-800">Today →</Link></div>
         {recentMeals.length === 0 ? <p className="mt-4 text-sm subtle">No recent meals recorded.</p> : <div className="mt-4 grid gap-3 lg:grid-cols-2">{recentMeals.map((entry) => (
           <article key={entry.id} className="meal-row">
-            <MealImage name={mealName(entry, itemNames)} imageUrl={itemImageUrls[firstItem(entry)]} />
+            <MealImage name={mealName(entry, itemNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3"><p className="font-bold leading-tight">{mealName(entry, itemNames)}</p>{entry.completionFraction !== undefined && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800">{Math.round(entry.completionFraction * 100)}%</span>}</div>
               <p className="mt-1 text-xs subtle">{locationNames[entry.locationId] ?? entry.locationId} · {new Date(entry.eatenAt ?? entry.selectedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>

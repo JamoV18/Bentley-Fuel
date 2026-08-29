@@ -23,114 +23,81 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          path = Path('src/services/recommendationCandidates.ts')
-          text = path.read_text()
-
-          old = '''const combinations = <T>(values: readonly T[], size: number): T[][] => {
-  const out: T[][] = [];
-  const visit = (start: number, picked: T[]) => {
-    if (picked.length === size) {
-      out.push([...picked]);
-      return;
-    }
-    for (let index = start; index < values.length; index += 1) {
-      picked.push(values[index]);
-      visit(index + 1, picked);
-      picked.pop();
-    }
-  };
-  visit(0, []);
-  return out;
-};'''
-
-          new = '''const collectCombinations = <T>(
-  values: readonly T[],
-  size: number,
-  accept: (row: T[]) => boolean,
-  cap: number,
-): T[][] => {
-  const out: T[][] = [];
-  const picked: T[] = [];
-  const visit = (start: number) => {
-    if (out.length >= cap) return;
-    if (picked.length === size) {
-      const row = [...picked];
-      if (accept(row)) out.push(row);
-      return;
-    }
-    const remainingNeeded = size - picked.length;
-    const lastStart = values.length - remainingNeeded;
-    for (let index = start; index <= lastStart && out.length < cap; index += 1) {
-      picked.push(values[index]);
-      visit(index + 1);
-      picked.pop();
-    }
-  };
-  visit(0);
-  return out;
-};'''
-
-          if old not in text:
-              raise SystemExit('combination helper pattern not found')
-          text = text.replace(old, new)
-
-          old = '''  const candidateItemSets: MenuItem[][] = [];
-  const addCandidateItemSets = (mustHaveMain: boolean) => {
-    for (let size = 1; size <= Math.min(maxItems, generationPool.length); size += 1) {
-      candidateItemSets.push(...combinations(generationPool, size).filter((itemSet) => {
-        if (!isPlausibleMealComposition(itemSet)) return false;
-        return !mustHaveMain || roleCounts(itemSet).main === 1;
-      }));
-    }
-  };'''
-
-          new = '''  const candidateItemSets: MenuItem[][] = [];
-  const maxItemSetsPerSize = Math.max(1200, maxCandidates * 20);
-  const addCandidateItemSets = (mustHaveMain: boolean) => {
-    for (let size = 1; size <= Math.min(maxItems, generationPool.length); size += 1) {
-      const rows = collectCombinations(
-        generationPool,
-        size,
-        (itemSet) => {
-          if (!isPlausibleMealComposition(itemSet)) return false;
-          return !mustHaveMain || roleCounts(itemSet).main === 1;
-        },
-        maxItemSetsPerSize,
-      );
-      for (const row of rows) candidateItemSets.push(row);
-    }
-  };'''
-
-          if old not in text:
-              raise SystemExit('candidate enumeration pattern not found')
-          text = text.replace(old, new)
-
-          # Keep the live search pool comfortably below any browser argument/list thresholds.
-          text = text.replace(
-              'if (maxItems === 3) return Math.max(30, Math.min(52, Math.ceil(maxCandidates * 0.75) + 12));',
-              'if (maxItems === 3) return Math.max(30, Math.min(40, Math.ceil(maxCandidates * 0.5) + 10));',
-          )
-
-          path.write_text(text)
+          path = Path("src/services/recommendationCandidates.ts")
+          lines = path.read_text().splitlines()
+          start = next(i for i, line in enumerate(lines) if line.startswith("const combinations = "))
+          end = next(i for i in range(start + 1, len(lines)) if lines[i] == "};")
+          replacement = [
+              "const collectCombinations = <T>(",
+              "  values: readonly T[],",
+              "  size: number,",
+              "  accept: (row: T[]) => boolean,",
+              "  cap: number,",
+              "): T[][] => {",
+              "  const out: T[][] = [];",
+              "  const picked: T[] = [];",
+              "  const visit = (start: number) => {",
+              "    if (out.length >= cap) return;",
+              "    if (picked.length === size) {",
+              "      const row = [...picked];",
+              "      if (accept(row)) out.push(row);",
+              "      return;",
+              "    }",
+              "    const remainingNeeded = size - picked.length;",
+              "    const lastStart = values.length - remainingNeeded;",
+              "    for (let index = start; index <= lastStart && out.length < cap; index += 1) {",
+              "      picked.push(values[index]);",
+              "      visit(index + 1);",
+              "      picked.pop();",
+              "    }",
+              "  };",
+              "  visit(0);",
+              "  return out;",
+              "};",
+          ]
+          lines[start:end + 1] = replacement
+          start = next(i for i, line in enumerate(lines) if line == "  const candidateItemSets: MenuItem[][] = [];")
+          fn_start = start + 1
+          end = next(i for i in range(fn_start + 1, len(lines)) if lines[i] == "  };")
+          replacement = [
+              "  const candidateItemSets: MenuItem[][] = [];",
+              "  const maxItemSetsPerSize = Math.max(1200, maxCandidates * 20);",
+              "  const addCandidateItemSets = (mustHaveMain: boolean) => {",
+              "    for (let size = 1; size <= Math.min(maxItems, generationPool.length); size += 1) {",
+              "      const rows = collectCombinations(",
+              "        generationPool,",
+              "        size,",
+              "        (itemSet) => {",
+              "          if (!isPlausibleMealComposition(itemSet)) return false;",
+              "          return !mustHaveMain || roleCounts(itemSet).main === 1;",
+              "        },",
+              "        maxItemSetsPerSize,",
+              "      );",
+              "      for (const row of rows) candidateItemSets.push(row);",
+              "    }",
+              "  };",
+          ]
+          lines[start:end + 1] = replacement
+          lines = [line.replace("if (maxItems === 3) return Math.max(30, Math.min(52, Math.ceil(maxCandidates * 0.75) + 12));", "if (maxItems === 3) return Math.max(30, Math.min(40, Math.ceil(maxCandidates * 0.5) + 10));") for line in lines]
+          path.write_text("\n".join(lines) + "\n")
           PY
 
       - name: Strengthen regression test
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('src/services/recommendationCandidates.test.ts')
+          path = Path("src/services/recommendationCandidates.test.ts")
           text = path.read_text()
-          text = text.replace('const mains = Array.from({ length: 120 }', 'const mains = Array.from({ length: 300 }')
-          text = text.replace('const sides = Array.from({ length: 240 }', 'const sides = Array.from({ length: 600 }')
-          text = text.replace('const unscorable = Array.from({ length: 60 }', 'const unscorable = Array.from({ length: 120 }')
+          text = text.replace("const mains = Array.from({ length: 120 }", "const mains = Array.from({ length: 300 }")
+          text = text.replace("const sides = Array.from({ length: 240 }", "const sides = Array.from({ length: 600 }")
+          text = text.replace("const unscorable = Array.from({ length: 60 }", "const unscorable = Array.from({ length: 120 }")
           path.write_text(text)
           PY
 
-      - name: Test
+      - name: Install and test
         run: |
           npm ci
-          npm test -- --runInBand || npm test
+          npm test
 
       - name: Commit fix
         run: |

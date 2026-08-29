@@ -1,4 +1,6 @@
+import { isOnboardingPreviewMode } from "../lib/onboardingPreview.ts";
 import type { WeightObservation } from "@/types";
+import { onboardingPreviewProgressRepository } from "./onboardingPreviewRepositories.ts";
 
 export const PROGRESS_STORAGE_KEY = "bentley-fuel.progress.v1";
 
@@ -50,4 +52,7 @@ export function createLocalProgressRepository(storage: StorageLike): ProgressRep
   };
 }
 
-export const browserProgressRepository = (): ProgressRepository => createLocalProgressRepository(window.localStorage);
+export const browserProgressRepository = (): ProgressRepository => {
+  if (window.location.pathname === "/onboarding" && isOnboardingPreviewMode()) return onboardingPreviewProgressRepository;
+  return createLocalProgressRepository(window.localStorage);
+};

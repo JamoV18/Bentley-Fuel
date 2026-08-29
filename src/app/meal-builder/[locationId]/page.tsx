@@ -5,7 +5,7 @@ import { bentleyMenuDate, formatMenuDate, normalizeBentleyMenuDate } from "@/lib
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
 import { getDiningProvider } from "@/services";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
-import type { MealPeriod } from "@/types";
+import type { MealBuild, MealPeriod } from "@/types";
 import ManualMealBuilderClient from "./ManualMealBuilderClient";
 import MealBuilderClient from "./MealBuilderClient";
 
@@ -91,8 +91,8 @@ export default async function MealBuilderPage({
   }
 
   // Canonicalize the 921 route with the chosen live period. The client-side
-  // recommendation engine intentionally reads this query value before the clock,
-  // so the displayed DOC period and the nutrition scoring period cannot drift.
+  // recommendation engine reads this query value before the clock so the visible
+  // DineOnCampus period and the recommendation context stay aligned.
   if (isNineTwentyOne && menuDate && selectedPeriod && !requestedPeriod) {
     const next = new URLSearchParams();
     if (query.mode) next.set("mode", query.mode);
@@ -138,12 +138,21 @@ export default async function MealBuilderPage({
         initialMenuItemId={initialMenuItemId}
         resources={resources}
         isDemo={isDemo}
+        selectedMealPeriod={selectedPeriod}
       />
     );
   } else {
-    const fallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod);
+    const fallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod)
+      ?? (isNineTwentyOne ? { locationId, items: [] } satisfies MealBuild : undefined);
     if (!fallbackBuild) notFound();
-    content = <MealBuilderClient fallbackBuild={fallbackBuild} resources={resources} isDemo={isDemo} />;
+    content = (
+      <MealBuilderClient
+        fallbackBuild={fallbackBuild}
+        resources={resources}
+        isDemo={isDemo}
+        selectedMealPeriod={selectedPeriod}
+      />
+    );
   }
 
   return (

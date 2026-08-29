@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import FlowHeader from "@/components/FlowHeader";
 import MealImage from "@/components/MealImage";
 import SuccessMorphLabel from "@/components/SuccessMorphLabel";
+import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { getMealOrderReference } from "@/lib/mealOrderReference";
 import { browserProfileRepository } from "@/services/profileRepository";
@@ -27,12 +28,13 @@ import {
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
-import type { CustomizationStep, MealBuild, MealCompletionFraction, RecommendationContext } from "@/types";
+import type { CustomizationStep, MealBuild, MealCompletionFraction, MealPeriod, RecommendationContext } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
 
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const goalLabel = (goal: RecommendationContext["profile"]["primaryGoal"]) => readable(goal).toLowerCase();
 const completionLabel = (fraction: MealCompletionFraction) => MEAL_COMPLETION_CHOICES.find((choice) => choice.fraction === fraction)?.label ?? `${Math.round(fraction * 100)}%`;
+const sameLocalDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 function reasonsFor(ranked: RankedMealCandidate | undefined, context: RecommendationContext | undefined): string[] {
   if (!ranked?.computed.nutrition || !context) return [];
@@ -51,12 +53,24 @@ function reasonsFor(ranked: RankedMealCandidate | undefined, context: Recommenda
 type RecommendationState = "loading" | "ready" | "missing-profile" | "no-candidates";
 type ReplacementPrompt = { removedName: string; suggestions: MealReplacementSuggestion[] };
 
-export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: { fallbackBuild: MealBuild; resources: MealBuildResources; isDemo: boolean }) {
+export default function MealBuilderClient({
+  fallbackBuild,
+  resources,
+  isDemo,
+  menuDate,
+  selectedMealPeriod,
+}: {
+  fallbackBuild: MealBuild;
+  resources: MealBuildResources;
+  isDemo: boolean;
+  menuDate?: string;
+  selectedMealPeriod?: MealPeriod;
+}) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const carouselRef = useRef<HTMLDivElement>(null);
   const chooseTimerRef = useRef<number | null>(null);
-  const [mealPeriod] = useState(() => currentMealPeriodForHour(new Date().getHours()));
+  const [mealPeriod] = useState(() => selectedMealPeriod ?? currentMealPeriodForHour(new Date().getHours()));
   const [build, setBuild] = useState(fallbackBuild);
   const [selected, setSelected] = useState(false);
   const [customizing, setCustomizing] = useState(false);
@@ -77,6 +91,12 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
   const activeRanking = rankings[recommendationIndex];
   const reasons = useMemo(() => reasonsFor(activeRanking, recommendationContext), [activeRanking, recommendationContext]);
   const imageFor = (menuItemId: string | undefined) => resources.menuItems.find((item) => item.id === menuItemId)?.imageUrl;
+  const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
+  const backHref = `/locations/${build.locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
+  const manualParams = new URLSearchParams({ mode: "manual" });
+  if (menuDate) manualParams.set("date", menuDate);
+  if (selectedMealPeriod) manualParams.set("period", selectedMealPeriod);
+  const manualHref = `/meal-builder/${build.locationId}?${manualParams.toString()}`;
 
   useEffect(() => () => {
     if (chooseTimerRef.current !== null) window.clearTimeout(chooseTimerRef.current);
@@ -91,22 +111,24 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
     }
 
     const now = new Date();
+    const planningDate = menuDate ? new Date(`${menuDate}T12:00:00`) : now;
     const historyRepository = browserMealHistoryRepository();
     const recentHistory = historyRepository.getRecent(12);
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, -1);
-    const todayEntries = historyRepository.getByDateRange(start, end);
-    const excludedTodayMenuItemIds = [...new Set(todayEntries.filter((entry) => entry.completionFraction !== 0).flatMap((entry) => entry.build.items.map((item) => item.menuItemId)))];
+    const start = new Date(planningDate.getFullYear(), planningDate.getMonth(), planningDate.getDate());
+    const end = new Date(planningDate.getFullYear(), planningDate.getMonth(), planningDate.getDate() + 1, 0, 0, 0, -1);
+    const dayEntries = futureMenu ? [] : historyRepository.getByDateRange(start, end);
+    const excludedMenuItemIds = [...new Set(dayEntries.filter((entry) => entry.completionFraction !== 0).flatMap((entry) => entry.build.items.map((item) => item.menuItemId)))];
     const latestWeightKg = browserProgressRepository().getRecent(1)[0]?.weightKg ?? profile.metrics?.weightKg;
-    const plan = resolveNutritionPlan(profile, now, latestWeightKg);
+    const plan = resolveNutritionPlan(profile, planningDate, latestWeightKg);
     const activeTargets = plan.activeTargets ?? profile.dailyTargets;
-    const dailySnapshot = createDailyNutritionSnapshot(todayEntries, activeTargets, now);
+    const dailySnapshot = createDailyNutritionSnapshot(dayEntries, activeTargets, planningDate);
     const recommendationProfile = { ...profile, primaryGoal: plan.phase === "maintenance" ? "maintain-weight" as const : profile.primaryGoal, dailyTargets: activeTargets };
-    const baseContext: RecommendationContext = { profile: recommendationProfile, locationId: fallbackBuild.locationId, mealPeriod, remainingMacros: dailySnapshot.remaining, recentHistory };
-    let context: RecommendationContext = { ...baseContext, excludeMenuItemIds: excludedTodayMenuItemIds };
+    const remainingMacros = futureMenu || !sameLocalDay(planningDate, now) ? activeTargets : dailySnapshot.remaining;
+    const baseContext: RecommendationContext = { profile: recommendationProfile, locationId: fallbackBuild.locationId, mealPeriod, remainingMacros, recentHistory };
+    let context: RecommendationContext = { ...baseContext, excludeMenuItemIds: excludedMenuItemIds };
     const generationOptions = { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 10, requireMain: true };
     let candidates = generateMealCandidatesFromResources(resources.menuItems, resources.stations, resources.components, context, generationOptions);
-    if (candidates.length === 0 && excludedTodayMenuItemIds.length > 0) {
+    if (candidates.length === 0 && excludedMenuItemIds.length > 0) {
       context = baseContext;
       candidates = generateMealCandidatesFromResources(resources.menuItems, resources.stations, resources.components, context, generationOptions);
     }
@@ -121,12 +143,12 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
       setRecommendationState("ready");
     });
     return () => { cancelled = true; };
-  }, [fallbackBuild.locationId, mealPeriod, resources]);
+  }, [fallbackBuild.locationId, futureMenu, mealPeriod, menuDate, resources]);
 
   useEffect(() => {
-    if (!selectedHistoryId || !selectedAt || !computed.isValid || !computed.nutrition || build.items.length === 0) return;
+    if (futureMenu || !selectedHistoryId || !selectedAt || !computed.isValid || !computed.nutrition || build.items.length === 0) return;
     browserMealHistoryRepository().upsert({ id: selectedHistoryId, locationId: build.locationId, build, selectedAt, nutrition: computed.nutrition, source: recommendationState === "ready" ? "recommended" : "self-built" });
-  }, [build, computed.isValid, computed.nutrition, recommendationState, selectedAt, selectedHistoryId]);
+  }, [build, computed.isValid, computed.nutrition, futureMenu, recommendationState, selectedAt, selectedHistoryId]);
 
   const changeComponent = (lineId: string, step: CustomizationStep, componentId: string, delta: 1 | -1) => {
     const line = build.items.find((item) => item.id === lineId);
@@ -136,7 +158,7 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
   };
 
   const chooseMeal = () => {
-    if (!computed.isValid || !computed.nutrition || chooseSuccess) return;
+    if (futureMenu || !computed.isValid || !computed.nutrition || chooseSuccess) return;
     const historyId = crypto.randomUUID();
     const now = new Date().toISOString();
     setShowCompletionCheckIn(false);
@@ -198,21 +220,22 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
-      <FlowHeader backHref={`/locations/${build.locationId}`} backLabel={resources.location?.shortName ?? resources.location?.name ?? "Location"} />
+      <FlowHeader backHref={backHref} backLabel={resources.location?.shortName ?? resources.location?.name ?? "Location"} />
 
       <header className="mt-8 flex flex-wrap items-end justify-between gap-5">
         <div className="max-w-3xl">
           <p className="brand-kicker">Bentley Fuel</p>
           <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{personalized ? "Recommended for you" : "Build a complete meal"}</h1>
           {recommendationState === "loading" && <p className="mt-3 subtle">Building a recommendation from your profile and this location…</p>}
-          {personalized && <p className="mt-3 max-w-2xl subtle">Balanced around your goals, nutrition remaining today, dietary needs, and recent variety.</p>}
+          {personalized && <p className="mt-3 max-w-2xl subtle">Balanced around your goals, nutrition available for this menu date, dietary needs, and recent variety.</p>}
           {recommendationState === "missing-profile" && <p className="mt-3 subtle">Complete your profile to turn this example into a personalized recommendation. <Link className="font-bold text-emerald-800 underline" href="/onboarding">Set up profile</Link></p>}
           {recommendationState === "no-candidates" && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">No eligible complete meal is available for this eating window. You can still build your own.</p>}
         </div>
-        <Link href={`/meal-builder/${build.locationId}?mode=manual`} className="secondary inline-flex items-center justify-center">Build my own meal</Link>
+        <Link href={manualHref} className="secondary inline-flex items-center justify-center">Build my own meal</Link>
       </header>
 
       {isDemo && <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">Demo menu data · not current official Bentley Dining information.</p>}
+      {futureMenu && <p className="mt-5 rounded-xl border border-emerald-200/80 bg-emerald-50/85 px-4 py-3 text-sm text-emerald-950">Future 921 menu preview · recommendations use the full plan for that day, but logging is disabled until the menu date so planned food never counts as already eaten.</p>}
 
       {personalized && topRecommendations.length > 1 && (
         <section className="mt-6" aria-labelledby="top-matches-heading">
@@ -290,7 +313,7 @@ export default function MealBuilderClient({ fallbackBuild, resources, isDemo }: 
 
             {personalized && reasons.length > 0 && <div className="surface-soft mt-5 overflow-hidden"><button type="button" className="flex w-full items-center justify-between gap-3 p-4 text-left font-bold text-emerald-950" onClick={() => setWhyOpen((value) => !value)} aria-expanded={whyOpen}><span>Why this meal?</span><motion.span animate={{ rotate: whyOpen ? 180 : 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }} aria-hidden="true">⌄</motion.span></button><AnimatePresence initial={false}>{whyOpen && <motion.div initial={reduceMotion ? false : { opacity: 0, y: -5, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -3, height: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden"><ul className="px-4 pb-4 list-disc space-y-1 pl-9 text-sm leading-relaxed text-emerald-950/75">{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></motion.div>}</AnimatePresence></div>}
 
-            {!selected ? <div className="mt-5"><motion.button className="primary w-full" disabled={!computed.isValid || recommendationState === "loading" || recommendationState === "no-candidates" || chooseSuccess} onClick={chooseMeal} animate={chooseSuccess && !reduceMotion ? { scale: [1, 0.985, 1.012, 1] } : { scale: 1 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.34, times: [0, 0.28, 0.68, 1], ease: [0.22, 1, 0.36, 1] }}><SuccessMorphLabel success={chooseSuccess} idleLabel={personalized ? "Choose this meal" : "Use this meal"} successLabel="Meal selected" /></motion.button></div> : <div className="mt-5"><p className={computed.isValid ? "font-bold text-emerald-800" : "font-bold text-red-800"}>{computed.isValid ? "Meal selected" : "Meal selection needs attention"}</p><p className="mt-1 text-sm subtle">Your choice is saved so Bentley Fuel can learn preference and variety patterns.</p><button className="secondary mt-3 w-full" onClick={() => setCustomizing((value) => !value)}>{customizing ? "Done customizing" : "Customize"}</button><div className="mt-4 border-t border-black/[.06] pt-4">{completionFraction === undefined ? <button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn((value) => !value)}>Finished eating? Add a quick check-in</button> : <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm"><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div>}{showCompletionCheckIn && <div className="surface-soft mt-3 p-4"><p className="font-bold text-emerald-950">How much did you finish?</p><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className={`rounded-xl border px-3 py-2 text-sm font-bold ${completionFraction === choice.fraction ? "border-emerald-800 bg-emerald-800 text-white" : "border-emerald-900/15 bg-white text-emerald-950"}`} onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div><button type="button" className="mt-3 text-xs font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(false)}>Not now</button></div>}</div></div>}
+            {!selected ? <div className="mt-5"><motion.button className="primary w-full" disabled={futureMenu || !computed.isValid || recommendationState === "loading" || recommendationState === "no-candidates" || chooseSuccess} onClick={chooseMeal} animate={chooseSuccess && !reduceMotion ? { scale: [1, 0.985, 1.012, 1] } : { scale: 1 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.34, times: [0, 0.28, 0.68, 1], ease: [0.22, 1, 0.36, 1] }}><SuccessMorphLabel success={chooseSuccess} idleLabel={futureMenu ? "Future menu · preview only" : personalized ? "Choose this meal" : "Use this meal"} successLabel="Meal selected" /></motion.button></div> : <div className="mt-5"><p className={computed.isValid ? "font-bold text-emerald-800" : "font-bold text-red-800"}>{computed.isValid ? "Meal selected" : "Meal selection needs attention"}</p><p className="mt-1 text-sm subtle">Your choice is saved so Bentley Fuel can learn preference and variety patterns.</p><button className="secondary mt-3 w-full" onClick={() => setCustomizing((value) => !value)}>{customizing ? "Done customizing" : "Customize"}</button><div className="mt-4 border-t border-black/[.06] pt-4">{completionFraction === undefined ? <button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn((value) => !value)}>Finished eating? Add a quick check-in</button> : <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm"><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div>}{showCompletionCheckIn && <div className="surface-soft mt-3 p-4"><p className="font-bold text-emerald-950">How much did you finish?</p><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className={`rounded-xl border px-3 py-2 text-sm font-bold ${completionFraction === choice.fraction ? "border-emerald-800 bg-emerald-800 text-white" : "border-emerald-900/15 bg-white text-emerald-950"}`} onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div><button type="button" className="mt-3 text-xs font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(false)}>Not now</button></div>}</div></div>}
           </div>
         </motion.section>
       </AnimatePresence>

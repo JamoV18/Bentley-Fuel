@@ -10,19 +10,21 @@ export async function getPhase6ExampleMeal(
 ): Promise<MealBuild | undefined> {
   const items = await provider.getMenuItems({ locationId, date, mealPeriod });
 
-  if (locationId === "loc-921") {
-    const ids = ["item-921-grilled-chicken-sandwich", "item-921-chicken-caesar-salad", "item-921-blueberry-muffin"];
-    if (ids.every((id) => items.some((item) => item.id === id))) {
-      return { locationId, items: ids.map((menuItemId, index) => ({ id: `example-line-${index + 1}`, menuItemId, quantity: 1 })) };
-    }
-  }
-
   const custom = items.find((item) => item.id === "item-brito-build-your-own");
   if (custom?.customization) {
     const componentSelections = custom.customization
       .filter((step) => step.minSelections > 0)
       .map((step) => ({ componentId: step.componentIds[0], quantity: step.minSelections }));
-    return { locationId, items: [{ id: "example-line-1", menuItemId: custom.id, quantity: 1, componentSelections }] };
+    return {
+      locationId,
+      items: [{
+        id: "example-line-1",
+        menuItemId: custom.id,
+        quantity: 1,
+        componentSelections,
+        display: { name: custom.name, imageUrl: custom.imageUrl },
+      }],
+    };
   }
 
   const predefined = items.filter(
@@ -52,6 +54,11 @@ export async function getPhase6ExampleMeal(
 
   return {
     locationId,
-    items: selected.map((item, index) => ({ id: `example-line-${index + 1}`, menuItemId: item.id, quantity: 1 })),
+    items: selected.map((item, index) => ({
+      id: `example-line-${index + 1}`,
+      menuItemId: item.id,
+      quantity: 1,
+      display: { name: item.name, imageUrl: item.imageUrl },
+    })),
   };
 }

@@ -84,7 +84,7 @@ export default async function LocationPage({
         </p>
       ) : isNineTwentyOne ? (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-          The live DineOnCampus menu could not be loaded for this date, so Bentley Fuel is showing the demo fallback rather than inventing current dining information.
+          The live DineOnCampus menu could not be verified for this date. Bentley Fuel is not substituting the old demo 921 foods; retry the live menu before making a dining decision.
         </p>
       ) : provider.dataStatus === "mock" ? (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">

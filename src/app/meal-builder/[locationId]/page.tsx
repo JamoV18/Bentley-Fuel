@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import FlowHeader from "@/components/FlowHeader";
-import { bentleyMenuDate, formatMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
+import { formatMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
 import { getDiningProvider } from "@/services";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
-import type { MealPeriod } from "@/types";
+import type { MealBuild, MealPeriod } from "@/types";
 import ManualMealBuilderClient from "./ManualMealBuilderClient";
 import MealBuilderClient from "./MealBuilderClient";
 
@@ -46,8 +46,6 @@ export default async function MealBuilderPage({
   const allStations = await provider.getStations(locationId, menuDate);
   const usesVerifiedMenu = allMenuItems.some((item) => item.provenance.dataStatus === "verified");
 
-  // The 921 is live-data-only. Never substitute mock foods into a current or
-  // future DineOnCampus recommendation if the upstream menu request fails.
   if (isNineTwentyOne && !usesVerifiedMenu) {
     const requestedLabel = asMealPeriod(query.period);
     return (
@@ -60,17 +58,8 @@ export default async function MealBuilderPage({
             Bentley Fuel could not verify the DineOnCampus {requestedLabel ? `${readablePeriod(requestedLabel).toLowerCase()} ` : ""}menu for {menuDate ? formatMenuDate(menuDate) : "this date"}. No demo foods are being substituted.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <a
-              href="https://dineoncampus.com/Bentley/locations"
-              target="_blank"
-              rel="noreferrer"
-              className="primary inline-flex items-center justify-center"
-            >
-              Open Bentley DineOnCampus
-            </a>
-            <Link href={`/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`} className="secondary inline-flex items-center justify-center">
-              Try again
-            </Link>
+            <a href="https://dineoncampus.com/bentley/whats-on-the-menu/921-dining-hall" target="_blank" rel="noreferrer" className="primary inline-flex items-center justify-center">Open Bentley DineOnCampus</a>
+            <Link href={`/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`} className="secondary inline-flex items-center justify-center">Try again</Link>
           </div>
           <p className="mt-5 text-xs subtle">A recommendation will only appear when the published 921 menu is successfully verified.</p>
         </section>
@@ -90,9 +79,6 @@ export default async function MealBuilderPage({
     selectedPeriod = availablePeriods.includes(clockPeriod) ? clockPeriod : availablePeriods[0];
   }
 
-  // Canonicalize the 921 route with the chosen live period. The client-side
-  // recommendation engine intentionally reads this query value before the clock,
-  // so the displayed DOC period and the nutrition scoring period cannot drift.
   if (isNineTwentyOne && menuDate && selectedPeriod && !requestedPeriod) {
     const next = new URLSearchParams();
     if (query.mode) next.set("mode", query.mode);
@@ -102,12 +88,8 @@ export default async function MealBuilderPage({
     redirect(`/meal-builder/${locationId}?${next.toString()}`);
   }
 
-  const selectedItems = selectedPeriod
-    ? allMenuItems.filter((item) => periodMatches(item.availability, selectedPeriod))
-    : allMenuItems;
-  const menuItems = selectedPeriod
-    ? selectedItems.map((item) => ({ ...item, availability: ["all-day"] as MealPeriod[] }))
-    : selectedItems;
+  const selectedItems = selectedPeriod ? allMenuItems.filter((item) => periodMatches(item.availability, selectedPeriod)) : allMenuItems;
+  const menuItems = selectedPeriod ? selectedItems.map((item) => ({ ...item, availability: ["all-day"] as MealPeriod[] })) : selectedItems;
   const usedStationIds = new Set(menuItems.map((item) => item.stationId));
   const stations = selectedPeriod
     ? allStations.filter((station) => usedStationIds.has(station.id)).map((station) => ({ ...station, mealPeriods: ["all-day"] as MealPeriod[] }))
@@ -138,12 +120,23 @@ export default async function MealBuilderPage({
         initialMenuItemId={initialMenuItemId}
         resources={resources}
         isDemo={isDemo}
+        menuDate={menuDate}
+        selectedMealPeriod={selectedPeriod}
       />
     );
   } else {
-    const fallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod);
+    const fallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod)
+      ?? (isNineTwentyOne ? { locationId, items: [] } satisfies MealBuild : undefined);
     if (!fallbackBuild) notFound();
-    content = <MealBuilderClient fallbackBuild={fallbackBuild} resources={resources} isDemo={isDemo} />;
+    content = (
+      <MealBuilderClient
+        fallbackBuild={fallbackBuild}
+        resources={resources}
+        isDemo={isDemo}
+        menuDate={menuDate}
+        selectedMealPeriod={selectedPeriod}
+      />
+    );
   }
 
   return (
@@ -160,9 +153,7 @@ export default async function MealBuilderPage({
                 <Link
                   key={period}
                   href={periodHref(period)}
-                  className={selectedPeriod === period
-                    ? "rounded-full bg-emerald-900 px-4 py-2 text-sm font-bold text-white shadow-sm"
-                    : "rounded-full border border-emerald-900/15 bg-white px-4 py-2 text-sm font-bold text-emerald-950 transition hover:border-emerald-800/30"}
+                  className={selectedPeriod === period ? "rounded-full bg-emerald-900 px-4 py-2 text-sm font-bold text-white shadow-sm" : "rounded-full border border-emerald-900/15 bg-white px-4 py-2 text-sm font-bold text-emerald-950 transition hover:border-emerald-800/30"}
                   aria-current={selectedPeriod === period ? "page" : undefined}
                 >
                   {readablePeriod(period)}

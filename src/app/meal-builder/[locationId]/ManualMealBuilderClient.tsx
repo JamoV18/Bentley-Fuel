@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import FlowHeader from "@/components/FlowHeader";
 import MealImage from "@/components/MealImage";
+import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { createManualMealItemSelection } from "@/lib/manualMealSelection";
 import { getMealOrderReference } from "@/lib/mealOrderReference";
@@ -19,15 +20,29 @@ import {
 } from "@/services";
 import type { MealBuildResources } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
-import type { CustomizationStep, MealBuild, MealCompletionFraction } from "@/types";
+import type { CustomizationStep, MealBuild, MealCompletionFraction, MealPeriod } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
 
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const completionLabel = (fraction: MealCompletionFraction) => MEAL_COMPLETION_CHOICES.find((choice) => choice.fraction === fraction)?.label ?? `${Math.round(fraction * 100)}%`;
 
-export default function ManualMealBuilderClient({ locationId, initialMenuItemId, resources, isDemo }: { locationId: string; initialMenuItemId?: string; resources: MealBuildResources; isDemo: boolean }) {
+export default function ManualMealBuilderClient({
+  locationId,
+  initialMenuItemId,
+  resources,
+  isDemo,
+  menuDate,
+  selectedMealPeriod,
+}: {
+  locationId: string;
+  initialMenuItemId?: string;
+  resources: MealBuildResources;
+  isDemo: boolean;
+  menuDate?: string;
+  selectedMealPeriod?: MealPeriod;
+}) {
   const reduceMotion = useReducedMotion();
-  const [mealPeriod] = useState(() => currentMealPeriodForHour(new Date().getHours()));
+  const [mealPeriod] = useState(() => selectedMealPeriod ?? currentMealPeriodForHour(new Date().getHours()));
   const [build, setBuild] = useState<MealBuild>(() => {
     const item = initialMenuItemId ? resources.menuItems.find((candidate) => candidate.id === initialMenuItemId) : undefined;
     return { locationId, items: item ? [createManualMealItemSelection(item, resources.components, crypto.randomUUID())] : [] };
@@ -39,6 +54,13 @@ export default function ManualMealBuilderClient({ locationId, initialMenuItemId,
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
+  const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
+  const backHref = `/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
+  const recommendationParams = new URLSearchParams();
+  if (menuDate) recommendationParams.set("date", menuDate);
+  if (selectedMealPeriod) recommendationParams.set("period", selectedMealPeriod);
+  const recommendationQuery = recommendationParams.toString();
+  const recommendationHref = `/meal-builder/${locationId}${recommendationQuery ? `?${recommendationQuery}` : ""}`;
 
   useEffect(() => {
     if (!savedHistoryId || !savedAt || !computed.isValid || !computed.nutrition || build.items.length === 0) return;
@@ -46,7 +68,7 @@ export default function ManualMealBuilderClient({ locationId, initialMenuItemId,
   }, [build, computed.isValid, computed.nutrition, savedAt, savedHistoryId]);
 
   const saveMeal = () => {
-    if (!computed.isValid || !computed.nutrition || build.items.length === 0) return;
+    if (futureMenu || !computed.isValid || !computed.nutrition || build.items.length === 0) return;
     const id = savedHistoryId ?? crypto.randomUUID();
     const selectedAt = savedAt ?? new Date().toISOString();
     browserMealHistoryRepository().upsert({ id, locationId: build.locationId, build, selectedAt, nutrition: computed.nutrition, source: "self-built" });
@@ -68,7 +90,7 @@ export default function ManualMealBuilderClient({ locationId, initialMenuItemId,
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
-      <FlowHeader backHref={`/locations/${locationId}`} backLabel={resources.location?.shortName ?? resources.location?.name ?? "Location"} />
+      <FlowHeader backHref={backHref} backLabel={resources.location?.shortName ?? resources.location?.name ?? "Location"} />
 
       <header className="mt-8 flex flex-wrap items-end justify-between gap-5">
         <div className="max-w-2xl">
@@ -76,10 +98,11 @@ export default function ManualMealBuilderClient({ locationId, initialMenuItemId,
           <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Build my meal</h1>
           <p className="mt-2 text-base leading-relaxed subtle">Already know what you’re eating? Add it here. Bentley Fuel totals the meal while you build it.</p>
         </div>
-        <Link href={`/meal-builder/${locationId}`} className="secondary inline-flex items-center justify-center">Get a recommendation instead</Link>
+        <Link href={recommendationHref} className="secondary inline-flex items-center justify-center">Get a recommendation instead</Link>
       </header>
 
       {isDemo && <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">Demo menu data · not current official Bentley Dining information.</p>}
+      {futureMenu && <p className="mt-5 rounded-xl border border-emerald-200/80 bg-emerald-50/85 px-4 py-3 text-sm text-emerald-950">Future 921 menu preview · build and compare meals now, but logging is disabled until that menu date so future plans never count as food you already ate.</p>}
 
       <div className="mt-6 grid items-start gap-6 xl:grid-cols-[.88fr_1.12fr]">
         <div className="min-w-0 space-y-5 xl:sticky xl:top-6 xl:self-start">
@@ -115,7 +138,7 @@ export default function ManualMealBuilderClient({ locationId, initialMenuItemId,
 
             {computed.nutrition && <dl className="mt-5 grid grid-cols-2 gap-2 border-t border-black/[.06] pt-5 text-center sm:grid-cols-4">{[["Calories", computed.nutrition.calories, "cal"], ["Protein", computed.nutrition.protein, "g"], ["Carbs", computed.nutrition.carbs, "g"], ["Fat", computed.nutrition.fat, "g"]].map(([label, value, unit]) => <div key={label} className="rounded-xl bg-emerald-50/70 p-2.5"><dt className="text-[10px] text-emerald-900/55">{label}</dt><dd className="mt-1 font-bold text-emerald-950">{value}{unit}</dd></div>)}</dl>}
             {build.items.length > 0 && !computed.isValid && <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-900"><strong>Meal needs attention.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}</ul></div>}
-            <button type="button" className="primary mt-5 w-full" disabled={!computed.isValid || build.items.length === 0} onClick={saveMeal}><AnimatePresence initial={false} mode="wait"><motion.span key={savedHistoryId ? "saved" : "save"} className="inline-flex items-center justify-center gap-2" initial={reduceMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -3 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>{savedHistoryId && <motion.span initial={reduceMotion ? false : { scale: 0.7 }} animate={{ scale: 1 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 24, mass: 0.55 }} aria-hidden="true">✓</motion.span>}{savedHistoryId ? "Meal saved" : "Save this meal"}</motion.span></AnimatePresence></button>
+            <button type="button" className="primary mt-5 w-full" disabled={futureMenu || !computed.isValid || build.items.length === 0} onClick={saveMeal}><AnimatePresence initial={false} mode="wait"><motion.span key={futureMenu ? "future" : savedHistoryId ? "saved" : "save"} className="inline-flex items-center justify-center gap-2" initial={reduceMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -3 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>{savedHistoryId && !futureMenu && <motion.span initial={reduceMotion ? false : { scale: 0.7 }} animate={{ scale: 1 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 24, mass: 0.55 }} aria-hidden="true">✓</motion.span>}{futureMenu ? "Future menu · preview only" : savedHistoryId ? "Meal saved" : "Save this meal"}</motion.span></AnimatePresence></button>
             {savedHistoryId && <div className="mt-4 border-t border-black/[.06] pt-4">{completionFraction !== undefined ? <div className="flex items-center justify-between gap-3 text-sm"><p><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div> : <button type="button" className="text-sm font-bold text-emerald-800 underline" onClick={() => setShowCompletionCheckIn(true)}>Finished eating? Add a quick check-in</button>}<AnimatePresence initial={false}>{showCompletionCheckIn && <motion.div className="surface-soft mt-3 overflow-hidden p-4" initial={reduceMotion ? false : { opacity: 0, y: -6, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} animate={{ opacity: 1, y: 0, height: "auto", marginTop: 12, paddingTop: 16, paddingBottom: 16 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}><p className="text-sm font-bold">How much did you finish?</p><div className="mt-2 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div><p className="mt-2 text-xs subtle">This updates today’s consumed nutrition so later recommendations can use what actually remains.</p></motion.div>}</AnimatePresence></div>}
           </section>
 

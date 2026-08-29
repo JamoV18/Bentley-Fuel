@@ -23,9 +23,10 @@ const PENDING_CHECK_IN_WINDOW_MS = 36 * 60 * 60 * 1000;
 const round = (value: number) => Math.round(value);
 const coverage = (value: number, target: number) => target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
 const formatWeight = (kg: number, units: UserProfile["unitSystem"]) => units === "metric" ? `${Math.round(kg * 10) / 10} kg` : `${Math.round(kg / 0.45359237)} lb`;
-const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => itemNames[item.menuItemId] ?? "Meal item").join(" + ");
+const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => item.display?.name ?? itemNames[item.menuItemId] ?? "Meal item").join(" + ");
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
+const mealImageUrl = (entry: MealHistoryEntry, itemImageUrls: Record<string, string | undefined>) => entry.build.items[0]?.display?.imageUrl ?? itemImageUrls[primaryItemId(entry)];
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 
@@ -147,7 +148,7 @@ export default function TodayClient({
   }, []);
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);
-  const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets), [entries, plan?.activeTargets, profile?.dailyTargets]);
+  const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets, selectedDate), [entries, plan?.activeTargets, profile?.dailyTargets, selectedDate]);
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;
@@ -224,7 +225,7 @@ export default function TodayClient({
         <button type="button" className="day-arrow" onClick={() => changeDay(1)} aria-label="Next day">›</button>
       </div>
 
-      {isDemo && <p className="demo-note">Demo menu data · tracking and personalization are functional; menu information is not current official Bentley Dining data.</p>}
+      {isDemo && <p className="demo-note">Some campus locations still use demo menu data. The 921 uses live DineOnCampus data when available; tracking and personalization are functional.</p>}
 
       <AnimatePresence initial={false} mode="wait" custom={dayDirection}>
         <motion.section
@@ -287,7 +288,7 @@ export default function TodayClient({
           >
             <div className="section-heading"><div><p className="eyebrow">Did you finish?</p><h2>Quick meal check-in</h2></div><span className={`status-pill ${savingFirstPending ? "bg-emerald-900 text-white" : ""}`}>{savingFirstPending ? "Recorded" : "Waiting"}</span></div>
             <div className="checkin-meal">
-              <MealImage name={mealName(firstPending, itemNames)} imageUrl={itemImageUrls[primaryItemId(firstPending)]} aspect="wide" />
+              <MealImage name={mealName(firstPending, itemNames)} imageUrl={mealImageUrl(firstPending, itemImageUrls)} aspect="wide" />
               <div className="min-w-0 flex-1"><h3>{mealName(firstPending, itemNames)}</h3><p>{locationNames[firstPending.locationId] ?? firstPending.locationId}</p>{firstPending.nutrition && <strong>{round(firstPending.nutrition.calories)} cal · {round(firstPending.nutrition.protein)}g protein</strong>}</div>
             </div>
             <div className="checkin-choices">
@@ -321,7 +322,7 @@ export default function TodayClient({
         ) : (
           <div className="meal-list">{snapshot.meals.map((entry) => (
             <article key={entry.id} className="today-meal-row">
-              <div className="meal-visual"><MealImage name={mealName(entry, itemNames)} imageUrl={itemImageUrls[primaryItemId(entry)]} /><MealProgress fraction={entry.completionFraction} /></div>
+              <div className="meal-visual"><MealImage name={mealName(entry, itemNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} /><MealProgress fraction={entry.completionFraction} /></div>
               <div className="min-w-0 flex-1"><h3>{mealName(entry, itemNames)}</h3><p>{locationNames[entry.locationId] ?? entry.locationId}</p>{entry.nutrition && <strong>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</strong>}</div>
               <span className="row-chevron">›</span>
             </article>

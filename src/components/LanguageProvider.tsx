@@ -184,16 +184,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (stored === "fr" || isAppLanguage(stored)) setLanguageState(stored);
+    if (stored === "fr" || isAppLanguage(stored)) queueMicrotask(() => setLanguageState(stored));
   }, []);
 
   useEffect(() => {
     if (pathname !== "/onboarding") {
-      setOnboardingHeader(null);
+      queueMicrotask(() => setOnboardingHeader(null));
       return;
     }
     const findHeader = () => setOnboardingHeader(document.querySelector<HTMLElement>("main > header"));
-    findHeader();
     const frame = requestAnimationFrame(findHeader);
     return () => cancelAnimationFrame(frame);
   }, [pathname]);

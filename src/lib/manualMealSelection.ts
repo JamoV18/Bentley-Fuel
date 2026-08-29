@@ -1,5 +1,10 @@
 import type { FoodComponent, MealBuild, MealItemSelection, MenuItem } from "@/types";
 
+const displaySnapshot = (item: MenuItem): MealItemSelection["display"] => ({
+  name: item.name,
+  imageUrl: item.imageUrl,
+});
+
 /**
  * Create a deterministic starting line when a student manually adds a menu item.
  * Predefined foods need no configuration. Customizable foods receive only the
@@ -12,7 +17,7 @@ export function createManualMealItemSelection(
   lineId: string,
 ): MealItemSelection {
   if (item.kind !== "customizable" || !item.customization) {
-    return { id: lineId, menuItemId: item.id, quantity: 1 };
+    return { id: lineId, menuItemId: item.id, quantity: 1, display: displaySnapshot(item) };
   }
 
   const componentById = new Map(components.map((component) => [component.id, component]));
@@ -33,6 +38,7 @@ export function createManualMealItemSelection(
     menuItemId: item.id,
     quantity: 1,
     componentSelections,
+    display: displaySnapshot(item),
   };
 }
 
@@ -53,7 +59,7 @@ export function addManualMenuItem(
       return {
         ...build,
         items: build.items.map((line) =>
-          line.id === existing.id ? { ...line, quantity: line.quantity + 1 } : line,
+          line.id === existing.id ? { ...line, quantity: line.quantity + 1, display: line.display ?? displaySnapshot(item) } : line,
         ),
       };
     }

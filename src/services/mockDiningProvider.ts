@@ -1,7 +1,6 @@
 /**
  * In-memory implementation of `DiningDataProvider` backed by the mock dataset.
- * Builds ID indexes once for O(1) lookups. All methods resolve synchronously but
- * return Promises to match the async contract real providers will need.
+ * Builds ID indexes once for O(1) lookups.
  */
 import type {
   DataStatus,
@@ -36,26 +35,16 @@ export class MockDiningProvider implements DiningDataProvider {
     this.componentIndex = new Map(data.components.map((c) => [c.id, c]));
   }
 
-  async getUniversity(): Promise<University> {
-    return this.data.university;
-  }
+  async getUniversity(): Promise<University> { return this.data.university; }
+  async getLocations(): Promise<Location[]> { return this.data.locations; }
+  async getLocation(id: LocationId): Promise<Location | undefined> { return this.locationIndex.get(id); }
 
-  async getLocations(): Promise<Location[]> {
-    return this.data.locations;
-  }
-
-  async getLocation(id: LocationId): Promise<Location | undefined> {
-    return this.locationIndex.get(id);
-  }
-
-  async getStations(locationId?: LocationId): Promise<Station[]> {
+  async getStations(locationId?: LocationId, _date?: string): Promise<Station[]> {
     if (!locationId) return this.data.stations;
     return this.data.stations.filter((s) => s.locationId === locationId);
   }
 
-  async getStation(id: StationId): Promise<Station | undefined> {
-    return this.stationIndex.get(id);
-  }
+  async getStation(id: StationId): Promise<Station | undefined> { return this.stationIndex.get(id); }
 
   async getMenuItems(query: MenuItemQuery = {}): Promise<MenuItem[]> {
     const { locationId, stationId, kind, mealPeriod } = query;
@@ -65,26 +54,18 @@ export class MockDiningProvider implements DiningDataProvider {
       if (kind && item.kind !== kind) return false;
       if (mealPeriod) {
         const periods = item.availability ?? ["all-day"];
-        if (!periods.includes(mealPeriod) && !periods.includes("all-day")) {
-          return false;
-        }
+        if (!periods.includes(mealPeriod) && !periods.includes("all-day")) return false;
       }
       return true;
     });
   }
 
-  async getMenuItem(id: MenuItemId): Promise<MenuItem | undefined> {
-    return this.itemIndex.get(id);
-  }
+  async getMenuItem(id: MenuItemId): Promise<MenuItem | undefined> { return this.itemIndex.get(id); }
 
   async getComponents(ids?: FoodComponentId[]): Promise<FoodComponent[]> {
     if (!ids) return this.data.components;
-    return ids
-      .map((id) => this.componentIndex.get(id))
-      .filter((c): c is FoodComponent => Boolean(c));
+    return ids.map((id) => this.componentIndex.get(id)).filter((c): c is FoodComponent => Boolean(c));
   }
 
-  async getComponent(id: FoodComponentId): Promise<FoodComponent | undefined> {
-    return this.componentIndex.get(id);
-  }
+  async getComponent(id: FoodComponentId): Promise<FoodComponent | undefined> { return this.componentIndex.get(id); }
 }

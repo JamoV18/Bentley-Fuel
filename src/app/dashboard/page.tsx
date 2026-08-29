@@ -20,7 +20,7 @@ export default async function DashboardPage() {
       <AppNav />
       {provider.dataStatus === "mock" && (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-          Demo menu data · not current official Bentley Dining information.
+          Live DineOnCampus integration is enabled for the 921. Other campus locations still contain demo menu data until their official sources are connected.
         </p>
       )}
       <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">

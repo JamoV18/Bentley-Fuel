@@ -15,13 +15,14 @@ export interface LocationView {
 export async function getLocationView(
   provider: DiningDataProvider,
   locationId: LocationId,
+  date?: string,
 ): Promise<LocationView | undefined> {
   const location = await provider.getLocation(locationId);
   if (!location) return undefined;
 
   const [stations, menuItems] = await Promise.all([
-    provider.getStations(locationId),
-    provider.getMenuItems({ locationId }),
+    provider.getStations(locationId, date),
+    provider.getMenuItems({ locationId, date }),
   ]);
 
   return {
@@ -30,9 +31,7 @@ export async function getLocationView(
       .filter((station) => station.locationId === locationId)
       .map((station) => ({
         station,
-        menuItems: menuItems.filter(
-          (item) => item.locationId === locationId && item.stationId === station.id,
-        ),
+        menuItems: menuItems.filter((item) => item.locationId === locationId && item.stationId === station.id),
       })),
   };
 }

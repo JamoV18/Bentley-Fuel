@@ -1,13 +1,13 @@
 import type { DiningDataProvider } from "@/services";
 import type { MealBuild, MenuItem } from "@/types";
 
-/**
- * Temporary Phase 6 verification fixture. It selects existing provider records
- * by stable ID and contains no ranking, profile input, or invented food data.
- * Phase 7 can replace this function with availability-aware candidate generation.
- */
-export async function getPhase6ExampleMeal(provider: DiningDataProvider, locationId: string): Promise<MealBuild | undefined> {
-  const items = await provider.getMenuItems({ locationId });
+/** Graceful seed used before personalized ranking resolves. */
+export async function getPhase6ExampleMeal(
+  provider: DiningDataProvider,
+  locationId: string,
+  date?: string,
+): Promise<MealBuild | undefined> {
+  const items = await provider.getMenuItems({ locationId, date });
 
   if (locationId === "loc-921") {
     const ids = ["item-921-grilled-chicken-sandwich", "item-921-chicken-caesar-salad", "item-921-blueberry-muffin"];
@@ -16,9 +16,6 @@ export async function getPhase6ExampleMeal(provider: DiningDataProvider, locatio
     }
   }
 
-  // Dana is intentionally kept to one concept in this Phase 6 fixture. Blue Chip
-  // and The Nest do not operate together; Phase 7 will determine the eligible
-  // station pool from actual availability before constructing a meal.
   const custom = items.find((item) => item.id === "item-brito-build-your-own");
   if (custom?.customization) {
     const componentSelections = custom.customization
@@ -33,9 +30,6 @@ export async function getPhase6ExampleMeal(provider: DiningDataProvider, locatio
   );
   if (predefined.length === 0) return undefined;
 
-  // A physical location is the meal boundary. Prefer one item from each station
-  // before filling remaining slots so LaCava, Falcon Market, and future locations
-  // demonstrate the same multi-station complete-meal model as 921.
   const selected: typeof predefined = [];
   const selectedIds = new Set<string>();
   const seenStations = new Set<string>();

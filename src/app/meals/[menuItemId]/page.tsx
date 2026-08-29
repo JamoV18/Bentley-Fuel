@@ -10,12 +10,20 @@ import type { FoodComponent, NutritionFacts, ServingSize } from "@/types";
 const readable = (value: string) => value.split("-").map((word, index) => index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word).join("-");
 const readableAllergen = (value: string) => value.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 const servingText = (serving: ServingSize) => serving.description ?? `${serving.amount} ${serving.unit}${serving.amount === 1 ? "" : "s"}`;
+const liveDateFromId = (id: string) => id.match(/^doc-921-(\d{4}-\d{2}-\d{2})-/)?.[1];
 const optionalNutrition: Array<[keyof NutritionFacts, string, string]> = [
   ["fiber", "Fiber", "g"], ["sugar", "Sugar", "g"], ["addedSugar", "Added sugar", "g"], ["saturatedFat", "Saturated fat", "g"], ["transFat", "Trans fat", "g"], ["cholesterol", "Cholesterol", "mg"], ["sodium", "Sodium", "mg"], ["potassium", "Potassium", "mg"], ["calcium", "Calcium", "mg"], ["iron", "Iron", "mg"], ["vitaminD", "Vitamin D", "µg"],
 ];
 
-export default async function MealPage({ params }: { params: Promise<{ menuItemId: string }> }) {
+export default async function MealPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ menuItemId: string }>;
+  searchParams: Promise<{ date?: string }>;
+}) {
   const { menuItemId } = await params;
+  const query = await searchParams;
   const provider = getDiningProvider();
   const detail = await getMealDetail(provider, menuItemId);
   if (!detail) notFound();
@@ -26,8 +34,14 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
   const dietaryTags = getDisplayDietaryTags(item);
   const showsAllergenGuidance = shouldShowAllergenGuidance(item);
   const possibleCustomizableAllergens = [...new Set([...item.allergens, ...(item.mayContainAllergens ?? [])])];
-  const backHref = location ? `/locations/${location.id}` : "/dashboard";
+  const menuDate = query.date ?? liveDateFromId(item.id);
+  const dateQuery = menuDate ? `?date=${encodeURIComponent(menuDate)}` : "";
+  const backHref = location ? `/locations/${location.id}${dateQuery}` : "/dashboard";
   const backLabel = location ? (location.shortName ?? location.name) : "All locations";
+  const addHref = location
+    ? `/meal-builder/${location.id}?mode=manual&add=${encodeURIComponent(item.id)}${menuDate ? `&date=${encodeURIComponent(menuDate)}` : ""}`
+    : undefined;
+  const isVerified = item.provenance.dataStatus === "verified";
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
@@ -38,13 +52,22 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
         <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-9">
           <p className="brand-kicker">Bentley Fuel</p>
           <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-semibold subtle">{station && <span>{station.name}</span>}{station && location && <span>·</span>}{location && <span>{location.name}</span>}</div>
-          <div className="mt-2 flex items-start justify-between gap-3"><h1 className="text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{item.name}</h1>{item.kind === "customizable" && <span className="mt-1 shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800">Customizable</span>}</div>
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <h1 className="text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{item.name}</h1>
+            {isVerified ? <span className="mt-1 shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800">DineOnCampus</span> : item.kind === "customizable" ? <span className="mt-1 shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800">Customizable</span> : null}
+          </div>
           {item.description && <p className="mt-4 max-w-xl text-base leading-relaxed subtle">{item.description}</p>}
-          {location && <Link href={`/meal-builder/${location.id}?mode=manual&add=${encodeURIComponent(item.id)}`} className="primary mt-6 inline-flex justify-center sm:self-start sm:px-8">Add to my meal</Link>}
+          {addHref && <Link href={addHref} className="primary mt-6 inline-flex justify-center sm:self-start sm:px-8">Add to my meal</Link>}
         </div>
       </section>
 
-      {provider.dataStatus === "mock" && <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">Demo menu data · not current official Bentley Dining information.</p>}
+      {isVerified ? (
+        <p className="mt-5 rounded-xl border border-emerald-200/80 bg-emerald-50/85 px-4 py-3 text-sm text-emerald-950">
+          Published by Bentley Dining through DineOnCampus. Bentley Fuel maps the values supplied by the official menu and does not fill missing nutrition fields with estimates.
+        </p>
+      ) : (
+        <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">Demo menu data · not current official Bentley Dining information.</p>
+      )}
 
       <div className="mt-5 grid items-start gap-5 lg:grid-cols-2">
         {item.kind === "predefined" && item.nutrition && (
@@ -55,6 +78,14 @@ export default async function MealPage({ params }: { params: Promise<{ menuItemI
             </dl>
             {item.serving && <p className="mt-3 text-xs subtle">Serving: {servingText(item.serving)}</p>}
             {extraNutrition.length > 0 && <div className="mt-5 border-t border-black/[.06] pt-4"><h3 className="text-sm font-bold">More nutrition</h3><dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">{extraNutrition.map(([key, label, unit]) => <div key={key} className="flex justify-between gap-3 border-b border-black/[.05] pb-2"><dt className="subtle">{label}</dt><dd className="font-bold">{item.nutrition?.[key]}{unit}</dd></div>)}</dl></div>}
+          </section>
+        )}
+
+        {item.ingredients && (
+          <section className="surface p-5 sm:p-6" aria-labelledby="ingredients-heading">
+            <p className="eyebrow">Ingredients</p>
+            <h2 id="ingredients-heading" className="mt-1 text-2xl font-bold">Published ingredient statement</h2>
+            <p className="mt-4 text-sm leading-relaxed text-black/70">{item.ingredients}</p>
           </section>
         )}
 

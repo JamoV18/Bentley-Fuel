@@ -21,36 +21,21 @@ import type {
 } from "./common";
 import type { Allergen, DietaryTag, NutritionFacts } from "./nutrition";
 
-/* -------------------------------------------------------------------------- */
-/* University                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export interface University {
   id: UniversityId;
   name: string;
   shortName: string;
   city: string;
   state: string;
-  /** e.g. "Bentley Dining" / "Chartwells". Mock for now. */
   diningProvider?: string;
   provenance: Provenance;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Location                                                                   */
-/* -------------------------------------------------------------------------- */
-
-export type LocationType =
-  | "dining-hall" // all-you-care-to-eat residential hall (e.g. 921)
-  | "food-court" // multiple counters, à la carte (e.g. LaCava)
-  | "quick-service" // single-concept quick-service location
-  | "cafe"
-  | "market"; // convenience / grab-and-go (e.g. The Market)
+export type LocationType = "dining-hall" | "food-court" | "quick-service" | "cafe" | "market";
 
 export interface Location {
   id: LocationId;
   name: string;
-  /** Short label for tight mobile UI, e.g. "921". */
   shortName?: string;
   type: LocationType;
   universityId: UniversityId;
@@ -58,37 +43,23 @@ export interface Location {
   description?: string;
   geo?: GeoPoint;
   hours?: DailyHours[];
-  /** Whether a residential meal-plan swipe is accepted here. */
   mealPlanAccepted?: boolean;
-  /** Whether Bentley "dining dollars"/points are accepted. */
   acceptsDiningDollars?: boolean;
   provenance: Provenance;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Station                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/** A counter/concept within a location (Grill, Deli, Build-Your-Own, ...). */
 export interface Station {
   id: StationId;
   name: string;
   description?: string;
   locationId: LocationId;
-  /** e.g. "American", "Mexican", "Salad", "Bakery". */
   cuisineType?: string;
-  /** Which meal periods this station operates. */
   mealPeriods?: MealPeriod[];
   provenance: Provenance;
 }
 
-/* -------------------------------------------------------------------------- */
-/* FoodComponent                                                              */
-/* -------------------------------------------------------------------------- */
-
-/** The role a component plays when assembling an item. */
 export type ComponentCategory =
-  | "base" // rice, greens, grain bowls
+  | "base"
   | "protein"
   | "vegetable"
   | "bean"
@@ -100,50 +71,24 @@ export type ComponentCategory =
   | "side"
   | "extra";
 
-/**
- * The atomic building block of the food graph. Used both to compose predefined
- * items and to power customizable builders (e.g. a build-your-own bowl). Nutrition is
- * expressed per `serving`.
- */
 export interface FoodComponent {
   id: FoodComponentId;
   name: string;
   description?: string;
   category: ComponentCategory;
-  /** The portion the `nutrition` values describe. */
   serving: ServingSize;
   nutrition: NutritionFacts;
-  /** Known allergens present in this component. */
   allergens: Allergen[];
-  /** Cross-contact / "may contain" allergens (shared equipment, etc.). */
   mayContainAllergens?: Allergen[];
   dietaryTags: DietaryTag[];
   provenance: Provenance;
-  /** Preselected in a builder when true. */
   isDefault?: boolean;
-  /** Max servings a student may add in a builder (e.g. 2 scoops of protein). */
   maxQuantity?: number;
 }
 
-/* -------------------------------------------------------------------------- */
-/* MenuItem                                                                   */
-/* -------------------------------------------------------------------------- */
-
 export type MenuItemKind = "predefined" | "customizable";
-
-/**
- * Functional role when Bentley Fuel combines foods into one meal. This is not a
- * nutrition claim; it prevents the recommendation engine from treating several
- * full entrees as if they were complementary sides simply because their macros
- * add up. Real dining data should supply this when available. Until then the
- * recommendation service uses a conservative fallback inference.
- */
 export type MenuItemMealRole = "main" | "side" | "snack" | "drink" | "dessert";
 
-/**
- * One step in a customizable builder, e.g. "Choose your base (1)". References
- * components by ID; the builder enforces min/max selection counts.
- */
 export interface CustomizationStep {
   id: string;
   label: string;
@@ -151,7 +96,6 @@ export interface CustomizationStep {
   required: boolean;
   minSelections: number;
   maxSelections: number;
-  /** Candidate components for this step. */
   componentIds: FoodComponentId[];
 }
 
@@ -159,46 +103,27 @@ export interface MenuItem {
   id: string;
   name: string;
   description?: string;
+  /** Official ingredient statement when supplied by the dining source. */
+  ingredients?: string;
   kind: MenuItemKind;
   stationId: StationId;
   locationId: LocationId;
-
-  /* --- Predefined items --- */
-  /** Total nutrition for a predefined item, per `serving`. */
   nutrition?: NutritionFacts;
   serving?: ServingSize;
-  /** Components that make up a predefined item (for transparency/filtering). */
   componentIds?: FoodComponentId[];
-
-  /* --- Customizable items --- */
-  /** Fixed nutrition always included (e.g. the tortilla/bowl itself). */
   baseNutrition?: NutritionFacts;
-  /** Ordered builder steps for customizable items. */
   customization?: CustomizationStep[];
-
-  /* --- Shared metadata --- */
-  /** Role used when assembling a complete recommendation. */
   mealRole?: MenuItemMealRole;
-  /** Aggregate known allergens (union of components for predefined items). */
   allergens: Allergen[];
   mayContainAllergens?: Allergen[];
   dietaryTags: DietaryTag[];
   price?: number;
   availability?: MealPeriod[];
   imageUrl?: string;
-  /** Highlighted on the location page. */
   popular?: boolean;
   provenance: Provenance;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Dataset envelope                                                           */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A fully-loaded, normalized dining dataset. The service layer returns this
- * shape regardless of whether the data is mock or real.
- */
 export interface DiningDataset {
   university: University;
   locations: Location[];

@@ -32,6 +32,8 @@ export interface MealHistoryScore {
 
 const round1 = (value: number) => Math.round(value * 10) / 10;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const normalizedDisplayName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const stableMenuItemId = (id: string) => id.replace(/^doc-921-\d{4}-\d{2}-\d{2}-item-/, "doc-921-item-");
 
 /** Approximate consumed nutrition when the student supplies the lightweight finish prompt. */
 export function estimateConsumedNutrition(
@@ -42,7 +44,12 @@ export function estimateConsumedNutrition(
 }
 
 const itemTokens = (build: MealBuild): Set<string> =>
-  new Set(build.items.map((line) => `item:${line.menuItemId}`));
+  new Set(build.items.flatMap((line) => {
+    const tokens = [`item:${stableMenuItemId(line.menuItemId)}`];
+    const displayName = line.display?.name ? normalizedDisplayName(line.display.name) : "";
+    if (displayName) tokens.push(`name:${displayName}`);
+    return tokens;
+  }));
 
 const componentTokens = (build: MealBuild): Set<string> =>
   new Set(
@@ -63,6 +70,8 @@ const jaccard = (a: ReadonlySet<string>, b: ReadonlySet<string>): number => {
 /**
  * Similarity is driven primarily by menu-item identity, with custom components
  * refining whether two builds of the same configurable item are actually alike.
+ * DineOnCampus IDs include the menu date, so the date portion is intentionally
+ * removed and captured display names provide a second stable signal across days.
  */
 export function mealBuildSimilarity(a: MealBuild, b: MealBuild): number {
   const items = jaccard(itemTokens(a), itemTokens(b));

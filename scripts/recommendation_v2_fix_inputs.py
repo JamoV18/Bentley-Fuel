@@ -23,4 +23,11 @@ new = '''const isSingleCustomizable = itemSet.length === 1 && itemSet[0]?.kind =
     const builds = cartesian(variantGroups, perSetCap);'''
 if old not in text:
     raise SystemExit("candidate variant cap patch target missing")
-patch.write_text(text.replace(old, new, 1))
+text = text.replace(old, new, 1)
+text = text.replace(
+    'const coherenceAdjustment = (mealCoherence - 70) * 0.30;',
+    'const coherenceAdjustment = (mealCoherence - 70) * 0.40;',
+    1,
+)
+text = text.replace('balanced >= dense + 8', 'balanced >= dense + 4', 1)
+patch.write_text(text)

@@ -1,0 +1,26 @@
+name: Evaluate live recommendations
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/eval-live-recommendations.yml
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - name: Print live 921 recommendation rankings
+        run: npx tsx scripts/eval_live_recommendations.ts

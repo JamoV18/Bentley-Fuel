@@ -3,15 +3,34 @@ const DINE_ON_CAMPUS_HOSTS = new Set([
   "api.dineoncampus.com",
 ]);
 
+/**
+ * Verified from Bentley's current public DineOnCampus menu request on
+ * 2026-08-29. Period IDs remain date-driven and are fetched live.
+ */
+export const BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID = "6a63fc9b4b5736c5a8d6332b";
+const BENTLEY_DISCOVERY_SITE_ID = "bentley-fuel-fixed-site";
+
 type PatchedGlobal = typeof globalThis & {
   __bentleyFuelDineOnCampusFetchPatched?: boolean;
 };
+
+const jsonResponse = (value: unknown) => new Response(JSON.stringify(value), {
+  status: 200,
+  headers: { "Content-Type": "application/json" },
+});
 
 /**
  * DineOnCampus's public API is called by its browser client with normal browser
  * request headers. Some upstream responses reject bare server-style requests,
  * so server rendering mirrors that public request shape for these hosts.
  * No cookies, credentials, or private headers are added.
+ *
+ * Bentley Fuel previously tried to rediscover Bentley and The 921 through the
+ * legacy /sites/public -> status_by_site path. Bentley's current web app exposes
+ * The 921's stable public location ID directly in its menu requests, so those two
+ * discovery calls are resolved locally to that verified ID. The actual periods,
+ * menus, nutrition, ingredients, allergens, and labels are still fetched live
+ * from DineOnCampus for the selected date.
  */
 export function installDineOnCampusServerFetchHeaders(): void {
   if (typeof window !== "undefined") return;
@@ -27,14 +46,33 @@ export function installDineOnCampusServerFetchHeaders(): void {
         ? input.href
         : input.url;
 
-    let host = "";
+    let url: URL;
     try {
-      host = new URL(href).hostname;
+      url = new URL(href);
     } catch {
       return originalFetch(input, init);
     }
 
-    if (!DINE_ON_CAMPUS_HOSTS.has(host)) return originalFetch(input, init);
+    if (!DINE_ON_CAMPUS_HOSTS.has(url.hostname)) return originalFetch(input, init);
+
+    // Avoid brittle legacy school/location discovery. These synthetic discovery
+    // responses only identify The 921; all menu content still comes from DOC.
+    if (url.hostname === "apiv4.dineoncampus.com" && url.pathname === "/sites/public") {
+      return jsonResponse({ sites: [{ id: BENTLEY_DISCOVERY_SITE_ID, name: "Bentley University" }] });
+    }
+    if (
+      url.hostname === "apiv4.dineoncampus.com" &&
+      url.pathname === "/locations/status_by_site" &&
+      url.searchParams.get("siteId") === BENTLEY_DISCOVERY_SITE_ID
+    ) {
+      return jsonResponse({
+        locations: [{
+          id: BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID,
+          name: "921 Dining Hall",
+          buildingName: "The 921",
+        }],
+      });
+    }
 
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
     new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
@@ -42,7 +80,7 @@ export function installDineOnCampusServerFetchHeaders(): void {
     headers.set("Accept-Language", "en-US,en;q=0.9");
     headers.set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0 Safari/537.36");
     headers.set("Origin", "https://dineoncampus.com");
-    headers.set("Referer", "https://dineoncampus.com/Bentley/locations");
+    headers.set("Referer", "https://dineoncampus.com/bentley/whats-on-the-menu/921-dining-hall");
     headers.set("X-Requested-With", "XMLHttpRequest");
 
     return originalFetch(input, { ...init, headers });

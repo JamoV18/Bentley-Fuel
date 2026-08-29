@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import FlowHeader from "@/components/FlowHeader";
 import { bentleyMenuDate, formatMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
@@ -13,6 +13,18 @@ const PERIOD_ORDER: MealPeriod[] = ["breakfast", "brunch", "lunch", "dinner", "l
 const readablePeriod = (period: MealPeriod) => period.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const periodMatches = (periods: readonly MealPeriod[] | undefined, period: MealPeriod) => !periods || periods.length === 0 || periods.includes("all-day") || periods.includes(period);
 const asMealPeriod = (value: string | undefined): MealPeriod | undefined => PERIOD_ORDER.includes(value as MealPeriod) ? value as MealPeriod : undefined;
+
+function currentBentleyMealPeriod(): MealPeriod {
+  const hour = Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date()));
+  if (hour >= 5 && hour < 11) return "breakfast";
+  if (hour >= 11 && hour < 16) return "lunch";
+  if (hour >= 16 && hour < 22) return "dinner";
+  return "late-night";
+}
 
 export default async function MealBuilderPage({
   params,
@@ -73,7 +85,22 @@ export default async function MealBuilderPage({
 
   let selectedPeriod = requestedPeriod && availablePeriods.includes(requestedPeriod) ? requestedPeriod : undefined;
   if (!selectedPeriod && initialItemPeriod && availablePeriods.includes(initialItemPeriod)) selectedPeriod = initialItemPeriod;
-  if (!selectedPeriod && isNineTwentyOne && menuDate !== bentleyMenuDate()) selectedPeriod = availablePeriods[0];
+  if (!selectedPeriod && isNineTwentyOne && availablePeriods.length > 0) {
+    const clockPeriod = currentBentleyMealPeriod();
+    selectedPeriod = availablePeriods.includes(clockPeriod) ? clockPeriod : availablePeriods[0];
+  }
+
+  // Canonicalize the 921 route with the chosen live period. The client-side
+  // recommendation engine intentionally reads this query value before the clock,
+  // so the displayed DOC period and the nutrition scoring period cannot drift.
+  if (isNineTwentyOne && menuDate && selectedPeriod && !requestedPeriod) {
+    const next = new URLSearchParams();
+    if (query.mode) next.set("mode", query.mode);
+    if (query.add) next.set("add", query.add);
+    next.set("date", menuDate);
+    next.set("period", selectedPeriod);
+    redirect(`/meal-builder/${locationId}?${next.toString()}`);
+  }
 
   const selectedItems = selectedPeriod
     ? allMenuItems.filter((item) => periodMatches(item.availability, selectedPeriod))

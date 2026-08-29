@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import FlowHeader from "@/components/FlowHeader";
 import { bentleyMenuDate, formatMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
 import { getDiningProvider } from "@/services";
+import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
 import type { MealPeriod } from "@/types";
 import ManualMealBuilderClient from "./ManualMealBuilderClient";
 import MealBuilderClient from "./MealBuilderClient";
@@ -21,6 +23,7 @@ export default async function MealBuilderPage({
 }) {
   const { locationId } = await params;
   const query = await searchParams;
+  installDineOnCampusServerFetchHeaders();
   const provider = getDiningProvider();
   const location = await provider.getLocation(locationId);
   if (!location) notFound();
@@ -29,6 +32,40 @@ export default async function MealBuilderPage({
   const menuDate = isNineTwentyOne ? normalizeBentleyMenuDate(query.date) : undefined;
   const allMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
   const allStations = await provider.getStations(locationId, menuDate);
+  const usesVerifiedMenu = allMenuItems.some((item) => item.provenance.dataStatus === "verified");
+
+  // The 921 is live-data-only. Never substitute mock foods into a current or
+  // future DineOnCampus recommendation if the upstream menu request fails.
+  if (isNineTwentyOne && !usesVerifiedMenu) {
+    const requestedLabel = asMealPeriod(query.period);
+    return (
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
+        <FlowHeader backHref={`/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`} backLabel="The 921" />
+        <section className="surface mt-8 p-6 sm:p-8">
+          <p className="eyebrow">921 live menu</p>
+          <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Live menu unavailable</h1>
+          <p className="mt-4 max-w-2xl text-base leading-relaxed subtle">
+            Bentley Fuel could not verify the DineOnCampus {requestedLabel ? `${readablePeriod(requestedLabel).toLowerCase()} ` : ""}menu for {menuDate ? formatMenuDate(menuDate) : "this date"}. No demo foods are being substituted.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a
+              href="https://dineoncampus.com/Bentley/locations"
+              target="_blank"
+              rel="noreferrer"
+              className="primary inline-flex items-center justify-center"
+            >
+              Open Bentley DineOnCampus
+            </a>
+            <Link href={`/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`} className="secondary inline-flex items-center justify-center">
+              Try again
+            </Link>
+          </div>
+          <p className="mt-5 text-xs subtle">A recommendation will only appear when the published 921 menu is successfully verified.</p>
+        </section>
+      </main>
+    );
+  }
+
   const availablePeriods = PERIOD_ORDER.filter((period) => allMenuItems.some((item) => periodMatches(item.availability, period) && item.availability?.includes(period)));
   const requestedPeriod = asMealPeriod(query.period);
   const initialRawItem = query.add ? allMenuItems.find((item) => item.id === query.add) : undefined;
@@ -55,7 +92,6 @@ export default async function MealBuilderPage({
   ]))];
   const components = await provider.getComponents(componentIds);
   const resources = { location, menuItems, stations, components };
-  const usesVerifiedMenu = allMenuItems.some((item) => item.provenance.dataStatus === "verified");
   const isDemo = provider.dataStatus === "mock" && !usesVerifiedMenu;
 
   const periodHref = (period: MealPeriod) => {

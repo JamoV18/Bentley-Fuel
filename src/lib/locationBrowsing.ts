@@ -25,13 +25,22 @@ export async function getLocationView(
     provider.getMenuItems({ locationId, date }),
   ]);
 
+  // The 921 is date-driven and should never present mock rows as current menu
+  // data. If the live feed fails, surface an empty live view rather than mixing
+  // legacy demo foods into the student's real dining decision.
+  const visibleItems = locationId === "loc-921"
+    ? menuItems.filter((item) => item.provenance.dataStatus === "verified")
+    : menuItems;
+  const visibleStationIds = new Set(visibleItems.map((item) => item.stationId));
+
   return {
     location,
     sections: stations
       .filter((station) => station.locationId === locationId)
+      .filter((station) => locationId !== "loc-921" || visibleStationIds.has(station.id))
       .map((station) => ({
         station,
-        menuItems: menuItems.filter((item) => item.locationId === locationId && item.stationId === station.id),
+        menuItems: visibleItems.filter((item) => item.locationId === locationId && item.stationId === station.id),
       })),
   };
 }

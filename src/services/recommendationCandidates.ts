@@ -135,20 +135,30 @@ function lineVariantsForItem(
   }];
 }
 
-const combinations = <T>(values: readonly T[], size: number): T[][] => {
+const collectCombinations = <T>(
+  values: readonly T[],
+  size: number,
+  accept: (row: T[]) => boolean,
+  cap: number,
+): T[][] => {
   const out: T[][] = [];
-  const visit = (start: number, picked: T[]) => {
+  const picked: T[] = [];
+  const visit = (start: number) => {
+    if (out.length >= cap) return;
     if (picked.length === size) {
-      out.push([...picked]);
+      const row = [...picked];
+      if (accept(row)) out.push(row);
       return;
     }
-    for (let index = start; index < values.length; index += 1) {
+    const remainingNeeded = size - picked.length;
+    const lastStart = values.length - remainingNeeded;
+    for (let index = start; index <= lastStart && out.length < cap; index += 1) {
       picked.push(values[index]);
-      visit(index + 1, picked);
+      visit(index + 1);
       picked.pop();
     }
   };
-  visit(0, []);
+  visit(0);
   return out;
 };
 
@@ -221,7 +231,7 @@ const roleBalancePriority = (items: readonly MenuItem[]): number => {
 function recommendationPoolCap(maxItems: number, maxCandidates: number): number {
   if (maxItems <= 1) return Math.max(24, Math.min(120, maxCandidates * 2));
   if (maxItems === 2) return Math.max(28, Math.min(80, maxCandidates + 20));
-  if (maxItems === 3) return Math.max(30, Math.min(52, Math.ceil(maxCandidates * 0.75) + 12));
+  if (maxItems === 3) return Math.max(30, Math.min(40, Math.ceil(maxCandidates * 0.5) + 10));
   return Math.max(24, Math.min(36, maxCandidates + 8));
 }
 
@@ -333,12 +343,19 @@ export function generateMealCandidatesFromResources(
   const generationPool = boundedRecommendationPool(configurable, context, maxItems, maxCandidates, requireMain);
 
   const candidateItemSets: MenuItem[][] = [];
+  const maxItemSetsPerSize = Math.max(1200, maxCandidates * 20);
   const addCandidateItemSets = (mustHaveMain: boolean) => {
     for (let size = 1; size <= Math.min(maxItems, generationPool.length); size += 1) {
-      candidateItemSets.push(...combinations(generationPool, size).filter((itemSet) => {
-        if (!isPlausibleMealComposition(itemSet)) return false;
-        return !mustHaveMain || roleCounts(itemSet).main === 1;
-      }));
+      const rows = collectCombinations(
+        generationPool,
+        size,
+        (itemSet) => {
+          if (!isPlausibleMealComposition(itemSet)) return false;
+          return !mustHaveMain || roleCounts(itemSet).main === 1;
+        },
+        maxItemSetsPerSize,
+      );
+      for (const row of rows) candidateItemSets.push(row);
     }
   };
 

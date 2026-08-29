@@ -182,21 +182,21 @@ test("live-sized menus stay bounded and skip rows without complete nutrition", (
   assert.ok(resources.stations.length > 0);
 
   const stationIds = resources.stations.map((station) => station.id);
-  const mains = Array.from({ length: 120 }, (_, index) => ({
+  const mains = Array.from({ length: 300 }, (_, index) => ({
     ...mainSeed,
     id: `live-main-${index}`,
     name: `Grilled Chicken ${index}`,
     stationId: stationIds[index % stationIds.length],
     mealRole: "main" as const,
   }));
-  const sides = Array.from({ length: 240 }, (_, index) => ({
+  const sides = Array.from({ length: 600 }, (_, index) => ({
     ...sideSeed,
     id: `live-side-${index}`,
     name: `Roasted Vegetable Side ${index}`,
     stationId: stationIds[index % stationIds.length],
     mealRole: "side" as const,
   }));
-  const unscorable = Array.from({ length: 60 }, (_, index) => ({
+  const unscorable = Array.from({ length: 120 }, (_, index) => ({
     ...sideSeed,
     id: `live-no-nutrition-${index}`,
     name: `Published Item Without Complete Macros ${index}`,

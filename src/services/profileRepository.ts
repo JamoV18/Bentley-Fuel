@@ -1,6 +1,8 @@
+import { isOnboardingPreviewMode } from "../lib/onboardingPreview.ts";
 import { ALL_ALLERGENS, ALL_DIETARY_TAGS } from "../types/nutrition.ts";
 import type { BehavioralGoal, UnitSystem, WeightGoalPlan, WeightLossIntensity } from "../types/plan.ts";
 import type { ActivityLevel, BodyMetrics, PrimaryGoal, UserProfile } from "../types/user.ts";
+import { onboardingPreviewProfileRepository } from "./onboardingPreviewRepositories.ts";
 import { resolveNutritionPlan } from "./nutritionPlan.ts";
 import { createLocalProgressRepository } from "./progressRepository.ts";
 
@@ -119,4 +121,7 @@ export function createLocalProfileRepository(storage: StorageLike): ProfileRepos
   };
 }
 
-export const browserProfileRepository = (): ProfileRepository => createLocalProfileRepository(window.localStorage);
+export const browserProfileRepository = (): ProfileRepository => {
+  if (window.location.pathname === "/onboarding" && isOnboardingPreviewMode()) return onboardingPreviewProfileRepository;
+  return createLocalProfileRepository(window.localStorage);
+};

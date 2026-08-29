@@ -72,9 +72,39 @@
   to { transform: rotate(360deg); }
 }
 
+/* React Bits-inspired Fade Content: only the recommendation detail that changes after selection. */
+[aria-labelledby="candidate-heading"] > * {
+  animation: react-bits-recommendation-fade 0.29s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, filter;
+}
+
+[aria-labelledby="candidate-heading"] > :last-child {
+  animation-delay: 45ms;
+}
+
+@keyframes react-bits-recommendation-fade {
+  0% {
+    opacity: 0.46;
+    filter: blur(4.5px) saturate(0.96);
+  }
+  58% {
+    opacity: 0.94;
+    filter: blur(1px) saturate(0.99);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0) saturate(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-recommendation-index="0"]::before {
     animation: none;
     transform: rotate(18deg);
+  }
+
+  [aria-labelledby="candidate-heading"] > * {
+    animation: none;
+    filter: none;
   }
 }

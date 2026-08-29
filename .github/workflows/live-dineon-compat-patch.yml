@@ -1,0 +1,175 @@
+name: Apply live DineOn compatibility patch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/live-dineon-compat-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Patch live-menu compatibility edges
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, expected: int = 1) -> None:
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f"{path}: expected {expected} occurrence(s), found {count}: {old[:120]!r}")
+              file.write_text(text.replace(old, new))
+
+          # The personalized builder should fail locally, never at the whole-route level.
+          boundary = Path("src/app/meal-builder/[locationId]/MealBuilderErrorBoundary.tsx")
+          boundary.write_text('''"use client";
+
+import Link from "next/link";
+import { Component, type ErrorInfo, type ReactNode } from "react";
+import FlowHeader from "@/components/FlowHeader";
+import type { MealPeriod } from "@/types";
+
+export default class MealBuilderErrorBoundary extends Component<{
+  children: ReactNode;
+  locationId: string;
+  backLabel: string;
+  menuDate?: string;
+  selectedMealPeriod?: MealPeriod;
+}, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Meal recommendation UI failed", error, info);
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+
+    const backHref = `/locations/${this.props.locationId}${this.props.menuDate ? `?date=${encodeURIComponent(this.props.menuDate)}` : ""}`;
+    const manual = new URLSearchParams({ mode: "manual" });
+    if (this.props.menuDate) manual.set("date", this.props.menuDate);
+    if (this.props.selectedMealPeriod) manual.set("period", this.props.selectedMealPeriod);
+    const manualHref = `/meal-builder/${this.props.locationId}?${manual.toString()}`;
+
+    return (
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
+        <FlowHeader backHref={backHref} backLabel={this.props.backLabel} />
+        <section className="surface mt-8 p-6 sm:p-8">
+          <p className="eyebrow">Live menu protection</p>
+          <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Recommendation unavailable</h1>
+          <p className="mt-4 max-w-2xl text-base leading-relaxed subtle">
+            The published menu is still available, but Bentley Fuel hit an unexpected problem while ranking it. The app stopped the recommendation instead of substituting old demo foods or taking down the whole meal-builder route.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href={manualHref} className="primary inline-flex items-center justify-center">Build from the live menu</Link>
+            <Link href={backHref} className="secondary inline-flex items-center justify-center">Back to menu</Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+}
+''')
+
+          page = "src/app/meal-builder/[locationId]/page.tsx"
+          replace(page,
+              'import MealBuilderClient from "./MealBuilderClient";',
+              'import MealBuilderClient from "./MealBuilderClient";\nimport MealBuilderErrorBoundary from "./MealBuilderErrorBoundary";')
+          replace(page,
+              '    const fallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod)\n      ?? (isNineTwentyOne ? { locationId, items: [] } satisfies MealBuild : undefined);',
+              '    // A verified live 921 menu must not flash a synthetic demo-era example while ranking loads.\n    const fallbackBuild = isNineTwentyOne\n      ? ({ locationId, items: [] } satisfies MealBuild)\n      : await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod);')
+          replace(page,
+              '''    content = (\n      <MealBuilderClient\n        fallbackBuild={fallbackBuild}\n        resources={resources}\n        isDemo={isDemo}\n        menuDate={menuDate}\n        selectedMealPeriod={selectedPeriod}\n      />\n    );''',
+              '''    content = (\n      <MealBuilderErrorBoundary\n        locationId={locationId}\n        backLabel={location.shortName ?? location.name}\n        menuDate={menuDate}\n        selectedMealPeriod={selectedPeriod}\n      >\n        <MealBuilderClient\n          fallbackBuild={fallbackBuild}\n          resources={resources}\n          isDemo={isDemo}\n          menuDate={menuDate}\n          selectedMealPeriod={selectedPeriod}\n        />\n      </MealBuilderErrorBoundary>\n    );''')
+
+          client = "src/app/meal-builder/[locationId]/MealBuilderClient.tsx"
+          replace(client,
+              'type RecommendationState = "loading" | "ready" | "missing-profile" | "no-candidates";',
+              'type RecommendationState = "loading" | "ready" | "missing-profile" | "no-candidates" | "error";')
+          replace(client,
+              '  const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());',
+              '  const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());\n  const isVerifiedLiveMenu = resources.location?.id === "loc-921" && resources.menuItems.some((item) => item.provenance.dataStatus === "verified");')
+          replace(client,
+              '''    let context: RecommendationContext = { ...baseContext, excludeMenuItemIds: excludedMenuItemIds };\n    const generationOptions = { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 10, requireMain: true };\n    let candidates = generateMealCandidatesFromResources(resources.menuItems, resources.stations, resources.components, context, generationOptions);\n    if (candidates.length === 0 && excludedMenuItemIds.length > 0) {\n      context = baseContext;\n      candidates = generateMealCandidatesFromResources(resources.menuItems, resources.stations, resources.components, context, generationOptions);\n    }\n    const ranked = scoreResolvedMeals(candidates.map((candidate) => ({ candidate, computed: computeMealBuild(candidate.build, resources) })), context);\n    queueMicrotask(() => {\n      if (cancelled) return;\n      setRecommendationContext(context);\n      setRankings(ranked);\n      setRecommendationIndex(0);\n      if (ranked.length === 0) { setRecommendationState("no-candidates"); return; }\n      setBuild(ranked[0].candidate.build);\n      setRecommendationState("ready");\n    });''',
+              '''    let context: RecommendationContext = { ...baseContext, excludeMenuItemIds: excludedMenuItemIds };\n    try {\n      const generationOptions = { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 10, requireMain: true };\n      let candidates = generateMealCandidatesFromResources(resources.menuItems, resources.stations, resources.components, context, generationOptions);\n      if (candidates.length === 0 && excludedMenuItemIds.length > 0) {\n        context = baseContext;\n        candidates = generateMealCandidatesFromResources(resources.menuItems, resources.stations, resources.components, context, generationOptions);\n      }\n      const ranked = scoreResolvedMeals(candidates.map((candidate) => ({ candidate, computed: computeMealBuild(candidate.build, resources) })), context);\n      queueMicrotask(() => {\n        if (cancelled) return;\n        setRecommendationContext(context);\n        setRankings(ranked);\n        setRecommendationIndex(0);\n        if (ranked.length === 0) { setRecommendationState("no-candidates"); return; }\n        setBuild(ranked[0].candidate.build);\n        setRecommendationState("ready");\n      });\n    } catch {\n      queueMicrotask(() => {\n        if (cancelled) return;\n        setRecommendationContext(context);\n        setRankings([]);\n        setRecommendationIndex(0);\n        setRecommendationState("error");\n      });\n    }''')
+          replace(client,
+              '  const mealHeading = personalized ? "Recommended complete meal" : "Example complete meal";',
+              '  const mealHeading = personalized ? "Recommended complete meal" : isVerifiedLiveMenu ? (recommendationState === "loading" ? "Preparing live recommendation" : "No recommendation selected") : "Example complete meal";')
+          replace(client,
+              '          {recommendationState === "missing-profile" && <p className="mt-3 subtle">Complete your profile to turn this example into a personalized recommendation. <Link className="font-bold text-emerald-800 underline" href="/onboarding">Set up profile</Link></p>}',
+              '          {recommendationState === "missing-profile" && <p className="mt-3 subtle">Complete your profile to rank this menu around your goals and restrictions. <Link className="font-bold text-emerald-800 underline" href="/onboarding">Set up profile</Link> or build directly from the published items.</p>}')
+          replace(client,
+              '          {recommendationState === "no-candidates" && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">No eligible complete meal is available for this eating window. You can still build your own.</p>}',
+              '          {recommendationState === "no-candidates" && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">No eligible complete meal can be scored from the nutrition DineOnCampus published for this eating window. You can still build your own.</p>}\n          {recommendationState === "error" && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Recommendation ranking hit an unexpected issue. The live menu is still intact; use Build my own meal to continue without demo substitutions.</p>}')
+          replace(client,
+              ' : <p className="mt-4 text-sm subtle">Your current edit is empty. Add a replacement from the stations below.</p>}',
+              ' : <p className="mt-4 text-sm subtle">{recommendationState === "loading" ? "Ranking the published menu…" : "No meal is selected. Use Build my own meal to browse the published items directly."}</p>}',
+              expected=1)
+          replace(client,
+              'recommendationState === "loading" || recommendationState === "no-candidates" || chooseSuccess',
+              'recommendationState === "loading" || recommendationState === "no-candidates" || recommendationState === "error" || chooseSuccess')
+
+          candidates = "src/services/recommendationCandidates.ts"
+          replace(candidates,
+              '  if (maxItems === 3) return Math.max(30, Math.min(52, Math.ceil(maxCandidates * 0.75) + 12));',
+              '  if (maxItems === 3) return Math.max(30, Math.min(40, Math.ceil(maxCandidates * 0.5) + 10));')
+
+          browser = "src/app/meal-builder/[locationId]/MealFoodBrowser.tsx"
+          replace(browser,
+              '  const reduceMotion = useReducedMotion();\n  const [lastAddedItemId, setLastAddedItemId] = useState<string>();',
+              '  const reduceMotion = useReducedMotion();\n  const isVerifiedLiveMenu = resources.location?.id === "loc-921" && resources.menuItems.some((item) => item.provenance.dataStatus === "verified");\n  const [lastAddedItemId, setLastAddedItemId] = useState<string>();')
+          replace(browser,
+              '<p className="mt-1 max-w-2xl text-sm leading-relaxed subtle">Already know what you are getting? Add it here and Bentley Fuel will total the meal for you.</p>',
+              '<p className="mt-1 max-w-2xl text-sm leading-relaxed subtle">{isVerifiedLiveMenu ? "Add any published item here. Bentley Fuel totals nutrition only when DineOnCampus supplies a complete calories, protein, carbs, and fat panel." : "Already know what you are getting? Add it here and Bentley Fuel will total the meal for you."}</p>')
+          replace(browser,
+              'item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein` : "Nutrition shown after adding"',
+              'item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein` : item.provenance.dataStatus === "verified" ? "Complete macros not published" : "Nutrition unavailable"')
+
+          manual = "src/app/meal-builder/[locationId]/ManualMealBuilderClient.tsx"
+          replace(manual,
+              '  const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);\n  const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);',
+              '  const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);\n  const hasMissingNutrition = computed.issues.some((issue) => issue.code === "MISSING_NUTRITION");\n  const isVerifiedLiveMenu = resources.location?.id === "loc-921" && resources.menuItems.some((item) => item.provenance.dataStatus === "verified");\n  const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);')
+          replace(manual,
+              '<p className="mt-2 text-base leading-relaxed subtle">Already know what you’re eating? Add it here. Bentley Fuel totals the meal while you build it.</p>',
+              '<p className="mt-2 text-base leading-relaxed subtle">{isVerifiedLiveMenu ? "Add exactly what you’re eating from the published 921 menu. Bentley Fuel totals complete official macros and clearly flags items whose macro panel was not supplied." : "Already know what you’re eating? Add it here. Bentley Fuel totals the meal while you build it."}</p>')
+          replace(manual,
+              '{build.items.length > 0 && !computed.isValid && <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-900"><strong>Meal needs attention.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}</ul></div>}',
+              '{build.items.length > 0 && !computed.isValid && <div className={`mt-5 rounded-xl p-3 text-sm ${hasMissingNutrition ? "bg-amber-50 text-amber-950" : "bg-red-50 text-red-900"}`}><strong>{hasMissingNutrition ? "Official nutrition is incomplete." : "Meal needs attention."}</strong>{hasMissingNutrition ? <p className="mt-1 leading-relaxed">Bentley Fuel will not invent missing macros. You can keep editing this meal, but it cannot be saved to nutrition tracking until every selected item has complete published calories, protein, carbs, and fat.</p> : <ul className="mt-1 list-disc pl-5">{computed.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}</ul>}</div>}')
+          replace(manual,
+              '{futureMenu ? "Future menu · preview only" : savedHistoryId ? "Meal saved" : "Save this meal"}',
+              '{futureMenu ? "Future menu · preview only" : hasMissingNutrition ? "Complete nutrition required to save" : savedHistoryId ? "Meal saved" : "Save this meal"}')
+
+          today = "src/app/today/page.tsx"
+          replace(today,
+              '  const hasVerifiedMenuData = menuItems.some((item) => item.provenance.dataStatus === "verified");',
+              '  const hasMockMenuData = menuItems.some((item) => item.provenance.dataStatus === "mock");')
+          replace(today,
+              '      isDemo={!hasVerifiedMenuData}',
+              '      isDemo={hasMockMenuData}')
+          PY
+
+      - name: Commit compatibility patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/meal-builder src/services/recommendationCandidates.ts src/app/today/page.tsx
+          git commit -m "Finish live DineOn compatibility edges"
+          git push origin HEAD:main

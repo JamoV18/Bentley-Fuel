@@ -7,12 +7,14 @@ export default async function TodayPage() {
     provider.getLocations(),
     provider.getMenuItems(),
   ]);
+  const hasVerifiedMenuData = menuItems.some((item) => item.provenance.dataStatus === "verified");
+
   return (
     <TodayClient
       locationNames={Object.fromEntries(locations.map((location) => [location.id, location.shortName ?? location.name]))}
       itemNames={Object.fromEntries(menuItems.map((item) => [item.id, item.name]))}
       itemImageUrls={Object.fromEntries(menuItems.map((item) => [item.id, item.imageUrl]))}
-      isDemo={provider.dataStatus === "mock"}
+      isDemo={!hasVerifiedMenuData}
     />
   );
 }

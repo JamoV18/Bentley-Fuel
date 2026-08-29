@@ -1,13 +1,14 @@
 import type { DiningDataProvider } from "@/services";
-import type { MealBuild, MenuItem } from "@/types";
+import type { MealBuild, MealPeriod, MenuItem } from "@/types";
 
 /** Graceful seed used before personalized ranking resolves. */
 export async function getPhase6ExampleMeal(
   provider: DiningDataProvider,
   locationId: string,
   date?: string,
+  mealPeriod?: MealPeriod,
 ): Promise<MealBuild | undefined> {
-  const items = await provider.getMenuItems({ locationId, date });
+  const items = await provider.getMenuItems({ locationId, date, mealPeriod });
 
   if (locationId === "loc-921") {
     const ids = ["item-921-grilled-chicken-sandwich", "item-921-chicken-caesar-salad", "item-921-blueberry-muffin"];

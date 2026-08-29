@@ -45,6 +45,8 @@ function reasonsFor(ranked: RankedMealCandidate | undefined, context: Recommenda
   if (context.profile.primaryGoal === "build-muscle") reasons.push(`${nutrition.protein}g protein in this meal.`);
   else if (context.profile.primaryGoal === "athletic-performance") reasons.push(`${nutrition.protein}g protein and ${nutrition.carbs}g carbs for a performance-focused meal.`);
   else if (context.profile.primaryGoal === "lose-weight") reasons.push(`${nutrition.protein}g protein with ${nutrition.calories} calories.`);
+  if ((ranked.score.softPreferenceBonus ?? 0) >= 3) reasons.push("Matches eating preferences you selected in your profile.");
+  else if ((ranked.score.mealCoherence ?? 0) >= 86) reasons.push(ranked.candidate.stationIds.length <= 2 ? "Pairs complementary foods without unnecessary station hopping." : "Combines complementary foods into a more natural meal.");
   if (ranked.score.behavior.preferenceBoost >= 3) reasons.push("Similar to meals you have responded well to before.");
   else if ((context.recentHistory?.length ?? 0) > 0 && ranked.score.behavior.repetitionPenalty === 0) reasons.push("Adds some variety from your recent meals.");
   return reasons.slice(0, 3);

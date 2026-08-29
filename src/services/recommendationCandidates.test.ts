@@ -215,3 +215,42 @@ test("live-sized menus stay bounded and skip rows without complete nutrition", (
   assert.ok(first.every((candidate) => candidate.build.items.every((line) => !line.menuItemId.startsWith("live-no-nutrition-"))));
   assert.ok(first.every((candidate) => candidate.build.items.filter((line) => line.menuItemId.startsWith("live-main-")).length === 1));
 });
+
+
+test("candidate cap preserves multiple main anchors and multiple meal sizes", () => {
+  const resources = resourcesFor("loc-921");
+  const mainSeed = resources.items.find((item) => item.id === "item-921-grilled-chicken-sandwich");
+  const sideSeed = resources.items.find((item) => item.id === "item-921-herb-roasted-chicken");
+  assert.ok(mainSeed);
+  assert.ok(sideSeed);
+  const stationIds = resources.stations.map((station) => station.id);
+  const mains = Array.from({ length: 12 }, (_, index) => ({
+    ...mainSeed,
+    id: `coverage-main-${index}`,
+    name: `Coverage Main ${index}`,
+    stationId: stationIds[index % stationIds.length],
+    mealRole: "main" as const,
+  }));
+  const sides = Array.from({ length: 18 }, (_, index) => ({
+    ...sideSeed,
+    id: `coverage-side-${index}`,
+    name: index % 2 === 0 ? `Roasted Broccoli ${index}` : `Brown Rice ${index}`,
+    stationId: stationIds[index % stationIds.length],
+    mealRole: "side" as const,
+    nutrition: { calories: 130 + index, protein: 5, carbs: 22, fat: 2 },
+  }));
+
+  const candidates = generateMealCandidatesFromResources(
+    [...mains, ...sides],
+    resources.stations,
+    resources.components,
+    context("loc-921", { primaryGoal: "athletic-performance" }, "lunch"),
+    { maxItemsPerMeal: 3, maxCandidates: 36, requireMain: true },
+  );
+  const mainIds = new Set(candidates.flatMap((candidate) => candidate.build.items.map((line) => line.menuItemId).filter((id) => id.startsWith("coverage-main-"))));
+  const sizes = new Set(candidates.map((candidate) => candidate.build.items.length));
+  assert.ok(mainIds.size >= 8, `expected broad anchor coverage, got ${mainIds.size}`);
+  assert.ok(sizes.has(1));
+  assert.ok(sizes.has(2));
+  assert.ok(sizes.has(3));
+});

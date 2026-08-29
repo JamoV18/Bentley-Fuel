@@ -177,12 +177,12 @@ function sideBalanceScore(items: readonly MenuItem[]): number {
   if (sideItems.length >= 2 && distinctCount === categories.length) score += 6;
   if (sideItems.length >= 2 && produceCount > 0 && denseCount > 0) score += 14;
   if (produceCount > 0) score += 6;
-  if (sideItems.length >= 2 && denseCount >= 2) score -= 18;
-  if (sideItems.length >= 2 && produceCount === 0) score -= 8;
+  if (sideItems.length >= 2 && denseCount >= 2) score -= 28;
+  if (sideItems.length >= 2 && produceCount === 0) score -= 12;
   if (sideItems.length >= 2 && distinctCount < categories.length) score -= 8;
 
   if (["bowl", "pasta", "pizza"].includes(style) && denseCount > 0) score -= 9;
-  if (style === "handheld" && sideItems.length >= 2 && denseCount >= 2) score -= 10;
+  if (style === "handheld" && sideItems.length >= 2 && denseCount >= 2) score -= 14;
   if (style === "handheld" && produceCount > 0) score += 4;
   if (style === "protein-plate" && produceCount > 0 && denseCount > 0) score += 6;
 

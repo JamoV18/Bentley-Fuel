@@ -2,6 +2,7 @@ import type { DiningDataProvider } from "./diningProvider";
 import { resolveMealBuild, type ComputedMealBuild } from "./mealBuilder";
 import { mealBuildSimilarity, scoreMealHistory, type MealHistoryScore } from "./recommendationBehavior";
 import { mealDietQualityPenalty } from "./recommendationDietQuality";
+import { inferMenuItemMealRole, mealCoherenceScore } from "./recommendationMealQuality";
 import type { Macros, MealCandidate, PrimaryGoal, RecommendationContext } from "@/types";
 
 export type NutritionScoringMode = "daily-targets" | "goal-only";
@@ -22,6 +23,10 @@ export interface NutritionScoreBreakdown {
   energyOvershootPenalty: number;
   /** Temporary calorie-based sanity guard until every upstream item has authoritative meal-role metadata. */
   compositionPenalty: number;
+  /** 0..100 human-meal coherence: structure, side balance, station practicality, cuisine, and meal period. */
+  mealCoherence?: number;
+  /** Small positive-only boost for non-hard dietary preferences selected in the profile. */
+  softPreferenceBonus?: number;
   behavior: MealHistoryScore;
   mode: NutritionScoringMode;
 }
@@ -296,6 +301,60 @@ function blendedGoalAlignment(
   ));
 }
 
+const SOFT_PREFERENCE_TAGS = new Set([
+  "made-without-gluten",
+  "keto-friendly",
+  "high-protein",
+  "low-carb",
+  "low-sodium",
+  "low-calorie",
+  "spicy",
+]);
+
+function softDietaryPreferenceBonus(meal: ComputedMealBuild, context: RecommendationContext): number {
+  const nutrition = meal.nutrition;
+  if (!nutrition) return 0;
+  const preferences = context.profile.dietaryPreferences.filter((tag) => SOFT_PREFERENCE_TAGS.has(tag));
+  if (preferences.length === 0) return 0;
+  const items = meal.lines.flatMap((line) => line.item ? [line.item] : []);
+  const hasTag = (tag: string) => items.some((item) => item.dietaryTags.some((candidate) => candidate === tag));
+  const calories = Math.max(1, nutrition.calories);
+  let bonus = 0;
+
+  for (const preference of preferences) {
+    switch (preference) {
+      case "high-protein":
+        if (nutrition.protein >= 35 || nutrition.protein / calories >= 0.075) bonus += 5;
+        else if (hasTag(preference)) bonus += 3;
+        break;
+      case "low-carb":
+        if (nutrition.carbs <= 45) bonus += 5;
+        else if (hasTag(preference)) bonus += 3;
+        break;
+      case "keto-friendly":
+        if (nutrition.carbs <= 30) bonus += 6;
+        else if (hasTag(preference)) bonus += 3;
+        break;
+      case "low-sodium":
+        if (nutrition.sodium !== undefined && nutrition.sodium <= 800) bonus += 5;
+        else if (hasTag(preference)) bonus += 3;
+        break;
+      case "low-calorie": {
+        const reference = deriveMealMacroTarget(context)?.calories ?? deriveGoalOnlyMealCalorieReference(context);
+        if (nutrition.calories <= reference * 0.9) bonus += 4;
+        else if (hasTag(preference)) bonus += 2;
+        break;
+      }
+      case "made-without-gluten":
+      case "spicy":
+        if (hasTag(preference)) bonus += 4;
+        break;
+    }
+  }
+
+  return Math.min(8, Math.round(bonus * 10) / 10);
+}
+
 const MAX_ALTERNATIVE_SCORE_DROP = 20;
 
 /**
@@ -304,6 +363,8 @@ const MAX_ALTERNATIVE_SCORE_DROP = 20;
  * prefer changing this anchor before merely swapping one small add-on.
  */
 function mealAnchorMenuItemId(meal: RankedMealCandidate): string | undefined {
+  const inferredMain = meal.computed.lines.find((line) => line.item && inferMenuItemMealRole(line.item) === "main");
+  if (inferredMain) return inferredMain.selection.menuItemId;
   const rankedLines = meal.computed.lines
     .filter((line) => Boolean(line.nutrition))
     .sort((a, b) => (b.nutrition?.calories ?? 0) - (a.nutrition?.calories ?? 0));
@@ -318,29 +379,32 @@ export function orderRankedMealsForVariety(
   const remaining = [...sorted.slice(1)];
 
   while (remaining.length > 0) {
-    const current = ordered[ordered.length - 1];
-    const currentAnchor = mealAnchorMenuItemId(current);
+    const bestRawScore = remaining[0].score.total;
     const eligible = remaining
       .map((entry, index) => ({ entry, index }))
-      .filter(({ entry }) => current.score.total - entry.score.total <= MAX_ALTERNATIVE_SCORE_DROP);
+      .filter(({ entry }) => bestRawScore - entry.score.total <= MAX_ALTERNATIVE_SCORE_DROP);
 
-    const differentAnchor = eligible.filter(({ entry }) => {
-      const anchor = mealAnchorMenuItemId(entry);
-      return Boolean(currentAnchor && anchor && anchor !== currentAnchor);
-    });
-    const pool = differentAnchor.length > 0 ? differentAnchor : eligible;
-
-    let nextIndex = 0;
-    if (pool.length > 0) {
-      const best = [...pool].sort((a, b) => {
-        const similarityDifference = mealBuildSimilarity(current.candidate.build, a.entry.candidate.build)
-          - mealBuildSimilarity(current.candidate.build, b.entry.candidate.build);
-        if (similarityDifference !== 0) return similarityDifference;
-        return b.entry.score.total - a.entry.score.total;
-      })[0];
-      nextIndex = best.index;
+    const anchorCounts = new Map<string, number>();
+    for (const selected of ordered) {
+      const anchor = mealAnchorMenuItemId(selected);
+      if (anchor) anchorCounts.set(anchor, (anchorCounts.get(anchor) ?? 0) + 1);
     }
 
+    const rankedChoices = eligible.map(({ entry, index }) => {
+      const maximumSimilarity = Math.max(...ordered.map((selected) => mealBuildSimilarity(selected.candidate.build, entry.candidate.build)));
+      const anchor = mealAnchorMenuItemId(entry);
+      const anchorRepeats = anchor ? anchorCounts.get(anchor) ?? 0 : 0;
+      const diversityValue = (1 - maximumSimilarity) * 8 - anchorRepeats * 7;
+      return { entry, index, selectionScore: entry.score.total + diversityValue, maximumSimilarity, anchorRepeats };
+    });
+
+    rankedChoices.sort((a, b) =>
+      b.selectionScore - a.selectionScore
+      || a.anchorRepeats - b.anchorRepeats
+      || a.maximumSimilarity - b.maximumSimilarity
+      || b.entry.score.total - a.entry.score.total,
+    );
+    const nextIndex = rankedChoices[0]?.index ?? 0;
     ordered.push(remaining.splice(nextIndex, 1)[0]);
   }
 
@@ -363,6 +427,11 @@ export function scoreResolvedMeals(
       const penalty = remainingBudgetPenalty(computed.nutrition!, context);
       const dietQualityPenalty = mealDietQualityPenalty(computed, context);
       const compositionPenalty = mealCompositionPenalty(computed);
+      const mealItems = computed.lines.flatMap((line) => line.item ? [line.item] : []);
+      const mealStations = computed.lines.flatMap((line) => line.station ? [line.station] : []);
+      const mealCoherence = mealCoherenceScore(mealItems, mealStations, context);
+      const coherenceAdjustment = (mealCoherence - 70) * 0.40;
+      const softPreferenceBonus = softDietaryPreferenceBonus(computed, context);
       const targetFit = target
         ? blendedTargetFit(computed.nutrition!, target, context)
         : undefined;
@@ -374,8 +443,8 @@ export function scoreResolvedMeals(
         : goalOnlyEnergyOvershootPenalty(computed.nutrition!.calories, goalOnlyReference);
 
       const nutritionTotal = roundScore(targetFit === undefined
-        ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 - penalty - dietQualityPenalty - compositionPenalty - energyOvershootPenalty
-        : targetFit * 0.80 + goalAlignment * 0.20 - penalty - dietQualityPenalty - compositionPenalty);
+        ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 + coherenceAdjustment + softPreferenceBonus - penalty - dietQualityPenalty - compositionPenalty - energyOvershootPenalty
+        : targetFit * 0.80 + goalAlignment * 0.20 + coherenceAdjustment + softPreferenceBonus - penalty - dietQualityPenalty - compositionPenalty);
       const behavior = scoreMealHistory(candidate, context.recentHistory ?? []);
       const total = roundScore(nutritionTotal + behavior.totalAdjustment);
       return {
@@ -391,6 +460,8 @@ export function scoreResolvedMeals(
           dietQualityPenalty,
           energyOvershootPenalty,
           compositionPenalty,
+          mealCoherence,
+          softPreferenceBonus,
           behavior,
           mode,
         },

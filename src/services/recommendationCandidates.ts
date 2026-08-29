@@ -1,6 +1,8 @@
 import type { DiningDataProvider } from "./diningProvider";
 import { assessMenuItemEligibility } from "./recommendationEligibility";
 import { dietQualityPriority, shouldHardExcludeForDietQuality } from "./recommendationDietQuality";
+import { inferMenuItemMealRole, mealCoherenceScore } from "./recommendationMealQuality";
+export { inferMenuItemMealRole } from "./recommendationMealQuality";
 import type {
   FoodComponent,
   MealBuild,
@@ -179,29 +181,6 @@ const cartesian = <T>(groups: readonly T[][], cap: number): T[][] => {
   return rows;
 };
 
-const stationDiversity = (items: readonly MenuItem[]) => new Set(items.map((item) => item.stationId)).size;
-
-export function inferMenuItemMealRole(item: MenuItem): MenuItemMealRole {
-  if (item.mealRole) return item.mealRole;
-  const name = item.name.toLowerCase();
-  if (/\b(water|coffee|tea|juice|milk|smoothie|shake|latte|drink|beverage)\b/.test(name)) return "drink";
-  if (/\b(cookie|brownie|cake|ice cream|dessert)\b/.test(name)) return "dessert";
-  if (/\b(muffin|protein bar|granola bar|trail mix|chips|banana|apple|orange|yogurt)\b/.test(name)) return "snack";
-  if (/\b(spinach|tomato|tomatoes|onion|onions|pepper|peppers|lettuce|broccoli|carrots?|cucumber|salsa|sauce|dressing|condiment)\b/.test(name)) return "side";
-  if (item.kind === "customizable") return "main";
-
-  // DineOnCampus publishes many dining-hall entrees as individual portions that
-  // are well below 350 calories. Treat obvious entree names and protein-dense
-  // portions as mains instead of applying the old demo-only calorie threshold.
-  if (/\b(steak|chicken|turkey|beef|pork|ham|sausage|salmon|fish|shrimp|tofu|tempeh|eggs?|omelet|pasta|pastalya|lasagna|burrito|bowl|sandwich|burger|pizza|tacos?|quesadilla|nachos|curry|stir fry|stir-fry|stew|chili)\b/.test(name)) return "main";
-  const nutrition = item.nutrition ?? item.baseNutrition;
-  const calories = nutrition?.calories ?? 0;
-  const protein = nutrition?.protein ?? 0;
-  if (protein >= 15 && calories >= 100) return "main";
-  if (calories >= 300) return "main";
-  return "side";
-}
-
 const roleCounts = (items: readonly MenuItem[]) => {
   const counts: Record<MenuItemMealRole, number> = { main: 0, side: 0, snack: 0, drink: 0, dessert: 0 };
   for (const item of items) counts[inferMenuItemMealRole(item)] += 1;
@@ -212,14 +191,84 @@ const isPlausibleMealComposition = (items: readonly MenuItem[]): boolean => {
   const counts = roleCounts(items);
   if (counts.main > 1 || counts.drink > 1 || counts.dessert > 1) return false;
   if (counts.main === 1 && counts.snack + counts.dessert > 1) return false;
+  if (counts.main === 1 && counts.side === 0 && counts.snack + counts.drink + counts.dessert >= 2) return false;
   return true;
 };
 
 const roleBalancePriority = (items: readonly MenuItem[]): number => {
   const counts = roleCounts(items);
-  if (counts.main === 1) return 100 + counts.side * 12 + counts.drink * 5 + counts.snack * 3 - counts.dessert * 2;
-  return counts.side * 8 + counts.snack * 5 + counts.drink * 4 - counts.dessert * 2;
+  if (counts.main === 1) {
+    const extras = counts.drink + counts.snack + counts.dessert;
+    if (counts.side === 1 && extras === 0) return 116;
+    if (counts.side === 2 && extras === 0) return 112;
+    if (items.length === 1) return 106;
+    if (counts.side === 1 && counts.drink === 1 && counts.snack + counts.dessert === 0) return 104;
+    if (counts.side === 1 && counts.snack === 1 && counts.drink + counts.dessert === 0) return 99;
+    return 90 - counts.dessert * 4;
+  }
+  return counts.side * 7 + counts.snack * 4 + counts.drink * 3 - counts.dessert * 2;
 };
+
+const candidateSetPriority = (
+  items: readonly MenuItem[],
+  stations: readonly Station[],
+  context: RecommendationContext,
+): number =>
+  roleBalancePriority(items)
+  + mealCoherenceScore(items, stations, context) * 0.5
+  + dietQualityPriority(items, context) * 1.25;
+
+const itemSetAnchorId = (items: readonly MenuItem[]): string =>
+  items.find((item) => inferMenuItemMealRole(item) === "main")?.id ?? items[0]?.id ?? "empty";
+
+function orderSizesWithinAnchor(sets: readonly MenuItem[][]): MenuItem[][] {
+  const bySize = new Map<number, MenuItem[][]>();
+  for (const set of sets) {
+    const rows = bySize.get(set.length) ?? [];
+    rows.push(set);
+    bySize.set(set.length, rows);
+  }
+  const preferred = [2, 3, 1, ...[...bySize.keys()].filter((size) => ![1, 2, 3].includes(size)).sort((a, b) => a - b)];
+  const ordered: MenuItem[][] = [];
+  let offset = 0;
+  while (ordered.length < sets.length) {
+    let added = false;
+    for (const size of preferred) {
+      const row = bySize.get(size)?.[offset];
+      if (!row) continue;
+      ordered.push(row);
+      added = true;
+    }
+    if (!added) break;
+    offset += 1;
+  }
+  return ordered;
+}
+
+function orderItemSetsForAnchorCoverage(sets: readonly MenuItem[][]): MenuItem[][] {
+  const byAnchor = new Map<string, MenuItem[][]>();
+  for (const set of sets) {
+    const anchor = itemSetAnchorId(set);
+    const rows = byAnchor.get(anchor) ?? [];
+    rows.push(set);
+    byAnchor.set(anchor, rows);
+  }
+  const groups = [...byAnchor.values()].map(orderSizesWithinAnchor);
+  const ordered: MenuItem[][] = [];
+  let offset = 0;
+  while (ordered.length < sets.length) {
+    let added = false;
+    for (const group of groups) {
+      const row = group[offset];
+      if (!row) continue;
+      ordered.push(row);
+      added = true;
+    }
+    if (!added) break;
+    offset += 1;
+  }
+  return ordered;
+}
 
 /**
  * The original demo had only a few dozen menu rows, so materializing every
@@ -345,14 +394,31 @@ export function generateMealCandidatesFromResources(
   const candidateItemSets: MenuItem[][] = [];
   const maxItemSetsPerSize = Math.max(1200, maxCandidates * 20);
   const addCandidateItemSets = (mustHaveMain: boolean) => {
+    if (mustHaveMain) {
+      const mains = generationPool.filter((item) => inferMenuItemMealRole(item) === "main");
+      const companions = generationPool.filter((item) => inferMenuItemMealRole(item) !== "main");
+      if (mains.length === 0) return;
+      const perMainCap = Math.max(18, Math.ceil(maxItemSetsPerSize / mains.length));
+      for (const main of mains) {
+        candidateItemSets.push([main]);
+        for (let size = 2; size <= Math.min(maxItems, companions.length + 1); size += 1) {
+          const rows = collectCombinations(
+            companions,
+            size - 1,
+            (addOns) => isPlausibleMealComposition([main, ...addOns]),
+            perMainCap,
+          );
+          for (const row of rows) candidateItemSets.push([main, ...row]);
+        }
+      }
+      return;
+    }
+
     for (let size = 1; size <= Math.min(maxItems, generationPool.length); size += 1) {
       const rows = collectCombinations(
         generationPool,
         size,
-        (itemSet) => {
-          if (!isPlausibleMealComposition(itemSet)) return false;
-          return !mustHaveMain || roleCounts(itemSet).main === 1;
-        },
+        (itemSet) => isPlausibleMealComposition(itemSet),
         maxItemSetsPerSize,
       );
       for (const row of rows) candidateItemSets.push(row);
@@ -370,22 +436,27 @@ export function generateMealCandidatesFromResources(
   }
 
   candidateItemSets.sort((a, b) => {
-    const roleBalance = roleBalancePriority(b) - roleBalancePriority(a);
-    if (roleBalance !== 0) return roleBalance;
-    const quality = dietQualityPriority(b, context) - dietQualityPriority(a, context);
-    if (quality !== 0) return quality;
-    const diversity = stationDiversity(b) - stationDiversity(a);
-    if (diversity !== 0) return diversity;
+    const priority = candidateSetPriority(b, stations, context) - candidateSetPriority(a, stations, context);
+    if (priority !== 0) return priority;
+    const stationCount = new Set(a.map((item) => item.stationId)).size - new Set(b.map((item) => item.stationId)).size;
+    if (stationCount !== 0) return stationCount;
     if (a.length !== b.length) return a.length - b.length;
     return a.map((item) => item.id).join("|").localeCompare(b.map((item) => item.id).join("|"));
   });
 
+  const orderedItemSets = orderItemSetsForAnchorCoverage(candidateItemSets);
+  const distinctAnchorCount = new Set(orderedItemSets.map(itemSetAnchorId)).size;
   const seen = new Set<string>();
   const candidates: MealCandidate[] = [];
-  for (const itemSet of candidateItemSets) {
+  for (const itemSet of orderedItemSets) {
     if (candidates.length >= maxCandidates) break;
     const variantGroups = itemSet.map((item) => variantsByItem.get(item.id) ?? []);
-    const builds = cartesian(variantGroups, maxCandidates - candidates.length);
+    const remaining = maxCandidates - candidates.length;
+    const isSingleCustomizable = itemSet.length === 1 && itemSet[0]?.kind === "customizable";
+    const perSetCap = distinctAnchorCount > 1 && !isSingleCustomizable
+      ? Math.min(2, remaining)
+      : Math.min(maxCustomVariants, remaining);
+    const builds = cartesian(variantGroups, perSetCap);
 
     for (const lines of builds) {
       if (candidates.length >= maxCandidates) break;

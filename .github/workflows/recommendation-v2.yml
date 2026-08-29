@@ -25,39 +25,7 @@ jobs:
           cache: npm
 
       - name: Tune recommendation v2 patch inputs
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          quality = Path("src/services/recommendationMealQuality.ts")
-          text = quality.read_text()
-          text = text.replace(
-              'if (sideItems.length >= 2 && denseCount >= 2) score -= 18;',
-              'if (sideItems.length >= 2 && denseCount >= 2) score -= 28;',
-          )
-          text = text.replace(
-              'if (sideItems.length >= 2 && produceCount === 0) score -= 8;',
-              'if (sideItems.length >= 2 && produceCount === 0) score -= 12;',
-          )
-          text = text.replace(
-              'if (style === "handheld" && sideItems.length >= 2 && denseCount >= 2) score -= 10;',
-              'if (style === "handheld" && sideItems.length >= 2 && denseCount >= 2) score -= 14;',
-          )
-          quality.write_text(text)
-
-          patch = Path("scripts/recommendation_v2_patch.py")
-          text = patch.read_text()
-          old = 'const builds = cartesian(variantGroups, distinctAnchorCount > 1 ? Math.min(2, remaining) : remaining);'
-          new = '''const isSingleCustomizable = itemSet.length === 1 && itemSet[0]?.kind === "customizable";
-    const perSetCap = distinctAnchorCount > 1 && !isSingleCustomizable
-      ? Math.min(2, remaining)
-      : Math.min(maxCustomVariants, remaining);
-    const builds = cartesian(variantGroups, perSetCap);'''
-          if old not in text:
-              raise SystemExit("candidate variant cap patch target missing")
-          patch.write_text(text.replace(old, new, 1))
-          PY
+        run: python scripts/recommendation_v2_fix_inputs.py
 
       - name: Apply recommendation v2 patch
         run: python scripts/recommendation_v2_patch.py

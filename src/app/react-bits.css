@@ -72,6 +72,31 @@
   to { transform: rotate(360deg); }
 }
 
+/* Selected recommendation emphasis: one short lift/settle when a card becomes active. */
+[data-recommendation-index] {
+  transform-origin: center center;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-recommendation-index][aria-pressed="true"] {
+  animation: react-bits-recommendation-select 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes react-bits-recommendation-select {
+  0% {
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
+  }
+  56% {
+    transform: translateY(-2px) scale(1.012);
+    filter: saturate(1.025);
+  }
+  100% {
+    transform: translateY(-1px) scale(1.005);
+    filter: saturate(1.01);
+  }
+}
+
 /* React Bits-inspired Fade Content: only the recommendation detail that changes after selection. */
 [aria-labelledby="candidate-heading"] > * {
   animation: react-bits-recommendation-fade 0.29s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -101,6 +126,14 @@
   [data-recommendation-index="0"]::before {
     animation: none;
     transform: rotate(18deg);
+  }
+
+  [data-recommendation-index],
+  [data-recommendation-index][aria-pressed="true"] {
+    animation: none;
+    transform: none;
+    filter: none;
+    transition: none;
   }
 
   [aria-labelledby="candidate-heading"] > * {

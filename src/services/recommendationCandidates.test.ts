@@ -172,3 +172,46 @@ test("candidate generation honors caps deterministically", () => {
   assert.deepEqual(first.map((candidate) => candidate.id), second.map((candidate) => candidate.id));
   assert.ok(first.every((candidate) => candidate.build.items.length <= 2));
 });
+
+test("live-sized menus stay bounded and skip rows without complete nutrition", () => {
+  const resources = resourcesFor("loc-921");
+  const mainSeed = resources.items.find((item) => item.id === "item-921-grilled-chicken-sandwich");
+  const sideSeed = resources.items.find((item) => item.id === "item-921-penne-marinara");
+  assert.ok(mainSeed);
+  assert.ok(sideSeed);
+  assert.ok(resources.stations.length > 0);
+
+  const stationIds = resources.stations.map((station) => station.id);
+  const mains = Array.from({ length: 120 }, (_, index) => ({
+    ...mainSeed,
+    id: `live-main-${index}`,
+    name: `Grilled Chicken ${index}`,
+    stationId: stationIds[index % stationIds.length],
+    mealRole: "main" as const,
+  }));
+  const sides = Array.from({ length: 240 }, (_, index) => ({
+    ...sideSeed,
+    id: `live-side-${index}`,
+    name: `Roasted Vegetable Side ${index}`,
+    stationId: stationIds[index % stationIds.length],
+    mealRole: "side" as const,
+  }));
+  const unscorable = Array.from({ length: 60 }, (_, index) => ({
+    ...sideSeed,
+    id: `live-no-nutrition-${index}`,
+    name: `Published Item Without Complete Macros ${index}`,
+    stationId: stationIds[index % stationIds.length],
+    nutrition: undefined,
+    mealRole: "side" as const,
+  }));
+  const liveItems = [...mains, ...sides, ...unscorable];
+  const options = { maxItemsPerMeal: 3, maxCandidates: 60, requireMain: true };
+
+  const first = generateMealCandidatesFromResources(liveItems, resources.stations, resources.components, context("loc-921", { primaryGoal: "athletic-performance" }, "lunch"), options);
+  const second = generateMealCandidatesFromResources(liveItems, resources.stations, resources.components, context("loc-921", { primaryGoal: "athletic-performance" }, "lunch"), options);
+
+  assert.equal(first.length, 60);
+  assert.deepEqual(first.map((candidate) => candidate.id), second.map((candidate) => candidate.id));
+  assert.ok(first.every((candidate) => candidate.build.items.every((line) => !line.menuItemId.startsWith("live-no-nutrition-"))));
+  assert.ok(first.every((candidate) => candidate.build.items.filter((line) => line.menuItemId.startsWith("live-main-")).length === 1));
+});

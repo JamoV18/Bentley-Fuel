@@ -112,6 +112,7 @@ function customSelectionVariants(
       menuItemId: item.id,
       quantity: 1,
       componentSelections: normalized,
+      display: { name: item.name, imageUrl: item.imageUrl },
     });
     if (out.length >= maxVariants) break;
   }
@@ -125,7 +126,12 @@ function lineVariantsForItem(
   maxCustomVariants: number,
 ): MealItemSelection[] {
   if (item.kind === "customizable") return customSelectionVariants(item, components, context, maxCustomVariants);
-  return [{ id: `candidate-line-${item.id}`, menuItemId: item.id, quantity: 1 }];
+  return [{
+    id: `candidate-line-${item.id}`,
+    menuItemId: item.id,
+    quantity: 1,
+    display: { name: item.name, imageUrl: item.imageUrl },
+  }];
 }
 
 const combinations = <T>(values: readonly T[], size: number): T[][] => {

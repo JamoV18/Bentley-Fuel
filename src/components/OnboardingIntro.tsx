@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type MotionValue,
+  type PanInfo,
+} from "motion/react";
 import { useLanguage, type SupportedLanguage } from "@/components/LanguageProvider";
 
 type IntroCopy = {
@@ -44,47 +52,104 @@ const COPY: Record<SupportedLanguage, IntroCopy> = {
 };
 
 const MEALS = [
-  {
-    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=82",
-    left: "2%",
-    top: 76,
-    rotate: -13,
-    scale: 0.78,
-    opacity: 0.58,
-  },
-  {
-    image: "https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=900&q=82",
-    left: "20%",
-    top: 34,
-    rotate: -7,
-    scale: 0.9,
-    opacity: 0.82,
-  },
-  {
-    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=82",
-    left: "40%",
-    top: 10,
-    rotate: -1.5,
-    scale: 1,
-    opacity: 1,
-  },
-  {
-    image: "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=82",
-    left: "60%",
-    top: 24,
-    rotate: 6,
-    scale: 0.92,
-    opacity: 0.84,
-  },
-  {
-    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=82",
-    left: "80%",
-    top: 72,
-    rotate: 13,
-    scale: 0.78,
-    opacity: 0.6,
-  },
+  "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=900&q=82",
 ] as const;
+
+const DEG_TO_RAD = Math.PI / 180;
+const RADIUS_X = 330;
+const DEPTH = 190;
+
+function CircularMealCard({
+  image,
+  index,
+  total,
+  rotation,
+}: {
+  image: string;
+  index: number;
+  total: number;
+  rotation: MotionValue<number>;
+}) {
+  const baseAngle = (index / total) * 360;
+  const angle = useTransform(rotation, (value) => (baseAngle + value) * DEG_TO_RAD);
+  const x = useTransform(angle, (value) => Math.sin(value) * RADIUS_X);
+  const y = useTransform(angle, (value) => (1 - Math.cos(value)) * 18);
+  const z = useTransform(angle, (value) => Math.cos(value) * DEPTH);
+  const scale = useTransform(angle, (value) => 0.69 + ((Math.cos(value) + 1) / 2) * 0.34);
+  const opacity = useTransform(angle, (value) => 0.26 + ((Math.cos(value) + 1) / 2) * 0.74);
+  const rotateY = useTransform(angle, (value) => -Math.sin(value) * 18);
+  const filter = useTransform(angle, (value) => {
+    const depth = (Math.cos(value) + 1) / 2;
+    return `blur(${(1 - depth) * 1.5}px)`;
+  });
+  const zIndex = useTransform(angle, (value) => Math.round(((Math.cos(value) + 1) / 2) * 100));
+
+  return (
+    <motion.div
+      className="pointer-events-none absolute left-1/2 top-1/2"
+      style={{ x, y, z, scale, opacity, rotateY, filter, zIndex, transformStyle: "preserve-3d" }}
+    >
+      <div
+        className="h-32 w-24 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.15rem] border border-white/80 bg-cover bg-center shadow-[0_18px_45px_rgba(20,45,34,.14)] sm:h-48 sm:w-36 lg:h-52 lg:w-40"
+        style={{
+          backgroundImage: `linear-gradient(180deg,rgba(255,255,255,.03)_42%,rgba(0,45,32,.16)),url(\"${image}\")`,
+        }}
+      />
+    </motion.div>
+  );
+}
+
+function CircularMealGallery({ reduceMotion }: { reduceMotion: boolean }) {
+  const rotation = useMotionValue(0);
+
+  const turn = (deltaX: number) => {
+    rotation.set(rotation.get() + deltaX * 0.34);
+  };
+
+  const release = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const projectedRotation = rotation.get() + info.velocity.x * 0.075;
+    animate(rotation, projectedRotation, {
+      type: "spring",
+      stiffness: 42,
+      damping: 18,
+      mass: 0.9,
+      restDelta: 0.08,
+    });
+  };
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      className="relative mt-4 h-[190px] w-full max-w-5xl cursor-grab select-none overflow-visible sm:mt-5 sm:h-[260px] active:cursor-grabbing"
+      style={{ perspective: 900, transformStyle: "preserve-3d", touchAction: "pan-y" }}
+      initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.58, delay: 0.42, ease: [0.22, 1, 0.36, 1] }}
+      onPan={reduceMotion ? undefined : (_event, info) => turn(info.delta.x)}
+      onPanEnd={reduceMotion ? undefined : release}
+      onWheel={
+        reduceMotion
+          ? undefined
+          : (event) => {
+              const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+              rotation.set(rotation.get() - delta * 0.075);
+            }
+      }
+    >
+      <div className="absolute inset-x-[13%] top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-emerald-950/[.055] to-transparent" />
+      {MEALS.map((image, index) => (
+        <CircularMealCard key={image} image={image} index={index} total={MEALS.length} rotation={rotation} />
+      ))}
+      <div className="pointer-events-none absolute inset-x-[18%] bottom-1 h-10 rounded-[50%] bg-emerald-950/[.075] blur-2xl" />
+    </motion.div>
+  );
+}
 
 export default function OnboardingIntro({ onStart }: { onStart(): void }) {
   const reduceMotion = useReducedMotion();
@@ -149,31 +214,7 @@ export default function OnboardingIntro({ onStart }: { onStart(): void }) {
           {copy.description}
         </motion.p>
 
-        <motion.div
-          aria-hidden="true"
-          className="relative mt-4 h-[190px] w-full max-w-5xl cursor-grab touch-pan-y sm:mt-5 sm:h-[260px] active:cursor-grabbing"
-          drag={reduceMotion ? false : "x"}
-          dragConstraints={{ left: -26, right: 26 }}
-          dragElastic={0.08}
-          dragTransition={{ bounceStiffness: 520, bounceDamping: 36 }}
-        >
-          {MEALS.map((meal, index) => (
-            <motion.div
-              key={meal.image}
-              className="absolute h-32 w-24 overflow-hidden rounded-[1.15rem] border border-white/80 bg-cover bg-center shadow-[0_18px_45px_rgba(20,45,34,.14)] sm:h-48 sm:w-36 lg:h-52 lg:w-40"
-              style={{
-                left: meal.left,
-                top: meal.top,
-                marginLeft: "-4rem",
-                backgroundImage: `linear-gradient(180deg,rgba(255,255,255,.03)_42%,rgba(0,45,32,.16)),url(\"${meal.image}\")`,
-              }}
-              initial={reduceMotion ? false : { opacity: 0, y: 20, rotate: meal.rotate * 0.55, scale: meal.scale * 0.94 }}
-              animate={{ opacity: meal.opacity, y: 0, rotate: meal.rotate, scale: meal.scale }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.48, delay: 0.42 + index * 0.045, ease: [0.22, 1, 0.36, 1] }}
-            />
-          ))}
-          <div className="pointer-events-none absolute inset-x-[18%] bottom-1 h-10 rounded-[50%] bg-emerald-950/[.075] blur-2xl" />
-        </motion.div>
+        <CircularMealGallery reduceMotion={Boolean(reduceMotion)} />
 
         <motion.div
           className="mt-1 flex flex-col items-center"

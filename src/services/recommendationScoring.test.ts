@@ -105,6 +105,7 @@ const ranked = (meal: MealCandidate, total: number, lineCalories: number[] = [])
     nutritionTotal: total,
     goalAlignment: total,
     remainingBudgetPenalty: 0,
+    dietQualityPenalty: 0,
     energyOvershootPenalty: 0,
     compositionPenalty: 0,
     behavior: {

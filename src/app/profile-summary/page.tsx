@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppNav from "@/components/AppNav";
 import BklitWeightProgressChart from "@/components/BklitWeightProgressChart";
+import PlanEditControl from "@/components/PlanEditControl";
 import { browserMealHistoryRepository, browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile, WeightObservation } from "@/types";
@@ -63,6 +64,7 @@ export default function ProfileSummary() {
       <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Your plan</h1>
       <p className="mt-2 max-w-3xl subtle">The quiet engine underneath Today and every meal recommendation.</p>
       <AppNav />
+      <PlanEditControl profile={profile} onSaved={setProfile} />
 
       <div className="mt-6 grid gap-5 xl:grid-cols-[.82fr_1.18fr]">
         <section className="surface p-5">
@@ -96,7 +98,7 @@ export default function ProfileSummary() {
         </section>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2"><Link href="/today" className="primary text-center">View today</Link><Link href="/onboarding" className="secondary text-center">Edit profile</Link></div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2"><Link href="/today" className="primary text-center">View today</Link><Link href="/onboarding" className="secondary text-center">Edit profile details</Link></div>
       <button className="mt-5 w-full text-center text-xs font-bold text-red-700/75" onClick={clearAllLocalData}>Clear all local data</button>
     </main>
   );

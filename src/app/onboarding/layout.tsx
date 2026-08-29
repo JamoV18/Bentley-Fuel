@@ -12,7 +12,7 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
 
   useEffect(() => {
     const profile = browserProfileRepository().get();
-    if (profile) setShowIntro(false);
+    if (profile) queueMicrotask(() => setShowIntro(false));
   }, []);
 
   return (

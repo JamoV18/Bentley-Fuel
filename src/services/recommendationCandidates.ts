@@ -170,9 +170,18 @@ export function inferMenuItemMealRole(item: MenuItem): MenuItemMealRole {
   if (/\b(water|coffee|tea|juice|milk|smoothie|shake|latte|drink|beverage)\b/.test(name)) return "drink";
   if (/\b(cookie|brownie|cake|ice cream|dessert)\b/.test(name)) return "dessert";
   if (/\b(muffin|protein bar|granola bar|trail mix|chips|banana|apple|orange|yogurt)\b/.test(name)) return "snack";
+  if (/\b(spinach|tomato|tomatoes|onion|onions|pepper|peppers|lettuce|broccoli|carrots?|cucumber|salsa|sauce|dressing|condiment)\b/.test(name)) return "side";
   if (item.kind === "customizable") return "main";
-  const calories = item.nutrition?.calories ?? item.baseNutrition?.calories ?? 0;
-  if (calories >= 350) return "main";
+
+  // DineOnCampus publishes many dining-hall entrees as individual portions that
+  // are well below 350 calories. Treat obvious entree names and protein-dense
+  // portions as mains instead of applying the old demo-only calorie threshold.
+  if (/\b(steak|chicken|turkey|beef|pork|ham|sausage|salmon|fish|shrimp|tofu|tempeh|eggs?|omelet|pasta|pastalya|lasagna|burrito|bowl|sandwich|burger|pizza|tacos?|quesadilla|nachos|curry|stir fry|stir-fry|stew|chili)\b/.test(name)) return "main";
+  const nutrition = item.nutrition ?? item.baseNutrition;
+  const calories = nutrition?.calories ?? 0;
+  const protein = nutrition?.protein ?? 0;
+  if (protein >= 15 && calories >= 100) return "main";
+  if (calories >= 300) return "main";
   return "side";
 }
 
@@ -221,11 +230,25 @@ export function generateMealCandidatesFromResources(
   const configurable = eligible.filter((item) => (variantsByItem.get(item.id)?.length ?? 0) > 0);
 
   const candidateItemSets: MenuItem[][] = [];
-  for (let size = 1; size <= Math.min(maxItems, configurable.length); size += 1) {
-    candidateItemSets.push(...combinations(configurable, size).filter((itemSet) => {
-      if (!isPlausibleMealComposition(itemSet)) return false;
-      return !options.requireMain || roleCounts(itemSet).main === 1;
-    }));
+  const addCandidateItemSets = (requireMain: boolean) => {
+    for (let size = 1; size <= Math.min(maxItems, configurable.length); size += 1) {
+      candidateItemSets.push(...combinations(configurable, size).filter((itemSet) => {
+        if (!isPlausibleMealComposition(itemSet)) return false;
+        return !requireMain || roleCounts(itemSet).main === 1;
+      }));
+    }
+  };
+
+  addCandidateItemSets(Boolean(options.requireMain));
+
+  // Live dining menus are sometimes decomposed into small portions (eggs,
+  // protein, vegetables, grains) with no single item carrying an entree-sized
+  // calorie count. If the strict main-dish pass produces nothing, preserve every
+  // hard restriction and diet-quality filter but allow balanced multi-item sets
+  // so the recommender can still rank real food instead of dropping to a static
+  // example card.
+  if (options.requireMain && candidateItemSets.length === 0 && configurable.length > 0) {
+    addCandidateItemSets(false);
   }
 
   candidateItemSets.sort((a, b) => {

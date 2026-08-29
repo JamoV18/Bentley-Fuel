@@ -4,6 +4,7 @@ import "./today.css";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import AnimatedCounter from "@/components/AnimatedCounter";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import ProfileMenu from "@/components/ProfileMenu";
@@ -206,11 +207,11 @@ export default function TodayClient({
         >
           <article className="nutrition-card calorie-card">
             <div className="calorie-layout">
-              <div className="side-stat"><span className="stat-icon">⌁</span><strong>{round(snapshot.consumed.calories).toLocaleString()}</strong><small>eaten</small></div>
+              <div className="side-stat"><span className="stat-icon">⌁</span><strong><AnimatedCounter value={round(snapshot.consumed.calories)} /></strong><small>eaten</small></div>
               <AnimatedCalorieRing progress={calorieCoverage}>
                 <div className="calorie-ring-inner">
                   <span>Calories</span>
-                  <strong>{remainingCalories === undefined ? round(snapshot.consumed.calories).toLocaleString() : round(remainingCalories).toLocaleString()}</strong>
+                  <strong><AnimatedCounter value={remainingCalories === undefined ? round(snapshot.consumed.calories) : round(remainingCalories)} /></strong>
                   <small>{target ? "remaining" : "recorded"}</small>
                   {target && <Link href="/profile-summary" className="calorie-goal">of {round(target.calories).toLocaleString()} ✎</Link>}
                 </div>
@@ -220,7 +221,7 @@ export default function TodayClient({
             <div className="macro-glance">
               {macros.map((macro, index) => {
                 const progress = macro.target ? coverage(macro.consumed, macro.target) : 0;
-                return <div key={macro.name}><span className={`macro-name ${macro.tone}`}>{macro.name}</span><strong>{round(macro.consumed)}{macro.target ? ` / ${round(macro.target)}g` : "g"}</strong><AnimatedMacroTrack progress={progress} tone={macro.tone} delay={0.08 + index * 0.08} /><small>{macro.remaining === undefined ? "tracked" : `${round(macro.remaining)}g left`}</small></div>;
+                return <div key={macro.name}><span className={`macro-name ${macro.tone}`}>{macro.name}</span><strong><AnimatedCounter value={round(macro.consumed)} />{macro.target ? ` / ${round(macro.target)}g` : "g"}</strong><AnimatedMacroTrack progress={progress} tone={macro.tone} delay={0.08 + index * 0.08} /><small>{macro.remaining === undefined ? "tracked" : `${round(macro.remaining)}g left`}</small></div>;
               })}
             </div>
           </article>
@@ -228,7 +229,7 @@ export default function TodayClient({
           <article className="nutrition-card macro-card">
             <div className="carousel-card-heading"><div><p className="eyebrow">Nutrition</p><h2>Macros at a glance</h2></div><Link href="/profile-summary">Edit goals</Link></div>
             <div className="macro-detail-grid">
-              {macros.map((macro) => <div className="macro-detail" key={macro.name}><div className={`mini-ring ${macro.tone}`} style={{ "--mini-progress": `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` } as React.CSSProperties}><strong>{macro.target ? coverage(macro.consumed, macro.target) : 0}%</strong></div><span>{macro.name}</span><strong>{round(macro.consumed)}g</strong><small>{macro.target ? `of ${round(macro.target)}g` : "consumed"}</small></div>)}
+              {macros.map((macro) => <div className="macro-detail" key={macro.name}><div className={`mini-ring ${macro.tone}`} style={{ "--mini-progress": `${macro.target ? coverage(macro.consumed, macro.target) : 0}%` } as React.CSSProperties}><strong>{macro.target ? coverage(macro.consumed, macro.target) : 0}%</strong></div><span>{macro.name}</span><strong><AnimatedCounter value={round(macro.consumed)} suffix="g" /></strong><small>{macro.target ? `of ${round(macro.target)}g` : "consumed"}</small></div>)}
             </div>
             <p className="macro-card-note">A clean snapshot of how today’s intake is tracking against your plan.</p>
           </article>

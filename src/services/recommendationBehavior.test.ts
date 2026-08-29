@@ -77,6 +77,28 @@ test("identical meals are more similar than unrelated meals", () => {
   assert.ok(mealBuildSimilarity(chicken, steak) > mealBuildSimilarity(chicken, unrelated));
 });
 
+test("date-specific DineOnCampus ids still match the same food across days", () => {
+  const saturday: MealBuild = {
+    locationId: "loc-921",
+    items: [{
+      id: "line-sat",
+      menuItemId: "doc-921-2026-08-29-item-kitchen-roasted-chicken-abc123",
+      quantity: 1,
+      display: { name: "Roasted Chicken" },
+    }],
+  };
+  const sunday: MealBuild = {
+    locationId: "loc-921",
+    items: [{
+      id: "line-sun",
+      menuItemId: "doc-921-2026-08-30-item-kitchen-roasted-chicken-abc123",
+      quantity: 1,
+      display: { name: "Roasted Chicken" },
+    }],
+  };
+  assert.equal(mealBuildSimilarity(saturday, sunday), 1);
+});
+
 test("finishing and liking a meal creates positive taste evidence", () => {
   const meal = build("item-chicken");
   const score = scoreMealHistory(candidate(meal), [

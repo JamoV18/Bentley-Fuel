@@ -128,7 +128,15 @@ export default async function MealBuilderPage({
     const fallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod)
       ?? (isNineTwentyOne ? { locationId, items: [] } satisfies MealBuild : undefined);
     if (!fallbackBuild) notFound();
-    content = <MealBuilderClient fallbackBuild={fallbackBuild} resources={resources} isDemo={isDemo} />;
+    content = (
+      <MealBuilderClient
+        fallbackBuild={fallbackBuild}
+        resources={resources}
+        isDemo={isDemo}
+        menuDate={menuDate}
+        selectedMealPeriod={selectedPeriod}
+      />
+    );
   }
 
   return (

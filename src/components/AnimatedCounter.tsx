@@ -42,7 +42,6 @@ export default function AnimatedCounter({
     if (reduceMotion) {
       motionValue.set(rounded);
       y.set(0);
-      setDisplay(rounded);
       return;
     }
 

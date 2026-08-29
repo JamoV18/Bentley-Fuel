@@ -16,6 +16,7 @@ import type {
 const DEFAULT_MAX_ITEMS = 3;
 const DEFAULT_MAX_CANDIDATES = 60;
 const DEFAULT_MAX_CUSTOM_VARIANTS = 8;
+const ROLE_ORDER: MenuItemMealRole[] = ["main", "side", "snack", "drink", "dessert"];
 
 const stationAvailable = (station: Station, context: RecommendationContext): boolean => {
   if (!context.mealPeriod || !station.mealPeriods || station.mealPeriods.length === 0) return true;
@@ -210,6 +211,97 @@ const roleBalancePriority = (items: readonly MenuItem[]): number => {
   return counts.side * 8 + counts.snack * 5 + counts.drink * 4 - counts.dessert * 2;
 };
 
+/**
+ * The original demo had only a few dozen menu rows, so materializing every
+ * 1/2/3-item combination was harmless. A live DineOnCampus period can contain
+ * hundreds of rows; C(n, 3) can create millions of arrays in the browser before
+ * the max-candidate limit is ever applied. Keep the search pool deliberately
+ * bounded and role-balanced before combination expansion.
+ */
+function recommendationPoolCap(maxItems: number, maxCandidates: number): number {
+  if (maxItems <= 1) return Math.max(24, Math.min(120, maxCandidates * 2));
+  if (maxItems === 2) return Math.max(28, Math.min(80, maxCandidates + 20));
+  if (maxItems === 3) return Math.max(30, Math.min(52, Math.ceil(maxCandidates * 0.75) + 12));
+  return Math.max(24, Math.min(36, maxCandidates + 8));
+}
+
+function takeStationDiverse(
+  items: readonly MenuItem[],
+  limit: number,
+  context: RecommendationContext,
+): MenuItem[] {
+  if (limit <= 0 || items.length === 0) return [];
+  const byStation = new Map<string, MenuItem[]>();
+  for (const item of items) {
+    const bucket = byStation.get(item.stationId) ?? [];
+    bucket.push(item);
+    byStation.set(item.stationId, bucket);
+  }
+  const compareItems = (a: MenuItem, b: MenuItem) =>
+    dietQualityPriority([b], context) - dietQualityPriority([a], context)
+    || a.id.localeCompare(b.id);
+  for (const bucket of byStation.values()) bucket.sort(compareItems);
+  const stationIds = [...byStation.keys()].sort();
+  const out: MenuItem[] = [];
+  let offset = 0;
+  while (out.length < limit) {
+    let added = false;
+    for (const stationId of stationIds) {
+      const item = byStation.get(stationId)?.[offset];
+      if (!item) continue;
+      out.push(item);
+      added = true;
+      if (out.length >= limit) break;
+    }
+    if (!added) break;
+    offset += 1;
+  }
+  return out;
+}
+
+function boundedRecommendationPool(
+  items: readonly MenuItem[],
+  context: RecommendationContext,
+  maxItems: number,
+  maxCandidates: number,
+  requireMain: boolean,
+): MenuItem[] {
+  const cap = recommendationPoolCap(maxItems, maxCandidates);
+  if (items.length <= cap) return [...items];
+
+  const buckets = new Map<MenuItemMealRole, MenuItem[]>(ROLE_ORDER.map((role) => [role, []]));
+  for (const item of items) buckets.get(inferMenuItemMealRole(item))!.push(item);
+
+  const shares: Record<MenuItemMealRole, number> = requireMain
+    ? { main: 0.40, side: 0.36, snack: 0.08, drink: 0.08, dessert: 0.08 }
+    : { main: 0.30, side: 0.40, snack: 0.12, drink: 0.10, dessert: 0.08 };
+  const selected: MenuItem[] = [];
+  const selectedIds = new Set<string>();
+  for (const role of ROLE_ORDER) {
+    const quota = Math.max(1, Math.floor(cap * shares[role]));
+    for (const item of takeStationDiverse(buckets.get(role) ?? [], quota, context)) {
+      if (selectedIds.has(item.id)) continue;
+      selected.push(item);
+      selectedIds.add(item.id);
+    }
+  }
+
+  if (selected.length < cap) {
+    const remaining = [...items]
+      .filter((item) => !selectedIds.has(item.id))
+      .sort((a, b) =>
+        dietQualityPriority([b], context) - dietQualityPriority([a], context)
+        || a.stationId.localeCompare(b.stationId)
+        || a.id.localeCompare(b.id));
+    for (const item of remaining) {
+      selected.push(item);
+      selectedIds.add(item.id);
+      if (selected.length >= cap) break;
+    }
+  }
+  return selected;
+}
+
 export function generateMealCandidatesFromResources(
   items: readonly MenuItem[],
   stations: readonly Station[],
@@ -226,6 +318,9 @@ export function generateMealCandidatesFromResources(
   const eligible = items.filter((item) => {
     if (!availableStationIds.has(item.stationId)) return false;
     if (excludedMenuItemIds.has(item.id)) return false;
+    // Live DineOn rows without a complete macro panel remain browseable/manual
+    // choices, but they cannot produce a valid scored complete meal.
+    if (item.kind === "predefined" && !item.nutrition) return false;
     if (shouldHardExcludeForDietQuality(item, context)) return false;
     return assessMenuItemEligibility(item, context, components).isEligible;
   });
@@ -234,26 +329,26 @@ export function generateMealCandidatesFromResources(
     eligible.map((item) => [item.id, lineVariantsForItem(item, components, context, maxCustomVariants)] as const),
   );
   const configurable = eligible.filter((item) => (variantsByItem.get(item.id)?.length ?? 0) > 0);
+  const requireMain = Boolean(options.requireMain);
+  const generationPool = boundedRecommendationPool(configurable, context, maxItems, maxCandidates, requireMain);
 
   const candidateItemSets: MenuItem[][] = [];
-  const addCandidateItemSets = (requireMain: boolean) => {
-    for (let size = 1; size <= Math.min(maxItems, configurable.length); size += 1) {
-      candidateItemSets.push(...combinations(configurable, size).filter((itemSet) => {
+  const addCandidateItemSets = (mustHaveMain: boolean) => {
+    for (let size = 1; size <= Math.min(maxItems, generationPool.length); size += 1) {
+      candidateItemSets.push(...combinations(generationPool, size).filter((itemSet) => {
         if (!isPlausibleMealComposition(itemSet)) return false;
-        return !requireMain || roleCounts(itemSet).main === 1;
+        return !mustHaveMain || roleCounts(itemSet).main === 1;
       }));
     }
   };
 
-  addCandidateItemSets(Boolean(options.requireMain));
+  addCandidateItemSets(requireMain);
 
   // Live dining menus are sometimes decomposed into small portions (eggs,
   // protein, vegetables, grains) with no single item carrying an entree-sized
   // calorie count. If the strict main-dish pass produces nothing, preserve every
-  // hard restriction and diet-quality filter but allow balanced multi-item sets
-  // so the recommender can still rank real food instead of dropping to a static
-  // example card.
-  if (options.requireMain && candidateItemSets.length === 0 && configurable.length > 0) {
+  // hard restriction and diet-quality filter but allow balanced multi-item sets.
+  if (requireMain && candidateItemSets.length === 0 && generationPool.length > 0) {
     addCandidateItemSets(false);
   }
 

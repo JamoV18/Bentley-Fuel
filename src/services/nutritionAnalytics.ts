@@ -35,6 +35,12 @@ const dayKey = (day: Date) => {
 
 const mealDayKey = (entry: MealHistoryEntry) => dayKey(new Date(entry.eatenAt ?? entry.selectedAt));
 
+const mealBuilderPlanningDate = (): string | undefined => {
+  if (typeof window === "undefined" || !window.location.pathname.includes("/meal-builder/")) return undefined;
+  const value = new URLSearchParams(window.location.search).get("date") ?? undefined;
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+};
+
 const averageNutrition = (days: readonly DailyNutritionSnapshot[]): NutritionFacts => {
   const tracked = days.filter((day) => day.confirmedMeals > 0);
   if (tracked.length === 0) return zeroNutrition();
@@ -57,14 +63,17 @@ export function createDailyNutritionSnapshot(
   targets: MacroTargets | undefined,
   day = new Date(),
 ): DailyNutritionSnapshot {
-  const summary = summarizeDailyNutrition(history, day);
   const key = dayKey(day);
-  const meals = history
+  const planningDate = mealBuilderPlanningDate();
+  const planningDifferentDay = Boolean(planningDate && planningDate !== key);
+  const effectiveHistory = planningDifferentDay ? [] : history;
+  const summary = summarizeDailyNutrition(effectiveHistory, day);
+  const meals = effectiveHistory
     .filter((entry) => mealDayKey(entry) === key)
     .sort((a, b) => new Date(a.eatenAt ?? a.selectedAt).getTime() - new Date(b.eatenAt ?? b.selectedAt).getTime());
 
   return {
-    date: key,
+    date: planningDate ?? key,
     targets,
     consumed: summary.nutrition,
     remaining: targets ? remainingMacrosFromDailyTargets(targets, summary.nutrition) : undefined,

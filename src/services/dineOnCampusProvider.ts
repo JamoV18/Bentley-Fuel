@@ -38,6 +38,7 @@ const LIVE_SOURCE_URL = "https://dineoncampus.com/";
 
 type JsonRecord = Record<string, unknown>;
 type LiveDateData = { stations: Station[]; items: MenuItem[] };
+type PeriodDescriptor = { name: string; v4Id?: string; v1Id?: string };
 
 function record(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {};
@@ -96,7 +97,7 @@ function periodFromName(name: string): MealPeriod | undefined {
   if (value.includes("lunch")) return "lunch";
   if (value.includes("dinner")) return "dinner";
   if (value.includes("late night") || value.includes("latenight")) return "late-night";
-  if (value.includes("all day") || value.includes("everyday")) return "all-day";
+  if (value.includes("all day") || value.includes("everyday") || value.includes("continuous")) return "all-day";
   return undefined;
 }
 
@@ -118,8 +119,21 @@ function liveProvenance(date: string, note?: string): Provenance {
   };
 }
 
+function dedupeRows(rows: JsonRecord[]): JsonRecord[] {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const key = `${normalized(text(row.type))}::${normalized(text(row.name ?? row.label))}::${text(row.value ?? row.amount)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function nutrientRows(item: JsonRecord): JsonRecord[] {
-  return records(item.nutrients ?? item.nutrition);
+  return dedupeRows([
+    ...records(item.nutrients),
+    ...(Array.isArray(item.nutrition) ? records(item.nutrition) : []),
+  ]);
 }
 
 function nutrientValue(item: JsonRecord, aliases: string[]): number | undefined {
@@ -171,14 +185,19 @@ function mapNutrition(item: JsonRecord): NutritionFacts | undefined {
 }
 
 function filterRows(item: JsonRecord): JsonRecord[] {
-  return records(item.filters ?? item.labels);
+  return dedupeRows([...records(item.filters), ...records(item.labels)]);
 }
 
-function mapAllergens(item: JsonRecord): Allergen[] {
-  const values = filterRows(item)
-    .filter((filter) => normalized(text(filter.type)).includes("allergen"))
-    .map((filter) => normalized(text(filter.name ?? filter.label)));
+function allergenName(filter: JsonRecord): string {
+  return normalized(text(filter.name ?? filter.label));
+}
 
+function isMayContainFilter(filter: JsonRecord): boolean {
+  const combined = `${normalized(text(filter.type))} ${allergenName(filter)}`;
+  return combined.includes("may contain") || combined.includes("cross contact") || combined.includes("cross-contact");
+}
+
+function allergensFromValues(values: string[]): Allergen[] {
   const matches = new Set<Allergen>();
   for (const value of values) {
     if (value.includes("milk") || value.includes("dairy")) matches.add("milk");
@@ -193,6 +212,17 @@ function mapAllergens(item: JsonRecord): Allergen[] {
     if (value.includes("gluten")) matches.add("gluten");
   }
   return [...matches];
+}
+
+function mapAllergens(item: JsonRecord): Allergen[] {
+  const values = filterRows(item)
+    .filter((filter) => normalized(text(filter.type)).includes("allergen") && !isMayContainFilter(filter))
+    .map(allergenName);
+  return allergensFromValues(values);
+}
+
+function mapMayContainAllergens(item: JsonRecord): Allergen[] {
+  return allergensFromValues(filterRows(item).filter(isMayContainFilter).map(allergenName));
 }
 
 function mapDietaryTags(item: JsonRecord): DietaryTag[] {
@@ -213,6 +243,11 @@ function mapDietaryTags(item: JsonRecord): DietaryTag[] {
     if (value.includes("dairy free")) tags.add("dairy-free");
     if (value.includes("halal")) tags.add("halal");
     if (value.includes("kosher")) tags.add("kosher");
+    if (value.includes("high protein")) tags.add("high-protein");
+    if (value.includes("low carb")) tags.add("low-carb");
+    if (value.includes("low sodium")) tags.add("low-sodium");
+    if (value.includes("low calorie")) tags.add("low-calorie");
+    if (value.includes("keto")) tags.add("keto-friendly");
     if (value.includes("spicy")) tags.add("spicy");
   }
   return [...tags];
@@ -229,14 +264,6 @@ function extractCategories(payload: unknown): JsonRecord[] {
   const nested = records(record(periods).categories);
   if (nested.length > 0) return nested;
   return records(root.categories);
-}
-
-function hasRichItems(categories: JsonRecord[]): boolean {
-  return categories.some((category) =>
-    records(category.items).some((item) =>
-      Boolean(mapNutrition(item) || item.ingredients || item.portion || records(item.nutrients).length > 0),
-    ),
-  );
 }
 
 async function fetchJson(url: string): Promise<unknown | undefined> {
@@ -279,24 +306,43 @@ function locationRows(payload: unknown): JsonRecord[] {
 }
 
 function itemKey(stationName: string, item: JsonRecord): string {
-  return `${normalized(stationName)}::${normalized(text(item.name))}`;
+  const officialId = normalized(text(item.id ?? item.itemId ?? item.item_id));
+  return officialId || `${normalized(stationName)}::${normalized(text(item.name))}`;
 }
 
+/** Merge both DineOnCampus API versions without dropping categories or richer-only items. */
 function mergePeriodCategories(primary: JsonRecord[], richer: JsonRecord[]): JsonRecord[] {
   if (richer.length === 0) return primary;
   if (primary.length === 0) return richer;
 
-  const richerItems = new Map<string, JsonRecord>();
-  for (const category of richer) {
+  const richerByStation = new Map(richer.map((category) => [normalized(text(category.name) || "Dining Station"), category] as const));
+  const seenStations = new Set<string>();
+  const merged = primary.map((category) => {
     const stationName = text(category.name) || "Dining Station";
-    for (const item of records(category.items)) richerItems.set(itemKey(stationName, item), item);
-  }
+    const stationKey = normalized(stationName);
+    seenStations.add(stationKey);
+    const richerCategory = richerByStation.get(stationKey);
+    if (!richerCategory) return category;
 
-  return primary.map((category) => {
-    const stationName = text(category.name) || "Dining Station";
-    const items = records(category.items).map((item) => ({ ...item, ...(richerItems.get(itemKey(stationName, item)) ?? {}) }));
-    return { ...category, items };
+    const richerItems = new Map(records(richerCategory.items).map((item) => [itemKey(stationName, item), item] as const));
+    const seenItems = new Set<string>();
+    const items = records(category.items).map((item) => {
+      const key = itemKey(stationName, item);
+      seenItems.add(key);
+      return { ...item, ...(richerItems.get(key) ?? {}) };
+    });
+    for (const richItem of records(richerCategory.items)) {
+      const key = itemKey(stationName, richItem);
+      if (!seenItems.has(key)) items.push(richItem);
+    }
+    return { ...richerCategory, ...category, items };
   });
+
+  for (const category of richer) {
+    const stationKey = normalized(text(category.name) || "Dining Station");
+    if (!seenStations.has(stationKey)) merged.push(category);
+  }
+  return merged;
 }
 
 function filterMenuItems(items: MenuItem[], query: MenuItemQuery): MenuItem[] {
@@ -311,6 +357,23 @@ function filterMenuItems(items: MenuItem[], query: MenuItemQuery): MenuItem[] {
     }
     return true;
   });
+}
+
+function describePeriods(v4Periods: JsonRecord[], v1Periods: JsonRecord[]): PeriodDescriptor[] {
+  const byName = new Map<string, PeriodDescriptor>();
+  const add = (period: JsonRecord, version: "v4" | "v1") => {
+    const name = text(period.name ?? period.label);
+    if (!name) return;
+    const key = normalized(name);
+    const id = text(period.id ?? period.periodId ?? period.period_id);
+    const current = byName.get(key) ?? { name };
+    if (version === "v4") current.v4Id = id || current.v4Id;
+    else current.v1Id = id || current.v1Id;
+    byName.set(key, current);
+  };
+  v4Periods.forEach((period) => add(period, "v4"));
+  v1Periods.forEach((period) => add(period, "v1"));
+  return [...byName.values()];
 }
 
 export class DineOnCampusHybridProvider implements DiningDataProvider {
@@ -394,23 +457,26 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
     const locationId = await this.resolveDineOnCampusLocationId();
     if (!locationId) return undefined;
 
-    const v4Periods = periodsFromPayload(await fetchJson(PERIODS_V4_URL(locationId, date)));
-    const periods = v4Periods.length > 0 ? v4Periods : periodsFromPayload(await fetchJson(PERIODS_V1_URL(locationId, date)));
+    const [v4Periods, v1Periods] = await Promise.all([
+      fetchJson(PERIODS_V4_URL(locationId, date)).then(periodsFromPayload),
+      fetchJson(PERIODS_V1_URL(locationId, date)).then(periodsFromPayload),
+    ]);
+    const periods = describePeriods(v4Periods, v1Periods);
     if (periods.length === 0) return undefined;
 
     const stationMap = new Map<string, Station>();
     const itemMap = new Map<string, MenuItem>();
     const periodMenus = await Promise.all(periods.map(async (period) => {
-      const periodId = text(period.id ?? period.periodId ?? period.period_id);
-      const periodName = text(period.name ?? period.label);
-      const mealPeriod = periodFromName(periodName);
-      if (!periodId || !mealPeriod) return undefined;
+      const mealPeriod = periodFromName(period.name);
+      if (!mealPeriod) return undefined;
 
-      const v4Categories = extractCategories(await fetchJson(MENU_V4_URL(locationId, date, periodId)));
-      if (hasRichItems(v4Categories)) return { mealPeriod, categories: v4Categories };
-
-      const v1Categories = extractCategories(await fetchJson(MENU_V1_URL(locationId, date, periodId)));
-      const categories = hasRichItems(v1Categories) ? v1Categories : mergePeriodCategories(v4Categories, v1Categories);
+      const [v4Payload, v1Payload] = await Promise.all([
+        period.v4Id ? fetchJson(MENU_V4_URL(locationId, date, period.v4Id)) : Promise.resolve(undefined),
+        period.v1Id ? fetchJson(MENU_V1_URL(locationId, date, period.v1Id)) : Promise.resolve(undefined),
+      ]);
+      const v4Categories = extractCategories(v4Payload);
+      const v1Categories = extractCategories(v1Payload);
+      const categories = mergePeriodCategories(v4Categories, v1Categories);
       return { mealPeriod, categories };
     }));
 
@@ -426,7 +492,7 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
         stationMap.set(stationId, {
           id: stationId,
           name: stationName,
-          description: cleanText(category.description ?? category.desc),
+          description: cleanText(category.description ?? category.desc) ?? previousStation?.description,
           locationId: LOCATION_IDS.nineTwentyOne,
           mealPeriods: [...stationPeriods],
           provenance: liveProvenance(date),
@@ -445,21 +511,25 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
           const portion = cleanText(rawItem.portion ?? rawItem.serving_size ?? rawItem.serving);
           const nutrition = mapNutrition(rawItem) ?? existing?.nutrition;
           const allergens = mapAllergens(rawItem);
+          const mayContainAllergens = mapMayContainAllergens(rawItem);
           const dietaryTags = mapDietaryTags(rawItem);
+          const imageUrl = cleanText(rawItem.image_url ?? rawItem.imageUrl ?? rawItem.image) ?? existing?.imageUrl;
 
           itemMap.set(key, {
             id,
             name,
             description: cleanText(rawItem.desc ?? rawItem.description) ?? existing?.description,
-            ingredients: cleanText(rawItem.ingredients) ?? existing?.ingredients,
+            ingredients: cleanText(rawItem.ingredients ?? rawItem.ingredient_statement) ?? existing?.ingredients,
             kind: "predefined",
             stationId,
             locationId: LOCATION_IDS.nineTwentyOne,
             nutrition,
             serving: portion ? { amount: 1, unit: "serving", description: portion } : existing?.serving,
             allergens: allergens.length > 0 ? allergens : existing?.allergens ?? [],
+            mayContainAllergens: mayContainAllergens.length > 0 ? mayContainAllergens : existing?.mayContainAllergens,
             dietaryTags: dietaryTags.length > 0 ? dietaryTags : existing?.dietaryTags ?? [],
             availability: [...availability],
+            imageUrl,
             provenance: liveProvenance(
               date,
               nutrition

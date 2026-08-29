@@ -7,6 +7,7 @@ export * from "./mealEditing";
 export * from "./recommendationEligibility";
 export * from "./recommendationCandidates";
 export * from "./recommendationScoring";
+export * from "./recommendationDietQuality";
 export * from "./recommendationBehavior";
 export * from "./recommendationReplacements";
 export * from "./mealHistoryRepository";

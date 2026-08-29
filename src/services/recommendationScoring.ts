@@ -1,6 +1,7 @@
 import type { DiningDataProvider } from "./diningProvider";
 import { resolveMealBuild, type ComputedMealBuild } from "./mealBuilder";
 import { mealBuildSimilarity, scoreMealHistory, type MealHistoryScore } from "./recommendationBehavior";
+import { mealDietQualityPenalty } from "./recommendationDietQuality";
 import type { Macros, MealCandidate, PrimaryGoal, RecommendationContext } from "@/types";
 
 export type NutritionScoringMode = "daily-targets" | "goal-only";
@@ -15,6 +16,8 @@ export interface NutritionScoreBreakdown {
   energyReferenceFit?: number;
   goalAlignment: number;
   remainingBudgetPenalty: number;
+  /** Penalizes lower-satiety/high-sugar foods according to the student's plan strictness. */
+  dietQualityPenalty: number;
   /** Additional guard against extreme meal size when no individualized target exists. */
   energyOvershootPenalty: number;
   /** Temporary calorie-based sanity guard until every upstream item has authoritative meal-role metadata. */
@@ -358,6 +361,7 @@ export function scoreResolvedMeals(
     .map(({ candidate, computed }): RankedMealCandidate => {
       const goalAlignment = blendedGoalAlignment(computed, pool, context);
       const penalty = remainingBudgetPenalty(computed.nutrition!, context);
+      const dietQualityPenalty = mealDietQualityPenalty(computed, context);
       const compositionPenalty = mealCompositionPenalty(computed);
       const targetFit = target
         ? blendedTargetFit(computed.nutrition!, target, context)
@@ -370,8 +374,8 @@ export function scoreResolvedMeals(
         : goalOnlyEnergyOvershootPenalty(computed.nutrition!.calories, goalOnlyReference);
 
       const nutritionTotal = roundScore(targetFit === undefined
-        ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 - penalty - compositionPenalty - energyOvershootPenalty
-        : targetFit * 0.80 + goalAlignment * 0.20 - penalty - compositionPenalty);
+        ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 - penalty - dietQualityPenalty - compositionPenalty - energyOvershootPenalty
+        : targetFit * 0.80 + goalAlignment * 0.20 - penalty - dietQualityPenalty - compositionPenalty);
       const behavior = scoreMealHistory(candidate, context.recentHistory ?? []);
       const total = roundScore(nutritionTotal + behavior.totalAdjustment);
       return {
@@ -384,6 +388,7 @@ export function scoreResolvedMeals(
           energyReferenceFit,
           goalAlignment,
           remainingBudgetPenalty: penalty,
+          dietQualityPenalty,
           energyOvershootPenalty,
           compositionPenalty,
           behavior,

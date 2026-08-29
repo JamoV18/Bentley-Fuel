@@ -1,5 +1,6 @@
 import type { DiningDataProvider } from "./diningProvider";
 import { assessMenuItemEligibility } from "./recommendationEligibility";
+import { dietQualityPriority, shouldHardExcludeForDietQuality } from "./recommendationDietQuality";
 import type {
   FoodComponent,
   MealBuild,
@@ -210,6 +211,7 @@ export function generateMealCandidatesFromResources(
   const eligible = items.filter((item) => {
     if (!availableStationIds.has(item.stationId)) return false;
     if (excludedMenuItemIds.has(item.id)) return false;
+    if (shouldHardExcludeForDietQuality(item, context)) return false;
     return assessMenuItemEligibility(item, context, components).isEligible;
   });
 
@@ -229,6 +231,8 @@ export function generateMealCandidatesFromResources(
   candidateItemSets.sort((a, b) => {
     const roleBalance = roleBalancePriority(b) - roleBalancePriority(a);
     if (roleBalance !== 0) return roleBalance;
+    const quality = dietQualityPriority(b, context) - dietQualityPriority(a, context);
+    if (quality !== 0) return quality;
     const diversity = stationDiversity(b) - stationDiversity(a);
     if (diversity !== 0) return diversity;
     if (a.length !== b.length) return a.length - b.length;

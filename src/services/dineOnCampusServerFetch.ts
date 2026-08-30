@@ -4,8 +4,10 @@ const DINE_ON_CAMPUS_HOSTS = new Set([
 ]);
 
 /**
- * Verified from Bentley's current public DineOnCampus menu request on
- * 2026-08-29. Period IDs remain date-driven and are fetched live.
+ * Verified from Bentley's public DineOnCampus menu traffic on 2026-08-29.
+ * This is only a fallback now: the provider rediscovers The 921 live first so a
+ * DineOnCampus publishing/location rollover cannot strand Bentley Fuel on a
+ * stale location record.
  */
 export const BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID = "6a63fc9b4b5736c5a8d6332b";
 
@@ -13,23 +15,13 @@ type PatchedGlobal = typeof globalThis & {
   __bentleyFuelDineOnCampusFetchPatched?: boolean;
 };
 
-const jsonResponse = (value: unknown) => new Response(JSON.stringify(value), {
-  status: 200,
-  headers: { "Content-Type": "application/json" },
-});
-
 /**
  * DineOnCampus's public API is called by its browser client with normal browser
  * request headers. Some upstream responses reject bare server-style requests,
  * so server rendering mirrors that public request shape for these hosts.
- * No cookies, credentials, or private headers are added.
- *
- * Bentley Fuel previously tried to rediscover Bentley and The 921 through the
- * legacy /sites/public -> status_by_site path. Bentley's current web app exposes
- * The 921's stable public location ID directly in its menu requests, so those two
- * discovery calls are resolved locally to that verified ID. The actual periods,
- * menus, nutrition, ingredients, allergens, and labels are still fetched live
- * from DineOnCampus for the selected date.
+ * No cookies, credentials, or private headers are added. Discovery, periods,
+ * menus, nutrition, ingredients, allergens, and labels all remain live calls;
+ * the pinned 921 ID above is used only when live discovery cannot resolve one.
  */
 export function installDineOnCampusServerFetchHeaders(): void {
   if (typeof window !== "undefined") return;
@@ -53,9 +45,6 @@ export function installDineOnCampusServerFetchHeaders(): void {
     }
 
     if (!DINE_ON_CAMPUS_HOSTS.has(url.hostname)) return originalFetch(input, init);
-
-    // Discovery requests now pass through too. The provider treats the pinned ID
-    // as a fallback rather than pretending it is permanently current.
 
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
     new Headers(init?.headers).forEach((value, key) => headers.set(key, value));

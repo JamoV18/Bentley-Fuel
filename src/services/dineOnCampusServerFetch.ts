@@ -8,7 +8,6 @@ const DINE_ON_CAMPUS_HOSTS = new Set([
  * 2026-08-29. Period IDs remain date-driven and are fetched live.
  */
 export const BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID = "6a63fc9b4b5736c5a8d6332b";
-const BENTLEY_DISCOVERY_SITE_ID = "bentley-fuel-fixed-site";
 
 type PatchedGlobal = typeof globalThis & {
   __bentleyFuelDineOnCampusFetchPatched?: boolean;
@@ -55,30 +54,14 @@ export function installDineOnCampusServerFetchHeaders(): void {
 
     if (!DINE_ON_CAMPUS_HOSTS.has(url.hostname)) return originalFetch(input, init);
 
-    // Avoid brittle legacy school/location discovery. These synthetic discovery
-    // responses only identify The 921; all menu content still comes from DOC.
-    if (url.hostname === "apiv4.dineoncampus.com" && url.pathname === "/sites/public") {
-      return jsonResponse({ sites: [{ id: BENTLEY_DISCOVERY_SITE_ID, name: "Bentley University" }] });
-    }
-    if (
-      url.hostname === "apiv4.dineoncampus.com" &&
-      url.pathname === "/locations/status_by_site" &&
-      url.searchParams.get("siteId") === BENTLEY_DISCOVERY_SITE_ID
-    ) {
-      return jsonResponse({
-        locations: [{
-          id: BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID,
-          name: "921 Dining Hall",
-          buildingName: "The 921",
-        }],
-      });
-    }
+    // Discovery requests now pass through too. The provider treats the pinned ID
+    // as a fallback rather than pretending it is permanently current.
 
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
     new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
     headers.set("Accept", "application/json, text/plain, */*");
     headers.set("Accept-Language", "en-US,en;q=0.9");
-    headers.set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0 Safari/537.36");
+    headers.set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0 Safari/537.36");
     headers.set("Origin", "https://dineoncampus.com");
     headers.set("Referer", "https://dineoncampus.com/bentley/whats-on-the-menu/921-dining-hall");
     headers.set("X-Requested-With", "XMLHttpRequest");

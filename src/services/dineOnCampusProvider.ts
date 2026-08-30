@@ -19,6 +19,7 @@ import type {
 import type { DiningDataProvider, MenuItemQuery } from "./diningProvider";
 import { MockDiningProvider } from "./mockDiningProvider";
 import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
+import { BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID } from "./dineOnCampusServerFetch";
 
 const SITES_URL = "https://apiv4.dineoncampus.com/sites/public";
 const LOCATIONS_URL = (siteId: string) =>
@@ -253,17 +254,38 @@ function mapDietaryTags(item: JsonRecord): DietaryTag[] {
   return [...tags];
 }
 
-function extractCategories(payload: unknown): JsonRecord[] {
-  const root = record(payload);
-  const direct = records(record(root.period).categories);
-  if (direct.length > 0) return direct;
+function categoryItems(category: JsonRecord): JsonRecord[] {
+  return records(category.items ?? category.menuItems ?? category.menu_items ?? category.products);
+}
 
-  const menu = record(root.menu);
-  const periods = menu.periods;
-  if (Array.isArray(periods)) return periods.flatMap((entry) => records(record(entry).categories));
-  const nested = records(record(periods).categories);
-  if (nested.length > 0) return nested;
-  return records(root.categories);
+function extractCategories(payload: unknown): JsonRecord[] {
+  const queue: unknown[] = [payload];
+  const seen = new Set<unknown>();
+  let fallback: JsonRecord[] = [];
+
+  while (queue.length > 0) {
+    const value = queue.shift();
+    if (!value || seen.has(value)) continue;
+    if (typeof value === "object") seen.add(value);
+
+    if (Array.isArray(value)) {
+      queue.push(...value);
+      continue;
+    }
+
+    const current = record(value);
+    const categories = records(current.categories);
+    if (categories.length > 0) {
+      if (categories.some((category) => categoryItems(category).length > 0)) return categories;
+      if (fallback.length === 0) fallback = categories;
+    }
+
+    for (const key of ["data", "result", "location", "menu", "period", "periods"]) {
+      if (current[key] !== undefined) queue.push(current[key]);
+    }
+  }
+
+  return fallback;
 }
 
 async function fetchJson(url: string): Promise<unknown | undefined> {
@@ -289,8 +311,21 @@ async function fetchJson(url: string): Promise<unknown | undefined> {
 
 function periodsFromPayload(payload: unknown): JsonRecord[] {
   const root = record(payload);
-  const candidates = records(root.periods);
-  return candidates.length > 0 ? candidates : records(root.data);
+  const candidates = [
+    ...records(root.periods),
+    ...records(root.data),
+    ...records(record(root.data).periods),
+    ...records(record(root.location).periods),
+    ...records(record(root.menu).periods),
+    ...records(record(root.result).periods),
+  ];
+  const seen = new Set<string>();
+  return candidates.filter((period) => {
+    const key = `${text(period.id ?? period.periodId ?? period.period_id ?? period._id)}::${normalized(text(period.name ?? period.label ?? period.displayName ?? period.period_name))}`;
+    if (!key || key === "::" || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function siteRows(payload: unknown): JsonRecord[] {
@@ -324,14 +359,14 @@ function mergePeriodCategories(primary: JsonRecord[], richer: JsonRecord[]): Jso
     const richerCategory = richerByStation.get(stationKey);
     if (!richerCategory) return category;
 
-    const richerItems = new Map(records(richerCategory.items).map((item) => [itemKey(stationName, item), item] as const));
+    const richerItems = new Map(categoryItems(richerCategory).map((item) => [itemKey(stationName, item), item] as const));
     const seenItems = new Set<string>();
-    const items = records(category.items).map((item) => {
+    const items = categoryItems(category).map((item) => {
       const key = itemKey(stationName, item);
       seenItems.add(key);
       return { ...item, ...(richerItems.get(key) ?? {}) };
     });
-    for (const richItem of records(richerCategory.items)) {
+    for (const richItem of categoryItems(richerCategory)) {
       const key = itemKey(stationName, richItem);
       if (!seenItems.has(key)) items.push(richItem);
     }
@@ -362,10 +397,10 @@ function filterMenuItems(items: MenuItem[], query: MenuItemQuery): MenuItem[] {
 function describePeriods(v4Periods: JsonRecord[], v1Periods: JsonRecord[]): PeriodDescriptor[] {
   const byName = new Map<string, PeriodDescriptor>();
   const add = (period: JsonRecord, version: "v4" | "v1") => {
-    const name = text(period.name ?? period.label);
+    const name = text(period.name ?? period.label ?? period.displayName ?? period.period_name);
     if (!name) return;
     const key = normalized(name);
-    const id = text(period.id ?? period.periodId ?? period.period_id);
+    const id = text(period.id ?? period.periodId ?? period.period_id ?? period._id);
     const current = byName.get(key) ?? { name };
     if (version === "v4") current.v4Id = id || current.v4Id;
     else current.v1Id = id || current.v1Id;
@@ -430,7 +465,12 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
     const cached = this.liveDateCache.get(date);
     if (cached) return cached;
     const request = this.loadLiveDate(date).then((result) => {
-      if (!result) this.liveDateCache.delete(date);
+      if (!result) {
+        this.liveDateCache.delete(date);
+        // Discovery can become stale across a DineOnCampus publishing rollover.
+        // Let the next request rediscover The 921 instead of caching a dead ID.
+        this.dineOnCampusLocationIdPromise = undefined;
+      }
       return result;
     });
     this.liveDateCache.set(date, request);
@@ -441,34 +481,47 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
     if (this.dineOnCampusLocationIdPromise) return this.dineOnCampusLocationIdPromise;
     this.dineOnCampusLocationIdPromise = (async () => {
       const sitesPayload = await fetchJson(SITES_URL);
-      const bentley = siteRows(sitesPayload).find((site) => normalized(text(site.name)).includes("bentley"));
+      const bentley = siteRows(sitesPayload).find((site) =>
+        normalized(text(site.name ?? site.label ?? site.universityName)).includes("bentley"),
+      );
       const siteId = text(bentley?.id ?? bentley?.siteId ?? bentley?.site_id ?? bentley?._id);
-      if (!siteId) return undefined;
+      if (!siteId) return BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID;
 
       const locationsPayload = await fetchJson(LOCATIONS_URL(siteId));
       const locations = locationRows(locationsPayload);
-      const nineTwentyOne = locations.find((location) => normalized(text(location.name)).includes("921"));
-      return text(nineTwentyOne?.id ?? nineTwentyOne?.locationId ?? nineTwentyOne?.location_id ?? nineTwentyOne?._id) || undefined;
+      const nineTwentyOne = locations.find((location) => {
+        const label = normalized(text(
+          location.name ?? location.label ?? location.displayName ?? location.buildingName ?? location.locationName,
+        ));
+        return label.includes("921") || label.includes("nine twenty one");
+      });
+      return text(nineTwentyOne?.id ?? nineTwentyOne?.locationId ?? nineTwentyOne?.location_id ?? nineTwentyOne?._id)
+        || BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID;
     })();
     return this.dineOnCampusLocationIdPromise;
   }
 
-  private async loadLiveDate(date: string): Promise<LiveDateData | undefined> {
-    const locationId = await this.resolveDineOnCampusLocationId();
-    if (!locationId) return undefined;
+  private async loadLiveDate(date: string, forcedLocationId?: string): Promise<LiveDateData | undefined> {
+    const locationId = forcedLocationId
+      ?? await this.resolveDineOnCampusLocationId()
+      ?? BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID;
 
     const [v4Periods, v1Periods] = await Promise.all([
       fetchJson(PERIODS_V4_URL(locationId, date)).then(periodsFromPayload),
       fetchJson(PERIODS_V1_URL(locationId, date)).then(periodsFromPayload),
     ]);
     const periods = describePeriods(v4Periods, v1Periods);
-    if (periods.length === 0) return undefined;
+    if (periods.length === 0) {
+      if (!forcedLocationId && locationId !== BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID) {
+        return this.loadLiveDate(date, BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID);
+      }
+      return undefined;
+    }
 
     const stationMap = new Map<string, Station>();
     const itemMap = new Map<string, MenuItem>();
     const periodMenus = await Promise.all(periods.map(async (period) => {
-      const mealPeriod = periodFromName(period.name);
-      if (!mealPeriod) return undefined;
+      const mealPeriod = periodFromName(period.name) ?? "all-day";
 
       const [v4Payload, v1Payload] = await Promise.all([
         period.v4Id ? fetchJson(MENU_V4_URL(locationId, date, period.v4Id)) : Promise.resolve(undefined),
@@ -498,8 +551,8 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
           provenance: liveProvenance(date),
         });
 
-        const categoryItems = records(category.items);
-        categoryItems.forEach((rawItem, index) => {
+        const publishedItems = categoryItems(category);
+        publishedItems.forEach((rawItem, index) => {
           const name = cleanText(rawItem.name);
           if (!name) return;
           const key = `${stationId}::${normalized(name)}`;
@@ -542,7 +595,12 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
     }
 
     const items = [...itemMap.values()];
-    if (items.length === 0) return undefined;
+    if (items.length === 0) {
+      if (!forcedLocationId && locationId !== BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID) {
+        return this.loadLiveDate(date, BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID);
+      }
+      return undefined;
+    }
     return { stations: [...stationMap.values()], items };
   }
 }

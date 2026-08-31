@@ -249,12 +249,52 @@ const candidateSetPriority = (
 const itemSetAnchorId = (items: readonly MenuItem[]): string =>
   items.find((item) => inferMenuItemMealRole(item) === "main")?.id ?? items[0]?.id ?? "empty";
 
+const itemSetStructureSignature = (items: readonly MenuItem[]): string => {
+  const companionStructure = items
+    .filter((item) => inferMenuItemMealRole(item) !== "main")
+    .map((item) => {
+      const role = inferMenuItemMealRole(item);
+      return role === "side" ? `side:${inferMealSideCategory(item)}` : role;
+    })
+    .sort();
+  return companionStructure.length > 0 ? companionStructure.join("+") : "main-only";
+};
+
+function roundRobinItemSetsByStructure(sets: readonly MenuItem[][]): MenuItem[][] {
+  const byStructure = new Map<string, MenuItem[][]>();
+  for (const set of sets) {
+    const signature = itemSetStructureSignature(set);
+    const rows = byStructure.get(signature) ?? [];
+    rows.push(set);
+    byStructure.set(signature, rows);
+  }
+
+  const groups = [...byStructure.values()];
+  const ordered: MenuItem[][] = [];
+  let offset = 0;
+  while (ordered.length < sets.length) {
+    let added = false;
+    for (const group of groups) {
+      const row = group[offset];
+      if (!row) continue;
+      ordered.push(row);
+      added = true;
+    }
+    if (!added) break;
+    offset += 1;
+  }
+  return ordered;
+}
+
 function orderSizesWithinAnchor(sets: readonly MenuItem[][]): MenuItem[][] {
   const bySize = new Map<number, MenuItem[][]>();
   for (const set of sets) {
     const rows = bySize.get(set.length) ?? [];
     rows.push(set);
     bySize.set(set.length, rows);
+  }
+  for (const [size, rows] of bySize.entries()) {
+    bySize.set(size, roundRobinItemSetsByStructure(rows));
   }
   const preferred = [2, 3, 1, ...[...bySize.keys()].filter((size) => ![1, 2, 3].includes(size)).sort((a, b) => a - b)];
   const ordered: MenuItem[][] = [];

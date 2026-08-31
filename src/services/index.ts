@@ -13,6 +13,7 @@ export * from "./recommendationReplacements";
 export * from "./portionGuidance";
 export * from "./mealHistoryRepository";
 export * from "./progressRepository";
+export * from "./userDataRepository";
 export * from "./dailyNutrition";
 export * from "./dailyTargets";
 export * from "./nutritionPlan";

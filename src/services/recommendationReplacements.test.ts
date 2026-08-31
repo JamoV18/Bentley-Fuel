@@ -3,10 +3,12 @@ import test from "node:test";
 import { marketItems } from "../data/mock/menuItems/market.ts";
 import { LOCATION_IDS, locations } from "../data/mock/locations.ts";
 import { stations } from "../data/mock/stations.ts";
-import type { MealBuild, MealItemSelection, RecommendationContext, UserProfile } from "../types/index.ts";
+import type { MealBuild, MealItemSelection, MenuItem, RecommendationContext, UserProfile } from "../types/index.ts";
 import { computeMealBuild } from "./mealBuilder.ts";
 import {
   scoreNutritionalRoleSimilarity,
+  scoreReplacementStationConvenience,
+  scoreStructuralRoleSimilarity,
   suggestMealItemReplacements,
 } from "./recommendationReplacements.ts";
 
@@ -44,6 +46,23 @@ const turkey: MealItemSelection = {
 
 const turkeyNutrition = marketItems.find((item) => item.id === turkey.menuItemId)?.nutrition;
 
+const mockItem = (id: string, name: string, mealRole: MenuItem["mealRole"], stationId = "station-a"): MenuItem => ({
+  id,
+  name,
+  kind: "predefined",
+  stationId,
+  locationId: "loc-test",
+  mealRole,
+  nutrition: { calories: 200, protein: 5, carbs: 35, fat: 4 },
+  allergens: [],
+  dietaryTags: [],
+  provenance: {
+    dataStatus: "mock",
+    source: { type: "mock-generator", name: "replacement test" },
+    confidence: 1,
+  },
+});
+
 test("nutritional role similarity strongly rewards an analogous replacement", () => {
   const close = scoreNutritionalRoleSimilarity(
     { calories: 480, protein: 30, carbs: 44, fat: 20 },
@@ -57,6 +76,39 @@ test("nutritional role similarity strongly rewards an analogous replacement", ()
   assert.ok(close > far);
 });
 
+test("structural role matching prefers a similar side category over an unrelated side", () => {
+  const rice = mockItem("rice", "Brown Rice", "side");
+  const potatoes = mockItem("potatoes", "Roasted Potatoes", "side");
+  const broccoli = mockItem("broccoli", "Steamed Broccoli", "side");
+  assert.ok(scoreStructuralRoleSimilarity(rice, potatoes) >= 80);
+  assert.ok(scoreStructuralRoleSimilarity(rice, potatoes) > scoreStructuralRoleSimilarity(rice, broccoli));
+});
+
+test("structural role matching prevents snacks from masquerading as entree replacements", () => {
+  const chicken = mockItem("chicken", "Grilled Chicken", "main");
+  const wrap = mockItem("wrap", "Turkey Wrap", "main");
+  const banana = mockItem("banana", "Banana", "snack");
+  assert.ok(scoreStructuralRoleSimilarity(chicken, wrap) >= 75);
+  assert.ok(scoreStructuralRoleSimilarity(chicken, wrap) > scoreStructuralRoleSimilarity(chicken, banana));
+});
+
+test("station convenience favors the removed or already-visited station", () => {
+  const removed = mockItem("removed", "Brown Rice", "side", "station-a");
+  const sameStation = mockItem("same", "Roasted Potatoes", "side", "station-a");
+  const existingStation = mockItem("existing", "Quinoa", "side", "station-b");
+  const newStation = mockItem("new", "Couscous", "side", "station-c");
+  const localResources = {
+    location: undefined,
+    stations: [],
+    components: [],
+    menuItems: [removed, sameStation, existingStation, newStation, mockItem("main", "Grilled Chicken", "main", "station-b")],
+  };
+  const build: MealBuild = { locationId: "loc-test", items: [{ id: "main-line", menuItemId: "main", quantity: 1 }] };
+  assert.equal(scoreReplacementStationConvenience(removed, sameStation, build, localResources), 100);
+  assert.equal(scoreReplacementStationConvenience(removed, existingStation, build, localResources), 95);
+  assert.ok(scoreReplacementStationConvenience(removed, existingStation, build, localResources) > scoreReplacementStationConvenience(removed, newStation, build, localResources));
+});
+
 test("replacement suggestions exclude the removed food and foods already in the meal", () => {
   const build: MealBuild = {
     locationId: LOCATION_IDS.market,
@@ -67,6 +119,16 @@ test("replacement suggestions exclude the removed food and foods already in the 
   assert.ok(suggestions.every((suggestion) => suggestion.menuItemId !== turkey.menuItemId));
   assert.ok(suggestions.every((suggestion) => suggestion.menuItemId !== "item-market-protein-shake"));
   assert.equal(suggestions[0]?.menuItemId, "item-market-chicken-caesar-wrap");
+});
+
+test("when same-role entree substitutes exist, replacement suggestions stay in the entree class", () => {
+  const build: MealBuild = { locationId: LOCATION_IDS.market, items: [] };
+  const suggestions = suggestMealItemReplacements(build, turkey, turkeyNutrition, resources, context(), { maxSuggestions: 5 });
+  assert.ok(suggestions.length > 0);
+  assert.ok(suggestions.every((suggestion) => suggestion.structuralSimilarity >= 70));
+  assert.ok(suggestions.some((suggestion) => suggestion.menuItemId === "item-market-chicken-caesar-wrap"));
+  assert.ok(suggestions.every((suggestion) => suggestion.menuItemId !== "item-market-banana"));
+  assert.ok(suggestions.every((suggestion) => suggestion.menuItemId !== "item-market-protein-shake"));
 });
 
 test("hard allergen restrictions shape replacement suggestions", () => {

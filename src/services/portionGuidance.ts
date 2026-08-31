@@ -58,8 +58,9 @@ export interface PortionGuidance {
 /**
  * Human-facing translation only. Nutrition math continues to use MenuItem
  * servings. If an authoritative volume serving is available, convert it to the
- * temporary spoon calibration. Otherwise never pretend we know the exact
- * DineOnCampus-serving-to-spoon relationship.
+ * temporary spoon calibration. If it is not, the prototype follows the user's
+ * requested mock assumption that one DineOn serving of a scoopable side is about
+ * one level serving spoon. The UI must label that translation as an estimate.
  */
 export function portionGuidanceFor(item: MenuItem | undefined, selection: MealItemSelection): PortionGuidance {
   const quantity = selection.quantity;
@@ -74,7 +75,7 @@ export function portionGuidanceFor(item: MenuItem | undefined, selection: MealIt
       servingText: item.serving?.description
         ? `${compactNumber(quantity)} × ${item.serving.description}`
         : `${compactNumber(totalCups)} cup${totalCups === 1 ? "" : "s"}`,
-      utensilText: `≈ ${compactNumber(spoonfuls)} level serving spoon${spoonfuls === 1 ? "" : "s"}`,
+      utensilText: `≈ ${compactNumber(spoonfuls)} level serving spoon${spoonfuls === 1 ? "" : "s"} (mock utensil calibration)`,
       confidence: "mock-estimate",
     };
   }
@@ -90,7 +91,7 @@ export function portionGuidanceFor(item: MenuItem | undefined, selection: MealIt
   if (isScoopableMenuItem(item)) {
     return {
       servingText: servingLabel,
-      utensilText: `Mock reference: 1 level serving spoon ≈ ½ cup (${MOCK_LEVEL_SERVING_SPOON_ML} mL); exact spoon count is not yet calibrated to this food.`,
+      utensilText: `≈ ${compactNumber(quantity)} level serving spoon${quantity === 1 ? "" : "s"} (mock: 1 spoon ≈ ½ cup / ${MOCK_LEVEL_SERVING_SPOON_ML} mL)`,
       confidence: "mock-estimate",
     };
   }

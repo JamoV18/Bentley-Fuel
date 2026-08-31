@@ -1,6 +1,6 @@
 import type { NutritionPlanSnapshot, PrimaryGoal, UserProfile } from "@/types";
-import { estimateMaintenanceCalories } from "@/lib/energyEstimate";
-import { deriveMaintenanceTargetPlan, deriveWeightLossTargetPlan } from "./dailyTargets";
+import { estimateMaintenanceCalories, maintenanceEstimateMethodForAge } from "@/lib/energyEstimate";
+import { automaticWeightLossDeficitAllowed, deriveMaintenanceTargetPlan, deriveWeightLossTargetPlan } from "./dailyTargets";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
@@ -42,10 +42,11 @@ function profileAtObservedWeight(profile: UserProfile, currentWeightKg: number |
   if (!currentWeightKg || !profile.metrics) return profile;
   const metrics = { ...profile.metrics, weightKg: currentWeightKg };
   const calories = estimateMaintenanceCalories(metrics);
+  const method = maintenanceEstimateMethodForAge(metrics.age);
   return {
     ...profile,
     metrics,
-    maintenanceEstimate: calories ? { calories, method: "national-academies-2023-adult-eer" } : profile.maintenanceEstimate,
+    maintenanceEstimate: calories && method ? { calories, method } : profile.maintenanceEstimate,
   };
 }
 
@@ -60,7 +61,8 @@ export function resolveNutritionPlan(
   const goal = trajectoryGoal(profile);
   const goalReached = reachedTarget(goal, currentWeightKg, intent?.targetWeightKg);
   const phase = goalReached && intent?.maintenanceAfterGoal ? "maintenance" : "goal";
-  const weightLossTargets = phase === "goal" && selectedGoals(profile).includes("lose-weight") && intent?.weightLossIntensity
+  const deficitAllowed = automaticWeightLossDeficitAllowed(maintenanceProfile);
+  const weightLossTargets = phase === "goal" && deficitAllowed && selectedGoals(profile).includes("lose-weight") && intent?.weightLossIntensity
     ? deriveWeightLossTargetPlan(maintenanceProfile, intent.weightLossIntensity)?.targets
     : undefined;
 
@@ -70,7 +72,7 @@ export function resolveNutritionPlan(
     currentWeightKg,
     targetWeightKg: intent?.targetWeightKg,
     plannedWeeklyWeightChangeKg: intent?.plannedWeeklyWeightChangeKg,
-    weightLossIntensity: intent?.weightLossIntensity,
+    weightLossIntensity: deficitAllowed ? intent?.weightLossIntensity : undefined,
     projectedGoalDate: phase === "goal"
       ? projectedDate(currentWeightKg, intent?.targetWeightKg, intent?.plannedWeeklyWeightChangeKg, now)
       : undefined,

@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import ActivityCheckInCard from "@/components/ActivityCheckInCard";
 import AppNav from "@/components/AppNav";
 import BklitWeightProgressChart from "@/components/BklitWeightProgressChart";
 import PlanEditControl from "@/components/PlanEditControl";
 import SuccessMorphLabel from "@/components/SuccessMorphLabel";
-import { browserMealHistoryRepository, browserProgressRepository, resolveNutritionPlan } from "@/services";
+import { browserProgressRepository, browserUserDataRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile, WeightObservation } from "@/types";
 
@@ -64,7 +65,7 @@ export default function ProfileSummary() {
     }, 900);
   };
 
-  const clearAllLocalData = () => { browserMealHistoryRepository().clear(); browserProgressRepository().clear(); browserProfileRepository().clear(); router.push("/onboarding"); };
+  const clearAllLocalData = () => { browserUserDataRepository().clearAll(); router.push("/onboarding"); };
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
@@ -96,6 +97,8 @@ export default function ProfileSummary() {
           </div>
         </section>
       </div>
+
+      <ActivityCheckInCard profile={profile} currentWeightKg={latestWeightKg ?? profile.metrics?.weightKg} onProfileUpdated={setProfile} />
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         {maintenanceCalories && <section className="surface p-5"><p className="eyebrow">Estimated maintenance</p><p className="mt-1 text-3xl font-bold tracking-tight">{maintenanceCalories.toLocaleString()} <span className="text-sm font-medium subtle">cal/day</span></p><p className="mt-2 text-sm subtle">Estimated energy needed to maintain the current recorded body weight using the supported inputs available.</p></section>}

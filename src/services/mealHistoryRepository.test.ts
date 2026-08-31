@@ -45,8 +45,27 @@ test("updates completion and records feedback time without changing the saved bu
   assert.equal(saved.completionFraction, 0.5);
   assert.equal(saved.explicitFeedback, "like");
   assert.ok(saved.completionRecordedAt);
+  assert.equal(saved.eatenAt, saved.selectedAt);
   assert.equal(saved.build.items[0].menuItemId, "item-test");
   assert.equal(saved.nutrition?.calories, 700);
+});
+
+test("saving a meal does not claim it was eaten before the student confirms consumption", () => {
+  const storage = memoryStorage();
+  const repository = createLocalMealHistoryRepository(storage);
+  repository.upsert(entry("selected-only"));
+  assert.equal(repository.getRecent()[0].eatenAt, undefined);
+});
+
+test("reported zero consumption stays selected but is not marked eaten", () => {
+  const storage = memoryStorage();
+  const repository = createLocalMealHistoryRepository(storage);
+  repository.upsert(entry("not-eaten"));
+  repository.updateFeedback("not-eaten", 0);
+  const saved = repository.getRecent()[0];
+  assert.equal(saved.completionFraction, 0);
+  assert.equal(saved.eatenAt, undefined);
+  assert.ok(saved.completionRecordedAt);
 });
 
 test("later build edits preserve feedback while refreshing the nutrition snapshot", () => {
@@ -67,6 +86,7 @@ test("later build edits preserve feedback while refreshing the nutrition snapsho
   assert.equal(saved.nutrition?.calories, 520);
   assert.equal(saved.completionFraction, 0.8);
   assert.equal(saved.explicitFeedback, "like");
+  assert.equal(saved.eatenAt, saved.selectedAt);
   assert.ok(saved.completionRecordedAt);
 });
 

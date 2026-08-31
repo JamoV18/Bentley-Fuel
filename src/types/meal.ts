@@ -1,4 +1,4 @@
-import type { FoodComponentId, LocationId, MenuItemId } from "./common";
+import type { FoodComponentId, LocationId, MenuItemId, StationId } from "./common";
 
 /** A discrete component choice inside one customizable menu-item line. */
 export interface ComponentSelection {
@@ -9,11 +9,14 @@ export interface ComponentSelection {
 /**
  * Small immutable display snapshot carried with a meal line. Live DineOnCampus
  * menu IDs are date-specific, so history cannot assume the current menu can
- * resolve an older selection forever.
+ * resolve an older selection forever. Station identity is also captured so
+ * repeated station choices can teach preference without coupling history to a
+ * future menu payload.
  */
 export interface MealItemDisplaySnapshot {
   name: string;
   imageUrl?: string;
+  stationId?: StationId;
 }
 
 /** One independently editable line in a complete meal candidate. */

@@ -68,9 +68,9 @@ export const locations: Location[] = [
     shortName: "LaCava",
     type: "food-court",
     universityId: BENTLEY_UNIVERSITY_ID,
-    building: "LaCava Center",
+    building: "LaCava Campus Center",
     description:
-      "LaCava Cafe and We Proudly Serve Starbucks in the LaCava Center.",
+      "Retail food court in the campus center with a grill, deli, and coffee counter — quick à la carte meals between classes.",
     geo: { lat: 42.3882, lng: -71.2215 },
     mealPlanAccepted: false,
     acceptsDiningDollars: true,
@@ -84,13 +84,13 @@ export const locations: Location[] = [
   },
   {
     id: LOCATION_IDS.dana,
-    name: "Dana Athletic Center",
-    shortName: "Dana",
+    name: "Dana Center",
+    shortName: "Dana Center",
     type: "food-court",
     universityId: BENTLEY_UNIVERSITY_ID,
-    building: "Dana Athletic Center",
+    building: "Dana Center",
     description:
-      "Home to The Blue Chip and The Nest dining concepts.",
+      "Home to Blue Chip and the morning-only Nest dining concepts.",
     provenance: mockProvenance(0.8, "Campus structure is confirmed; operational details are not included."),
   },
   {

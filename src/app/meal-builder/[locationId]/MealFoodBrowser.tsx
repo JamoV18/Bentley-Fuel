@@ -56,7 +56,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                         <MealImage name={item.name} imageUrl={item.imageUrl} />
                         <div className="min-w-0 flex-1">
                           <p className="font-bold leading-tight">{item.name}</p>
-                          <p className="mt-1 text-xs subtle">{item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein` : "Nutrition shown after adding"}{item.price !== undefined && ` · $${item.price.toFixed(2)}`}</p>
+                          <p className="mt-1 text-xs subtle">{item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein · ${item.nutrition.carbs}g carbs` : "Nutrition shown after adding"}{item.price !== undefined && ` · $${item.price.toFixed(2)}`}</p>
                           <AnimatePresence initial={false} mode="wait">
                             {servings > 0 && (
                               <motion.p

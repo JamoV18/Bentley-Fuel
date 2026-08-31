@@ -6,6 +6,7 @@ import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
 import { getDiningProvider } from "@/services";
 import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
+import { normalizeStationMenuForMealBuilder } from "@/services/stationMenuNormalization";
 import type { MealBuild, MealPeriod } from "@/types";
 import ManualMealBuilderClient from "./ManualMealBuilderClient";
 import MealBuilderClient from "./MealBuilderClient";
@@ -91,7 +92,10 @@ export default async function MealBuilderPage({
   }
 
   const selectedItems = selectedPeriod ? allMenuItems.filter((item) => periodMatches(item.availability, selectedPeriod)) : allMenuItems;
-  const menuItems = selectedPeriod ? selectedItems.map((item) => ({ ...item, availability: ["all-day"] as MealPeriod[] })) : selectedItems;
+  const normalized = normalizeStationMenuForMealBuilder(selectedItems, allStations);
+  const menuItems = selectedPeriod
+    ? normalized.menuItems.map((item) => ({ ...item, availability: ["all-day"] as MealPeriod[] }))
+    : normalized.menuItems;
   const usedStationIds = new Set(menuItems.map((item) => item.stationId));
   const stations = selectedPeriod
     ? allStations.filter((station) => usedStationIds.has(station.id)).map((station) => ({ ...station, mealPeriods: ["all-day"] as MealPeriod[] }))
@@ -101,7 +105,11 @@ export default async function MealBuilderPage({
     ...(item.componentIds ?? []),
     ...(item.customization?.flatMap((step) => step.componentIds) ?? []),
   ]))];
-  const components = await provider.getComponents(componentIds);
+  const providerComponents = await provider.getComponents(componentIds);
+  const components = [...new Map([
+    ...providerComponents,
+    ...normalized.components,
+  ].map((component) => [component.id, component] as const)).values()];
   const resources = { location, menuItems, stations, components };
   const isDemo = provider.dataStatus === "mock" && !usesVerifiedMenu;
 
@@ -127,8 +135,11 @@ export default async function MealBuilderPage({
       />
     );
   } else {
-    const fallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod)
-      ?? (isLiveMenuLocation ? { locationId, items: [] } satisfies MealBuild : undefined);
+    const rawFallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod);
+    const normalizedItemIds = new Set(menuItems.map((item) => item.id));
+    const fallbackBuild = rawFallbackBuild?.items.every((line) => normalizedItemIds.has(line.menuItemId))
+      ? rawFallbackBuild
+      : (isLiveMenuLocation ? { locationId, items: [] } satisfies MealBuild : rawFallbackBuild);
     if (!fallbackBuild) notFound();
     content = (
       <MealBuilderClient

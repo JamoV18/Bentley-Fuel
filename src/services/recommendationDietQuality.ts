@@ -84,5 +84,11 @@ export function dietQualityPriority(items: readonly MenuItem[], context: Recomme
     const fiberBonus = (nutrition.fiber ?? 0) >= 5 ? 3 : (nutrition.fiber ?? 0) >= 3 ? 1 : 0;
     return sum + proteinBonus + fiberBonus;
   }, 0);
-  return proteinFiberBonus - penalty;
+  // `popular` is only a small candidate-survival signal. In live 921 menus,
+  // Falcon Fuel uses it for broadly familiar, strong-protein Pure Eats entrees
+  // (for example chicken or salmon) so useful one-stop options are not crowded
+  // out by dozens of decomposed ingredient rows. Nutrition scoring still decides
+  // the final rank; this never overrides allergens, dietary rules, or target fit.
+  const practicalAppealBonus = items.reduce((sum, item) => sum + (item.popular ? 2.5 : 0), 0);
+  return proteinFiberBonus + practicalAppealBonus - penalty;
 }

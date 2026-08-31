@@ -26,6 +26,8 @@ test("finite weight goal exposes an estimated trajectory while goal is active", 
   assert.equal(plan.goalReached, false);
   assert.equal(plan.projectedGoalDate, "2026-10-28");
   assert.equal(plan.activeTargets?.calories, 1900);
+  assert.equal(plan.activeTargetSource, "profile-stored-targets");
+  assert.equal(plan.maintenanceEstimate?.calories, 2400);
   assert.equal(plan.maintenanceAfterGoal, true);
 });
 
@@ -42,6 +44,8 @@ test("weight-loss intensity derives a lower active target without fabricating a 
   const plan = resolveNutritionPlan(next, new Date("2026-08-19T12:00:00.000Z"));
   assert.equal(plan.weightLossIntensity, "optimal");
   assert.equal(plan.activeTargets?.calories, 2400);
+  assert.equal(plan.activeTargetSource, "falcon-fuel-weight-loss-adjustment");
+  assert.equal(plan.goalAdjustmentPercent, 20);
   assert.equal(plan.plannedWeeklyWeightChangeKg, undefined);
   assert.equal(plan.projectedGoalDate, undefined);
 });
@@ -58,7 +62,10 @@ test("age 17 uses adolescent maintenance but does not expose or apply an automat
   const plan = resolveNutritionPlan(next, new Date("2026-08-19T12:00:00.000Z"));
   assert.equal(next.maintenanceEstimate?.method, "national-academies-2023-adolescent-eer");
   assert.equal(plan.maintenanceTargets?.calories, 3580);
+  assert.equal(plan.maintenanceEstimate?.calories, 3580);
   assert.equal(plan.activeTargets?.calories, 3580);
+  assert.equal(plan.activeTargetSource, "maintenance-estimate");
+  assert.equal(plan.goalAdjustmentPercent, undefined);
   assert.equal(plan.weightLossIntensity, undefined);
 });
 
@@ -74,7 +81,10 @@ test("age 18 uses adolescent maintenance and may apply the selected weight-loss 
   const plan = resolveNutritionPlan(next, new Date("2026-08-19T12:00:00.000Z"));
   assert.equal(next.maintenanceEstimate?.method, "national-academies-2023-adolescent-eer");
   assert.equal(plan.maintenanceTargets?.calories, 3590);
+  assert.equal(plan.maintenanceEstimate?.calories, 3590);
   assert.equal(plan.activeTargets?.calories, 2872);
+  assert.equal(plan.activeTargetSource, "falcon-fuel-weight-loss-adjustment");
+  assert.equal(plan.goalAdjustmentPercent, 20);
   assert.equal(plan.weightLossIntensity, "optimal");
 });
 
@@ -85,6 +95,7 @@ test("reaching the target automatically transitions to maintenance targets", () 
   assert.equal(plan.projectedGoalDate, undefined);
   assert.equal(plan.activeTargets?.calories, 2400);
   assert.equal(plan.maintenanceTargets?.calories, 2400);
+  assert.equal(plan.activeTargetSource, "maintenance-estimate");
 });
 
 test("maintenance is recalculated at the latest observed weight when full EER inputs exist", () => {
@@ -103,6 +114,8 @@ test("maintenance is recalculated at the latest observed weight when full EER in
   assert.equal(plan.phase, "maintenance");
   assert.equal(plan.activeTargets?.calories, 3140);
   assert.equal(plan.maintenanceTargets?.calories, 3140);
+  assert.equal(plan.maintenanceEstimate?.calories, 3140);
+  assert.equal(plan.maintenanceEstimate?.method, "national-academies-2023-adult-eer");
 });
 
 test("does not invent a projected date when no explicit pace exists", () => {

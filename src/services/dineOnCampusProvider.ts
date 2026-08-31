@@ -36,10 +36,19 @@ const MENU_V1_URL = (locationId: string, date: string, periodId: string) =>
 const LIVE_PREFIX = "doc-921-";
 const LIVE_ID_DATE = /^doc-921-(\d{4}-\d{2}-\d{2})-/;
 const LIVE_SOURCE_URL = "https://dineoncampus.com/";
+const FETCH_TIMEOUT_MS = 4500;
+const FETCH_ATTEMPTS = 2;
+const FETCH_RETRY_DELAY_MS = 180;
+const LIVE_DATE_CACHE_TTL_MS = 5 * 60 * 1000;
+const DISCOVERY_CACHE_TTL_MS = 30 * 60 * 1000;
 
 type JsonRecord = Record<string, unknown>;
 type LiveDateData = { stations: Station[]; items: MenuItem[] };
+type LiveDateCacheEntry = { promise: Promise<LiveDateData | undefined>; expiresAt: number };
+type DiscoveryCacheEntry = { promise: Promise<string | undefined>; expiresAt: number };
 type PeriodDescriptor = { name: string; v4Id?: string; v1Id?: string };
+
+const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function record(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {};
@@ -289,24 +298,29 @@ function extractCategories(payload: unknown): JsonRecord[] {
 }
 
 async function fetchJson(url: string): Promise<unknown | undefined> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6500);
-  try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      signal: controller.signal,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Bentley-Fuel/1.0",
-      },
-    });
-    if (!response.ok) return undefined;
-    return await response.json();
-  } catch {
-    return undefined;
-  } finally {
-    clearTimeout(timeout);
+  for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Bentley-Fuel/1.0",
+        },
+      });
+      if (response.ok) return await response.json();
+      const retryable = response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500;
+      if (!retryable) return undefined;
+    } catch {
+      if (attempt === FETCH_ATTEMPTS - 1) return undefined;
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (attempt < FETCH_ATTEMPTS - 1) await delay(FETCH_RETRY_DELAY_MS * (attempt + 1));
   }
+  return undefined;
 }
 
 function periodsFromPayload(payload: unknown): JsonRecord[] {
@@ -328,16 +342,36 @@ function periodsFromPayload(payload: unknown): JsonRecord[] {
   });
 }
 
+function nestedRows(payload: unknown, collectionKeys: readonly string[]): JsonRecord[] {
+  const queue: unknown[] = [payload];
+  const seen = new Set<unknown>();
+  while (queue.length > 0) {
+    const value = queue.shift();
+    if (!value || seen.has(value)) continue;
+    if (typeof value === "object") seen.add(value);
+    if (Array.isArray(value)) {
+      const direct = records(value);
+      if (direct.length > 0) return direct;
+      continue;
+    }
+    const current = record(value);
+    for (const key of collectionKeys) {
+      const rows = records(current[key]);
+      if (rows.length > 0) return rows;
+    }
+    for (const key of ["data", "result", "results", "site", "school", "campus", "location"]) {
+      if (current[key] !== undefined) queue.push(current[key]);
+    }
+  }
+  return [];
+}
+
 function siteRows(payload: unknown): JsonRecord[] {
-  if (Array.isArray(payload)) return records(payload);
-  const root = record(payload);
-  return records(root.sites ?? root.data);
+  return nestedRows(payload, ["sites", "schools", "campuses"]);
 }
 
 function locationRows(payload: unknown): JsonRecord[] {
-  if (Array.isArray(payload)) return records(payload);
-  const root = record(payload);
-  return records(root.locations ?? root.data);
+  return nestedRows(payload, ["locations", "venues", "outlets"]);
 }
 
 function itemKey(stationName: string, item: JsonRecord): string {
@@ -414,8 +448,8 @@ function describePeriods(v4Periods: JsonRecord[], v1Periods: JsonRecord[]): Peri
 export class DineOnCampusHybridProvider implements DiningDataProvider {
   readonly dataStatus: DataStatus = "mock";
   private readonly fallback = new MockDiningProvider();
-  private dineOnCampusLocationIdPromise?: Promise<string | undefined>;
-  private readonly liveDateCache = new Map<string, Promise<LiveDateData | undefined>>();
+  private dineOnCampusLocationIdCache?: DiscoveryCacheEntry;
+  private readonly liveDateCache = new Map<string, LiveDateCacheEntry>();
 
   async getUniversity(): Promise<University> { return this.fallback.getUniversity(); }
   async getLocations(): Promise<Location[]> { return this.fallback.getLocations(); }
@@ -462,24 +496,30 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
   async getComponent(id: FoodComponentId): Promise<FoodComponent | undefined> { return this.fallback.getComponent(id); }
 
   private getLiveDate(date: string): Promise<LiveDateData | undefined> {
+    const now = Date.now();
     const cached = this.liveDateCache.get(date);
-    if (cached) return cached;
+    if (cached && cached.expiresAt > now) return cached.promise;
+    if (cached) this.liveDateCache.delete(date);
+
     const request = this.loadLiveDate(date).then((result) => {
       if (!result) {
+        // Never cache a failed publication check. A menu can appear minutes later,
+        // and DineOnCampus occasionally rolls location metadata between dates.
         this.liveDateCache.delete(date);
-        // Discovery can become stale across a DineOnCampus publishing rollover.
-        // Let the next request rediscover The 921 instead of caching a dead ID.
-        this.dineOnCampusLocationIdPromise = undefined;
+        this.dineOnCampusLocationIdCache = undefined;
       }
       return result;
     });
-    this.liveDateCache.set(date, request);
+    this.liveDateCache.set(date, { promise: request, expiresAt: now + LIVE_DATE_CACHE_TTL_MS });
     return request;
   }
 
   private resolveDineOnCampusLocationId(): Promise<string | undefined> {
-    if (this.dineOnCampusLocationIdPromise) return this.dineOnCampusLocationIdPromise;
-    this.dineOnCampusLocationIdPromise = (async () => {
+    const now = Date.now();
+    const cached = this.dineOnCampusLocationIdCache;
+    if (cached && cached.expiresAt > now) return cached.promise;
+
+    const promise = (async () => {
       const sitesPayload = await fetchJson(SITES_URL);
       const bentley = siteRows(sitesPayload).find((site) =>
         normalized(text(site.name ?? site.label ?? site.universityName)).includes("bentley"),
@@ -498,7 +538,8 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
       return text(nineTwentyOne?.id ?? nineTwentyOne?.locationId ?? nineTwentyOne?.location_id ?? nineTwentyOne?._id)
         || BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID;
     })();
-    return this.dineOnCampusLocationIdPromise;
+    this.dineOnCampusLocationIdCache = { promise, expiresAt: now + DISCOVERY_CACHE_TTL_MS };
+    return promise;
   }
 
   private async loadLiveDate(date: string, forcedLocationId?: string): Promise<LiveDateData | undefined> {
@@ -537,7 +578,7 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
       if (!menu) continue;
       const { mealPeriod, categories } = menu;
       for (const category of categories) {
-        const stationName = cleanText(category.name) ?? "Dining Station";
+        const stationName = cleanText(category.name ?? category.label ?? category.displayName ?? category.stationName) ?? "Dining Station";
         const stationId = `${LIVE_PREFIX}${date}-station-${slug(stationName)}`;
         const previousStation = stationMap.get(stationId);
         const stationPeriods = new Set<MealPeriod>(previousStation?.mealPeriods ?? []);
@@ -553,13 +594,13 @@ export class DineOnCampusHybridProvider implements DiningDataProvider {
 
         const publishedItems = categoryItems(category);
         publishedItems.forEach((rawItem, index) => {
-          const name = cleanText(rawItem.name);
+          const name = cleanText(rawItem.name ?? rawItem.label ?? rawItem.displayName ?? rawItem.itemName ?? rawItem.item_name);
           if (!name) return;
           const key = `${stationId}::${normalized(name)}`;
           const existing = itemMap.get(key);
           const availability = new Set<MealPeriod>(existing?.availability ?? []);
           availability.add(mealPeriod);
-          const officialId = slug(text(rawItem.id ?? rawItem.itemId ?? rawItem.item_id));
+          const officialId = slug(text(rawItem.id ?? rawItem.itemId ?? rawItem.item_id ?? rawItem._id));
           const id = existing?.id ?? `${LIVE_PREFIX}${date}-item-${slug(stationName)}-${slug(name)}-${officialId || index + 1}`;
           const portion = cleanText(rawItem.portion ?? rawItem.serving_size ?? rawItem.serving);
           const nutrition = mapNutrition(rawItem) ?? existing?.nutrition;

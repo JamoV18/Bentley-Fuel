@@ -6,8 +6,11 @@ import { mockProvenance } from "./provenance";
 /** Stable location IDs — referenced by stations, items, and user profiles. */
 export const LOCATION_IDS = {
   nineTwentyOne: "loc-921",
+  harrys: "loc-harrys",
+  dunkin: "loc-dunkin",
   laCava: "loc-lacava",
   dana: "loc-dana",
+  einstein: "loc-einstein",
   market: "loc-market",
 } as const;
 
@@ -40,14 +43,34 @@ export const locations: Location[] = [
     provenance: mockProvenance(0.5, "Location exists; hours are illustrative mock values."),
   },
   {
+    id: LOCATION_IDS.harrys,
+    name: "Harry's Pub",
+    shortName: "Harry's",
+    type: "quick-service",
+    universityId: BENTLEY_UNIVERSITY_ID,
+    building: "Student Center",
+    description: "Student Center pub and quick-service dining outlet.",
+    provenance: mockProvenance(0.9, "Location and building are confirmed by Bentley DineOnCampus; hours are not modeled here."),
+  },
+  {
+    id: LOCATION_IDS.dunkin,
+    name: "Dunkin'",
+    shortName: "Dunkin'",
+    type: "cafe",
+    universityId: BENTLEY_UNIVERSITY_ID,
+    building: "Student Center",
+    description: "Dunkin' in the Student Center.",
+    provenance: mockProvenance(0.9, "Location and building are confirmed by Bentley DineOnCampus; hours are not modeled here."),
+  },
+  {
     id: LOCATION_IDS.laCava,
     name: "LaCava Center",
     shortName: "LaCava",
     type: "food-court",
     universityId: BENTLEY_UNIVERSITY_ID,
-    building: "LaCava Campus Center",
+    building: "LaCava Center",
     description:
-      "Retail food court in the campus center with a grill, deli, and coffee counter — quick à la carte meals between classes.",
+      "LaCava Cafe and We Proudly Serve Starbucks in the LaCava Center.",
     geo: { lat: 42.3882, lng: -71.2215 },
     mealPlanAccepted: false,
     acceptsDiningDollars: true,
@@ -61,14 +84,24 @@ export const locations: Location[] = [
   },
   {
     id: LOCATION_IDS.dana,
-    name: "Dana Center",
-    shortName: "Dana Center",
+    name: "Dana Athletic Center",
+    shortName: "Dana",
     type: "food-court",
     universityId: BENTLEY_UNIVERSITY_ID,
-    building: "Dana Center",
+    building: "Dana Athletic Center",
     description:
-      "Home to Blue Chip and the morning-only Nest dining concepts.",
+      "Home to The Blue Chip and The Nest dining concepts.",
     provenance: mockProvenance(0.8, "Campus structure is confirmed; operational details are not included."),
+  },
+  {
+    id: LOCATION_IDS.einstein,
+    name: "Einstein Bros. Bagels",
+    shortName: "Einstein Bros.",
+    type: "cafe",
+    universityId: BENTLEY_UNIVERSITY_ID,
+    building: "Bentley Library",
+    description: "Einstein Bros. Bagels in the Bentley Library.",
+    provenance: mockProvenance(0.9, "Location and building are confirmed by Bentley DineOnCampus; hours are not modeled here."),
   },
   {
     id: LOCATION_IDS.market,

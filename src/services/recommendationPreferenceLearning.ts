@@ -32,6 +32,7 @@ type CuisineFamily = "latin" | "italian" | "asian" | "mediterranean" | "deli" | 
 const round1 = (value: number) => Math.round(value * 10) / 10;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const KNOWN_MEAL_PERIODS: MealPeriod[] = ["breakfast", "brunch", "lunch", "dinner", "late-night", "all-day"];
 
 const proteinMatchers: ReadonlyArray<readonly [ProteinFamily, RegExp]> = [
   ["chicken", /\b(chicken|chicken breast|chicken thigh)\b/],
@@ -89,6 +90,8 @@ const cuisineFamiliesFor = (build: MealBuild) => familiesFor(buildText(build), c
 const historyStationIds = (entry: MealHistoryEntry): Set<string> => new Set(
   entry.build.items.flatMap((line) => line.display?.stationId ? [line.display.stationId] : []),
 );
+const buildPortionUnits = (build: MealBuild): number =>
+  build.items.reduce((sum, line) => sum + Math.max(0, line.quantity), 0);
 
 const addEvidence = <T extends string>(map: Map<T, Evidence>, key: T, weight: number) => {
   const current = map.get(key) ?? { weight: 0, count: 0 };
@@ -113,14 +116,31 @@ function positiveEvidenceWeight(entry: MealHistoryEntry): number {
   return entry.source === "self-built" ? 0.3 : 0;
 }
 
-function periodForEntry(entry: MealHistoryEntry): MealPeriod | undefined {
-  const date = new Date(entry.eatenAt ?? entry.selectedAt);
-  if (Number.isNaN(date.getTime())) return undefined;
-  const hour = date.getHours();
+function periodForHour(hour: number): MealPeriod {
   if (hour >= 5 && hour < 11) return "breakfast";
   if (hour >= 11 && hour < 16) return "lunch";
   if (hour >= 16 && hour < 22) return "dinner";
   return "late-night";
+}
+
+function periodForEntry(entry: MealHistoryEntry): MealPeriod | undefined {
+  const date = new Date(entry.eatenAt ?? entry.selectedAt);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return periodForHour(date.getHours());
+}
+
+/**
+ * Most recommendation calls happen in the browser. When the caller has not yet
+ * threaded mealPeriod into behavior scoring, read the deliberately selected URL
+ * period first and otherwise use the student's local clock. Server-side audits
+ * have no window, so they do not invent a time-of-day preference.
+ */
+function resolvedMealPeriod(requested: MealPeriod | undefined): MealPeriod | undefined {
+  if (requested) return requested;
+  if (typeof window === "undefined") return undefined;
+  const selected = new URLSearchParams(window.location.search).get("period");
+  if (selected && KNOWN_MEAL_PERIODS.includes(selected as MealPeriod)) return selected as MealPeriod;
+  return periodForHour(new Date().getHours());
 }
 
 function timingWeight(current: MealPeriod | undefined, historical: MealPeriod | undefined): number {
@@ -146,9 +166,9 @@ const strongestEvidence = <T extends string>(
   return { key, evidence: strongest };
 };
 
-const sizeSimilarity = (candidateCalories: number, historicalCalories: number): number => {
-  if (candidateCalories <= 0 || historicalCalories <= 0) return 0;
-  const ratio = Math.max(candidateCalories, historicalCalories) / Math.min(candidateCalories, historicalCalories);
+const sizeSimilarity = (candidateSize: number, historicalSize: number): number => {
+  if (candidateSize <= 0 || historicalSize <= 0) return 0;
+  const ratio = Math.max(candidateSize, historicalSize) / Math.min(candidateSize, historicalSize);
   return clamp(1 - (ratio - 1) / 0.75, 0, 1);
 };
 
@@ -162,13 +182,16 @@ export function scoreLearnedMealPreferences(
   history: readonly MealHistoryEntry[] = [],
   context: LearnedPreferenceContext = {},
 ): LearnedPreferenceBreakdown {
+  const currentPeriod = resolvedMealPeriod(context.mealPeriod);
   const candidateProteins = proteinFamiliesFor(candidate.build);
   const candidateCuisines = cuisineFamiliesFor(candidate.build);
   const candidateStations = new Set<string>(candidate.stationIds);
+  const candidateCalories = context.candidateNutrition?.calories;
+  const candidatePortionUnits = buildPortionUnits(candidate.build);
   const proteinEvidence = new Map<ProteinFamily, Evidence>();
   const cuisineEvidence = new Map<CuisineFamily, Evidence>();
   const stationEvidence = new Map<string, Evidence>();
-  const sizeRows: Array<{ calories: number; weight: number; id: string }> = [];
+  const sizeRows: Array<{ size: number; weight: number; id: string }> = [];
   const samePeriodSemanticMatches = new Map<string, number>();
   const contributingEntryIds = new Set<string>();
 
@@ -176,7 +199,7 @@ export function scoreLearnedMealPreferences(
     const baseWeight = positiveEvidenceWeight(entry);
     if (baseWeight <= 0) return;
     const historicalPeriod = periodForEntry(entry);
-    const periodWeight = timingWeight(context.mealPeriod, historicalPeriod);
+    const periodWeight = timingWeight(currentPeriod, historicalPeriod);
     const recency = 1 / (1 + index * 0.18);
     const weight = baseWeight * periodWeight * recency;
     const proteins = proteinFamiliesFor(entry.build);
@@ -187,13 +210,17 @@ export function scoreLearnedMealPreferences(
     cuisines.forEach((cuisine) => addEvidence(cuisineEvidence, cuisine, weight));
     stations.forEach((station) => addEvidence(stationEvidence, station, weight));
 
-    if (entry.nutrition?.calories && entry.nutrition.calories > 0) {
+    const historicalCalories = entry.nutrition?.calories;
+    if (candidateCalories && candidateCalories > 0 && historicalCalories && historicalCalories > 0) {
       const eatenFraction = entry.completionFraction && entry.completionFraction > 0 ? entry.completionFraction : 1;
-      sizeRows.push({ calories: entry.nutrition.calories * eatenFraction, weight, id: entry.id });
+      sizeRows.push({ size: historicalCalories * eatenFraction, weight, id: entry.id });
+    } else {
+      const units = buildPortionUnits(entry.build);
+      if (units > 0) sizeRows.push({ size: units, weight, id: entry.id });
     }
 
-    const samePeriod = context.mealPeriod && context.mealPeriod !== "all-day"
-      ? timingWeight(context.mealPeriod, historicalPeriod) > 1
+    const samePeriod = currentPeriod && currentPeriod !== "all-day"
+      ? timingWeight(currentPeriod, historicalPeriod) > 1
       : false;
     if (samePeriod) {
       const sharesProtein = [...candidateProteins].some((protein) => proteins.has(protein));
@@ -212,29 +239,32 @@ export function scoreLearnedMealPreferences(
   const stationBoost = station.evidence ? Math.min(1.0, station.evidence.weight * 0.32) : 0;
 
   if (protein.evidence && protein.key) {
+    const matched = protein.key;
     history.slice(0, 24).forEach((entry) => {
-      if (positiveEvidenceWeight(entry) > 0 && proteinFamiliesFor(entry.build).has(protein.key!)) contributingEntryIds.add(entry.id);
+      if (positiveEvidenceWeight(entry) > 0 && proteinFamiliesFor(entry.build).has(matched)) contributingEntryIds.add(entry.id);
     });
   }
   if (cuisine.evidence && cuisine.key) {
+    const matched = cuisine.key;
     history.slice(0, 24).forEach((entry) => {
-      if (positiveEvidenceWeight(entry) > 0 && cuisineFamiliesFor(entry.build).has(cuisine.key!)) contributingEntryIds.add(entry.id);
+      if (positiveEvidenceWeight(entry) > 0 && cuisineFamiliesFor(entry.build).has(matched)) contributingEntryIds.add(entry.id);
     });
   }
   if (station.evidence && station.key) {
+    const matched = station.key;
     history.slice(0, 24).forEach((entry) => {
-      if (positiveEvidenceWeight(entry) > 0 && historyStationIds(entry).has(station.key!)) contributingEntryIds.add(entry.id);
+      if (positiveEvidenceWeight(entry) > 0 && historyStationIds(entry).has(matched)) contributingEntryIds.add(entry.id);
     });
   }
 
   let mealSizeBoost = 0;
-  const candidateCalories = context.candidateNutrition?.calories;
-  if (candidateCalories && candidateCalories > 0 && sizeRows.length >= 2) {
+  const candidateSize = candidateCalories && candidateCalories > 0 ? candidateCalories : candidatePortionUnits;
+  if (candidateSize > 0 && sizeRows.length >= 2) {
     let weightedSimilarity = 0;
     let weightTotal = 0;
     let strongRows = 0;
     for (const row of sizeRows) {
-      const similarity = sizeSimilarity(candidateCalories, row.calories);
+      const similarity = sizeSimilarity(candidateSize, row.size);
       weightedSimilarity += similarity * row.weight;
       weightTotal += row.weight;
       if (similarity >= 0.65) {
@@ -259,8 +289,8 @@ export function scoreLearnedMealPreferences(
   if (cuisine.key && cuisineBoost >= 0.3) signals.push(cuisineLabels[cuisine.key]);
   if (stationBoost >= 0.3) signals.push("a station you choose often");
   if (mealSizeBoost >= 0.3) signals.push("a meal size similar to what you usually finish");
-  if (timingBoost >= 0.25 && context.mealPeriod && context.mealPeriod !== "all-day") {
-    signals.push(`your usual ${context.mealPeriod} pattern`);
+  if (timingBoost >= 0.25 && currentPeriod && currentPeriod !== "all-day") {
+    signals.push(`your usual ${currentPeriod} pattern`);
   }
 
   return {

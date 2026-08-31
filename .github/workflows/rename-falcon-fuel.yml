@@ -1,0 +1,89 @@
+name: Rename Falcon Fuel brand
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/rename-falcon-fuel.yml
+
+permissions:
+  contents: write
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Replace brand text everywhere
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          old = "Bentley" + " Fuel"
+          new = "Falcon" + " Fuel"
+          tracked = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
+          changed = []
+          replacements = 0
+
+          for raw in tracked:
+              if not raw:
+                  continue
+              path = Path(raw)
+              try:
+                  text = path.read_text(encoding="utf-8")
+              except (UnicodeDecodeError, IsADirectoryError):
+                  continue
+              count = text.count(old)
+              if not count:
+                  continue
+              path.write_text(text.replace(old, new), encoding="utf-8")
+              changed.append(raw)
+              replacements += count
+
+          remaining = []
+          for raw in tracked:
+              if not raw:
+                  continue
+              path = Path(raw)
+              try:
+                  text = path.read_text(encoding="utf-8")
+              except (UnicodeDecodeError, IsADirectoryError):
+                  continue
+              if old in text:
+                  remaining.append(raw)
+
+          print(f"Replaced {replacements} occurrences across {len(changed)} tracked files.")
+          for path in changed:
+              print(path)
+          if remaining:
+              raise SystemExit("Brand text still remains in: " + ", ".join(remaining))
+          if replacements == 0:
+              raise SystemExit("No brand occurrences were found to replace.")
+          PY
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run validate:data
+
+      - name: Commit brand rename
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Rename product brand to Falcon Fuel"
+          git push origin main

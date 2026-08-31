@@ -3,22 +3,14 @@ import type { MealItemSelection, MenuItem, ServingSize } from "@/types";
 
 /**
  * Temporary cafeteria utensil calibration requested for the prototype.
- * The long spoon used to serve food is modeled as one US tablespoon:
- * 1/16 cup, about 15 mL (0.5 fl oz). This is explicitly a mock estimate and
- * must be replaced with a measured station-specific value before Falcon Fuel
- * presents the utensil conversion as fact.
+ * The long dining-hall serving spoon is normally heaped above its rim rather
+ * than leveled like a measuring spoon. For practical guidance, model one normal
+ * heaped serving spoonful as about 1/2 US cup (~118 mL / 4 fl oz).
+ * This is explicitly a mock estimate and must be replaced with measured,
+ * station-specific calibration before Falcon Fuel presents it as fact.
  */
-export const MOCK_LONG_SERVING_SPOON_CUPS = 1 / 16;
-export const MOCK_LONG_SERVING_SPOON_ML = 15;
-
-/**
- * When DineOnCampus gives nutrition per "serving" but no physical portion size,
- * the prototype still needs a practical reference. Keep the previous mock food
- * portion assumption of about 1/2 cup per scoopable serving, then translate that
- * volume into the smaller long serving spoon above. This assumption is always
- * labeled as a mock estimate in the UI.
- */
-export const MOCK_SCOOPABLE_SERVING_CUPS = 0.5;
+export const MOCK_HEAPED_SERVING_SPOON_CUPS = 0.5;
+export const MOCK_HEAPED_SERVING_SPOON_ML = 118;
 
 /**
  * Fractional recommendation variants are reserved for sides whose serving size
@@ -75,7 +67,7 @@ const compactNumber = (value: number): string => {
 };
 
 const spoonfulText = (spoonfuls: number, suffix: string): string =>
-  `≈ ${compactNumber(spoonfuls)} long serving spoonful${spoonfuls === 1 ? "" : "s"} ${suffix}`;
+  `≈ ${compactNumber(spoonfuls)} heaped serving spoonful${spoonfuls === 1 ? "" : "s"} ${suffix}`;
 
 export interface PortionGuidance {
   servingText: string;
@@ -85,9 +77,10 @@ export interface PortionGuidance {
 
 /**
  * Human-facing translation only. Nutrition math continues to use MenuItem
- * servings. If an authoritative volume serving is available, convert that
- * volume to the temporary tablespoon-sized serving spoon. If it is not, use
- * the explicitly mocked 1/2-cup scoopable serving as the food-volume estimate.
+ * servings. If an authoritative volume serving is available, convert it to the
+ * temporary heaped-serving-spoon reference. If it is not, the prototype follows
+ * the explicit mock assumption that one DineOn serving of a scoopable side is
+ * about one normal heaped cafeteria serving spoonful.
  */
 export function portionGuidanceFor(item: MenuItem | undefined, selection: MealItemSelection): PortionGuidance {
   const quantity = selection.quantity;
@@ -97,12 +90,15 @@ export function portionGuidanceFor(item: MenuItem | undefined, selection: MealIt
   const cupsPerServing = servingCups(item.serving);
   if (cupsPerServing !== undefined) {
     const totalCups = cupsPerServing * quantity;
-    const spoonfuls = totalCups / MOCK_LONG_SERVING_SPOON_CUPS;
+    const spoonfuls = totalCups / MOCK_HEAPED_SERVING_SPOON_CUPS;
     return {
       servingText: item.serving?.description
         ? `${compactNumber(quantity)} × ${item.serving.description}`
         : `${compactNumber(totalCups)} cup${totalCups === 1 ? "" : "s"}`,
-      utensilText: spoonfulText(spoonfuls, "(mock utensil calibration: 1 spoonful ≈ 1 tbsp / 15 mL)"),
+      utensilText: spoonfulText(
+        spoonfuls,
+        `(mock utensil calibration: 1 heaped spoonful ≈ ½ cup / ${MOCK_HEAPED_SERVING_SPOON_ML} mL)`,
+      ),
       confidence: "mock-estimate",
     };
   }
@@ -116,10 +112,12 @@ export function portionGuidanceFor(item: MenuItem | undefined, selection: MealIt
   }
 
   if (isScoopableMenuItem(item)) {
-    const spoonfuls = (MOCK_SCOOPABLE_SERVING_CUPS * quantity) / MOCK_LONG_SERVING_SPOON_CUPS;
     return {
       servingText: servingLabel,
-      utensilText: spoonfulText(spoonfuls, "(mock: 1 serving ≈ ½ cup; 1 spoonful ≈ 1 tbsp / 15 mL)"),
+      utensilText: spoonfulText(
+        quantity,
+        `(mock: 1 normal heaped spoonful ≈ ½ cup / ${MOCK_HEAPED_SERVING_SPOON_ML} mL)`,
+      ),
       confidence: "mock-estimate",
     };
   }

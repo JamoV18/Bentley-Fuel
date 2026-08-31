@@ -38,9 +38,10 @@ export interface DailyTargetPlan {
 }
 
 export function deriveMaintenanceTargetPlan(profile: UserProfile): DailyTargetPlan | undefined {
-  const calories = profile.maintenanceEstimate?.calories;
+  const estimate = profile.maintenanceEstimate;
+  const calories = estimate?.calories;
   const weightKg = profile.metrics?.weightKg;
-  if (!calories || !Number.isFinite(calories) || calories <= 0 || !weightKg || !Number.isFinite(weightKg) || weightKg <= 0) {
+  if (!estimate || !calories || !Number.isFinite(calories) || calories <= 0 || !weightKg || !Number.isFinite(weightKg) || weightKg <= 0) {
     return undefined;
   }
 
@@ -55,7 +56,7 @@ export function deriveMaintenanceTargetPlan(profile: UserProfile): DailyTargetPl
   const fatShare = Math.max(MIN_FAT_SHARE, Math.min(BASELINE_FAT_SHARE, 1 - MIN_CARB_SHARE - proteinShare));
   const fatCalories = calories * fatShare;
   const carbCalories = Math.max(0, calories - proteinCalories - fatCalories);
-  const energyBasis = profile.maintenanceEstimate.method === "national-academies-2023-adolescent-eer"
+  const energyBasis = estimate.method === "national-academies-2023-adolescent-eer"
     ? "national-academies-2023-adolescent-eer-maintenance" as const
     : "national-academies-2023-adult-eer-maintenance" as const;
 

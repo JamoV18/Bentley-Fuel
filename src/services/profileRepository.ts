@@ -76,7 +76,7 @@ export function createUserProfile(
     : input.maintenanceEstimate;
   const profile: UserProfile = {
     ...input,
-    maintenanceEstimate,
+    ...(maintenanceEstimate !== undefined && { maintenanceEstimate }),
     goals: input.goals ?? previousGoals ?? [input.primaryGoal],
     unitSystem: input.unitSystem ?? previous?.unitSystem ?? "us",
     behavioralGoals: input.behavioralGoals ?? previous?.behavioralGoals ?? [],

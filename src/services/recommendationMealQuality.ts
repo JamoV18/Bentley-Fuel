@@ -53,8 +53,8 @@ const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min,
 const round1 = (value: number) => Math.round(value * 10) / 10;
 const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-const MAIN_NAME_RE = /\b(steak|chicken|turkey|beef|pork|ham|sausage|salmon|fish|shrimp|tofu|tempeh|omelet|omelette|burrito|bowl|sandwich|burger|melt|wrap|panini|sub|hoagie|pizza|tacos?|quesadilla|enchilada|curry|stir fry|stir-fry|stew|chili|lasagna|ravioli|pasta|penne|mac(?:aroni)?\s*(?:&|and)\s*cheese)\b/i;
-const SIDE_NAME_RE = /\b(green beans?|black beans?|beans?|lentils?|chickpeas?|rice|quinoa|couscous|farro|barley|wheat berries|shredded wheat|potatoes?|fries|tater tots?|plantains?|corn|broccoli|carrots?|cauliflower|spinach|peas|vegetables?|veggies|greens|slaw|bread|rolls?|toast|fruit|berries|apples?|oranges?|bananas?|melon|grapes?)\b/i;
+const MAIN_NAME_RE = /\b(steak|chicken|turkey|beef|pork|ham|sausage|salmon|fish|shrimp|tofu|tempeh|omelet|omelette|burrito|bowl|sandwich|burger|grilled\s+cheese|melt|wrap|panini|sub|hoagie|pizza|tacos?|quesadilla|enchilada|curry|stir fry|stir-fry|stew|chili|lasagna|ravioli|pasta|penne|mac(?:aroni)?\s*(?:&|and)\s*cheese)\b/i;
+const SIDE_NAME_RE = /\b(green beans?|black beans?|beans?|lentils?|chickpeas?|rice|quinoa|couscous|farro|barley|wheat berries|shredded wheat|potatoes?|fries|tater tots?|plantains?|corn|broccoli|carrots?|cauliflower|spinach|peas|vegetables?|veggies|greens|slaw|bread|rolls?|toast|tortillas?|fruit|berries|apples?|oranges?|bananas?|melon|grapes?)\b/i;
 const DRINK_RE = /\b(water|coffee|tea|juice|milk|smoothie|shake|latte|drink|beverage|soda|lemonade)\b/i;
 const DESSERT_RE = /\b(cookie|brownie|cake|cupcake|ice cream|gelato|pudding|cheesecake|pie|cobbler|dessert)\b/i;
 const SNACK_RE = /\b(muffin|protein bar|granola bar|trail mix|chips|yogurt)\b/i;
@@ -97,14 +97,14 @@ export function inferMealSideCategory(item: MenuItem): MealSideCategory {
   if (/\b(black beans?|kidney beans?|pinto beans?|beans?|lentils?|chickpeas?)\b/i.test(name)) return "legume";
   if (/\b(wheat berries|rice|quinoa|couscous|farro|barley|bulgur|grain|polenta)\b/i.test(name)) return "grain";
   if (/\b(potatoes?|fries|tater tots?|plantains?|corn|hash browns?)\b/i.test(name)) return "starch";
-  if (/\b(bread|rolls?|toast|pita|naan|biscuit)\b/i.test(name)) return "bread";
+  if (/\b(bread|rolls?|toast|pita|naan|biscuit|tortillas?)\b/i.test(name)) return "bread";
   if (/\b(soup|chowder|bisque)\b/i.test(name)) return "soup";
   return "other";
 }
 
 export function inferMealMainStyle(item: MenuItem): MealMainStyle {
   const name = normalized(item.name);
-  if (/\b(sandwich|burger|melt|wrap|panini|sub|hoagie|quesadilla|tacos?)\b/i.test(name)) return "handheld";
+  if (/\b(sandwich|burger|grilled cheese|cheesesteak|melt|wrap|panini|sub|hoagie|quesadilla|tacos?)\b/i.test(name)) return "handheld";
   if (/\b(bowl|stir fry|stir-fry|curry|tikka)\b/i.test(name)) return "bowl";
   if (/\bsalad\b/i.test(name)) return "salad";
   if (/\b(pasta|penne|lasagna|ravioli|mac(?:aroni)?\s*(?:&|and)\s*cheese)\b/i.test(name)) return "pasta";
@@ -130,6 +130,7 @@ function culinaryFamily(item: MenuItem, station?: Station): CulinaryFamily {
 
 const isProduce = (category: MealSideCategory) => ["vegetable", "fruit", "salad"].includes(category);
 const isDenseSide = (category: MealSideCategory) => ["grain", "legume", "starch", "bread"].includes(category);
+const isSelfContainedStyle = (style: MealMainStyle) => ["handheld", "bowl", "salad", "pasta", "pizza", "protein-plate", "soup"].includes(style);
 
 function stationCohesionScore(items: readonly MenuItem[]): number {
   const count = new Set(items.map((item) => item.stationId)).size;
@@ -145,14 +146,22 @@ function structureScore(items: readonly MenuItem[]): number {
   if (mainIndex < 0) return 55;
   const main = items[mainIndex];
   const style = inferMealMainStyle(main);
-  const sideCount = roles.filter((role) => role === "side").length;
+  const sideItems = items.filter((item) => inferMenuItemMealRole(item) === "side");
+  const sideCount = sideItems.length;
   const drinkCount = roles.filter((role) => role === "drink").length;
   const snackCount = roles.filter((role) => role === "snack").length;
   const dessertCount = roles.filter((role) => role === "dessert").length;
+  const hasLooseBread = sideItems.some((item) => inferMealSideCategory(item) === "bread");
 
-  if (items.length === 1) {
-    return ["bowl", "salad", "pasta", "protein-plate", "soup"].includes(style) ? 88 : 78;
+  if (items.length === 1) return isSelfContainedStyle(style) ? 88 : 78;
+
+  // A sandwich, wrap, taco, quesadilla, etc. already contains its carrier.
+  // Adding a loose bread/tortilla primarily to improve macro arithmetic is a
+  // common live-menu failure mode and should not look structurally ideal.
+  if (style === "handheld" && hasLooseBread && drinkCount + snackCount + dessertCount === 0) {
+    return sideCount <= 1 ? 62 : 56;
   }
+
   if (sideCount === 1 && drinkCount + snackCount + dessertCount === 0) return 98;
   if (sideCount === 2 && drinkCount + snackCount + dessertCount === 0) return 94;
   if (sideCount === 1 && drinkCount === 1 && snackCount + dessertCount === 0) return 91;
@@ -165,13 +174,13 @@ function sideBalanceScore(items: readonly MenuItem[]): number {
   const main = items.find((item) => inferMenuItemMealRole(item) === "main");
   if (!main) return 65;
   const sideItems = items.filter((item) => inferMenuItemMealRole(item) === "side");
-  if (sideItems.length === 0) return ["bowl", "salad", "protein-plate"].includes(inferMealMainStyle(main)) ? 84 : 72;
+  const style = inferMealMainStyle(main);
+  if (sideItems.length === 0) return isSelfContainedStyle(style) ? 84 : 72;
 
   const categories = sideItems.map(inferMealSideCategory);
   const produceCount = categories.filter(isProduce).length;
   const denseCount = categories.filter(isDenseSide).length;
   const distinctCount = new Set(categories).size;
-  const style = inferMealMainStyle(main);
   let score = sideItems.length === 1 ? 86 : 78;
 
   if (sideItems.length >= 2 && distinctCount === categories.length) score += 6;
@@ -182,6 +191,7 @@ function sideBalanceScore(items: readonly MenuItem[]): number {
   if (sideItems.length >= 2 && distinctCount < categories.length) score -= 8;
 
   if (["bowl", "pasta", "pizza"].includes(style) && denseCount > 0) score -= 9;
+  if (style === "handheld" && categories.includes("bread")) score -= 36;
   if (style === "handheld" && sideItems.length >= 2 && denseCount >= 2) score -= 14;
   if (style === "handheld" && produceCount > 0) score += 4;
   if (style === "protein-plate" && produceCount > 0 && denseCount > 0) score += 6;

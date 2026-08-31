@@ -39,13 +39,14 @@ test("scoopable sides receive bounded fractional serving variants", () => {
   assert.deepEqual(recommendedQuantityVariants(item({ name: "Multigrain Bread" })), [1]);
 });
 
-test("authoritative cup serving converts to mock spoonfuls without changing nutrition units", () => {
+test("authoritative cup serving converts to the temporary spoon calibration", () => {
   const guidance = portionGuidanceFor(item({ serving: { amount: 0.5, unit: "cup", description: "1/2 cup" } }), selection(1.5));
-  assert.equal(guidance.utensilText, "≈ 1.5 level serving spoons");
+  assert.equal(guidance.utensilText, "≈ 1.5 level serving spoons (mock utensil calibration)");
   assert.equal(guidance.confidence, "mock-estimate");
 });
 
-test("missing official serving never claims an exact spoon count", () => {
+test("missing official serving uses the requested explicit mock spoon estimate", () => {
   const guidance = portionGuidanceFor(item(), selection(1.5));
-  assert.match(guidance.utensilText ?? "", /exact spoon count is not yet calibrated/i);
+  assert.equal(guidance.utensilText, "≈ 1.5 level serving spoons (mock: 1 spoon ≈ ½ cup / 118 mL)");
+  assert.equal(guidance.confidence, "mock-estimate");
 });

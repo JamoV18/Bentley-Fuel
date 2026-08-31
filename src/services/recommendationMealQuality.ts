@@ -13,6 +13,7 @@ export type MealSideCategory =
   | "legume"
   | "starch"
   | "bread"
+  | "protein"
   | "soup"
   | "dessert"
   | "drink"
@@ -98,6 +99,7 @@ export function inferMealSideCategory(item: MenuItem): MealSideCategory {
   if (/\b(wheat berries|rice|quinoa|couscous|farro|barley|bulgur|grain|polenta)\b/i.test(name)) return "grain";
   if (/\b(potatoes?|fries|tater tots?|plantains?|corn|hash browns?)\b/i.test(name)) return "starch";
   if (/\b(bread|rolls?|toast|pita|naan|biscuit|tortillas?)\b/i.test(name)) return "bread";
+  if (/\b(eggs?|egg whites?|bacon|turkey bacon)\b/i.test(name)) return "protein";
   if (/\b(soup|chowder|bisque)\b/i.test(name)) return "soup";
   return "other";
 }
@@ -131,13 +133,14 @@ function culinaryFamily(item: MenuItem, station?: Station): CulinaryFamily {
 const isProduce = (category: MealSideCategory) => ["vegetable", "fruit", "salad"].includes(category);
 const isDenseSide = (category: MealSideCategory) => ["grain", "legume", "starch", "bread"].includes(category);
 const isSelfContainedStyle = (style: MealMainStyle) => ["handheld", "bowl", "salad", "pasta", "pizza", "protein-plate", "soup"].includes(style);
+const isCarbCompleteStyle = (style: MealMainStyle) => ["handheld", "bowl", "pasta", "pizza"].includes(style);
 
 function stationCohesionScore(items: readonly MenuItem[]): number {
   const count = new Set(items.map((item) => item.stationId)).size;
   if (count <= 1) return 100;
   if (count === 2) return 86;
-  if (count === 3) return 62;
-  return 40;
+  if (count === 3) return 42;
+  return 20;
 }
 
 function structureScore(items: readonly MenuItem[]): number {
@@ -155,11 +158,13 @@ function structureScore(items: readonly MenuItem[]): number {
 
   if (items.length === 1) return isSelfContainedStyle(style) ? 88 : 78;
 
-  // A sandwich, wrap, taco, quesadilla, etc. already contains its carrier.
-  // Adding a loose bread/tortilla primarily to improve macro arithmetic is a
-  // common live-menu failure mode and should not look structurally ideal.
-  if (style === "handheld" && hasLooseBread && drinkCount + snackCount + dessertCount === 0) {
-    return sideCount <= 1 ? 62 : 56;
+  // Sandwiches and other handhelds already contain their carrier. Bowls,
+  // pasta, and pizza also already provide a substantial starch base. A second
+  // loose bread item can still be chosen manually, but should not look like an
+  // ideal structural add-on merely because it improves macro arithmetic.
+  if (hasLooseBread && isCarbCompleteStyle(style) && drinkCount + snackCount + dessertCount === 0) {
+    if (style === "handheld") return sideCount <= 1 ? 62 : 56;
+    return sideCount <= 1 ? 76 : 70;
   }
 
   if (sideCount === 1 && drinkCount + snackCount + dessertCount === 0) return 98;
@@ -180,20 +185,26 @@ function sideBalanceScore(items: readonly MenuItem[]): number {
   const categories = sideItems.map(inferMealSideCategory);
   const produceCount = categories.filter(isProduce).length;
   const denseCount = categories.filter(isDenseSide).length;
+  const proteinSideCount = categories.filter((category) => category === "protein").length;
   const distinctCount = new Set(categories).size;
+  const mainAlreadyIncludesProduce = style === "salad";
   let score = sideItems.length === 1 ? 86 : 78;
 
   if (sideItems.length >= 2 && distinctCount === categories.length) score += 6;
   if (sideItems.length >= 2 && produceCount > 0 && denseCount > 0) score += 14;
   if (produceCount > 0) score += 6;
   if (sideItems.length >= 2 && denseCount >= 2) score -= 28;
-  if (sideItems.length >= 2 && produceCount === 0) score -= 12;
+  if (sideItems.length >= 2 && produceCount === 0 && !mainAlreadyIncludesProduce) score -= 20;
+  if (sideItems.length >= 2 && proteinSideCount > 0 && denseCount > 0 && produceCount === 0 && !["salad", "breakfast"].includes(style)) score -= 14;
   if (sideItems.length >= 2 && distinctCount < categories.length) score -= 8;
 
   if (["bowl", "pasta", "pizza"].includes(style) && denseCount > 0) score -= 9;
   if (style === "handheld" && categories.includes("bread")) score -= 36;
+  if (["bowl", "pasta", "pizza"].includes(style) && categories.includes("bread")) score -= 20;
   if (style === "handheld" && sideItems.length >= 2 && denseCount >= 2) score -= 14;
   if (style === "handheld" && produceCount > 0) score += 4;
+  if (style === "salad" && proteinSideCount > 0) score += 8;
+  if (style === "protein-plate" && proteinSideCount > 0 && produceCount === 0) score -= 8;
   if (style === "protein-plate" && produceCount > 0 && denseCount > 0) score += 6;
 
   return clamp(score);
@@ -252,11 +263,11 @@ export function mealCoherenceBreakdown(
   const culinaryFit = culinaryFitScore(items, stations);
   const mealPeriodFit = mealPeriodFitScore(items, context);
   const total = round1(
-    structure * 0.32 +
-    sideBalance * 0.22 +
-    stationCohesion * 0.18 +
-    culinaryFit * 0.16 +
-    mealPeriodFit * 0.12,
+    structure * 0.28 +
+    sideBalance * 0.24 +
+    stationCohesion * 0.26 +
+    culinaryFit * 0.12 +
+    mealPeriodFit * 0.10,
   );
 
   return { total, structure, sideBalance, stationCohesion, culinaryFit, mealPeriodFit };

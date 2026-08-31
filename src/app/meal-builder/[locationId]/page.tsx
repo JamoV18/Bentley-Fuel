@@ -4,6 +4,7 @@ import FlowHeader from "@/components/FlowHeader";
 import { formatMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
 import { getDiningProvider } from "@/services";
+import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
 import type { MealBuild, MealPeriod } from "@/types";
 import ManualMealBuilderClient from "./ManualMealBuilderClient";
@@ -41,27 +42,28 @@ export default async function MealBuilderPage({
   if (!location) notFound();
 
   const isNineTwentyOne = locationId === "loc-921";
-  const menuDate = isNineTwentyOne ? normalizeBentleyMenuDate(query.date) : undefined;
+  const isLiveMenuLocation = isNineTwentyOne || ADDITIONAL_LIVE_LOCATION_IDS.has(locationId);
+  const menuDate = isLiveMenuLocation ? normalizeBentleyMenuDate(query.date) : undefined;
   const allMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
   const allStations = await provider.getStations(locationId, menuDate);
   const usesVerifiedMenu = allMenuItems.some((item) => item.provenance.dataStatus === "verified");
 
-  if (isNineTwentyOne && !usesVerifiedMenu) {
+  if (isLiveMenuLocation && !usesVerifiedMenu) {
     const requestedLabel = asMealPeriod(query.period);
     return (
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
-        <FlowHeader backHref={`/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`} backLabel="The 921" />
+        <FlowHeader backHref={`/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`} backLabel={location.shortName ?? location.name} />
         <section className="surface mt-8 p-6 sm:p-8">
-          <p className="eyebrow">921 live menu</p>
+          <p className="eyebrow">{location.shortName ?? location.name} live menu</p>
           <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Live menu unavailable</h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed subtle">
             Falcon Fuel could not verify the DineOnCampus {requestedLabel ? `${readablePeriod(requestedLabel).toLowerCase()} ` : ""}menu for {menuDate ? formatMenuDate(menuDate) : "this date"}. No demo foods are being substituted.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <a href="https://dineoncampus.com/bentley/whats-on-the-menu/921-dining-hall" target="_blank" rel="noreferrer" className="primary inline-flex items-center justify-center">Open Bentley DineOnCampus</a>
+            <a href="https://dineoncampus.com/bentley/whats-on-the-menu" target="_blank" rel="noreferrer" className="primary inline-flex items-center justify-center">Open Bentley DineOnCampus</a>
             <Link href={`/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`} className="secondary inline-flex items-center justify-center">Try again</Link>
           </div>
-          <p className="mt-5 text-xs subtle">A recommendation will only appear when the published 921 menu is successfully verified.</p>
+          <p className="mt-5 text-xs subtle">A recommendation will only appear when this published menu is successfully verified.</p>
         </section>
       </main>
     );
@@ -74,12 +76,12 @@ export default async function MealBuilderPage({
 
   let selectedPeriod = requestedPeriod && availablePeriods.includes(requestedPeriod) ? requestedPeriod : undefined;
   if (!selectedPeriod && initialItemPeriod && availablePeriods.includes(initialItemPeriod)) selectedPeriod = initialItemPeriod;
-  if (!selectedPeriod && isNineTwentyOne && availablePeriods.length > 0) {
+  if (!selectedPeriod && isLiveMenuLocation && availablePeriods.length > 0) {
     const clockPeriod = currentBentleyMealPeriod();
     selectedPeriod = availablePeriods.includes(clockPeriod) ? clockPeriod : availablePeriods[0];
   }
 
-  if (isNineTwentyOne && menuDate && selectedPeriod && !requestedPeriod) {
+  if (isLiveMenuLocation && menuDate && selectedPeriod && !requestedPeriod) {
     const next = new URLSearchParams();
     if (query.mode) next.set("mode", query.mode);
     if (query.add) next.set("add", query.add);
@@ -126,7 +128,7 @@ export default async function MealBuilderPage({
     );
   } else {
     const fallbackBuild = await getPhase6ExampleMeal(provider, locationId, menuDate, selectedPeriod)
-      ?? (isNineTwentyOne ? { locationId, items: [] } satisfies MealBuild : undefined);
+      ?? (isLiveMenuLocation ? { locationId, items: [] } satisfies MealBuild : undefined);
     if (!fallbackBuild) notFound();
     content = (
       <MealBuilderClient
@@ -141,11 +143,11 @@ export default async function MealBuilderPage({
 
   return (
     <>
-      {isNineTwentyOne && menuDate && availablePeriods.length > 0 && (
+      {isLiveMenuLocation && menuDate && availablePeriods.length > 0 && (
         <div className="mx-auto w-full max-w-6xl px-6 pt-6">
-          <section className="surface-soft flex flex-wrap items-center justify-between gap-3 p-3.5" aria-label="Choose 921 meal period">
+          <section className="surface-soft flex flex-wrap items-center justify-between gap-3 p-3.5" aria-label={`Choose ${location.shortName ?? location.name} meal period`}>
             <div>
-              <p className="eyebrow">921 · {formatMenuDate(menuDate)}</p>
+              <p className="eyebrow">{location.shortName ?? location.name} · {formatMenuDate(menuDate)}</p>
               <p className="mt-1 text-sm font-bold text-emerald-950">Choose the menu Falcon Fuel should use</p>
             </div>
             <div className="flex flex-wrap gap-2">

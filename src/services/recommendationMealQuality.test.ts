@@ -49,11 +49,11 @@ test("produce plus one dense side beats two dense sides for a handheld main", ()
   const salad = station("salad", "Salad", "Salad");
   const tuna = item("tuna", "Tuna Melt", deli.id, "main");
   const greenBeans = item("green", "Green Beans", home.id, "side");
-  const rye = item("rye", "Rye Bread", deli.id, "side");
+  const brownRice = item("rice", "Brown Rice", deli.id, "side");
   const blackBeans = item("black", "Black Beans", everyday.id, "side");
   const wheatBerries = item("wheat", "Wheat Berries", salad.id, "side");
 
-  const balanced = mealCoherenceScore([tuna, greenBeans, rye], [deli, home, everyday, salad], context);
+  const balanced = mealCoherenceScore([tuna, greenBeans, brownRice], [deli, home, everyday, salad], context);
   const dense = mealCoherenceScore([tuna, blackBeans, wheatBerries], [deli, home, everyday, salad], context);
   assert.ok(balanced >= dense + 4, `${balanced} should materially exceed ${dense}`);
 });

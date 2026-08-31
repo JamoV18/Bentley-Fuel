@@ -58,19 +58,18 @@ test("produce plus one dense side beats two dense sides for a handheld main", ()
   assert.ok(balanced >= dense + 4, `${balanced} should materially exceed ${dense}`);
 });
 
-test("station practicality rewards a coherent meal that does not require three separate stops", () => {
+test("station practicality materially penalizes a third separate stop", () => {
   const one = station("one", "Homestyle", "American");
   const two = station("two", "Everyday");
   const three = station("three", "Salad", "Salad");
   const main = item("main", "Roasted Chicken", one.id, "main");
-  const vegSame = item("veg-same", "Roasted Broccoli", one.id, "side");
-  const riceSame = item("rice-same", "Brown Rice", one.id, "side");
-  const vegSplit = { ...vegSame, id: "veg-split", stationId: two.id };
-  const riceSplit = { ...riceSame, id: "rice-split", stationId: three.id };
-  assert.ok(
-    mealCoherenceScore([main, vegSame, riceSame], [one, two, three], context)
-    > mealCoherenceScore([main, vegSplit, riceSplit], [one, two, three], context),
-  );
+  const vegTwo = item("veg-two", "Roasted Broccoli", two.id, "side");
+  const riceTwo = item("rice-two", "Brown Rice", two.id, "side");
+  const riceThree = { ...riceTwo, id: "rice-three", stationId: three.id };
+
+  const twoStops = mealCoherenceScore([main, vegTwo, riceTwo], [one, two, three], context);
+  const threeStops = mealCoherenceScore([main, vegTwo, riceThree], [one, two, three], context);
+  assert.ok(twoStops >= threeStops + 8, `${twoStops} should materially exceed three-stop meal ${threeStops}`);
 });
 
 test("breakfast-specific cereal is downgraded as a lunch companion", () => {
@@ -100,6 +99,27 @@ test("tortillas count as bread-like dense sides", () => {
   assert.equal(inferMealSideCategory(tortilla), "bread");
 });
 
+test("eggs and bacon are protein-style sides rather than neutral fillers", () => {
+  const cucina = station("cucina", "Cucina", "Italian");
+  assert.equal(inferMealSideCategory(item("eggs", "Eggs", cucina.id, "side")), "protein");
+  assert.equal(inferMealSideCategory(item("bacon", "Chopped Bacon", cucina.id, "side")), "protein");
+});
+
+test("a protein main with protein plus bread but no produce is downgraded", () => {
+  const laMesa = station("la-mesa", "La Mesa", "Latin");
+  const cucina = station("cucina", "Cucina", "Italian");
+  const deli = station("deli", "Deli", "Deli");
+  const produce = station("produce", "Pure Eats", "American");
+  const pork = item("pork", "Pork al Pastor", laMesa.id, "main");
+  const eggs = item("eggs", "Eggs", cucina.id, "side");
+  const bread = item("bread", "Multigrain Bread", deli.id, "side");
+  const broccoli = item("broccoli", "Blanched Broccoli", produce.id, "side");
+
+  const proteinBread = mealCoherenceScore([pork, eggs, bread], [laMesa, cucina, deli, produce], context);
+  const produceBread = mealCoherenceScore([pork, broccoli, bread], [laMesa, cucina, deli, produce], context);
+  assert.ok(produceBread >= proteinBread + 10, `${produceBread} should materially exceed protein-plus-bread ${proteinBread}`);
+});
+
 test("a self-contained handheld is better alone or with produce than with loose bread", () => {
   const flame = station("flame", "Flame", "American");
   const philly = item("philly", "Chicken Philly Cheesesteak", flame.id, "main");
@@ -112,4 +132,21 @@ test("a self-contained handheld is better alone or with produce than with loose 
 
   assert.ok(alone > withBread, `${alone} should exceed redundant bread ${withBread}`);
   assert.ok(withProduce >= withBread + 12, `${withProduce} should materially exceed redundant bread ${withBread}`);
+});
+
+test("pasta and pizza do not get an ideal coherence score from adding loose bread", () => {
+  const cucina = station("cucina", "Cucina", "Italian");
+  const pasta = item("pasta", "Beef Goulash with Gluten Free Pasta", cucina.id, "main");
+  const pizza = item("pizza", "Pepperoni Pizza", cucina.id, "main");
+  const bread = item("bread", "Multigrain Bread", cucina.id, "side");
+  const broccoli = item("broccoli", "Blanched Broccoli", cucina.id, "side");
+
+  assert.ok(
+    mealCoherenceScore([pasta, broccoli], [cucina], context)
+    > mealCoherenceScore([pasta, bread], [cucina], context),
+  );
+  assert.ok(
+    mealCoherenceScore([pizza, broccoli], [cucina], context)
+    > mealCoherenceScore([pizza, bread], [cucina], context),
+  );
 });

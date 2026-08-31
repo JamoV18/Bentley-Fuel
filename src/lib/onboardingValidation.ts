@@ -1,4 +1,4 @@
-import { feetAndInchesToCentimeters, poundsToKilograms } from "./energyEstimate.ts";
+import { feetAndInchesToCentimeters, MIN_SUPPORTED_AGE, poundsToKilograms } from "./energyEstimate.ts";
 import type { UnitSystem } from "../types/plan.ts";
 import type { BodyMetrics } from "../types/user.ts";
 
@@ -20,8 +20,8 @@ const numeric = (value = "") => supplied(value) && Number.isFinite(Number(value)
 
 export function parseBodyInput(input: BodyInput): Result<BodyMetrics | undefined> {
   const unitSystem = input.unitSystem ?? "us";
-  if (supplied(input.age) && (!numeric(input.age) || !Number.isInteger(Number(input.age)) || Number(input.age) < 13 || Number(input.age) > 120))
-    return { error: "Age must be a whole number from 13 to 120." };
+  if (supplied(input.age) && (!numeric(input.age) || !Number.isInteger(Number(input.age)) || Number(input.age) < MIN_SUPPORTED_AGE || Number(input.age) > 120))
+    return { error: `Age must be a whole number from ${MIN_SUPPORTED_AGE} to 120.` };
 
   let heightCm: number | undefined;
   let weightKg: number | undefined;

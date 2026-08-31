@@ -20,6 +20,20 @@ const DEFAULT_MAX_CANDIDATES = 60;
 const DEFAULT_MAX_CUSTOM_VARIANTS = 8;
 const ROLE_ORDER: MenuItemMealRole[] = ["main", "side", "snack", "drink", "dessert"];
 const DENSE_SIDE_CATEGORIES = new Set(["grain", "legume", "starch", "bread"]);
+const SIDE_CATEGORY_ORDER = [
+  "vegetable",
+  "salad",
+  "fruit",
+  "grain",
+  "legume",
+  "starch",
+  "protein",
+  "bread",
+  "soup",
+  "other",
+  "dessert",
+  "drink",
+] as const;
 
 const stationAvailable = (station: Station, context: RecommendationContext): boolean => {
   if (!context.mealPeriod || !station.mealPeriods || station.mealPeriods.length === 0) return true;
@@ -332,6 +346,49 @@ function takeStationDiverse(
   return out;
 }
 
+function takeSideCategoryDiverse(
+  items: readonly MenuItem[],
+  limit: number,
+  context: RecommendationContext,
+): MenuItem[] {
+  if (limit <= 0 || items.length === 0) return [];
+  const byCategory = new Map<string, MenuItem[]>();
+  for (const item of items) {
+    const category = inferMealSideCategory(item);
+    const bucket = byCategory.get(category) ?? [];
+    bucket.push(item);
+    byCategory.set(category, bucket);
+  }
+
+  const preferredCategories = new Set<string>(SIDE_CATEGORY_ORDER);
+  const categoryOrder = [
+    ...SIDE_CATEGORY_ORDER.filter((category) => byCategory.has(category)),
+    ...[...byCategory.keys()].filter((category) => !preferredCategories.has(category)).sort(),
+  ];
+  const orderedByCategory = new Map(
+    categoryOrder.map((category) => [
+      category,
+      takeStationDiverse(byCategory.get(category) ?? [], items.length, context),
+    ] as const),
+  );
+
+  const out: MenuItem[] = [];
+  let offset = 0;
+  while (out.length < limit) {
+    let added = false;
+    for (const category of categoryOrder) {
+      const item = orderedByCategory.get(category)?.[offset];
+      if (!item) continue;
+      out.push(item);
+      added = true;
+      if (out.length >= limit) break;
+    }
+    if (!added) break;
+    offset += 1;
+  }
+  return out;
+}
+
 function boundedRecommendationPool(
   items: readonly MenuItem[],
   context: RecommendationContext,
@@ -345,14 +402,22 @@ function boundedRecommendationPool(
   const buckets = new Map<MenuItemMealRole, MenuItem[]>(ROLE_ORDER.map((role) => [role, []]));
   for (const item of items) buckets.get(inferMenuItemMealRole(item))!.push(item);
 
+  // Complete-meal recommendations spend almost all of their useful search
+  // budget on mains and sides. Keep a token slot for drinks/snacks/desserts,
+  // but give sides enough room to preserve vegetables, grains, legumes,
+  // starches, breads, and protein-style sides from a large live menu.
   const shares: Record<MenuItemMealRole, number> = requireMain
-    ? { main: 0.40, side: 0.36, snack: 0.08, drink: 0.08, dessert: 0.08 }
+    ? { main: 0.38, side: 0.50, snack: 0.04, drink: 0.04, dessert: 0.04 }
     : { main: 0.30, side: 0.40, snack: 0.12, drink: 0.10, dessert: 0.08 };
   const selected: MenuItem[] = [];
   const selectedIds = new Set<string>();
   for (const role of ROLE_ORDER) {
     const quota = Math.max(1, Math.floor(cap * shares[role]));
-    for (const item of takeStationDiverse(buckets.get(role) ?? [], quota, context)) {
+    const roleItems = buckets.get(role) ?? [];
+    const chosen = role === "side"
+      ? takeSideCategoryDiverse(roleItems, quota, context)
+      : takeStationDiverse(roleItems, quota, context);
+    for (const item of chosen) {
       if (selectedIds.has(item.id)) continue;
       selected.push(item);
       selectedIds.add(item.id);

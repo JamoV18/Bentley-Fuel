@@ -28,7 +28,11 @@ const selectedGoals = (profile: UserProfile) => profile.goals?.length ? profile.
 export interface DailyTargetPlan {
   targets: MacroTargets;
   source: "explicit-profile-targets" | "derived-maintenance-baseline" | "derived-weight-loss-intensity";
-  energyBasis: "explicit" | "national-academies-2023-adult-eer-maintenance" | "maintenance-percent-reduction";
+  energyBasis:
+    | "explicit"
+    | "national-academies-2023-adolescent-eer-maintenance"
+    | "national-academies-2023-adult-eer-maintenance"
+    | "maintenance-percent-reduction";
   proteinBasis: "explicit" | "national-academies-planning-pattern" | "resistance-training-1.6-g-per-kg";
   usesMaintenanceEnergy: boolean;
 }
@@ -51,6 +55,9 @@ export function deriveMaintenanceTargetPlan(profile: UserProfile): DailyTargetPl
   const fatShare = Math.max(MIN_FAT_SHARE, Math.min(BASELINE_FAT_SHARE, 1 - MIN_CARB_SHARE - proteinShare));
   const fatCalories = calories * fatShare;
   const carbCalories = Math.max(0, calories - proteinCalories - fatCalories);
+  const energyBasis = profile.maintenanceEstimate.method === "national-academies-2023-adolescent-eer"
+    ? "national-academies-2023-adolescent-eer-maintenance" as const
+    : "national-academies-2023-adult-eer-maintenance" as const;
 
   return {
     targets: {
@@ -60,15 +67,29 @@ export function deriveMaintenanceTargetPlan(profile: UserProfile): DailyTargetPl
       fat: round(fatCalories / FAT_KCAL_PER_GRAM),
     },
     source: "derived-maintenance-baseline",
-    energyBasis: "national-academies-2023-adult-eer-maintenance",
+    energyBasis,
     proteinBasis: hasBuildMuscleGoal ? "resistance-training-1.6-g-per-kg" : "national-academies-planning-pattern",
     usesMaintenanceEnergy: true,
   };
 }
 
+/**
+ * Falcon Fuel records a weight-loss goal at age 17, but does not autonomously
+ * prescribe a calorie deficit to a minor. At age 18+, a selected planning
+ * intensity can reduce the age-appropriate maintenance estimate. If an old
+ * adolescent estimate has no age attached, fail conservatively and keep
+ * maintenance rather than assuming the user is 18.
+ */
+export function automaticWeightLossDeficitAllowed(profile: UserProfile): boolean {
+  const age = profile.metrics?.age;
+  if (age !== undefined) return age >= 18;
+  return profile.maintenanceEstimate?.method !== "national-academies-2023-adolescent-eer";
+}
+
 export function deriveWeightLossTargetPlan(profile: UserProfile, intensity: WeightLossIntensity): DailyTargetPlan | undefined {
   const maintenance = deriveMaintenanceTargetPlan(profile);
   if (!maintenance) return undefined;
+  if (!automaticWeightLossDeficitAllowed(profile)) return maintenance;
 
   const reduction = WEIGHT_LOSS_INTENSITY_REDUCTION[intensity];
   const calories = Math.max(

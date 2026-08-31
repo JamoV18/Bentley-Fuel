@@ -65,7 +65,16 @@ const ranked = {
     compositionPenalty: 0,
     mealCoherence: 94,
     softPreferenceBonus: 2,
-    behavior: { preferenceBoost: 3, aversionPenalty: 0, repetitionPenalty: 0, totalAdjustment: 3, evidenceCount: 2 },
+    behavior: {
+      preferenceBoost: 3,
+      learnedPreferenceBoost: 0,
+      learnedSignals: [],
+      learnedEvidenceCount: 0,
+      aversionPenalty: 0,
+      repetitionPenalty: 0,
+      totalAdjustment: 3,
+      evidenceCount: 2,
+    },
     mode: "daily-targets",
   },
 } as RankedMealCandidate;
@@ -93,6 +102,8 @@ test("explanation exposes actual target math and provenance without exposing the
   assert.equal(explanation.mealActual?.calories, 800);
   assert.equal(explanation.targetFit, 92);
   assert.equal(explanation.stationCount, 2);
+  assert.equal(explanation.learnedPreferenceBoost, 0);
+  assert.deepEqual(explanation.learnedSignals, []);
   assert.deepEqual(explanation.nutritionSources, ["DineOnCampus / Bentley Dining"]);
   assert.equal("total" in explanation, false);
 });

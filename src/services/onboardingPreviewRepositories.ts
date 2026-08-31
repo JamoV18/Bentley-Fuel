@@ -3,6 +3,7 @@ import type { ProgressRepository } from "./progressRepository";
 
 export const onboardingPreviewProfileRepository: ProfileRepository = {
   get: () => null,
+  getStored: () => null,
   save: () => undefined,
   clear: () => undefined,
 };

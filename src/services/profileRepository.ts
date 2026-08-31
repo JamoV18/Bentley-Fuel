@@ -90,7 +90,10 @@ export function createUserProfile(
 }
 
 export interface ProfileRepository {
+  /** Read-time profile with resolved targets/defaults for normal app use. */
   get(): UserProfile | null;
+  /** Raw validated profile exactly as stored, before read-time target resolution. */
+  getStored(): UserProfile | null;
   save(profile: UserProfile): void;
   clear(): void;
 }
@@ -109,17 +112,25 @@ export function withResolvedDailyTargets(profile: UserProfile, currentWeightKg =
 }
 
 export function createLocalProfileRepository(storage: StorageLike): ProfileRepository {
+  const getStored = (): UserProfile | null => {
+    const raw = storage.getItem(PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      return isValidUserProfile(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
   return {
     get() {
-      const raw = storage.getItem(PROFILE_STORAGE_KEY);
-      if (!raw) return null;
-      try {
-        const parsed: unknown = JSON.parse(raw);
-        if (!isValidUserProfile(parsed)) return null;
-        const latestWeightKg = createLocalProgressRepository(storage).getRecent(1)[0]?.weightKg;
-        return withResolvedDailyTargets(parsed, latestWeightKg ?? parsed.metrics?.weightKg);
-      } catch { return null; }
+      const parsed = getStored();
+      if (!parsed) return null;
+      const latestWeightKg = createLocalProgressRepository(storage).getRecent(1)[0]?.weightKg;
+      return withResolvedDailyTargets(parsed, latestWeightKg ?? parsed.metrics?.weightKg);
     },
+    getStored,
     save(profile) {
       if (!isValidUserProfile(profile)) throw new Error("Refusing to store an invalid profile");
       storage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));

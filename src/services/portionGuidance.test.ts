@@ -18,7 +18,11 @@ const item = (overrides: Partial<MenuItem> = {}): MenuItem => ({
   mealRole: "side",
   allergens: [],
   dietaryTags: [],
-  provenance: { dataStatus: "verified", confidence: 1 },
+  provenance: {
+    dataStatus: "verified",
+    source: { type: "chartwells", name: "test" },
+    confidence: 1,
+  },
   ...overrides,
 });
 

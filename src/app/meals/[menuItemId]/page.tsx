@@ -50,7 +50,7 @@ export default async function MealPage({
       <section className="surface mt-8 grid overflow-hidden p-2 lg:grid-cols-[.9fr_1.1fr]">
         <MealImage name={item.name} imageUrl={item.imageUrl} aspect="hero" className="h-full min-h-72 lg:min-h-[30rem]" />
         <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-9">
-          <p className="brand-kicker">Bentley Fuel</p>
+          <p className="brand-kicker">Falcon Fuel</p>
           <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-semibold subtle">{station && <span>{station.name}</span>}{station && location && <span>·</span>}{location && <span>{location.name}</span>}</div>
           <div className="mt-2 flex items-start justify-between gap-3">
             <h1 className="text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{item.name}</h1>
@@ -63,7 +63,7 @@ export default async function MealPage({
 
       {isVerified ? (
         <p className="mt-5 rounded-xl border border-emerald-200/80 bg-emerald-50/85 px-4 py-3 text-sm text-emerald-950">
-          Published by Bentley Dining through DineOnCampus. Bentley Fuel maps the values supplied by the official menu and does not fill missing nutrition fields with estimates.
+          Published by Bentley Dining through DineOnCampus. Falcon Fuel maps the values supplied by the official menu and does not fill missing nutrition fields with estimates.
         </p>
       ) : (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">Demo menu data · not current official Bentley Dining information.</p>

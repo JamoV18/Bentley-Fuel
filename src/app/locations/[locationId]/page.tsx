@@ -44,11 +44,11 @@ export default async function LocationPage({
 
       <header className="mt-8 flex flex-wrap items-end justify-between gap-5">
         <div>
-          <p className="brand-kicker">Bentley Fuel</p>
+          <p className="brand-kicker">Falcon Fuel</p>
           <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{view.location.name}</h1>
           {view.location.building && <p className="mt-2 subtle">{view.location.building}</p>}
         </div>
-        <p className="max-w-md text-sm leading-relaxed subtle">Choose the fastest path: let Bentley Fuel rank a complete meal for you, or browse exactly what is available here.</p>
+        <p className="max-w-md text-sm leading-relaxed subtle">Choose the fastest path: let Falcon Fuel rank a complete meal for you, or browse exactly what is available here.</p>
       </header>
 
       {isNineTwentyOne && menuDate && (
@@ -84,7 +84,7 @@ export default async function LocationPage({
         </p>
       ) : isNineTwentyOne ? (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-          The live DineOnCampus menu could not be verified for this date. Bentley Fuel is not substituting the old demo 921 foods; retry the live menu before making a dining decision.
+          The live DineOnCampus menu could not be verified for this date. Falcon Fuel is not substituting the old demo 921 foods; retry the live menu before making a dining decision.
         </p>
       ) : provider.dataStatus === "mock" ? (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
@@ -98,7 +98,7 @@ export default async function LocationPage({
           <p className="eyebrow">Personalized meal</p>
           <h2 className="mt-1 text-3xl font-bold tracking-[-0.03em]">What should I eat here?</h2>
           <p className="mt-3 max-w-xl text-sm leading-relaxed subtle">
-            Bentley Fuel compares eligible foods across {view.location.shortName ?? view.location.name} and ranks complete meals around your goals, restrictions, current nutrition, and recent variety.
+            Falcon Fuel compares eligible foods across {view.location.shortName ?? view.location.name} and ranks complete meals around your goals, restrictions, current nutrition, and recent variety.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={ctaMotion}>

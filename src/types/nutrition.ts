@@ -117,7 +117,7 @@ export const ALL_DIETARY_TAGS: readonly DietaryTag[] = [
  */
 export const ALLERGEN_DISCLAIMER =
   "Allergen info is for guidance only and may be incomplete or change without notice. " +
-  "Bentley Fuel can never guarantee a meal is allergen-free. Always confirm with " +
+  "Falcon Fuel can never guarantee a meal is allergen-free. Always confirm with " +
   "Bentley Dining staff and official signage before eating.";
 
 /** An empty macro/nutrition record — handy as an accumulator start value. */

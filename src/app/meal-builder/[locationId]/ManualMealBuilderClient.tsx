@@ -94,9 +94,9 @@ export default function ManualMealBuilderClient({
 
       <header className="mt-8 flex flex-wrap items-end justify-between gap-5">
         <div className="max-w-2xl">
-          <p className="brand-kicker">Bentley Fuel</p>
+          <p className="brand-kicker">Falcon Fuel</p>
           <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Build my meal</h1>
-          <p className="mt-2 text-base leading-relaxed subtle">Already know what you’re eating? Add it here. Bentley Fuel totals the meal while you build it.</p>
+          <p className="mt-2 text-base leading-relaxed subtle">Already know what you’re eating? Add it here. Falcon Fuel totals the meal while you build it.</p>
         </div>
         <Link href={recommendationHref} className="secondary inline-flex items-center justify-center">Get a recommendation instead</Link>
       </header>

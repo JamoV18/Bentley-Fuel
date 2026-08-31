@@ -1,13 +1,13 @@
-# Bentley Fuel
+# Falcon Fuel
 
-Personalized dining for Bentley University students. Bentley Fuel answers one
+Personalized dining for Bentley University students. Falcon Fuel answers one
 question: **"Given my goals, restrictions, remaining macros, and location, what
 should I eat?"** — using deterministic scoring (no ML/AI chat) as the
 differentiator, not just a digital menu.
 
 > **All nutrition/menu data is currently MOCK** (`dataStatus: "mock"`) and lives
 > behind a service layer so it can be swapped for real Bentley/Chartwells data
-> without rewriting the UI or recommendation engine. Bentley Fuel never claims a
+> without rewriting the UI or recommendation engine. Falcon Fuel never claims a
 > meal is allergen-safe — always defer to Bentley Dining's official guidance.
 
 ## Tech stack
@@ -105,7 +105,7 @@ confidence bounds, and shape-by-kind rules. Run it with `npm run validate:data`.
 8. **Food Logging**
 9. **Mobile Polish**
 
-Phase 6 gives Bentley Fuel a deterministic representation of a complete eating
+Phase 6 gives Falcon Fuel a deterministic representation of a complete eating
 occasion, including multiple menu items/stations and selected components inside
 customizable items. The UI accepts a preassembled `MealBuild` in one tap, then
 supports correction-oriented edits without logging food. Phase 7 will generate

@@ -5,7 +5,7 @@ import "./globals.css";
 import "./react-bits.css";
 
 export const metadata: Metadata = {
-  title: "Bentley Fuel",
+  title: "Falcon Fuel",
   description: "Personalized Bentley dining and nutrition tracking — recommend what to eat, track what you consume, and adapt what comes next.",
 };
 

@@ -28,7 +28,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
     <section className={embedded ? "" : "mt-8"} aria-labelledby="food-browser-heading">
       <p className="eyebrow">Build it yourself</p>
       <h2 id="food-browser-heading" className="mt-1 text-2xl font-bold">Add food by station</h2>
-      <p className="mt-1 max-w-2xl text-sm leading-relaxed subtle">Already know what you are getting? Add it here and Bentley Fuel will total the meal for you.</p>
+      <p className="mt-1 max-w-2xl text-sm leading-relaxed subtle">Already know what you are getting? Add it here and Falcon Fuel will total the meal for you.</p>
 
       <div className="mt-5 space-y-5">
         {availableStations.map((station) => {

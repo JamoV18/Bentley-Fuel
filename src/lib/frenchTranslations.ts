@@ -72,8 +72,8 @@ function translateDynamic(source: string): string | undefined {
   if (match) return `Date estimée de l’objectif : ${match[1]}. Il s’agit d’une projection, pas d’une garantie.`;
   match = source.match(/^(\d+)\/3 selected · weight-direction goals are mutually exclusive\.$/);
   if (match) return `${match[1]}/3 sélectionnés · les objectifs de direction du poids sont mutuellement exclusifs.`;
-  match = source.match(/^Bentley Fuel compares eligible foods across (.+) and ranks complete meals around your goals, restrictions, current nutrition, and recent variety\.$/);
-  if (match) return `Bentley Fuel compare les aliments admissibles de ${match[1]} et classe des repas complets selon vos objectifs, restrictions, nutrition actuelle et variété récente.`;
+  match = source.match(/^Falcon Fuel compares eligible foods across (.+) and ranks complete meals around your goals, restrictions, current nutrition, and recent variety\.$/);
+  if (match) return `Falcon Fuel compare les aliments admissibles de ${match[1]} et classe des repas complets selon vos objectifs, restrictions, nutrition actuelle et variété récente.`;
   return undefined;
 }
 

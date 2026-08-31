@@ -91,7 +91,7 @@ const completionEvidence = (entry: MealHistoryEntry): number => {
  * History influences ranking modestly; nutrition remains authoritative.
  * History must be newest-first. We intentionally score affinity and repetition
  * separately so repeated successful choices create taste evidence while also
- * increasing the chance that Bentley Fuel offers something different next time.
+ * increasing the chance that Falcon Fuel offers something different next time.
  */
 export function scoreMealHistory(
   candidate: MealCandidate,

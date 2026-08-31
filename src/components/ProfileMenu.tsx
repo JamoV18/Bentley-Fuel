@@ -70,7 +70,7 @@ export default function ProfileMenu({ profile }: { profile: UserProfile }) {
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-lg font-bold ring-1 ring-white/20">{initial}</div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold">{name}</p>
-                  <p className="mt-0.5 truncate text-xs text-white/65">{t(goal)} · Bentley Fuel</p>
+                  <p className="mt-0.5 truncate text-xs text-white/65">{t(goal)} · Falcon Fuel</p>
                 </div>
                 <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/75">{t("Profile")}</span>
               </div>

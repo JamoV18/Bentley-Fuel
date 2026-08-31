@@ -1,5 +1,5 @@
 /**
- * Common primitives shared across the Bentley Fuel domain model.
+ * Common primitives shared across the Falcon Fuel domain model.
  *
  * Design rules enforced here:
  *  - Every entity carries a stable, opaque `id` (never a display name).

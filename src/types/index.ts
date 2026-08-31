@@ -1,5 +1,5 @@
 /**
- * Barrel export for the Bentley Fuel domain model.
+ * Barrel export for the Falcon Fuel domain model.
  * Import from "@/types" everywhere rather than reaching into individual files.
  */
 export * from "./common";

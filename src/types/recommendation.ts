@@ -4,7 +4,7 @@ import type { Allergen, DietaryTag, NutritionFacts } from "./nutrition";
 import type { RemainingMacros, UserProfile } from "./user";
 
 /**
- * Dietary patterns that Bentley Fuel treats as hard eligibility constraints.
+ * Dietary patterns that Falcon Fuel treats as hard eligibility constraints.
  * Nutrition/taste tags such as high-protein, spicy, or low-carb remain soft
  * preferences and belong in scoring rather than filtering.
  */

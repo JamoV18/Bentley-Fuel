@@ -185,7 +185,7 @@ export default function TodayClient({
   };
 
   if (profile === undefined) return <main className="today-shell"><p>Loading today…</p></main>;
-  if (!profile) return <main className="today-shell"><p className="brand-kicker">Bentley Fuel</p><h1 className="mt-5 text-4xl font-bold tracking-tight">Build your nutrition plan.</h1><p className="mt-2 subtle">A few choices unlock personalized dining recommendations and daily tracking.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
+  if (!profile) return <main className="today-shell"><p className="brand-kicker">Falcon Fuel</p><h1 className="mt-5 text-4xl font-bold tracking-tight">Build your nutrition plan.</h1><p className="mt-2 subtle">A few choices unlock personalized dining recommendations and daily tracking.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
 
   const target = snapshot.targets;
   const remainingCalories = target ? Math.max(0, snapshot.remaining?.calories ?? target.calories - snapshot.consumed.calories) : undefined;

@@ -34,7 +34,7 @@ export default function ProfilePage() {
   }, []);
 
   if (profile === undefined) return <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10"><p>Loading your profile…</p></main>;
-  if (!profile) return <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10"><p className="brand-kicker">Bentley Fuel</p><h1 className="mt-5 text-4xl font-bold">Build your nutrition plan.</h1><p className="mt-2 subtle">A few choices unlock personalized dining recommendations and daily tracking.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
+  if (!profile) return <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10"><p className="brand-kicker">Falcon Fuel</p><h1 className="mt-5 text-4xl font-bold">Build your nutrition plan.</h1><p className="mt-2 subtle">A few choices unlock personalized dining recommendations and daily tracking.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
 
   const units = profile.unitSystem ?? "us";
   const name = profile.displayName?.trim() || "Bentley student";
@@ -63,9 +63,9 @@ export default function ProfilePage() {
       </div>
 
       <header className="mt-8">
-        <p className="brand-kicker">Bentley Fuel</p>
+        <p className="brand-kicker">Falcon Fuel</p>
         <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Your profile</h1>
-        <p className="mt-2 max-w-3xl subtle">Personal details and dietary preferences used across Bentley Fuel.</p>
+        <p className="mt-2 max-w-3xl subtle">Personal details and dietary preferences used across Falcon Fuel.</p>
       </header>
 
       <AppNav />
@@ -116,7 +116,7 @@ export default function ProfilePage() {
           <p className="eyebrow">Account</p>
           <h2 className="mt-1 text-2xl font-bold">Profile & settings</h2>
           <div className="mt-5">
-            <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">App language</p><p className="mt-1 text-xs leading-relaxed subtle">Choose the language Bentley Fuel uses across the app.</p></div><span className="text-xs font-bold text-emerald-800">{SUPPORTED_LANGUAGE_OPTIONS.find((option) => option.code === language)?.label}</span></div>
+            <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">App language</p><p className="mt-1 text-xs leading-relaxed subtle">Choose the language Falcon Fuel uses across the app.</p></div><span className="text-xs font-bold text-emerald-800">{SUPPORTED_LANGUAGE_OPTIONS.find((option) => option.code === language)?.label}</span></div>
             <div data-i18n-skip className="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-black/[.035] p-1">
               {SUPPORTED_LANGUAGE_OPTIONS.map((option) => <button key={option.code} type="button" onClick={() => setLanguage(option.code)} aria-pressed={language === option.code} className={`rounded-xl px-2 py-2.5 text-sm font-bold transition ${language === option.code ? "bg-white text-emerald-950 shadow-sm" : "text-black/45 hover:text-emerald-900"}`}>{option.code === "zh" ? "中文" : option.label}</button>)}
             </div>

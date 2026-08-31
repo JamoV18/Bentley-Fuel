@@ -19,7 +19,7 @@ export const WEIGHT_LOSS_INTENSITY_REDUCTION: Record<WeightLossIntensity, number
   extreme: 0.25,
 };
 
-/** Conservative automated floor; below this Bentley Fuel will not calculate a lower target. */
+/** Conservative automated floor; below this Falcon Fuel will not calculate a lower target. */
 export const MIN_AUTOMATED_WEIGHT_LOSS_CALORIES = 1200;
 
 const round = (value: number) => Math.round(value);

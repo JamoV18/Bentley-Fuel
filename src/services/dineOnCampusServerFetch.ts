@@ -6,7 +6,7 @@ const DINE_ON_CAMPUS_HOSTS = new Set([
 /**
  * Verified from Bentley's public DineOnCampus menu traffic on 2026-08-29.
  * This is only a fallback now: the provider rediscovers The 921 live first so a
- * DineOnCampus publishing/location rollover cannot strand Bentley Fuel on a
+ * DineOnCampus publishing/location rollover cannot strand Falcon Fuel on a
  * stale location record.
  */
 export const BENTLEY_921_DINE_ON_CAMPUS_LOCATION_ID = "6a63fc9b4b5736c5a8d6332b";

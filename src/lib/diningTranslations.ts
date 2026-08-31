@@ -93,7 +93,7 @@ const DINING: Record<string, Entry> = {
 
   // Blue Chip items and customization steps.
   "Build Your Own Bowl or Burrito": { es: "Arma tu propio bowl o burrito", zh: "自选碗餐或卷饼" },
-  "Pick a base, add proteins, beans, veggies, cheese, and sauces. Bentley Fuel totals your macros as you build.": { es: "Elige una base y agrega proteínas, frijoles, verduras, queso y salsas. Bentley Fuel calcula tus macros mientras armas la comida.", zh: "选择主食，再添加蛋白质、豆类、蔬菜、奶酪和酱料。Bentley Fuel 会在搭配过程中汇总宏量营养。" },
+  "Pick a base, add proteins, beans, veggies, cheese, and sauces. Falcon Fuel totals your macros as you build.": { es: "Elige una base y agrega proteínas, frijoles, verduras, queso y salsas. Falcon Fuel calcula tus macros mientras armas la comida.", zh: "选择主食，再添加蛋白质、豆类、蔬菜、奶酪和酱料。Falcon Fuel 会在搭配过程中汇总宏量营养。" },
   "Choose your base": { es: "Elige tu base", zh: "选择主食" },
   "Wrap it? (makes it a burrito)": { es: "¿Envolverlo? (lo convierte en burrito)", zh: "要卷起来吗？（变成卷饼）" },
   "Choose your protein": { es: "Elige tu proteína", zh: "选择蛋白质" },

@@ -23,7 +23,7 @@ const PHRASES: Record<string, Entry> = {
   "All dining": { es: "Todos los comedores", zh: "所有餐饮点" },
   "All locations": { es: "Todas las ubicaciones", zh: "所有地点" },
   "Build my nutrition plan": { es: "Crear mi plan de nutrición", zh: "创建我的营养计划" },
-  "Open Bentley Fuel": { es: "Abrir Bentley Fuel", zh: "打开 Bentley Fuel" },
+  "Open Falcon Fuel": { es: "Abrir Falcon Fuel", zh: "打开 Falcon Fuel" },
   "View saved profile →": { es: "Ver perfil guardado →", zh: "查看已保存的资料 →" },
   "Eat with purpose.": { es: "Come con propósito.", zh: "有目标地吃。" },
   "Fuel your best.": { es: "Alimenta tu mejor versión.", zh: "为最佳状态补充能量。" },
@@ -35,12 +35,12 @@ const PHRASES: Record<string, Entry> = {
   "Live": { es: "En vivo", zh: "实时" },
   "Smart": { es: "Inteligente", zh: "智能" },
   "What sounds good?": { es: "¿Qué te apetece?", zh: "想吃什么？" },
-  "Pick where you’re eating. Bentley Fuel handles the nutritional reasoning and ranks complete meals for you.": { es: "Elige dónde vas a comer. Bentley Fuel se encarga del análisis nutricional y ordena comidas completas para ti.", zh: "先选择你要去的餐饮点。Bentley Fuel 会完成营养分析并为你排序完整餐食。" },
+  "Pick where you’re eating. Falcon Fuel handles the nutritional reasoning and ranks complete meals for you.": { es: "Elige dónde vas a comer. Falcon Fuel se encarga del análisis nutricional y ordena comidas completas para ti.", zh: "先选择你要去的餐饮点。Falcon Fuel 会完成营养分析并为你排序完整餐食。" },
   "Dining location": { es: "Ubicación de comedor", zh: "餐饮地点" },
   "dining concept": { es: "concepto gastronómico", zh: "餐饮档口" },
   "dining concepts": { es: "conceptos gastronómicos", zh: "餐饮档口" },
   "Demo menu data · not current official Bentley Dining information.": { es: "Datos de menú de demostración · no es información oficial y actual de Bentley Dining.", zh: "演示菜单数据 · 并非 Bentley Dining 当前官方信息。" },
-  "Choose the fastest path: let Bentley Fuel rank a complete meal for you, or browse exactly what is available here.": { es: "Elige la ruta más rápida: deja que Bentley Fuel ordene una comida completa para ti o explora exactamente lo que hay disponible aquí.", zh: "选择最快的方式：让 Bentley Fuel 为你排序完整餐食，或直接浏览这里现有的食物。" },
+  "Choose the fastest path: let Falcon Fuel rank a complete meal for you, or browse exactly what is available here.": { es: "Elige la ruta más rápida: deja que Falcon Fuel ordene una comida completa para ti o explora exactamente lo que hay disponible aquí.", zh: "选择最快的方式：让 Falcon Fuel 为你排序完整餐食，或直接浏览这里现有的食物。" },
   "Personalized meal": { es: "Comida personalizada", zh: "个性化餐食" },
   "What should I eat here?": { es: "¿Qué debería comer aquí?", zh: "我在这里该吃什么？" },
   "Get my recommendation": { es: "Obtener mi recomendación", zh: "获取我的推荐" },
@@ -79,7 +79,7 @@ const PHRASES: Record<string, Entry> = {
   "Use this meal": { es: "Usar esta comida", zh: "使用这份餐" },
   "Meal selected": { es: "Comida seleccionada", zh: "已选择餐食" },
   "Meal selection needs attention": { es: "La selección necesita atención", zh: "餐食选择需要处理" },
-  "Your choice is saved so Bentley Fuel can learn preference and variety patterns.": { es: "Tu elección se guardó para que Bentley Fuel pueda aprender tus preferencias y patrones de variedad.", zh: "你的选择已保存，Bentley Fuel 会据此学习偏好和饮食多样性。" },
+  "Your choice is saved so Falcon Fuel can learn preference and variety patterns.": { es: "Tu elección se guardó para que Falcon Fuel pueda aprender tus preferencias y patrones de variedad.", zh: "你的选择已保存，Falcon Fuel 会据此学习偏好和饮食多样性。" },
   "Customize": { es: "Personalizar", zh: "自定义" },
   "Done customizing": { es: "Terminar personalización", zh: "完成自定义" },
   "Finished eating? Add a quick check-in": { es: "¿Terminaste de comer? Añade un registro rápido", zh: "吃完了吗？快速记录一下" },
@@ -96,7 +96,7 @@ const PHRASES: Record<string, Entry> = {
   "Contains:": { es: "Contiene:", zh: "含有：" },
   "May contain:": { es: "Puede contener:", zh: "可能含有：" },
   "Build my meal": { es: "Armar mi comida", zh: "搭配我的餐食" },
-  "Already know what you’re eating? Add it here. Bentley Fuel totals the meal while you build it.": { es: "¿Ya sabes qué vas a comer? Agrégalo aquí. Bentley Fuel suma la comida mientras la armas.", zh: "已经知道要吃什么？在这里添加。Bentley Fuel 会在你搭配时自动汇总营养。" },
+  "Already know what you’re eating? Add it here. Falcon Fuel totals the meal while you build it.": { es: "¿Ya sabes qué vas a comer? Agrégalo aquí. Falcon Fuel suma la comida mientras la armas.", zh: "已经知道要吃什么？在这里添加。Falcon Fuel 会在你搭配时自动汇总营养。" },
   "Get a recommendation instead": { es: "Obtener una recomendación", zh: "改用推荐" },
   "Current meal": { es: "Comida actual", zh: "当前餐食" },
   "Your meal": { es: "Tu comida", zh: "你的餐食" },
@@ -109,7 +109,7 @@ const PHRASES: Record<string, Entry> = {
   "Change": { es: "Cambiar", zh: "更改" },
   "Build it yourself": { es: "Ármala tú", zh: "自己搭配" },
   "Add food by station": { es: "Agregar alimentos por estación", zh: "按档口添加食物" },
-  "Already know what you are getting? Add it here and Bentley Fuel will total the meal for you.": { es: "¿Ya sabes qué vas a pedir? Agrégalo aquí y Bentley Fuel calculará el total de la comida.", zh: "已经知道要拿什么？在这里添加，Bentley Fuel 会为你汇总整餐营养。" },
+  "Already know what you are getting? Add it here and Falcon Fuel will total the meal for you.": { es: "¿Ya sabes qué vas a pedir? Agrégalo aquí y Falcon Fuel calculará el total de la comida.", zh: "已经知道要拿什么？在这里添加，Falcon Fuel 会为你汇总整餐营养。" },
   "No menu items are loaded for this eating window yet.": { es: "Aún no hay artículos del menú cargados para este horario.", zh: "当前用餐时段尚未加载菜单项目。" },
   "Configure after adding": { es: "Configurar después de agregar", zh: "添加后配置" },
   "Nutrition shown after adding": { es: "La nutrición se muestra después de agregar", zh: "添加后显示营养信息" },
@@ -179,7 +179,7 @@ const PHRASES: Record<string, Entry> = {
   "Well confirmed": { es: "Bien confirmado", zh: "确认充分" },
   "Recorded nutrition": { es: "Nutrición registrada", zh: "已记录营养" },
   "days confirmed": { es: "días confirmados", zh: "天已确认" },
-  "Bentley Fuel only summarizes meals you saved. Missing logs are never treated as skipped food or a failed day.": { es: "Bentley Fuel solo resume las comidas que guardaste. Los registros faltantes nunca se consideran comida omitida ni un día fallido.", zh: "Bentley Fuel 只汇总你保存的餐食。缺失记录不会被视为漏吃或失败的一天。" },
+  "Falcon Fuel only summarizes meals you saved. Missing logs are never treated as skipped food or a failed day.": { es: "Falcon Fuel solo resume las comidas que guardaste. Los registros faltantes nunca se consideran comida omitida ni un día fallido.", zh: "Falcon Fuel 只汇总你保存的餐食。缺失记录不会被视为漏吃或失败的一天。" },
   "Recorded calories": { es: "Calorías registradas", zh: "已记录卡路里" },
   "Avg calories": { es: "Calorías promedio", zh: "平均卡路里" },
   "Recorded protein": { es: "Proteína registrada", zh: "已记录蛋白质" },
@@ -239,7 +239,7 @@ const PHRASES: Record<string, Entry> = {
   "Moderate": { es: "Moderada", zh: "中等" },
   "Optimal": { es: "Óptima", zh: "最佳" },
   "Extreme · not recommended": { es: "Extrema · no recomendada", zh: "极高 · 不推荐" },
-  "What else should Bentley Fuel help with?": { es: "¿Con qué más debería ayudarte Bentley Fuel?", zh: "Bentley Fuel 还应该帮助你什么？" },
+  "What else should Falcon Fuel help with?": { es: "¿Con qué más debería ayudarte Falcon Fuel?", zh: "Falcon Fuel 还应该帮助你什么？" },
   "Gain more control over my eating habits": { es: "Tener más control sobre mis hábitos alimenticios", zh: "更好地掌控饮食习惯" },
   "Be more consistent": { es: "Ser más constante", zh: "保持更稳定" },
   "Make healthier choices": { es: "Tomar decisiones más saludables", zh: "做出更健康的选择" },
@@ -269,7 +269,7 @@ const PHRASES: Record<string, Entry> = {
   "Clear activity level": { es: "Borrar nivel de actividad", zh: "清除活动水平" },
   "Ready to personalize": { es: "Listo para personalizar", zh: "准备个性化" },
   "Your plan at a glance": { es: "Tu plan de un vistazo", zh: "计划一览" },
-  "Bentley Fuel handles the nutrition math underneath the surface.": { es: "Bentley Fuel se encarga de los cálculos nutricionales por debajo.", zh: "Bentley Fuel 会在后台完成营养计算。" },
+  "Falcon Fuel handles the nutrition math underneath the surface.": { es: "Falcon Fuel se encarga de los cálculos nutricionales por debajo.", zh: "Falcon Fuel 会在后台完成营养计算。" },
   "Selected goals": { es: "Objetivos seleccionados", zh: "已选目标" },
   "Estimated maintenance": { es: "Mantenimiento estimado", zh: "估算维持热量" },
   "You don’t need to calculate calories, protein, carbs, or fat yourself.": { es: "No necesitas calcular calorías, proteína, carbohidratos o grasa por tu cuenta.", zh: "你不需要自己计算卡路里、蛋白质、碳水或脂肪。" },
@@ -339,8 +339,8 @@ function translateDynamic(source: string, language: NonEnglish): string | undefi
   match = source.match(/^(\d+)\/3 selected · weight-direction goals are mutually exclusive\.$/);
   if (match) return language === "es" ? `${match[1]}/3 seleccionados · los objetivos de dirección de peso son mutuamente excluyentes.` : `已选 ${match[1]}/3 · 体重方向目标不能同时选择。`;
 
-  match = source.match(/^Bentley Fuel compares eligible foods across (.+) and ranks complete meals around your goals, restrictions, current nutrition, and recent variety\.$/);
-  if (match) return language === "es" ? `Bentley Fuel compara los alimentos elegibles de ${match[1]} y ordena comidas completas según tus objetivos, restricciones, nutrición actual y variedad reciente.` : `Bentley Fuel 会比较 ${match[1]} 中符合条件的食物，并根据你的目标、限制、当前营养和近期饮食多样性排序完整餐食。`;
+  match = source.match(/^Falcon Fuel compares eligible foods across (.+) and ranks complete meals around your goals, restrictions, current nutrition, and recent variety\.$/);
+  if (match) return language === "es" ? `Falcon Fuel compara los alimentos elegibles de ${match[1]} y ordena comidas completas según tus objetivos, restricciones, nutrición actual y variedad reciente.` : `Falcon Fuel 会比较 ${match[1]} 中符合条件的食物，并根据你的目标、限制、当前营养和近期饮食多样性排序完整餐食。`;
 
   return undefined;
 }

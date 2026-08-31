@@ -60,7 +60,7 @@ const goalBlend = (context: RecommendationContext): Array<{ goal: PrimaryGoal; w
 };
 
 /**
- * When an individualized daily target exists, Bentley Fuel plans around three
+ * When an individualized daily target exists, Falcon Fuel plans around three
  * primary meals: breakfast 30%, lunch 35%, dinner 35%. This is a product
  * allocation heuristic, not a claim that one universal meal distribution is
  * physiologically superior. Brunch/all-day use a main-meal share; late-night is

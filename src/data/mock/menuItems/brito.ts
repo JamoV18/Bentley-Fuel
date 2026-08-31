@@ -17,7 +17,7 @@ export const britoItems: MenuItem[] = [
     id: "item-brito-build-your-own",
     name: "Build Your Own Bowl or Burrito",
     description:
-      "Pick a base, add proteins, beans, veggies, cheese, and sauces. Bentley Fuel totals your macros as you build.",
+      "Pick a base, add proteins, beans, veggies, cheese, and sauces. Falcon Fuel totals your macros as you build.",
     kind: "customizable",
     stationId: STATION_IDS.blueChip,
     locationId: LOC,

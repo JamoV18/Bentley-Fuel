@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
-  <title id="title">Bentley Fuel live menu item</title>
+  <title id="title">Falcon Fuel live menu item</title>
   <desc id="desc">Neutral placeholder used when DineOnCampus does not publish a food photo.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -19,6 +19,6 @@
     <path d="M-76-38c0-44 34-78 76-78s76 34 76 78"/>
     <path d="M-36-114v-34M36-114v-34" opacity=".55"/>
   </g>
-  <text x="600" y="600" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" fill="#003b2a">Bentley Fuel</text>
+  <text x="600" y="600" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" fill="#003b2a">Falcon Fuel</text>
   <text x="600" y="650" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="600" fill="#087a58">Live menu item · photo not published</text>
 </svg>

@@ -8,7 +8,7 @@ import { computeBuild, type ComponentSelection } from "@/services/nutrition";
 
 const report = validateDataset(mockDiningDataset);
 
-console.log("Bentley Fuel — mock dataset report");
+console.log("Falcon Fuel — mock dataset report");
 console.log("==================================");
 console.log("Counts:", report.counts);
 console.log("OK:", report.ok);

@@ -24,7 +24,7 @@ export default function AppNav() {
   const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
 
   return (
-    <nav className="app-nav" aria-label="Bentley Fuel app navigation">
+    <nav className="app-nav" aria-label="Falcon Fuel app navigation">
       {items.map((item) => {
         const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (

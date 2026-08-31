@@ -37,7 +37,7 @@ export default function ProfileSummary() {
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, new Date(), latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, latestWeightKg]);
 
   if (profile === undefined) return <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10"><p>Loading your profile…</p></main>;
-  if (!profile) return <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10"><p className="brand-kicker">Bentley Fuel</p><h1 className="mt-5 text-4xl font-bold">Build your plan.</h1><p className="mt-2 subtle">Complete onboarding to create a personalized nutrition profile.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
+  if (!profile) return <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10"><p className="brand-kicker">Falcon Fuel</p><h1 className="mt-5 text-4xl font-bold">Build your plan.</h1><p className="mt-2 subtle">Complete onboarding to create a personalized nutrition profile.</p><Link className="primary mt-6 inline-block" href="/onboarding">Start onboarding</Link></main>;
 
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const targets = plan?.activeTargets ?? profile.dailyTargets;
@@ -68,7 +68,7 @@ export default function ProfileSummary() {
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
-      <p className="brand-kicker">Bentley Fuel</p>
+      <p className="brand-kicker">Falcon Fuel</p>
       <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Your plan</h1>
       <p className="mt-2 max-w-3xl subtle">The quiet engine underneath Today and every meal recommendation.</p>
       <AppNav />
@@ -86,7 +86,7 @@ export default function ProfileSummary() {
           <p className="eyebrow">Plan trajectory</p>
           <div className="mt-1 flex flex-wrap items-end justify-between gap-3"><h2 className="text-2xl font-bold">{plan?.targetWeightKg ? (plan.phase === "maintenance" ? "Maintenance" : `Target ${weight(plan.targetWeightKg, profile.unitSystem)}`) : "Progress"}</h2>{plan?.currentWeightKg && <p className="text-sm font-semibold text-emerald-900">Current {weight(plan.currentWeightKg, profile.unitSystem)}</p>}</div>
           {plan?.projectedGoalDate && <p className="mt-2 text-sm subtle">Estimated goal date: {plan.projectedGoalDate}. This is a projection, not a guarantee.</p>}
-          {!plan?.projectedGoalDate && plan?.phase === "goal" && plan?.targetWeightKg && <p className="mt-2 text-sm subtle">Your target is saved. Bentley Fuel only shows a projected date when an explicit pace has been calibrated.</p>}
+          {!plan?.projectedGoalDate && plan?.phase === "goal" && plan?.targetWeightKg && <p className="mt-2 text-sm subtle">Your target is saved. Falcon Fuel only shows a projected date when an explicit pace has been calibrated.</p>}
 
           <BklitWeightProgressChart observations={progressHistory} unitSystem={profile.unitSystem} initialWeightKg={profile.metrics?.weightKg} targetWeightKg={plan?.targetWeightKg} startDate={plan?.startDate} animationKey={chartAnimationKey} />
 

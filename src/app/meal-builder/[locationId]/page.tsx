@@ -55,7 +55,7 @@ export default async function MealBuilderPage({
           <p className="eyebrow">921 live menu</p>
           <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Live menu unavailable</h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed subtle">
-            Bentley Fuel could not verify the DineOnCampus {requestedLabel ? `${readablePeriod(requestedLabel).toLowerCase()} ` : ""}menu for {menuDate ? formatMenuDate(menuDate) : "this date"}. No demo foods are being substituted.
+            Falcon Fuel could not verify the DineOnCampus {requestedLabel ? `${readablePeriod(requestedLabel).toLowerCase()} ` : ""}menu for {menuDate ? formatMenuDate(menuDate) : "this date"}. No demo foods are being substituted.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <a href="https://dineoncampus.com/bentley/whats-on-the-menu/921-dining-hall" target="_blank" rel="noreferrer" className="primary inline-flex items-center justify-center">Open Bentley DineOnCampus</a>
@@ -146,7 +146,7 @@ export default async function MealBuilderPage({
           <section className="surface-soft flex flex-wrap items-center justify-between gap-3 p-3.5" aria-label="Choose 921 meal period">
             <div>
               <p className="eyebrow">921 · {formatMenuDate(menuDate)}</p>
-              <p className="mt-1 text-sm font-bold text-emerald-950">Choose the menu Bentley Fuel should use</p>
+              <p className="mt-1 text-sm font-bold text-emerald-950">Choose the menu Falcon Fuel should use</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {availablePeriods.map((period) => (

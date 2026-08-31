@@ -9,7 +9,7 @@ export interface DailyNutritionSnapshot {
   confirmedMeals: number;
   pendingMeals: number;
   meals: MealHistoryEntry[];
-  /** True only means every Bentley Fuel meal saved that day has a completion response. */
+  /** True only means every Falcon Fuel meal saved that day has a completion response. */
   allSavedMealsConfirmed: boolean;
 }
 

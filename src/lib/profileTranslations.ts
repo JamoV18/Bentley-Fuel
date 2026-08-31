@@ -5,7 +5,7 @@ type Entry = { es: string; fr: string; zh: string };
 const PROFILE: Record<string, Entry> = {
   "Profile": { es: "Perfil", fr: "Profil", zh: "个人资料" },
   "Your profile": { es: "Tu perfil", fr: "Votre profil", zh: "你的个人资料" },
-  "Personal details and dietary preferences used across Bentley Fuel.": { es: "Datos personales y preferencias alimentarias utilizados en Bentley Fuel.", fr: "Vos informations personnelles et préférences alimentaires utilisées dans Bentley Fuel.", zh: "Bentley Fuel 中使用的个人信息和饮食偏好。" },
+  "Personal details and dietary preferences used across Falcon Fuel.": { es: "Datos personales y preferencias alimentarias utilizados en Falcon Fuel.", fr: "Vos informations personnelles et préférences alimentaires utilisées dans Falcon Fuel.", zh: "Falcon Fuel 中使用的个人信息和饮食偏好。" },
   "Body information": { es: "Información corporal", fr: "Informations corporelles", zh: "身体信息" },
   "Body details": { es: "Datos corporales", fr: "Données corporelles", zh: "身体详情" },
   "Height": { es: "Altura", fr: "Taille", zh: "身高" },
@@ -26,7 +26,7 @@ const PROFILE: Record<string, Entry> = {
   "No allergens selected.": { es: "No hay alérgenos seleccionados.", fr: "Aucun allergène sélectionné.", zh: "未选择过敏原。" },
   "Profile home": { es: "Inicio del perfil", fr: "Accueil du profil", zh: "个人资料主页" },
   "Open profile menu": { es: "Abrir menú de perfil", fr: "Ouvrir le menu du profil", zh: "打开个人资料菜单" },
-  "Choose the language Bentley Fuel uses across the app.": { es: "Elige el idioma que Bentley Fuel usa en toda la aplicación.", fr: "Choisissez la langue utilisée par Bentley Fuel dans toute l’application.", zh: "选择 Bentley Fuel 在整个应用中使用的语言。" }
+  "Choose the language Falcon Fuel uses across the app.": { es: "Elige el idioma que Falcon Fuel usa en toda la aplicación.", fr: "Choisissez la langue utilisée par Falcon Fuel dans toute l’application.", zh: "选择 Falcon Fuel 在整个应用中使用的语言。" }
 };
 
 export function translateProfileText(source: string, language: ProfileLanguage): string {

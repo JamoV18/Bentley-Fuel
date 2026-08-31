@@ -16,7 +16,7 @@ export type WeightLossIntensity = "light" | "moderate" | "optimal" | "extreme";
 
 /**
  * Optional explicit weight trajectory. A target can exist without a pace, and a
- * weight-loss intensity can exist without a target weight. Bentley Fuel should
+ * weight-loss intensity can exist without a target weight. Falcon Fuel should
  * never fabricate a promised goal date from an energy estimate.
  */
 export interface WeightGoalPlan {

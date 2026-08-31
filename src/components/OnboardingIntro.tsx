@@ -24,28 +24,28 @@ const COPY: Record<SupportedLanguage, IntroCopy> = {
   en: {
     prefix: "Nutrition built around",
     accent: "where you actually eat.",
-    description: "Tell Bentley Fuel what matters to you. Your goals, preferences, and campus dining options become practical meal recommendations.",
+    description: "Tell Falcon Fuel what matters to you. Your goals, preferences, and campus dining options become practical meal recommendations.",
     cta: "Build my profile",
     note: "About one minute. You can change this later.",
   },
   es: {
     prefix: "Nutrición diseñada alrededor de",
     accent: "donde realmente comes.",
-    description: "Dile a Bentley Fuel qué es importante para ti. Tus objetivos, preferencias y opciones de comida del campus se convierten en recomendaciones prácticas.",
+    description: "Dile a Falcon Fuel qué es importante para ti. Tus objetivos, preferencias y opciones de comida del campus se convierten en recomendaciones prácticas.",
     cta: "Crear mi perfil",
     note: "Aproximadamente un minuto. Puedes cambiarlo más tarde.",
   },
   fr: {
     prefix: "Une nutrition pensée autour de",
     accent: "là où vous mangez vraiment.",
-    description: "Dites à Bentley Fuel ce qui compte pour vous. Vos objectifs, préférences et options de restauration sur le campus deviennent des recommandations de repas concrètes.",
+    description: "Dites à Falcon Fuel ce qui compte pour vous. Vos objectifs, préférences et options de restauration sur le campus deviennent des recommandations de repas concrètes.",
     cta: "Créer mon profil",
     note: "Environ une minute. Vous pourrez modifier ces informations plus tard.",
   },
   zh: {
     prefix: "营养规划围绕",
     accent: "你真正用餐的地方。",
-    description: "告诉 Bentley Fuel 什么对你最重要。你的目标、偏好和校园餐饮选择会转化为实用的餐食推荐。",
+    description: "告诉 Falcon Fuel 什么对你最重要。你的目标、偏好和校园餐饮选择会转化为实用的餐食推荐。",
     cta: "创建我的资料",
     note: "大约一分钟，之后随时可以修改。",
   },
@@ -155,7 +155,7 @@ export default function OnboardingIntro({ onStart }: { onStart(): void }) {
   const reduceMotion = useReducedMotion();
   const { language } = useLanguage();
   const copy = COPY[language];
-  const title = "Bentley Fuel";
+  const title = "Falcon Fuel";
 
   return (
     <main data-i18n-skip className="relative mx-auto flex min-h-[100svh] w-full max-w-[92rem] flex-1 flex-col overflow-hidden px-6 py-7 sm:px-8 sm:py-9 lg:px-12">
@@ -163,7 +163,7 @@ export default function OnboardingIntro({ onStart }: { onStart(): void }) {
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-emerald-950/[.035] to-transparent" />
 
       <header className="relative z-20 flex min-h-8 items-center justify-between">
-        <Link href="/" className="brand-kicker transition-colors hover:text-emerald-950">Bentley Fuel</Link>
+        <Link href="/" className="brand-kicker transition-colors hover:text-emerald-950">Falcon Fuel</Link>
       </header>
 
       <section className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center pb-6 pt-10 text-center sm:pt-14 lg:pb-10">

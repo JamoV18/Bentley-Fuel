@@ -39,6 +39,15 @@ export interface WeightObservation {
 
 export type NutritionPlanPhase = "goal" | "maintenance";
 
+export type NutritionPlanTargetSource =
+  | "maintenance-estimate"
+  | "falcon-fuel-weight-loss-adjustment"
+  | "profile-stored-targets";
+
+export type NutritionPlanEnergyMethod =
+  | "national-academies-2023-adolescent-eer"
+  | "national-academies-2023-adult-eer";
+
 /** Canonical, read-only plan state for Today, History, widgets, and recommendations. */
 export interface NutritionPlanSnapshot {
   phase: NutritionPlanPhase;
@@ -51,5 +60,11 @@ export interface NutritionPlanSnapshot {
   goalReached: boolean;
   activeTargets?: Macros;
   maintenanceTargets?: Macros;
+  /** Exact maintenance estimate used for this snapshot, kept separate from goal adjustments. */
+  maintenanceEstimate?: { calories: number; method: NutritionPlanEnergyMethod };
+  /** Describes where the active calorie/macro target came from without overclaiming scientific provenance. */
+  activeTargetSource?: NutritionPlanTargetSource;
+  /** Product adjustment from maintenance, when Falcon Fuel applies an automatic adult weight-loss plan. */
+  goalAdjustmentPercent?: number;
   maintenanceAfterGoal: boolean;
 }

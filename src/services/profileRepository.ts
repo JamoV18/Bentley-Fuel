@@ -1,3 +1,4 @@
+import { maintenanceEstimateMethodForAge, MIN_SUPPORTED_AGE } from "../lib/energyEstimate.ts";
 import { isOnboardingPreviewMode } from "../lib/onboardingPreview.ts";
 import { ALL_ALLERGENS, ALL_DIETARY_TAGS } from "../types/nutrition.ts";
 import type { BehavioralGoal, UnitSystem, WeightGoalPlan, WeightLossIntensity } from "../types/plan.ts";
@@ -14,6 +15,7 @@ const SEXES = ["male", "female", "other", "prefer-not-to-say"];
 const UNITS: UnitSystem[] = ["us", "metric"];
 const BEHAVIORAL_GOALS: BehavioralGoal[] = ["eating-control", "consistency", "healthier-choices", "protein", "training-fuel", "variety"];
 const WEIGHT_LOSS_INTENSITIES: WeightLossIntensity[] = ["light", "moderate", "optimal", "extreme"];
+const MAINTENANCE_METHODS = ["national-academies-2023-adolescent-eer", "national-academies-2023-adult-eer"] as const;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const finiteInRange = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
 const validIso = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
@@ -21,7 +23,7 @@ const validIso = (value: unknown) => typeof value === "string" && !Number.isNaN(
 function validMetrics(value: unknown): value is BodyMetrics {
   if (!isRecord(value)) return false;
   return (value.sex === undefined || SEXES.includes(value.sex as string)) &&
-    (value.age === undefined || finiteInRange(value.age, 13, 120)) &&
+    (value.age === undefined || finiteInRange(value.age, MIN_SUPPORTED_AGE, 120)) &&
     (value.heightCm === undefined || finiteInRange(value.heightCm, 80, 260)) &&
     (value.weightKg === undefined || finiteInRange(value.weightKg, 25, 400)) &&
     (value.activityLevel === undefined || ACTIVITIES.includes(value.activityLevel as ActivityLevel));
@@ -58,7 +60,7 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
     Array.isArray(value.dietaryPreferences) && value.dietaryPreferences.every((tag) => ALL_DIETARY_TAGS.includes(tag)) &&
     Array.isArray(value.allergensToAvoid) && value.allergensToAvoid.every((item) => ALL_ALLERGENS.includes(item)) &&
     (target === undefined || (isRecord(target) && finiteInRange(target.calories, 1, 20000) && finiteInRange(target.protein, 0, 1000) && finiteInRange(target.carbs, 0, 2000) && finiteInRange(target.fat, 0, 1000))) &&
-    (estimate === undefined || (isRecord(estimate) && finiteInRange(estimate.calories, 1, 20000) && estimate.method === "national-academies-2023-adult-eer")) &&
+    (estimate === undefined || (isRecord(estimate) && finiteInRange(estimate.calories, 1, 20000) && MAINTENANCE_METHODS.includes(estimate.method as typeof MAINTENANCE_METHODS[number]))) &&
     (value.metrics === undefined || validMetrics(value.metrics)) && validIso(value.createdAt) && validIso(value.updatedAt) && value.onboardingComplete === true;
 }
 
@@ -68,8 +70,13 @@ export function createUserProfile(
 ): UserProfile {
   const now = new Date().toISOString();
   const previousGoals = previous?.primaryGoal === input.primaryGoal ? previous.goals : undefined;
+  const expectedMaintenanceMethod = maintenanceEstimateMethodForAge(input.metrics?.age);
+  const maintenanceEstimate = input.maintenanceEstimate && expectedMaintenanceMethod
+    ? { ...input.maintenanceEstimate, method: expectedMaintenanceMethod }
+    : input.maintenanceEstimate;
   const profile: UserProfile = {
     ...input,
+    ...(maintenanceEstimate !== undefined && { maintenanceEstimate }),
     goals: input.goals ?? previousGoals ?? [input.primaryGoal],
     unitSystem: input.unitSystem ?? previous?.unitSystem ?? "us",
     behavioralGoals: input.behavioralGoals ?? previous?.behavioralGoals ?? [],

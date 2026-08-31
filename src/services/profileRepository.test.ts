@@ -60,6 +60,17 @@ test("stores maintenance separately from future daily targets", () => {
   assert.equal(profile.dailyTargets, undefined);
 });
 
+test("age-based profile creation normalizes maintenance provenance without changing onboarding's data contract", () => {
+  const adolescent = createUserProfile({
+    ...baseInput,
+    metrics: { age: 18, weightKg: 70 },
+    maintenanceEstimate: { calories: 2600, method: "national-academies-2023-adult-eer" },
+  });
+  assert.equal(adolescent.maintenanceEstimate?.method, "national-academies-2023-adolescent-eer");
+  assert.equal(isValidUserProfile(adolescent), true);
+  assert.equal(isValidUserProfile({ ...adolescent, metrics: { ...adolescent.metrics, age: 16 } }), false);
+});
+
 test("resolves a derived baseline at read time without rewriting stored onboarding data", () => {
   const storage = memory();
   const repository = createLocalProfileRepository(storage);

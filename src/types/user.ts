@@ -35,9 +35,9 @@ export type PrimaryGoal =
 export type MacroTargets = Macros;
 
 /**
- * Optional body metrics used to estimate adult maintenance energy during
- * onboarding. They are stored canonically in metric units regardless of how the
- * student enters or displays them.
+ * Optional body metrics used to estimate maintenance energy during onboarding.
+ * They are stored canonically in metric units regardless of how the student
+ * enters or displays them.
  */
 export interface BodyMetrics {
   sex?: Sex;
@@ -82,7 +82,9 @@ export interface UserProfile {
   /** An energy-maintenance estimate, kept distinct from personalized targets. */
   maintenanceEstimate?: {
     calories: number;
-    method: "national-academies-2023-adult-eer";
+    method:
+      | "national-academies-2023-adolescent-eer"
+      | "national-academies-2023-adult-eer";
   };
 
   /** Personalized targets when explicitly supplied or resolved from the plan layer. */

@@ -20,11 +20,18 @@ const context: RecommendationContext = {
   profile,
 };
 
+const provenance = {
+  dataStatus: "mock" as const,
+  source: { type: "mock-generator" as const, name: "Candidate pool regression fixture" },
+  confidence: 1,
+};
+
 const station: Station = {
   id: "station-pool-test",
   locationId: "loc-pool-test",
   name: "Test Station",
   mealPeriods: ["lunch"],
+  provenance,
 };
 
 const nutrition = { calories: 120, protein: 4, carbs: 22, fat: 2 };
@@ -39,6 +46,7 @@ const main: MenuItem = {
   dietaryTags: [],
   allergens: [],
   nutrition: { calories: 360, protein: 42, carbs: 12, fat: 14 },
+  provenance,
 };
 
 const breadSides: MenuItem[] = Array.from({ length: 50 }, (_, index) => ({
@@ -51,6 +59,7 @@ const breadSides: MenuItem[] = Array.from({ length: 50 }, (_, index) => ({
   dietaryTags: [],
   allergens: [],
   nutrition,
+  provenance,
 }));
 
 const categorySides: MenuItem[] = [
@@ -68,6 +77,7 @@ const categorySides: MenuItem[] = [
   dietaryTags: [],
   allergens: [],
   nutrition,
+  provenance,
 }));
 
 test("bounded live-menu pool preserves practical side-category coverage instead of filling with one station's breads", () => {
@@ -83,7 +93,7 @@ test("bounded live-menu pool preserves practical side-category coverage instead 
   const categories = new Set(
     candidates.flatMap((candidate) => candidate.build.items)
       .map((line) => byId.get(line.menuItemId))
-      .filter((item): item is MenuItem => Boolean(item) && item.mealRole === "side")
+      .filter((item): item is MenuItem => item !== undefined && item.mealRole === "side")
       .map(inferMealSideCategory),
   );
 

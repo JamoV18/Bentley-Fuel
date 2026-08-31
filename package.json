@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "validate:data": "tsx scripts/validate-mock-data.ts"
+    "validate:data": "tsx scripts/validate-mock-data.ts",
+    "audit:recommendations": "tsx scripts/audit-recommendations.ts"
   },
   "dependencies": {
     "motion": "^13.1.1",

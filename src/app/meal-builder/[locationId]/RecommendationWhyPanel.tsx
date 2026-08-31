@@ -3,7 +3,6 @@ import {
   activeTargetSourceLabel,
   buildRecommendationExplanation,
   portionGuidanceFor,
-  type MealBuildResources,
   type RankedMealCandidate,
 } from "@/services";
 import type { Macros, NutritionPlanSnapshot, RecommendationContext } from "@/types";
@@ -32,13 +31,11 @@ export default function RecommendationWhyPanel({
   ranked,
   context,
   plan,
-  resources,
   summaryReasons,
 }: {
   ranked: RankedMealCandidate | undefined;
   context: RecommendationContext | undefined;
   plan: NutritionPlanSnapshot | undefined;
-  resources: MealBuildResources;
   summaryReasons: string[];
 }) {
   const explanation = buildRecommendationExplanation(ranked, context, plan);
@@ -109,14 +106,14 @@ export default function RecommendationWhyPanel({
         <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-900/55">Other ranking evidence</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <p><strong>{structure ?? "Meal structure evaluated"}</strong><span className="block text-xs subtle">{explanation.stationCount} station{explanation.stationCount === 1 ? "" : "s"}; Falcon Fuel also checks whether the foods form a practical meal.</span></p>
-          <p><strong>{preferenceSignal ? "Preference evidence helped" : "No meaningful preference boost"}</strong><span className="block text-xs subtle">{repetitionApplied ? "Recent repetition reduced this option's rank." : "No recent-repeat penalty was applied."}</span></p>
+          <p><strong>{preferenceSignal ? "Preference evidence helped" : "No meaningful preference boost"}</strong><span className="block text-xs subtle">{repetitionApplied ? "Recent repetition reduced this option’s rank." : "No recent-repeat penalty was applied."}</span></p>
         </div>
       </section>
 
       <section className="mt-3 rounded-xl border border-emerald-900/10 bg-white/75 p-3">
         <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-900/55">Data provenance</p>
         <p className="mt-1 text-xs leading-relaxed subtle">Nutrition source{explanation.nutritionSources.length === 1 ? "" : "s"}: {explanation.nutritionSources.join(" · ") || "Unavailable"}.</p>
-        {hasEstimatedPortion && <p className="mt-1 text-xs leading-relaxed subtle">At least one cafeteria utensil translation uses Falcon Fuel's clearly labeled mock estimate. The nutrition math still scales the published serving nutrition; the spoon translation itself is not Bentley-measured.</p>}
+        {hasEstimatedPortion && <p className="mt-1 text-xs leading-relaxed subtle">At least one cafeteria utensil translation uses Falcon Fuel’s clearly labeled mock estimate. The nutrition math still scales the published serving nutrition; the spoon translation itself is not Bentley-measured.</p>}
         <p className="mt-1 text-xs leading-relaxed subtle">The internal recommendation total is intentionally not presented as a “health score.” The measurable factors above are what users should inspect.</p>
       </section>
 

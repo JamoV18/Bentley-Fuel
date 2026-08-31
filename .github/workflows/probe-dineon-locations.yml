@@ -18,65 +18,30 @@ jobs:
       - name: Probe public DineOnCampus discovery
         run: |
           node <<'NODE'
+          const known921 = '6a63fc9b4b5736c5a8d6332b';
           const headers = {
             Accept: 'application/json, text/plain, */*',
             'Accept-Language': 'en-US,en;q=0.9',
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0 Safari/537.36',
             Origin: 'https://dineoncampus.com',
-            Referer: 'https://dineoncampus.com/bentley/',
+            Referer: 'https://dineoncampus.com/bentley/whats-on-the-menu/921-dining-hall',
             'X-Requested-With': 'XMLHttpRequest',
           };
-
-          const record = (v) => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
-          const rows = (v) => Array.isArray(v) ? v.filter((x) => x && typeof x === 'object') : [];
-          const text = (v) => typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '';
-          const norm = (v) => text(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-
-          async function json(url) {
-            const r = await fetch(url, { headers });
-            console.log('GET', url, r.status);
-            if (!r.ok) return undefined;
-            return r.json();
-          }
-
-          function deepCollections(payload, keys) {
-            const queue = [payload];
-            const seen = new Set();
-            while (queue.length) {
-              const value = queue.shift();
-              if (!value || seen.has(value)) continue;
-              if (typeof value === 'object') seen.add(value);
-              if (Array.isArray(value)) {
-                const direct = rows(value);
-                if (direct.length) return direct;
-                continue;
-              }
-              const current = record(value);
-              for (const key of keys) {
-                const found = rows(current[key]);
-                if (found.length) return found;
-              }
-              for (const key of ['data','result','results','site','school','campus','location']) {
-                if (current[key] !== undefined) queue.push(current[key]);
-              }
+          async function probe(url) {
+            try {
+              const r = await fetch(url, { headers });
+              const body = await r.text();
+              console.log('\nGET', url, r.status);
+              console.log(body.slice(0, 12000));
+              return r.ok ? JSON.parse(body) : undefined;
+            } catch (error) {
+              console.log('ERROR', url, String(error));
             }
-            return [];
           }
 
-          const sites = await json('https://apiv4.dineoncampus.com/sites/public');
-          const siteRows = deepCollections(sites, ['sites','schools','campuses']);
-          const bentley = siteRows.find((s) => norm(s.name ?? s.label ?? s.universityName).includes('bentley'));
-          console.log('BENTLEY_SITE', JSON.stringify(bentley));
-          const siteId = text(bentley?.id ?? bentley?.siteId ?? bentley?.site_id ?? bentley?._id);
-          if (!siteId) process.exit(2);
-
-          const locationsPayload = await json(`https://apiv4.dineoncampus.com/locations/status_by_site?siteId=${encodeURIComponent(siteId)}`);
-          const locations = deepCollections(locationsPayload, ['locations','venues','outlets']);
-          const simplified = locations.map((l) => ({
-            id: text(l.id ?? l.locationId ?? l.location_id ?? l._id),
-            name: text(l.name ?? l.label ?? l.displayName ?? l.buildingName ?? l.locationName),
-            status: l.status ?? l.open ?? l.isOpen ?? null,
-            rawKeys: Object.keys(l).sort(),
-          }));
-          console.log('BENTLEY_LOCATIONS', JSON.stringify(simplified, null, 2));
+          await probe(`https://apiv4.dineoncampus.com/locations/${known921}`);
+          await probe(`https://apiv4.dineoncampus.com/locations/${known921}/`);
+          await probe(`https://api.dineoncampus.com/v1/location/${known921}`);
+          await probe(`https://api.dineoncampus.com/v1/location/${known921}?platform=0`);
+          await probe('https://apiv4.dineoncampus.com/sites/public');
           NODE

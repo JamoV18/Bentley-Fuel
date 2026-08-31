@@ -1,7 +1,7 @@
 import type { DiningDataProvider } from "./diningProvider";
 import { assessMenuItemEligibility } from "./recommendationEligibility";
 import { dietQualityPriority, shouldHardExcludeForDietQuality } from "./recommendationDietQuality";
-import { inferMenuItemMealRole, mealCoherenceScore } from "./recommendationMealQuality";
+import { inferMealSideCategory, inferMenuItemMealRole, mealCoherenceScore } from "./recommendationMealQuality";
 export { inferMenuItemMealRole } from "./recommendationMealQuality";
 import type {
   FoodComponent,
@@ -19,6 +19,7 @@ const DEFAULT_MAX_ITEMS = 3;
 const DEFAULT_MAX_CANDIDATES = 60;
 const DEFAULT_MAX_CUSTOM_VARIANTS = 8;
 const ROLE_ORDER: MenuItemMealRole[] = ["main", "side", "snack", "drink", "dessert"];
+const DENSE_SIDE_CATEGORIES = new Set(["grain", "legume", "starch", "bread"]);
 
 const stationAvailable = (station: Station, context: RecommendationContext): boolean => {
   if (!context.mealPeriod || !station.mealPeriods || station.mealPeriods.length === 0) return true;
@@ -187,11 +188,24 @@ const roleCounts = (items: readonly MenuItem[]) => {
   return counts;
 };
 
+const hasRedundantDenseSideCategory = (items: readonly MenuItem[]): boolean => {
+  const denseCategories = items
+    .filter((item) => inferMenuItemMealRole(item) === "side")
+    .map(inferMealSideCategory)
+    .filter((category) => DENSE_SIDE_CATEGORIES.has(category));
+  return denseCategories.length >= 2 && new Set(denseCategories).size < denseCategories.length;
+};
+
 const isPlausibleMealComposition = (items: readonly MenuItem[]): boolean => {
   const counts = roleCounts(items);
   if (counts.main > 1 || counts.drink > 1 || counts.dessert > 1) return false;
   if (counts.main === 1 && counts.snack + counts.dessert > 1) return false;
   if (counts.main === 1 && counts.side === 0 && counts.snack + counts.drink + counts.dessert >= 2) return false;
+  // Two separate breads, two grains, two starches, etc. are usually an
+  // artifact of macro-fitting a decomposed dining-hall menu rather than a
+  // meal a student would intentionally assemble. Keep mixed dense categories
+  // available, but do not generate duplicates from the same dense category.
+  if (hasRedundantDenseSideCategory(items)) return false;
   return true;
 };
 

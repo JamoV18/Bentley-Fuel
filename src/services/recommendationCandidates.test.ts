@@ -254,3 +254,57 @@ test("candidate cap preserves multiple main anchors and multiple meal sizes", ()
   assert.ok(sizes.has(2));
   assert.ok(sizes.has(3));
 });
+
+test("candidate generation rejects duplicate dense side categories but keeps mixed side structures", () => {
+  const resources = resourcesFor("loc-921");
+  const mainSeed = resources.items.find((item) => item.id === "item-921-grilled-chicken-sandwich");
+  const sideSeed = resources.items.find((item) => item.id === "item-921-penne-marinara");
+  const lunchStation = resources.stations.find((station) => station.mealPeriods?.includes("lunch") || station.mealPeriods?.includes("all-day"));
+  assert.ok(mainSeed);
+  assert.ok(sideSeed);
+  assert.ok(lunchStation);
+
+  const main = {
+    ...mainSeed,
+    id: "dense-main",
+    name: "Roasted Pork",
+    stationId: lunchStation.id,
+    mealRole: "main" as const,
+  };
+  const breadA = {
+    ...sideSeed,
+    id: "dense-bread-a",
+    name: "Multigrain Bread",
+    stationId: lunchStation.id,
+    mealRole: "side" as const,
+    nutrition: { calories: 120, protein: 4, carbs: 22, fat: 2 },
+  };
+  const breadB = {
+    ...sideSeed,
+    id: "dense-bread-b",
+    name: "Rye Bread",
+    stationId: lunchStation.id,
+    mealRole: "side" as const,
+    nutrition: { calories: 110, protein: 4, carbs: 20, fat: 2 },
+  };
+  const vegetable = {
+    ...sideSeed,
+    id: "dense-veg",
+    name: "Roasted Broccoli",
+    stationId: lunchStation.id,
+    mealRole: "side" as const,
+    nutrition: { calories: 80, protein: 4, carbs: 12, fat: 2 },
+  };
+
+  const candidates = generateMealCandidatesFromResources(
+    [main, breadA, breadB, vegetable],
+    resources.stations,
+    resources.components,
+    context("loc-921", { primaryGoal: "athletic-performance" }, "lunch"),
+    { maxItemsPerMeal: 3, maxCandidates: 60, requireMain: true },
+  );
+  const idSets = candidates.map((candidate) => new Set(candidate.build.items.map((line) => line.menuItemId)));
+
+  assert.ok(!idSets.some((ids) => ids.has(breadA.id) && ids.has(breadB.id)));
+  assert.ok(idSets.some((ids) => ids.has(main.id) && ids.has(breadA.id) && ids.has(vegetable.id)));
+});

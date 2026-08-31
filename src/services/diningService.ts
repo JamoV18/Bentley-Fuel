@@ -1,24 +1,26 @@
 import type { FoodComponentId, LocationId, MenuItemId, StationId } from "@/types";
 import type { DiningDataProvider, MenuItemQuery } from "./diningProvider";
+import { AdditionalDineOnCampusProvider } from "./additionalDineOnCampusProvider";
 import { DineOnCampusHybridProvider } from "./dineOnCampusProvider";
+import { ADDITIONAL_LIVE_LOCATION_IDS } from "./dineOnCampusLocationTargets";
 import { installDineOnCampusServerFetchHeaders } from "./dineOnCampusServerFetch";
 
 installDineOnCampusServerFetchHeaders();
 
-const LIVE_ONLY_LOCATION_ID = "loc-921";
+const LIVE_ONLY_LOCATION_IDS = new Set<LocationId>(["loc-921", ...ADDITIONAL_LIVE_LOCATION_IDS]);
 const LIVE_MENU_PLACEHOLDER = "/live-menu-placeholder.svg";
 
 /**
- * The hybrid provider still owns mock data for locations that are not live yet,
- * but the 921 must never leak those legacy rows into a real dining decision.
- * This boundary keeps that rule centralized instead of relying on every page to
- * remember to filter demo records itself.
+ * Once a student-facing location is wired to DineOnCampus, mock menu rows are
+ * no longer allowed to substitute for an unavailable live publication. This
+ * keeps live-vs-demo provenance centralized while Falcon Market remains mock
+ * until Bentley exposes a menu source for it.
  */
 function liveSafeProvider(inner: DiningDataProvider): DiningDataProvider {
-  const isAllowed921 = (record: { locationId: LocationId; provenance: { dataStatus: string } }) =>
-    record.locationId !== LIVE_ONLY_LOCATION_ID || record.provenance.dataStatus === "verified";
+  const isAllowedLive = (record: { locationId: LocationId; provenance: { dataStatus: string } }) =>
+    !LIVE_ONLY_LOCATION_IDS.has(record.locationId) || record.provenance.dataStatus === "verified";
   const withReliableImage = <T extends { locationId: LocationId; imageUrl?: string; provenance: { dataStatus: string } }>(item: T): T =>
-    item.locationId === LIVE_ONLY_LOCATION_ID && item.provenance.dataStatus === "verified" && !item.imageUrl
+    LIVE_ONLY_LOCATION_IDS.has(item.locationId) && item.provenance.dataStatus === "verified" && !item.imageUrl
       ? { ...item, imageUrl: LIVE_MENU_PLACEHOLDER }
       : item;
 
@@ -28,24 +30,25 @@ function liveSafeProvider(inner: DiningDataProvider): DiningDataProvider {
     getLocations: () => inner.getLocations(),
     getLocation: (id: LocationId) => inner.getLocation(id),
     async getStations(locationId?: LocationId, date?: string) {
-      return (await inner.getStations(locationId, date)).filter(isAllowed921);
+      return (await inner.getStations(locationId, date)).filter(isAllowedLive);
     },
     async getStation(id: StationId) {
       const station = await inner.getStation(id);
-      return station && isAllowed921(station) ? station : undefined;
+      return station && isAllowedLive(station) ? station : undefined;
     },
     async getMenuItems(query?: MenuItemQuery) {
-      return (await inner.getMenuItems(query)).filter(isAllowed921).map(withReliableImage);
+      return (await inner.getMenuItems(query)).filter(isAllowedLive).map(withReliableImage);
     },
     async getMenuItem(id: MenuItemId) {
       const item = await inner.getMenuItem(id);
-      return item && isAllowed921(item) ? withReliableImage(item) : undefined;
+      return item && isAllowedLive(item) ? withReliableImage(item) : undefined;
     },
     getComponents: (ids?: FoodComponentId[]) => inner.getComponents(ids),
     getComponent: (id: FoodComponentId) => inner.getComponent(id),
   };
 }
 
-let provider: DiningDataProvider = liveSafeProvider(new DineOnCampusHybridProvider());
+const liveDiningProvider = new AdditionalDineOnCampusProvider(new DineOnCampusHybridProvider());
+let provider: DiningDataProvider = liveSafeProvider(liveDiningProvider);
 export function getDiningProvider(): DiningDataProvider { return provider; }
 export function setDiningProvider(nextProvider: DiningDataProvider): void { provider = liveSafeProvider(nextProvider); }

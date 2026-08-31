@@ -21,6 +21,9 @@ export interface RecommendationExplanation {
   stationCount: number;
   softPreferenceBonus: number;
   behaviorPreferenceBoost: number;
+  learnedPreferenceBoost: number;
+  learnedEvidenceCount: number;
+  learnedSignals: string[];
   repetitionPenalty: number;
   nutritionSources: string[];
 }
@@ -86,6 +89,9 @@ export function buildRecommendationExplanation(
     stationCount: ranked.candidate.stationIds.length,
     softPreferenceBonus: ranked.score.softPreferenceBonus ?? 0,
     behaviorPreferenceBoost: ranked.score.behavior.preferenceBoost,
+    learnedPreferenceBoost: ranked.score.behavior.learnedPreferenceBoost,
+    learnedEvidenceCount: ranked.score.behavior.learnedEvidenceCount,
+    learnedSignals: ranked.score.behavior.learnedSignals,
     repetitionPenalty: ranked.score.behavior.repetitionPenalty,
     nutritionSources,
   };

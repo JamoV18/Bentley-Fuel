@@ -1,4 +1,5 @@
 import { scaleNutrition } from "./nutrition";
+import { scoreLearnedMealPreferences, type LearnedPreferenceContext } from "./recommendationPreferenceLearning";
 import type {
   MealBuild,
   MealCandidate,
@@ -21,6 +22,12 @@ export const MEAL_COMPLETION_CHOICES: readonly {
 export interface MealHistoryScore {
   /** Positive evidence that this candidate resembles food the student deliberately chose and/or ate. */
   preferenceBoost: number;
+  /** Conservative broad learning from repeated protein/cuisine/station/size/time patterns. */
+  learnedPreferenceBoost: number;
+  /** Human-readable learned signals that materially supported the candidate. */
+  learnedSignals: string[];
+  /** Distinct historical meals supporting the broad learned preference. */
+  learnedEvidenceCount: number;
   /** Explicit dislikes of similar historical meals. */
   aversionPenalty: number;
   /** Separate recent-repeat pressure so "likes it" never means "serve it every day." */
@@ -109,14 +116,17 @@ const unconfirmedSelectionWeight = (entry: MealHistoryEntry): number =>
  * - partial/full consumption: progressively stronger evidence
  * - explicit like/dislike: strongest direct signal
  *
- * Affinity and repetition remain separate so repeated successful choices can
- * teach preference without trapping the student in the same meal every day.
+ * Exact affinity and repetition remain separate so repeated successful choices
+ * can teach preference without trapping the student in the same meal every day.
+ * Broad protein/cuisine/station/size/time learning requires repeated evidence and
+ * is separately capped before joining the same overall +10 behavior ceiling.
  */
 export function scoreMealHistory(
   candidate: MealCandidate,
   history: readonly MealHistoryEntry[] = [],
+  learnedContext: LearnedPreferenceContext = {},
 ): MealHistoryScore {
-  const recent = history.slice(0, 16);
+  const recent = history.slice(0, 24);
   let unconfirmedPreference = 0;
   let confirmedPreference = 0;
   let explicitPreference = 0;
@@ -149,10 +159,12 @@ export function scoreMealHistory(
     repetition += similarity * repeatWeight * (entry.locationId === candidate.build.locationId ? 1 : 0.8);
   });
 
+  const learned = scoreLearnedMealPreferences(candidate, recent, learnedContext);
+
   // Unconfirmed selections can teach only a little until the student supplies
   // stronger evidence. This prevents accidental taps/saves from steering rank.
   const preferenceBoost = round1(clamp(
-    Math.min(1.5, unconfirmedPreference) + confirmedPreference + explicitPreference,
+    Math.min(1.5, unconfirmedPreference) + confirmedPreference + explicitPreference + learned.totalBoost,
     0,
     10,
   ));
@@ -162,6 +174,9 @@ export function scoreMealHistory(
 
   return {
     preferenceBoost,
+    learnedPreferenceBoost: learned.totalBoost,
+    learnedSignals: learned.signals,
+    learnedEvidenceCount: learned.evidenceCount,
     aversionPenalty,
     repetitionPenalty,
     totalAdjustment,

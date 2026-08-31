@@ -1,0 +1,28 @@
+name: 921 Live Menu Health
+
+on:
+  schedule:
+    - cron: "17 16 * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/live-921-health.yml
+      - scripts/check-live-921.ts
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - name: Verify today's published 921 menu
+        run: npx tsx scripts/check-live-921.ts

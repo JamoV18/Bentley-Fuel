@@ -8,14 +8,15 @@ import {
   scoreMealHistory,
 } from "./recommendationBehavior";
 
-const build = (menuItemId: string, componentIds: string[] = []): MealBuild => ({
-  locationId: "loc-test",
+const build = (menuItemId: string, componentIds: string[] = [], locationId = "loc-test", displayName?: string): MealBuild => ({
+  locationId,
   items: [
     {
       id: `line-${menuItemId}`,
       menuItemId,
       quantity: 1,
       componentSelections: componentIds.map((componentId) => ({ componentId, quantity: 1 })),
+      ...(displayName ? { display: { name: displayName } } : {}),
     },
   ],
 });
@@ -34,6 +35,7 @@ const history = (
   selectedAt: "2026-08-17T12:00:00.000Z",
   locationId: meal.locationId,
   build: meal,
+  source: "recommended",
   ...overrides,
 });
 
@@ -78,33 +80,55 @@ test("identical meals are more similar than unrelated meals", () => {
 });
 
 test("date-specific DineOnCampus ids still match the same food across days", () => {
-  const saturday: MealBuild = {
-    locationId: "loc-921",
-    items: [{
-      id: "line-sat",
-      menuItemId: "doc-921-2026-08-29-item-kitchen-roasted-chicken-abc123",
-      quantity: 1,
-      display: { name: "Roasted Chicken" },
-    }],
-  };
-  const sunday: MealBuild = {
-    locationId: "loc-921",
-    items: [{
-      id: "line-sun",
-      menuItemId: "doc-921-2026-08-30-item-kitchen-roasted-chicken-abc123",
-      quantity: 1,
-      display: { name: "Roasted Chicken" },
-    }],
-  };
+  const saturday = build(
+    "doc-921-2026-08-29-item-kitchen-roasted-chicken-abc123",
+    [],
+    "loc-921",
+    "Roasted Chicken",
+  );
+  const sunday = build(
+    "doc-921-2026-08-30-item-kitchen-roasted-chicken-abc123",
+    [],
+    "loc-921",
+    "Roasted Chicken",
+  );
   assert.equal(mealBuildSimilarity(saturday, sunday), 1);
 });
 
-test("finishing and liking a meal creates positive taste evidence", () => {
+test("an unconfirmed saved recommendation is only weak preference evidence", () => {
+  const meal = build("item-chicken");
+  const score = scoreMealHistory(candidate(meal), [history(meal)]);
+  assert.ok(score.preferenceBoost > 0);
+  assert.ok(score.preferenceBoost <= 1.5);
+});
+
+test("reported zero consumption creates no positive preference evidence", () => {
+  const meal = build("item-chicken");
+  const score = scoreMealHistory(candidate(meal), [history(meal, { completionFraction: 0 })]);
+  assert.equal(score.preferenceBoost, 0);
+  assert.ok(score.repetitionPenalty > 0);
+});
+
+test("confirmed consumption teaches more than an unconfirmed selection", () => {
+  const meal = build("item-chicken");
+  const weak = scoreMealHistory(candidate(meal), [history(meal)]);
+  const strong = scoreMealHistory(candidate(meal), [history(meal, { completionFraction: 1 })]);
+  assert.ok(strong.preferenceBoost > weak.preferenceBoost);
+});
+
+test("self-built saved meals are stronger intent evidence than accepted recommendations", () => {
+  const meal = build("item-chicken");
+  const recommended = scoreMealHistory(candidate(meal), [history(meal, { source: "recommended" })]);
+  const selfBuilt = scoreMealHistory(candidate(meal), [history(meal, { source: "self-built" })]);
+  assert.ok(selfBuilt.preferenceBoost > recommended.preferenceBoost);
+});
+
+test("finishing and liking a meal creates strong positive taste evidence", () => {
   const meal = build("item-chicken");
   const score = scoreMealHistory(candidate(meal), [
     history(meal, { completionFraction: 1, explicitFeedback: "like" }),
   ]);
-  assert.ok(score.preferenceBoost > 0);
+  assert.ok(score.preferenceBoost >= 3);
   assert.equal(score.aversionPenalty, 0);
 });
 
@@ -115,6 +139,15 @@ test("explicit dislike creates a strong aversion penalty", () => {
   ]);
   assert.ok(score.aversionPenalty > score.preferenceBoost);
   assert.ok(score.totalAdjustment < 0);
+});
+
+test("same-location behavior carries more weight than an identical named meal elsewhere", () => {
+  const current = build("doc-921-2026-08-31-item-rice-bowl", [], "loc-921", "Chicken Rice Bowl");
+  const sameLocationHistory = build("doc-921-2026-08-30-item-rice-bowl", [], "loc-921", "Chicken Rice Bowl");
+  const otherLocationHistory = build("doc-dana-2026-08-30-item-rice-bowl", [], "loc-dana", "Chicken Rice Bowl");
+  const local = scoreMealHistory(candidate(current), [history(sameLocationHistory, { completionFraction: 1 })]);
+  const elsewhere = scoreMealHistory(candidate(current), [history(otherLocationHistory, { completionFraction: 1 })]);
+  assert.ok(local.preferenceBoost > elsewhere.preferenceBoost);
 });
 
 test("recent repetition can outweigh liking so favorite does not mean every day", () => {
@@ -137,4 +170,18 @@ test("a different meal escapes the repetition penalty", () => {
   const repeatScore = scoreMealHistory(candidate(repeated), entries);
   const differentScore = scoreMealHistory(candidate(different), entries);
   assert.ok(repeatScore.repetitionPenalty > differentScore.repetitionPenalty);
+});
+
+test("behavior adjustment remains bounded even after many repeated likes", () => {
+  const meal = build("item-chicken");
+  const entries = Array.from({ length: 30 }, (_, index) => history(meal, {
+    id: `h-${index}`,
+    selectedAt: new Date(Date.UTC(2026, 7, 17, 12, index)).toISOString(),
+    completionFraction: 1,
+    explicitFeedback: "like",
+  }));
+  const score = scoreMealHistory(candidate(meal), entries);
+  assert.ok(score.preferenceBoost <= 10);
+  assert.ok(score.totalAdjustment <= 10);
+  assert.ok(score.totalAdjustment >= -30);
 });

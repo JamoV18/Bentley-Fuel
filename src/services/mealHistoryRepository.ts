@@ -122,12 +122,21 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");
       const now = new Date().toISOString();
-      const next = read().map((entry) => entry.id === id ? {
-        ...entry,
-        completionFraction: completionFraction ?? entry.completionFraction,
-        completionRecordedAt: completionFraction !== undefined ? now : entry.completionRecordedAt,
-        explicitFeedback: explicitFeedback ?? entry.explicitFeedback,
-      } : entry);
+      const next = read().map((entry) => {
+        if (entry.id !== id) return entry;
+        const confirmedEaten = completionFraction !== undefined && completionFraction > 0;
+        return {
+          ...entry,
+          // A saved selection is not automatically treated as eaten. Once the
+          // student confirms consuming some of it, selectedAt is our best
+          // available estimate of the eating occasion unless a better eatenAt
+          // timestamp was already captured.
+          eatenAt: confirmedEaten ? (entry.eatenAt ?? entry.selectedAt) : entry.eatenAt,
+          completionFraction: completionFraction ?? entry.completionFraction,
+          completionRecordedAt: completionFraction !== undefined ? now : entry.completionRecordedAt,
+          explicitFeedback: explicitFeedback ?? entry.explicitFeedback,
+        };
+      });
       write(next);
     },
     clear() {

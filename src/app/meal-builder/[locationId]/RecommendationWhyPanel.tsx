@@ -3,6 +3,7 @@ import {
   activeTargetSourceLabel,
   buildRecommendationExplanation,
   portionGuidanceFor,
+  type MealBuildResources,
   type RankedMealCandidate,
 } from "@/services";
 import type { Macros, NutritionPlanSnapshot, RecommendationContext } from "@/types";
@@ -31,13 +32,18 @@ export default function RecommendationWhyPanel({
   ranked,
   context,
   plan,
+  resources,
   summaryReasons,
 }: {
   ranked: RankedMealCandidate | undefined;
   context: RecommendationContext | undefined;
   plan: NutritionPlanSnapshot | undefined;
+  resources: MealBuildResources;
   summaryReasons: string[];
 }) {
+  // Keep the panel's call-site contract aligned with the meal builder. The
+  // explanation currently resolves provenance from computed lines directly.
+  void resources;
   const explanation = buildRecommendationExplanation(ranked, context, plan);
   if (!explanation || !ranked) return null;
 

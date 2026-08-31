@@ -2,6 +2,7 @@ import type { DiningDataProvider } from "./diningProvider";
 import { assessMenuItemEligibility } from "./recommendationEligibility";
 import { dietQualityPriority, shouldHardExcludeForDietQuality } from "./recommendationDietQuality";
 import { inferMealSideCategory, inferMenuItemMealRole, mealCoherenceScore } from "./recommendationMealQuality";
+import { recommendedQuantityVariants } from "./portionGuidance";
 export { inferMenuItemMealRole } from "./recommendationMealQuality";
 import type {
   FoodComponent,
@@ -144,12 +145,12 @@ function lineVariantsForItem(
   maxCustomVariants: number,
 ): MealItemSelection[] {
   if (item.kind === "customizable") return customSelectionVariants(item, components, context, maxCustomVariants);
-  return [{
-    id: `candidate-line-${item.id}`,
+  return recommendedQuantityVariants(item).map((quantity) => ({
+    id: `candidate-line-${item.id}-q${String(quantity).replace(".", "_")}`,
     menuItemId: item.id,
-    quantity: 1,
+    quantity,
     display: { name: item.name, imageUrl: item.imageUrl },
-  }];
+  }));
 }
 
 const collectCombinations = <T>(
@@ -584,7 +585,7 @@ export function generateMealCandidatesFromResources(
           const componentsSignature = (line.componentSelections ?? [])
             .map((selection) => `${selection.componentId}:${selection.quantity}`)
             .join(",");
-          return `${line.menuItemId}[${componentsSignature}]`;
+          return `${line.menuItemId}@${line.quantity}[${componentsSignature}]`;
         })
         .sort()
         .join("+");

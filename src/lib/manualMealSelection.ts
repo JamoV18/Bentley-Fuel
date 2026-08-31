@@ -3,6 +3,7 @@ import type { FoodComponent, MealBuild, MealItemSelection, MenuItem } from "@/ty
 const displaySnapshot = (item: MenuItem): MealItemSelection["display"] => ({
   name: item.name,
   imageUrl: item.imageUrl,
+  stationId: item.stationId,
 });
 
 /**

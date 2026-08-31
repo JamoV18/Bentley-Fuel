@@ -1,3 +1,4 @@
+import { ACTIVITY_CHECK_IN_STORAGE_KEY, createLocalActivityCheckInRepository, type ActivityCheckInRecord } from "./activityCheckIn";
 import { MEAL_HISTORY_STORAGE_KEY, createLocalMealHistoryRepository } from "./mealHistoryRepository";
 import { PROFILE_STORAGE_KEY, createLocalProfileRepository } from "./profileRepository";
 import { PROGRESS_STORAGE_KEY, createLocalProgressRepository } from "./progressRepository";
@@ -13,6 +14,7 @@ export const FALCON_FUEL_USER_DATA_KEYS = [
   PROFILE_STORAGE_KEY,
   MEAL_HISTORY_STORAGE_KEY,
   PROGRESS_STORAGE_KEY,
+  ACTIVITY_CHECK_IN_STORAGE_KEY,
 ] as const;
 
 export interface FalconFuelUserDataExport {
@@ -22,12 +24,14 @@ export interface FalconFuelUserDataExport {
   profile: UserProfile | null;
   mealHistory: MealHistoryEntry[];
   progress: WeightObservation[];
+  activityCheckIns: ActivityCheckInRecord[];
 }
 
 export interface FalconFuelStoredDataSummary {
   profileStored: boolean;
   mealHistoryCount: number;
   progressObservationCount: number;
+  activityCheckInCount: number;
   storageScope: "this-device";
 }
 
@@ -43,6 +47,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
   const profileRepository = createLocalProfileRepository(storage);
   const mealHistoryRepository = createLocalMealHistoryRepository(storage);
   const progressRepository = createLocalProgressRepository(storage);
+  const activityCheckInRepository = createLocalActivityCheckInRepository(storage);
 
   const exportData = (): FalconFuelUserDataExport => ({
     schemaVersion: 1,
@@ -51,6 +56,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
     profile: profileRepository.get(),
     mealHistory: mealHistoryRepository.getRecent(Number.MAX_SAFE_INTEGER),
     progress: progressRepository.getRecent(Number.MAX_SAFE_INTEGER),
+    activityCheckIns: activityCheckInRepository.getRecent(Number.MAX_SAFE_INTEGER),
   });
 
   const summary = (): FalconFuelStoredDataSummary => {
@@ -59,6 +65,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
       profileStored: exported.profile !== null,
       mealHistoryCount: exported.mealHistory.length,
       progressObservationCount: exported.progress.length,
+      activityCheckInCount: exported.activityCheckIns.length,
       storageScope: "this-device",
     };
   };
@@ -67,6 +74,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
     profileRepository.clear();
     mealHistoryRepository.clear();
     progressRepository.clear();
+    activityCheckInRepository.clear();
   };
 
   return { exportData, summary, clearAll };

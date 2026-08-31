@@ -57,13 +57,30 @@ export function resolveNutritionPlan(
 ): NutritionPlanSnapshot {
   const intent = profile.weightGoalPlan;
   const maintenanceProfile = profileAtObservedWeight(profile, currentWeightKg);
-  const maintenanceTargets = deriveMaintenanceTargetPlan(maintenanceProfile)?.targets;
+  const maintenancePlan = deriveMaintenanceTargetPlan(maintenanceProfile);
+  const maintenanceTargets = maintenancePlan?.targets;
   const goal = trajectoryGoal(profile);
   const goalReached = reachedTarget(goal, currentWeightKg, intent?.targetWeightKg);
   const phase = goalReached && intent?.maintenanceAfterGoal ? "maintenance" : "goal";
   const deficitAllowed = automaticWeightLossDeficitAllowed(maintenanceProfile);
-  const weightLossTargets = phase === "goal" && deficitAllowed && selectedGoals(profile).includes("lose-weight") && intent?.weightLossIntensity
-    ? deriveWeightLossTargetPlan(maintenanceProfile, intent.weightLossIntensity)?.targets
+  const weightLossPlan = phase === "goal" && deficitAllowed && selectedGoals(profile).includes("lose-weight") && intent?.weightLossIntensity
+    ? deriveWeightLossTargetPlan(maintenanceProfile, intent.weightLossIntensity)
+    : undefined;
+
+  const activeTargets = phase === "maintenance"
+    ? maintenanceTargets
+    : (weightLossPlan?.targets ?? profile.dailyTargets ?? maintenanceTargets);
+  const activeTargetSource = phase === "maintenance" && maintenanceTargets
+    ? "maintenance-estimate" as const
+    : weightLossPlan
+      ? "falcon-fuel-weight-loss-adjustment" as const
+      : profile.dailyTargets
+        ? "profile-stored-targets" as const
+        : maintenanceTargets
+          ? "maintenance-estimate" as const
+          : undefined;
+  const goalAdjustmentPercent = activeTargetSource === "falcon-fuel-weight-loss-adjustment" && maintenanceTargets && activeTargets
+    ? Math.round((1 - activeTargets.calories / maintenanceTargets.calories) * 1000) / 10
     : undefined;
 
   return {
@@ -77,8 +94,11 @@ export function resolveNutritionPlan(
       ? projectedDate(currentWeightKg, intent?.targetWeightKg, intent?.plannedWeeklyWeightChangeKg, now)
       : undefined,
     goalReached,
-    activeTargets: phase === "maintenance" ? maintenanceTargets : (weightLossTargets ?? profile.dailyTargets ?? maintenanceTargets),
+    activeTargets,
     maintenanceTargets,
+    maintenanceEstimate: maintenanceProfile.maintenanceEstimate,
+    activeTargetSource,
+    goalAdjustmentPercent,
     maintenanceAfterGoal: intent?.maintenanceAfterGoal ?? true,
   };
 }

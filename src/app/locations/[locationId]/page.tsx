@@ -6,6 +6,7 @@ import MealImage from "@/components/MealImage";
 import { bentleyMenuDate, formatMenuDate, normalizeBentleyMenuDate, shiftMenuDate } from "@/lib/bentleyDiningDate";
 import { getLocationView } from "@/lib/locationBrowsing";
 import { getDiningProvider } from "@/services";
+import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
 
 const settle = { duration: 0.34, ease: [0.22, 1, 0.36, 1] } as const;
 const ctaMotion = { type: "spring", stiffness: 460, damping: 32, mass: 0.5 } as const;
@@ -22,12 +23,13 @@ export default async function LocationPage({
   const query = await searchParams;
   const provider = getDiningProvider();
   const isNineTwentyOne = locationId === "loc-921";
-  const menuDate = isNineTwentyOne ? normalizeBentleyMenuDate(query.date) : undefined;
+  const isLiveMenuLocation = isNineTwentyOne || ADDITIONAL_LIVE_LOCATION_IDS.has(locationId);
+  const menuDate = isLiveMenuLocation ? normalizeBentleyMenuDate(query.date) : undefined;
   const view = await getLocationView(provider, locationId, menuDate);
   if (!view) notFound();
 
   const allItems = view.sections.flatMap((section) => section.menuItems);
-  const hasLiveMenu = isNineTwentyOne && allItems.some((item) => item.provenance.dataStatus === "verified");
+  const hasLiveMenu = isLiveMenuLocation && allItems.some((item) => item.provenance.dataStatus === "verified");
   const today = bentleyMenuDate();
   const tomorrow = shiftMenuDate(today, 1);
   const maxDate = shiftMenuDate(today, 31);
@@ -51,12 +53,12 @@ export default async function LocationPage({
         <p className="max-w-md text-sm leading-relaxed subtle">Choose the fastest path: let Falcon Fuel rank a complete meal for you, or browse exactly what is available here.</p>
       </header>
 
-      {isNineTwentyOne && menuDate && (
-        <section className="surface-soft mt-5 flex flex-wrap items-end justify-between gap-4 p-4" aria-label="921 menu date">
+      {isLiveMenuLocation && menuDate && (
+        <section className="surface-soft mt-5 flex flex-wrap items-end justify-between gap-4 p-4" aria-label={`${view.location.shortName ?? view.location.name} menu date`}>
           <div>
-            <p className="eyebrow">921 menu date</p>
+            <p className="eyebrow">{view.location.shortName ?? view.location.name} menu date</p>
             <p className="mt-1 font-bold text-emerald-950">{formatMenuDate(menuDate)}</p>
-            <p className="mt-1 text-xs subtle">DineOnCampus publishes date-specific breakfast, lunch, and dinner menus in advance.</p>
+            <p className="mt-1 text-xs subtle">DineOnCampus publishes date-specific menus when available for this outlet.</p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
             <form action={`/locations/${locationId}`} method="get" className="flex items-end gap-2">
@@ -80,11 +82,11 @@ export default async function LocationPage({
 
       {hasLiveMenu ? (
         <p className="mt-5 rounded-xl border border-emerald-200/80 bg-emerald-50/85 px-4 py-3 text-sm text-emerald-950">
-          Live 921 menu · sourced from Bentley Dining through DineOnCampus for {menuDate ? formatMenuDate(menuDate) : "this date"}. Nutrition, portions, ingredients, allergens, and dietary labels are shown when supplied by the published menu.
+          Live {view.location.shortName ?? view.location.name} menu · sourced from Bentley Dining through DineOnCampus for {menuDate ? formatMenuDate(menuDate) : "this date"}. Nutrition, portions, ingredients, allergens, and dietary labels are shown when supplied by the published menu.
         </p>
-      ) : isNineTwentyOne ? (
+      ) : isLiveMenuLocation ? (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-          The live DineOnCampus menu could not be verified for this date. Falcon Fuel is not substituting the old demo 921 foods; retry the live menu before making a dining decision.
+          The live DineOnCampus menu could not be verified for this date. Falcon Fuel is not substituting demo foods for this live location; retry the live menu before making a dining decision.
         </p>
       ) : provider.dataStatus === "mock" ? (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">

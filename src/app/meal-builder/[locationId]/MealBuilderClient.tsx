@@ -20,6 +20,7 @@ import {
   editComponentInStep,
   generateMealCandidatesFromResources,
   MEAL_COMPLETION_CHOICES,
+  portionGuidanceFor,
   removeMealItem,
   resolveNutritionPlan,
   scoreResolvedMeals,
@@ -35,6 +36,13 @@ const readable = (value: string) => value.split("-").map((word) => word[0].toUpp
 const goalLabel = (goal: RecommendationContext["profile"]["primaryGoal"]) => readable(goal).toLowerCase();
 const completionLabel = (fraction: MealCompletionFraction) => MEAL_COMPLETION_CHOICES.find((choice) => choice.fraction === fraction)?.label ?? `${Math.round(fraction * 100)}%`;
 const sameLocalDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const portionSummary = (
+  item: Parameters<typeof portionGuidanceFor>[0],
+  selection: Parameters<typeof portionGuidanceFor>[1],
+) => {
+  const guidance = portionGuidanceFor(item, selection);
+  return [guidance.servingText, guidance.utensilText].filter(Boolean).join(" · ");
+};
 
 function reasonsFor(ranked: RankedMealCandidate | undefined, context: RecommendationContext | undefined): string[] {
   if (!ranked?.computed.nutrition || !context) return [];
@@ -309,7 +317,7 @@ export default function MealBuilderClient({
           {build.items.length > 0 && <MealImage name={heroName} imageUrl={imageFor(computed.lines[0]?.selection.menuItemId)} aspect="hero" className="h-full min-h-72 lg:min-h-[34rem]" />}
           <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-8">
             <div className="flex items-center justify-between gap-3"><div><p className="eyebrow">{personalized ? `Match #${recommendationIndex + 1}` : "Complete meal"}</p><h2 id="candidate-heading" className="mt-1 text-3xl font-bold tracking-[-0.03em]">{mealHeading}</h2></div>{personalized && <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-800">Personalized</span>}</div>
-            {build.items.length > 0 ? <ul className="mt-5 space-y-3">{computed.lines.map((line) => <li key={line.selection.id} className="meal-row"><MealImage name={line.item?.name ?? line.selection.menuItemId} imageUrl={line.item?.imageUrl} /><div className="min-w-0 flex-1"><strong className="leading-tight">{line.item?.name ?? line.selection.menuItemId}</strong><span className="mt-1 block text-xs subtle">{line.station?.name ?? "Station unavailable"}</span></div><span className="shrink-0 text-sm font-bold">×{line.selection.quantity}</span></li>)}</ul> : <p className="mt-4 text-sm subtle">Your current edit is empty. Add a replacement from the stations below.</p>}
+            {build.items.length > 0 ? <ul className="mt-5 space-y-3">{computed.lines.map((line) => <li key={line.selection.id} className="meal-row"><MealImage name={line.item?.name ?? line.selection.menuItemId} imageUrl={line.item?.imageUrl} /><div className="min-w-0 flex-1"><strong className="leading-tight">{line.item?.name ?? line.selection.menuItemId}</strong><span className="mt-1 block text-xs subtle">{line.station?.name ?? "Station unavailable"}</span><span className="mt-1 block text-xs font-semibold text-emerald-800/75">{portionSummary(line.item, line.selection)}</span></div><span className="shrink-0 text-sm font-bold">×{line.selection.quantity}</span></li>)}</ul> : <p className="mt-4 text-sm subtle">Your current edit is empty. Add a replacement from the stations below.</p>}
 
             {computed.nutrition ? <dl className="mt-5 grid grid-cols-2 gap-2 border-t border-black/[.06] pt-5 text-center sm:grid-cols-4">{[["Calories", computed.nutrition.calories, "cal"], ["Protein", computed.nutrition.protein, "g"], ["Carbs", computed.nutrition.carbs, "g"], ["Fat", computed.nutrition.fat, "g"]].map(([label, value, unit]) => <div key={label} className="rounded-xl bg-emerald-50/70 p-2.5"><dt className="text-[10px] font-semibold text-emerald-900/55">{label}</dt><dd className="mt-1 font-bold text-emerald-950">{value}{unit}</dd></div>)}</dl> : build.items.length > 0 && <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-900"><strong>Complete total unavailable.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((entry, index) => <li key={`${entry.code}-${index}`}>{entry.message}</li>)}</ul></div>}
 

@@ -6,7 +6,8 @@ const emptyBody = { age: "", feet: "", inches: "", pounds: "", centimeters: "", 
 
 test("body metrics remain optional but supplied US metrics are range checked", () => {
   assert.deepEqual(parseBodyInput(emptyBody), { value: undefined });
-  assert.match(parseBodyInput({ ...emptyBody, age: "12" }).error ?? "", /13 to 120/);
+  assert.match(parseBodyInput({ ...emptyBody, age: "16" }).error ?? "", /17 to 120/);
+  assert.equal(parseBodyInput({ ...emptyBody, age: "17" }).value?.age, 17);
   assert.match(parseBodyInput({ ...emptyBody, feet: "5", inches: "12" }).error ?? "", /0 through 11/);
   assert.match(parseBodyInput({ ...emptyBody, pounds: "900" }).error ?? "", /55 and 882/);
 });

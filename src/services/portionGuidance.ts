@@ -10,6 +10,14 @@ import type { MealItemSelection, MenuItem, ServingSize } from "@/types";
 export const MOCK_LEVEL_SERVING_SPOON_CUPS = 0.5;
 export const MOCK_LEVEL_SERVING_SPOON_ML = 118;
 
+/**
+ * Fractional recommendation variants are reserved for sides whose serving size
+ * materially changes meal-level energy/macros. This keeps the global candidate
+ * cap available for different mains and meal structures instead of spending it
+ * on 0.5x/1.5x versions of very low-energy vegetables.
+ */
+export const MIN_CALORIES_FOR_RECOMMENDED_PORTION_VARIANTS = 150;
+
 const PORTIONABLE_SIDE_CATEGORIES = new Set([
   "vegetable",
   "salad",
@@ -24,12 +32,18 @@ export const isScoopableMenuItem = (item: MenuItem): boolean =>
   inferMenuItemMealRole(item) === "side" && PORTIONABLE_SIDE_CATEGORIES.has(inferMealSideCategory(item));
 
 /**
- * Keep recommendation expansion bounded. Predefined scoopable sides may vary in
- * serving quantity; discrete foods and mains stay at one serving unless the
- * student edits them manually.
+ * Keep recommendation expansion bounded. Substantial predefined scoopable sides
+ * may vary in serving quantity; discrete foods, mains, and very low-energy sides
+ * stay at one serving in automatic candidates. Portion guidance still appears
+ * for every scoopable side, regardless of whether automatic quantity variants
+ * are useful enough to spend recommendation-pool capacity on them.
  */
 export const recommendedQuantityVariants = (item: MenuItem): number[] => {
-  if (item.kind !== "predefined" || !isScoopableMenuItem(item)) return [1];
+  if (
+    item.kind !== "predefined"
+    || !isScoopableMenuItem(item)
+    || (item.nutrition?.calories ?? 0) < MIN_CALORIES_FOR_RECOMMENDED_PORTION_VARIANTS
+  ) return [1];
   return [1, 1.5, 0.5, 2];
 };
 

@@ -46,6 +46,38 @@ test("weight-loss intensity derives a lower active target without fabricating a 
   assert.equal(plan.projectedGoalDate, undefined);
 });
 
+test("age 17 uses adolescent maintenance but does not expose or apply an automatic deficit", () => {
+  const next = createUserProfile({
+    primaryGoal: "lose-weight",
+    dietaryPreferences: [],
+    allergensToAvoid: [],
+    metrics: { sex: "male", age: 17, heightCm: 178, weightKg: 80, activityLevel: "active" },
+    maintenanceEstimate: { calories: 1, method: "national-academies-2023-adult-eer" },
+    weightGoalPlan: { weightLossIntensity: "optimal", startDate: "2026-08-19T12:00:00.000Z", maintenanceAfterGoal: true },
+  });
+  const plan = resolveNutritionPlan(next, new Date("2026-08-19T12:00:00.000Z"));
+  assert.equal(next.maintenanceEstimate?.method, "national-academies-2023-adolescent-eer");
+  assert.equal(plan.maintenanceTargets?.calories, 3580);
+  assert.equal(plan.activeTargets?.calories, 3580);
+  assert.equal(plan.weightLossIntensity, undefined);
+});
+
+test("age 18 uses adolescent maintenance and may apply the selected weight-loss planning deficit", () => {
+  const next = createUserProfile({
+    primaryGoal: "lose-weight",
+    dietaryPreferences: [],
+    allergensToAvoid: [],
+    metrics: { sex: "male", age: 18, heightCm: 178, weightKg: 80, activityLevel: "active" },
+    maintenanceEstimate: { calories: 1, method: "national-academies-2023-adult-eer" },
+    weightGoalPlan: { weightLossIntensity: "optimal", startDate: "2026-08-19T12:00:00.000Z", maintenanceAfterGoal: true },
+  });
+  const plan = resolveNutritionPlan(next, new Date("2026-08-19T12:00:00.000Z"));
+  assert.equal(next.maintenanceEstimate?.method, "national-academies-2023-adolescent-eer");
+  assert.equal(plan.maintenanceTargets?.calories, 3590);
+  assert.equal(plan.activeTargets?.calories, 2872);
+  assert.equal(plan.weightLossIntensity, "optimal");
+});
+
 test("reaching the target automatically transitions to maintenance targets", () => {
   const plan = resolveNutritionPlan(profile(75, 75), new Date("2026-10-28T12:00:00.000Z"));
   assert.equal(plan.phase, "maintenance");

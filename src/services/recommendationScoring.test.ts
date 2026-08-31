@@ -110,6 +110,9 @@ const ranked = (meal: MealCandidate, total: number, lineCalories: number[] = [])
     compositionPenalty: 0,
     behavior: {
       preferenceBoost: 0,
+      learnedPreferenceBoost: 0,
+      learnedSignals: [],
+      learnedEvidenceCount: 0,
       aversionPenalty: 0,
       repetitionPenalty: 0,
       totalAdjustment: 0,

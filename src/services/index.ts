@@ -15,6 +15,7 @@ export * from "./recommendationExplanation";
 export * from "./portionGuidance";
 export * from "./mealHistoryRepository";
 export * from "./progressRepository";
+export * from "./activityCheckIn";
 export * from "./userDataRepository";
 export * from "./dailyNutrition";
 export * from "./dailyTargets";

@@ -10,6 +10,7 @@ import HistoryConsistencyHeatmap from "@/components/HistoryConsistencyHeatmap";
 import HistoryInsightsPanel from "@/components/HistoryInsightsPanel";
 import MealImage from "@/components/MealImage";
 import NutritionOutlookPanel from "@/components/NutritionOutlookPanel";
+import WeeklyFocusPanel from "@/components/WeeklyFocusPanel";
 import WeeklyNutritionReportPanel from "@/components/WeeklyNutritionReportPanel";
 import {
   browserMealHistoryRepository,
@@ -19,6 +20,7 @@ import {
   buildLatestCompletedWeeklyNutritionReport,
   buildLongitudinalNutritionInsights,
   buildNutritionOutlook,
+  buildWeeklyFocus,
   createDailyNutritionSnapshot,
   resolveNutritionPlan,
   summarizeMonth,
@@ -57,6 +59,7 @@ export default function HistoryClient({
   const [progress, setProgress] = useState<WeightObservation[]>([]);
   const [interactions, setInteractions] = useState<RecommendationInteraction[]>([]);
   const [range, setRange] = useState<Range>("week");
+  const [showDeepAnalysis, setShowDeepAnalysis] = useState(false);
   const [anchor] = useState(() => new Date());
   const reduceMotion = useReducedMotion();
 
@@ -79,6 +82,7 @@ export default function HistoryClient({
   const month = useMemo(() => summarizeMonth(history, targets, anchor), [history, targets, anchor]);
   const weeklyReport = useMemo(() => buildLatestCompletedWeeklyNutritionReport(history, interactions, targets, anchor), [history, interactions, targets, anchor]);
   const outlook = useMemo(() => buildNutritionOutlook(history, targets, anchor), [history, targets, anchor]);
+  const weeklyFocus = useMemo(() => buildWeeklyFocus(weeklyReport, outlook), [weeklyReport, outlook]);
   const insights = useMemo(() => buildLongitudinalNutritionInsights(history, targets, progress, anchor), [history, targets, progress, anchor]);
   const deepPatterns = useMemo(() => buildDeepNutritionPatternAnalysis(history, interactions, targets, anchor), [history, interactions, targets, anchor]);
   const period = range === "week" ? week : range === "month" ? month : undefined;
@@ -184,10 +188,33 @@ export default function HistoryClient({
         <HistoryConsistencyHeatmap history={history} anchor={anchor} />
       </div>
 
+      <WeeklyFocusPanel focus={weeklyFocus} />
       <WeeklyNutritionReportPanel report={weeklyReport} locationNames={locationNames} />
-      <NutritionOutlookPanel outlook={outlook} />
-      <HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem} />
-      <DeepNutritionPatternsPanel analysis={deepPatterns} locationNames={locationNames} stationNames={stationNames} />
+
+      <section className="surface mt-5 p-5 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="eyebrow">More detail</p>
+            <h2 className="mt-1 text-xl font-bold">Explore deeper analysis</h2>
+            <p className="mt-1 text-sm subtle">Forecast ranges, longer-term trends, and cross-signal patterns stay available without crowding the default weekly view.</p>
+          </div>
+          <button type="button" className="secondary shrink-0 text-sm" aria-expanded={showDeepAnalysis} onClick={() => setShowDeepAnalysis((value) => !value)}>
+            {showDeepAnalysis ? "Hide deeper analysis" : "Explore deeper analysis"}
+          </button>
+        </div>
+      </section>
+
+      {showDeepAnalysis && (
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <NutritionOutlookPanel outlook={outlook} />
+          <HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem} />
+          <DeepNutritionPatternsPanel analysis={deepPatterns} locationNames={locationNames} stationNames={stationNames} />
+        </motion.div>
+      )}
 
       <section className="surface mt-5 p-5">
         <div className="flex items-center justify-between"><div><p className="eyebrow">Timeline</p><h2 className="mt-1 text-xl font-bold">Recent meals</h2></div><Link href="/today" className="text-sm font-bold text-emerald-800">Today →</Link></div>

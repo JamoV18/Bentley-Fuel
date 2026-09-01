@@ -9,11 +9,13 @@ import DeepNutritionPatternsPanel from "@/components/DeepNutritionPatternsPanel"
 import HistoryConsistencyHeatmap from "@/components/HistoryConsistencyHeatmap";
 import HistoryInsightsPanel from "@/components/HistoryInsightsPanel";
 import MealImage from "@/components/MealImage";
+import WeeklyNutritionReportPanel from "@/components/WeeklyNutritionReportPanel";
 import {
   browserMealHistoryRepository,
   browserProgressRepository,
   browserRecommendationInteractionRepository,
   buildDeepNutritionPatternAnalysis,
+  buildLatestCompletedWeeklyNutritionReport,
   buildLongitudinalNutritionInsights,
   createDailyNutritionSnapshot,
   resolveNutritionPlan,
@@ -73,6 +75,7 @@ export default function HistoryClient({
   const yesterdaySnapshot = useMemo(() => createDailyNutritionSnapshot(history, targets, yesterday), [history, targets, yesterday]);
   const week = useMemo(() => summarizeWeek(history, targets, anchor), [history, targets, anchor]);
   const month = useMemo(() => summarizeMonth(history, targets, anchor), [history, targets, anchor]);
+  const weeklyReport = useMemo(() => buildLatestCompletedWeeklyNutritionReport(history, interactions, targets, anchor), [history, interactions, targets, anchor]);
   const insights = useMemo(() => buildLongitudinalNutritionInsights(history, targets, progress, anchor), [history, targets, progress, anchor]);
   const deepPatterns = useMemo(() => buildDeepNutritionPatternAnalysis(history, interactions, targets, anchor), [history, interactions, targets, anchor]);
   const period = range === "week" ? week : range === "month" ? month : undefined;
@@ -178,6 +181,7 @@ export default function HistoryClient({
         <HistoryConsistencyHeatmap history={history} anchor={anchor} />
       </div>
 
+      <WeeklyNutritionReportPanel report={weeklyReport} locationNames={locationNames} />
       <HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem} />
       <DeepNutritionPatternsPanel analysis={deepPatterns} locationNames={locationNames} stationNames={stationNames} />
 

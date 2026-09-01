@@ -25,4 +25,5 @@ export * from "./dailyTargets";
 export * from "./nutritionPlan";
 export * from "./nutritionAnalytics";
 export * from "./nutritionInsights";
+export * from "./deepNutritionPatterns";
 export * from "./widgetNutrition";

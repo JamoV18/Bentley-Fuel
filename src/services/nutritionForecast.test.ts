@@ -10,12 +10,26 @@ const meal = (
   selectedAt: string,
   calories: number,
   protein: number,
-  completionFraction: 0 | 0.25 | 0.5 | 0.8 | 1 | undefined = 1,
+  completionFraction: 0 | 0.25 | 0.5 | 0.8 | 1 = 1,
 ): MealHistoryEntry => ({
   id,
   selectedAt,
   locationId: "loc-921",
   completionFraction,
+  nutrition: { calories, protein, carbs: Math.round(calories * 0.12), fat: Math.round(calories * 0.035) },
+  build: { locationId: "loc-921", items: [{ id: `${id}-line`, menuItemId: `item-${id}`, quantity: 1 }] },
+});
+
+const pendingMeal = (
+  id: string,
+  selectedAt: string,
+  calories: number,
+  protein: number,
+): MealHistoryEntry => ({
+  id,
+  selectedAt,
+  locationId: "loc-921",
+  completionFraction: undefined,
   nutrition: { calories, protein, carbs: Math.round(calories * 0.12), fat: Math.round(calories * 0.035) },
   build: { locationId: "loc-921", items: [{ id: `${id}-line`, menuItemId: `item-${id}`, quantity: 1 }] },
 });
@@ -88,7 +102,7 @@ test("target support rates use only fully confirmed days from recent usable week
     ...usableWeek("2026-08-10", 2000, 120),
     ...usableWeek("2026-08-17", 2000, 120),
     ...usableWeek("2026-08-24", 2000, 120),
-    meal("pending-extra", "2026-08-27T12:00:00.000Z", 1000, 80, undefined),
+    pendingMeal("pending-extra", "2026-08-27T12:00:00.000Z", 1000, 80),
   ];
   const outlook = buildNutritionOutlook(history, targets, anchor);
   assert.equal(outlook.status, "ready");

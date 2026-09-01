@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { MealCandidate, RecommendationInteraction } from "@/types";
+import type { MealCandidate, MealHistoryEntry, RecommendationInteraction } from "@/types";
 import {
   createLocalRecommendationInteractionRepository,
+  recordChosenMealInteractions,
   scoreRecommendationInteractions,
 } from "./recommendationInteractions";
 
@@ -91,4 +92,64 @@ test("accepted replacement boosts the substitute rather than the removed food", 
   const removedScore = scoreRecommendationInteractions(candidate("item-rice", "Rice"), [interaction]);
   assert.ok(replacementScore.preferenceBoost > 0);
   assert.equal(removedScore.preferenceBoost, 0);
+});
+
+test("chosen edited meal links one recent removal to one newly added replacement", () => {
+  const storage = new MemoryStorage();
+  const repository = createLocalRecommendationInteractionRepository(storage);
+  repository.append(event({
+    id: "remove-rice",
+    kind: "item-removed",
+    occurredAt: "2026-08-31T17:55:00.000Z",
+    subject: { menuItemId: "item-rice", name: "Rice", stationId: "station-rooted" },
+    build: {
+      locationId: "loc-921",
+      items: [{ id: "line-chicken", menuItemId: "item-chicken", quantity: 1, display: { name: "Grilled Chicken", stationId: "station-pure-eats" } }],
+    },
+  }));
+  const chosen: MealHistoryEntry = {
+    id: "meal-1",
+    locationId: "loc-921",
+    selectedAt: "2026-08-31T18:00:00.000Z",
+    source: "recommended",
+    build: {
+      locationId: "loc-921",
+      items: [
+        { id: "line-chicken", menuItemId: "item-chicken", quantity: 1, display: { name: "Grilled Chicken", stationId: "station-pure-eats" } },
+        { id: "line-potato", menuItemId: "item-potato", quantity: 1, display: { name: "Roasted Potatoes", stationId: "station-kitchen" } },
+      ],
+    },
+  };
+
+  recordChosenMealInteractions(storage, chosen);
+  const interactions = repository.getRecent();
+  const replacement = interactions.find((row) => row.kind === "replacement-accepted");
+  assert.equal(replacement?.subject?.name, "Rice");
+  assert.equal(replacement?.replacement?.name, "Roasted Potatoes");
+  assert.ok(interactions.some((row) => row.kind === "meal-chosen" && row.id === "meal-chosen:meal-1"));
+});
+
+test("ambiguous multi-item edits do not invent a replacement relationship", () => {
+  const storage = new MemoryStorage();
+  const repository = createLocalRecommendationInteractionRepository(storage);
+  repository.append(event({
+    id: "remove-rice",
+    kind: "item-removed",
+    occurredAt: "2026-08-31T17:55:00.000Z",
+    subject: { menuItemId: "item-rice", name: "Rice" },
+    build: { locationId: "loc-921", items: [] },
+  }));
+  recordChosenMealInteractions(storage, {
+    id: "meal-2",
+    locationId: "loc-921",
+    selectedAt: "2026-08-31T18:00:00.000Z",
+    build: {
+      locationId: "loc-921",
+      items: [
+        { id: "a", menuItemId: "item-chicken", quantity: 1 },
+        { id: "b", menuItemId: "item-potato", quantity: 1 },
+      ],
+    },
+  });
+  assert.equal(repository.getRecent().filter((row) => row.kind === "replacement-accepted").length, 0);
 });

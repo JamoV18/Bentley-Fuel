@@ -10,7 +10,7 @@ interface StorageLike {
   removeItem(key: string): void;
 }
 
-const valid = (value: unknown): value is WeightObservation => {
+export const isValidWeightObservation = (value: unknown): value is WeightObservation => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   return typeof record.id === "string" && record.id.length > 0 &&
@@ -31,7 +31,7 @@ export function createLocalProgressRepository(storage: StorageLike): ProgressRep
     try {
       const parsed: unknown = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      return parsed.filter(valid).sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+      return parsed.filter(isValidWeightObservation).sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
     } catch {
       return [];
     }
@@ -41,7 +41,7 @@ export function createLocalProgressRepository(storage: StorageLike): ProgressRep
       return read().slice(0, Math.max(0, Math.floor(limit)));
     },
     upsert(observation) {
-      if (!valid(observation)) throw new Error("Refusing to store an invalid progress observation");
+      if (!isValidWeightObservation(observation)) throw new Error("Refusing to store an invalid progress observation");
       const next = [observation, ...read().filter((item) => item.id !== observation.id)]
         .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
       storage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(next));

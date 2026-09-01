@@ -11,7 +11,7 @@ export default function DataPrivacyPage() {
       <header className="mt-8">
         <p className="brand-kicker">Falcon Fuel</p>
         <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Data & privacy</h1>
-        <p className="mt-2 max-w-3xl subtle">See what this prototype stores, export it, or reset it.</p>
+        <p className="mt-2 max-w-3xl subtle">See what this prototype stores, export or restore your data, or reset it.</p>
       </header>
       <AppNav />
       <div className="mt-6 grid gap-5 lg:grid-cols-12">

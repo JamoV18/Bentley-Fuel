@@ -10,7 +10,7 @@ const meal = (
   selectedAt: string,
   calories: number,
   protein: number,
-  completionFraction: 0 | 0.25 | 0.5 | 0.8 | 1 | undefined = 1,
+  completionFraction: 0 | 0.25 | 0.5 | 0.8 | 1 | undefined,
   locationId = "loc-921",
 ): MealHistoryEntry => ({
   id,

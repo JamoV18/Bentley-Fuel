@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
+import ActivityReviewDueBanner from "./ActivityReviewDueBanner";
+import ProgressiveProfilePrompt from "./ProgressiveProfilePrompt";
 
 const items = [
   { href: "/today", label: "Today", icon: "home" },
@@ -22,39 +24,44 @@ export default function AppNav() {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
   const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
+  const showProgressivePrompt = pathname === "/today" || pathname === "/dashboard";
 
   return (
-    <nav className="app-nav" aria-label="Falcon Fuel app navigation">
-      {items.map((item) => {
-        const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="app-nav-item relative isolate overflow-hidden"
-            data-active={active}
-            style={active ? { background: "transparent" } : undefined}
-          >
-            {active && (
-              <motion.span
-                aria-hidden="true"
-                className="absolute inset-0 z-0 rounded-[.95rem] bg-emerald-50/95"
-                layoutId="app-nav-active-pill"
-                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38, mass: 0.45 }}
-                style={{ boxShadow: "inset 0 0 0 1px rgba(8,122,88,.10), 0 3px 10px rgba(8,122,88,.06)" }}
-              />
-            )}
-            <motion.span
-              className="relative z-10 inline-flex items-center justify-center gap-[.42rem]"
-              whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+    <>
+      <nav className="app-nav" aria-label="Falcon Fuel app navigation">
+        {items.map((item) => {
+          const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="app-nav-item relative isolate overflow-hidden"
+              data-active={active}
+              style={active ? { background: "transparent" } : undefined}
             >
-              <span className="app-nav-icon"><Icon name={item.icon} /></span>
-              <span>{item.label}</span>
-            </motion.span>
-          </Link>
-        );
-      })}
-    </nav>
+              {active && (
+                <motion.span
+                  aria-hidden="true"
+                  className="absolute inset-0 z-0 rounded-[.95rem] bg-emerald-50/95"
+                  layoutId="app-nav-active-pill"
+                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38, mass: 0.45 }}
+                  style={{ boxShadow: "inset 0 0 0 1px rgba(8,122,88,.10), 0 3px 10px rgba(8,122,88,.06)" }}
+                />
+              )}
+              <motion.span
+                className="relative z-10 inline-flex items-center justify-center gap-[.42rem]"
+                whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <span className="app-nav-icon"><Icon name={item.icon} /></span>
+                <span>{item.label}</span>
+              </motion.span>
+            </Link>
+          );
+        })}
+      </nav>
+      {pathname !== "/profile-summary" && <ActivityReviewDueBanner />}
+      {showProgressivePrompt && <ProgressiveProfilePrompt />}
+    </>
   );
 }

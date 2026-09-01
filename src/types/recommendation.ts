@@ -25,6 +25,26 @@ export type MealCompletionFraction = 0 | 0.25 | 0.5 | 0.8 | 1;
 export type MealExplicitFeedback = "like" | "dislike";
 
 /**
+ * A narrow preference Falcon Fuel learned enough evidence to ask the student
+ * about. These are deliberately soft ranking signals, never dietary rules.
+ */
+export type ProgressivePreferenceKind = "protein" | "cuisine";
+export type ProgressivePreferenceResponse = "favor" | "neutral" | "later";
+
+export interface ProgressivePreferenceAnswer {
+  id: string;
+  /** Stable semantic key such as `protein:chicken` or `cuisine:latin`. */
+  key: string;
+  kind: ProgressivePreferenceKind;
+  value: string;
+  label: string;
+  response: ProgressivePreferenceResponse;
+  /** Number of positive historical meals that justified asking. */
+  evidenceCount: number;
+  answeredAt: string;
+}
+
+/**
  * One observed eating occasion. History is intentionally kept separate from the
  * static UserProfile because it grows over time and can later move to a backend
  * without reshaping onboarding/profile data.
@@ -58,6 +78,8 @@ export interface RecommendationContext {
   remainingMacros?: RemainingMacros;
   /** Newest-first recent history. Omit when the app has no behavioral history yet. */
   recentHistory?: readonly MealHistoryEntry[];
+  /** Explicit answers to occasional progressive-profile questions. */
+  progressivePreferences?: readonly ProgressivePreferenceAnswer[];
   /** Menu items that should not be resurfaced for this recommendation occasion. */
   excludeMenuItemIds?: readonly MenuItemId[];
 }

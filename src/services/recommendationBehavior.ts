@@ -1,11 +1,14 @@
 import { scaleNutrition } from "./nutrition";
 import { scoreLearnedMealPreferences, type LearnedPreferenceContext } from "./recommendationPreferenceLearning";
+import { browserProgressiveProfileRepository } from "./progressiveProfile";
+import { scoreProgressivePreferences } from "./progressivePreferenceScoring";
 import type {
   MealBuild,
   MealCandidate,
   MealCompletionFraction,
   MealHistoryEntry,
   NutritionFacts,
+  ProgressivePreferenceAnswer,
 } from "@/types";
 
 export const MEAL_COMPLETION_CHOICES: readonly {
@@ -24,8 +27,12 @@ export interface MealHistoryScore {
   preferenceBoost: number;
   /** Conservative broad learning from repeated protein/cuisine/station/size/time patterns. */
   learnedPreferenceBoost: number;
+  /** Explicit user-confirmed progressive-profile preference boost. Optional for legacy score fixtures. */
+  progressivePreferenceBoost?: number;
   /** Human-readable learned signals that materially supported the candidate. */
   learnedSignals: string[];
+  /** Human-readable user-confirmed progressive-profile signals. Optional for legacy score fixtures. */
+  progressiveSignals?: string[];
   /** Distinct historical meals supporting the broad learned preference. */
   learnedEvidenceCount: number;
   /** Explicit dislikes of similar historical meals. */
@@ -106,6 +113,37 @@ const locationEvidenceMultiplier = (candidate: MealCandidate, entry: MealHistory
 const unconfirmedSelectionWeight = (entry: MealHistoryEntry): number =>
   entry.source === "self-built" ? 0.65 : 0.35;
 
+/** Rebuild learned signals after a student says not to assume a protein/cuisine family. */
+function visibleLearnedSignals(
+  learned: ReturnType<typeof scoreLearnedMealPreferences>,
+  suppressProtein: boolean,
+  suppressCuisine: boolean,
+): string[] {
+  const visible: string[] = [];
+  let index = 0;
+  if (learned.proteinBoost >= 0.3) {
+    const signal = learned.signals[index++];
+    if (!suppressProtein && signal) visible.push(signal);
+  }
+  if (learned.cuisineBoost >= 0.3) {
+    const signal = learned.signals[index++];
+    if (!suppressCuisine && signal) visible.push(signal);
+  }
+  if (learned.stationBoost >= 0.3) {
+    const signal = learned.signals[index++];
+    if (signal) visible.push(signal);
+  }
+  if (learned.mealSizeBoost >= 0.3) {
+    const signal = learned.signals[index++];
+    if (signal) visible.push(signal);
+  }
+  if (learned.timingBoost >= 0.25) {
+    const signal = learned.signals[index++];
+    if (signal) visible.push(signal);
+  }
+  return visible;
+}
+
 /**
  * History influences ranking modestly; nutrition remains authoritative.
  *
@@ -120,11 +158,14 @@ const unconfirmedSelectionWeight = (entry: MealHistoryEntry): number =>
  * can teach preference without trapping the student in the same meal every day.
  * Broad protein/cuisine/station/size/time learning requires repeated evidence and
  * is separately capped before joining the same overall +10 behavior ceiling.
+ * Progressive-profile answers can confirm a soft boost or suppress a broad
+ * protein/cuisine assumption; they never become hard dietary restrictions.
  */
 export function scoreMealHistory(
   candidate: MealCandidate,
   history: readonly MealHistoryEntry[] = [],
   learnedContext: LearnedPreferenceContext = {},
+  progressivePreferences?: readonly ProgressivePreferenceAnswer[],
 ): MealHistoryScore {
   const recent = history.slice(0, 24);
   let unconfirmedPreference = 0;
@@ -160,23 +201,39 @@ export function scoreMealHistory(
   });
 
   const learned = scoreLearnedMealPreferences(candidate, recent, learnedContext);
+  const resolvedProgressivePreferences = progressivePreferences ?? (
+    typeof window !== "undefined" ? browserProgressiveProfileRepository().getRecent() : []
+  );
+  const progressive = scoreProgressivePreferences(candidate, resolvedProgressivePreferences);
+  const suppressProtein = progressive.suppressedKinds.includes("protein");
+  const suppressCuisine = progressive.suppressedKinds.includes("cuisine");
+  const automaticLearnedBoost = round1(Math.min(4.5,
+    (suppressProtein ? 0 : learned.proteinBoost) +
+    (suppressCuisine ? 0 : learned.cuisineBoost) +
+    learned.stationBoost + learned.mealSizeBoost + learned.timingBoost,
+  ));
 
   // Unconfirmed selections can teach only a little until the student supplies
   // stronger evidence. This prevents accidental taps/saves from steering rank.
   const preferenceBoost = round1(clamp(
-    Math.min(1.5, unconfirmedPreference) + confirmedPreference + explicitPreference + learned.totalBoost,
+    Math.min(1.5, unconfirmedPreference) + confirmedPreference + explicitPreference + automaticLearnedBoost + progressive.totalBoost,
     0,
     10,
   ));
   const aversionPenalty = round1(clamp(aversion, 0, 25));
   const repetitionPenalty = round1(clamp(repetition, 0, 18));
   const totalAdjustment = round1(clamp(preferenceBoost - aversionPenalty - repetitionPenalty, -30, 10));
+  const progressiveEvidenceCount = resolvedProgressivePreferences
+    .filter((answer) => answer.response === "favor" && progressive.signals.includes(answer.label))
+    .reduce((max, answer) => Math.max(max, answer.evidenceCount), 0);
 
   return {
     preferenceBoost,
-    learnedPreferenceBoost: learned.totalBoost,
-    learnedSignals: learned.signals,
-    learnedEvidenceCount: learned.evidenceCount,
+    learnedPreferenceBoost: automaticLearnedBoost,
+    progressivePreferenceBoost: progressive.totalBoost,
+    learnedSignals: visibleLearnedSignals(learned, suppressProtein, suppressCuisine),
+    progressiveSignals: progressive.signals,
+    learnedEvidenceCount: Math.max(learned.evidenceCount, progressiveEvidenceCount),
     aversionPenalty,
     repetitionPenalty,
     totalAdjustment,

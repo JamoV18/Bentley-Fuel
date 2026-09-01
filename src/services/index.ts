@@ -10,6 +10,7 @@ export * from "./recommendationScoring";
 export * from "./recommendationDietQuality";
 export * from "./recommendationBehavior";
 export * from "./recommendationPreferenceLearning";
+export * from "./recommendationInteractions";
 export * from "./recommendationReplacements";
 export * from "./recommendationExplanation";
 export * from "./progressiveProfile";

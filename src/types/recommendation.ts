@@ -67,6 +67,39 @@ export interface MealHistoryEntry {
   source?: "recommended" | "self-built";
 }
 
+/** Deliberate recommendation/editor behaviors stored separately from meal history. */
+export type RecommendationInteractionKind =
+  | "recommendation-viewed"
+  | "item-removed"
+  | "replacement-accepted"
+  | "meal-chosen";
+
+export interface RecommendationInteractionItem {
+  menuItemId: MenuItemId;
+  name?: string;
+  stationId?: StationId;
+}
+
+/**
+ * Interaction events preserve funnel semantics without pretending every event is
+ * a taste preference. Recommendation views are useful analytics but have zero
+ * ranking effect; repeated removals and accepted replacements can become small,
+ * bounded ranking evidence.
+ */
+export interface RecommendationInteraction {
+  id: string;
+  kind: RecommendationInteractionKind;
+  occurredAt: string;
+  locationId: LocationId;
+  mealPeriod?: MealPeriod;
+  /** Optional build snapshot for explicit recommendation exploration/choice. */
+  build?: MealBuild;
+  /** Removed/replaced item when the event concerns one meal line. */
+  subject?: RecommendationInteractionItem;
+  /** Accepted substitute for a replacement event. */
+  replacement?: RecommendationInteractionItem;
+}
+
 /** Inputs known before candidate generation/ranking begins. */
 export interface RecommendationContext {
   profile: UserProfile;
@@ -78,6 +111,8 @@ export interface RecommendationContext {
   remainingMacros?: RemainingMacros;
   /** Newest-first recent history. Omit when the app has no behavioral history yet. */
   recentHistory?: readonly MealHistoryEntry[];
+  /** Recent deliberate editor/replacement behavior. Mere exposure has no ranking effect. */
+  recentInteractions?: readonly RecommendationInteraction[];
   /** Explicit answers to occasional progressive-profile questions. */
   progressivePreferences?: readonly ProgressivePreferenceAnswer[];
   /** Menu items that should not be resurfaced for this recommendation occasion. */

@@ -92,10 +92,10 @@ export function buildRecommendationExplanation(
     softPreferenceBonus: ranked.score.softPreferenceBonus ?? 0,
     behaviorPreferenceBoost: ranked.score.behavior.preferenceBoost,
     learnedPreferenceBoost: ranked.score.behavior.learnedPreferenceBoost,
-    progressivePreferenceBoost: ranked.score.behavior.progressivePreferenceBoost,
+    progressivePreferenceBoost: ranked.score.behavior.progressivePreferenceBoost ?? 0,
     learnedEvidenceCount: ranked.score.behavior.learnedEvidenceCount,
     learnedSignals: ranked.score.behavior.learnedSignals,
-    progressiveSignals: ranked.score.behavior.progressiveSignals,
+    progressiveSignals: ranked.score.behavior.progressiveSignals ?? [],
     repetitionPenalty: ranked.score.behavior.repetitionPenalty,
     nutritionSources,
   };

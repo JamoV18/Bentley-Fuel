@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { browserUserDataRepository, type FalconFuelStoredDataSummary } from "@/services";
+import { useEffect, useRef, useState } from "react";
+import {
+  MAX_FALCON_FUEL_IMPORT_BYTES,
+  browserUserDataRepository,
+  parseFalconFuelUserDataImport,
+  type FalconFuelImportPreview,
+  type FalconFuelStoredDataSummary,
+} from "@/services";
 
 const EMPTY_SUMMARY: FalconFuelStoredDataSummary = {
   profileStored: false,
@@ -16,6 +22,9 @@ const EMPTY_SUMMARY: FalconFuelStoredDataSummary = {
 export default function ProfileDataControls() {
   const [summary, setSummary] = useState<FalconFuelStoredDataSummary>();
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const [importPreview, setImportPreview] = useState<FalconFuelImportPreview>();
+  const [importMessage, setImportMessage] = useState<string>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     queueMicrotask(() => setSummary(browserUserDataRepository().summary()));
@@ -30,6 +39,38 @@ export default function ProfileDataControls() {
     anchor.download = `falcon-fuel-data-${new Date().toISOString().slice(0, 10)}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
+  };
+
+  const chooseImport = () => {
+    setImportPreview(undefined);
+    setImportMessage(undefined);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    fileInputRef.current?.click();
+  };
+
+  const previewImport = async (file?: File) => {
+    if (!file) return;
+    if (file.size > MAX_FALCON_FUEL_IMPORT_BYTES) {
+      setImportPreview(undefined);
+      setImportMessage("That file is too large to restore safely in this browser prototype.");
+      return;
+    }
+    const preview = parseFalconFuelUserDataImport(await file.text());
+    setImportPreview(preview);
+    setImportMessage(preview.valid ? undefined : preview.errors.join(" "));
+  };
+
+  const restoreData = () => {
+    if (!importPreview?.valid || !importPreview.data) return;
+    try {
+      const restored = browserUserDataRepository().replaceFromExport(importPreview.data);
+      setSummary(restored);
+      setImportPreview(undefined);
+      setImportMessage("Restore complete. Reloading Falcon Fuel with the restored data.");
+      window.location.href = restored.profileStored ? "/data-privacy" : "/onboarding";
+    } catch (error) {
+      setImportMessage(error instanceof Error ? error.message : "Falcon Fuel could not restore this export.");
+    }
   };
 
   const resetData = () => {
@@ -60,17 +101,42 @@ export default function ProfileDataControls() {
         Editing one food does not automatically mean you dislike it. Falcon Fuel only lets repeated removals create a small ranking signal, while an accepted replacement can create a small positive signal. Explicit likes/dislikes and confirmed eating remain stronger evidence.
       </p>
 
-      <div className="mt-5 flex flex-wrap gap-3 border-t border-black/[.06] pt-5">
-        <button type="button" className="secondary text-sm" onClick={exportData}>Export my data</button>
-        {!confirmingReset ? (
-          <button type="button" className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-800 transition hover:bg-red-100" onClick={() => setConfirmingReset(true)}>Reset Falcon Fuel data</button>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-2">
-            <span className="px-2 text-xs font-semibold text-red-900">This removes your profile, meal history, recommendation-edit history, weight check-ins, activity reviews, and preference answers from this browser.</span>
-            <button type="button" className="rounded-full bg-red-700 px-3 py-2 text-xs font-bold text-white" onClick={resetData}>Delete all</button>
-            <button type="button" className="rounded-full bg-white px-3 py-2 text-xs font-bold text-black/65" onClick={() => setConfirmingReset(false)}>Cancel</button>
+      <div className="mt-5 border-t border-black/[.06] pt-5">
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className="secondary text-sm" onClick={exportData}>Export my data</button>
+          <button type="button" className="secondary text-sm" onClick={chooseImport}>Restore from export</button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => void previewImport(event.target.files?.[0])}
+          />
+          {!confirmingReset ? (
+            <button type="button" className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-800 transition hover:bg-red-100" onClick={() => setConfirmingReset(true)}>Reset Falcon Fuel data</button>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-2">
+              <span className="px-2 text-xs font-semibold text-red-900">This removes your profile, meal history, recommendation-edit history, weight check-ins, activity reviews, and preference answers from this browser.</span>
+              <button type="button" className="rounded-full bg-red-700 px-3 py-2 text-xs font-bold text-white" onClick={resetData}>Delete all</button>
+              <button type="button" className="rounded-full bg-white px-3 py-2 text-xs font-bold text-black/65" onClick={() => setConfirmingReset(false)}>Cancel</button>
+            </div>
+          )}
+        </div>
+
+        {importPreview?.valid && importPreview.summary && (
+          <div className="mt-4 rounded-2xl border border-amber-900/10 bg-amber-50/55 p-4">
+            <p className="text-sm font-bold text-amber-950">Ready to restore this Falcon Fuel export</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-950/75">Exported {importPreview.exportedAt ? new Date(importPreview.exportedAt).toLocaleString() : "at an unknown time"}. It contains {importPreview.summary.mealHistoryCount} meal records, {importPreview.summary.progressObservationCount} weight check-ins, {importPreview.summary.activityCheckInCount} activity reviews, {importPreview.summary.progressivePreferenceCount} preference answers, and {importPreview.summary.recommendationInteractionCount} recommendation interaction records.</p>
+            <p className="mt-2 text-xs font-semibold text-amber-950">Restoring replaces all current Falcon Fuel data on this device. It does not merge records and does not touch unrelated browser data.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className="rounded-full bg-emerald-900 px-4 py-2 text-xs font-bold text-white" onClick={restoreData}>Replace with this export</button>
+              <button type="button" className="rounded-full bg-white px-4 py-2 text-xs font-bold text-black/65" onClick={() => { setImportPreview(undefined); setImportMessage(undefined); }}>Cancel</button>
+            </div>
           </div>
         )}
+
+        {importMessage && <p className="mt-3 rounded-2xl bg-black/[.035] p-3 text-xs leading-relaxed text-black/70" role="status">{importMessage}</p>}
+        <p className="mt-3 text-xs leading-relaxed subtle">Restore accepts only validated Falcon Fuel version 2 JSON exports up to 5 MB. The entire file is checked before any Falcon Fuel key is changed; if a browser storage write fails, the previous Falcon Fuel data is restored.</p>
       </div>
     </section>
   );

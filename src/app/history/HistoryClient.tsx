@@ -9,6 +9,7 @@ import DeepNutritionPatternsPanel from "@/components/DeepNutritionPatternsPanel"
 import HistoryConsistencyHeatmap from "@/components/HistoryConsistencyHeatmap";
 import HistoryInsightsPanel from "@/components/HistoryInsightsPanel";
 import MealImage from "@/components/MealImage";
+import NutritionOutlookPanel from "@/components/NutritionOutlookPanel";
 import WeeklyNutritionReportPanel from "@/components/WeeklyNutritionReportPanel";
 import {
   browserMealHistoryRepository,
@@ -17,6 +18,7 @@ import {
   buildDeepNutritionPatternAnalysis,
   buildLatestCompletedWeeklyNutritionReport,
   buildLongitudinalNutritionInsights,
+  buildNutritionOutlook,
   createDailyNutritionSnapshot,
   resolveNutritionPlan,
   summarizeMonth,
@@ -76,6 +78,7 @@ export default function HistoryClient({
   const week = useMemo(() => summarizeWeek(history, targets, anchor), [history, targets, anchor]);
   const month = useMemo(() => summarizeMonth(history, targets, anchor), [history, targets, anchor]);
   const weeklyReport = useMemo(() => buildLatestCompletedWeeklyNutritionReport(history, interactions, targets, anchor), [history, interactions, targets, anchor]);
+  const outlook = useMemo(() => buildNutritionOutlook(history, targets, anchor), [history, targets, anchor]);
   const insights = useMemo(() => buildLongitudinalNutritionInsights(history, targets, progress, anchor), [history, targets, progress, anchor]);
   const deepPatterns = useMemo(() => buildDeepNutritionPatternAnalysis(history, interactions, targets, anchor), [history, interactions, targets, anchor]);
   const period = range === "week" ? week : range === "month" ? month : undefined;
@@ -182,6 +185,7 @@ export default function HistoryClient({
       </div>
 
       <WeeklyNutritionReportPanel report={weeklyReport} locationNames={locationNames} />
+      <NutritionOutlookPanel outlook={outlook} />
       <HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem} />
       <DeepNutritionPatternsPanel analysis={deepPatterns} locationNames={locationNames} stationNames={stationNames} />
 

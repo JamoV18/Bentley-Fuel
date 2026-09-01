@@ -42,6 +42,21 @@ test("weekly insights compare the same elapsed weekdays rather than a partial we
   assert.equal(insight.weekOverWeek?.proteinPercent, 20);
 });
 
+test("week-over-week trends exclude the matching prior weekday when the current weekday still has a pending meal", () => {
+  const history = [
+    ...fullDay("2026-08-31", 2000, 120),
+    ...fullDay("2026-09-01", 2000, 120),
+    meal("current-wed-lunch", "2026-09-02T16:00:00.000Z", 4000, 240, 1),
+    meal("current-wed-dinner", "2026-09-02T22:00:00.000Z", 500, 30, undefined),
+    ...fullDay("2026-08-24", 2000, 120),
+    ...fullDay("2026-08-25", 2000, 120),
+    ...fullDay("2026-08-26", 1000, 60),
+  ];
+  const insight = buildLongitudinalNutritionInsights(history, targets, [], new Date(2026, 8, 2, 12));
+  assert.equal(insight.weekOverWeek?.caloriesPercent, 0);
+  assert.equal(insight.weekOverWeek?.proteinPercent, 0);
+});
+
 test("target comparison uses only fully confirmed Falcon Fuel days and does not treat a pending meal as a complete day", () => {
   const history = [
     ...fullDay("2026-08-31", 2000, 120),

@@ -1,5 +1,6 @@
 import { scaleNutrition } from "./nutrition";
 import { scoreLearnedMealPreferences, type LearnedPreferenceContext } from "./recommendationPreferenceLearning";
+import { scoreRecommendationInteractions } from "./recommendationInteractions";
 import { browserProgressiveProfileRepository } from "./progressiveProfile";
 import { scoreProgressivePreferences } from "./progressivePreferenceScoring";
 import type {
@@ -9,6 +10,7 @@ import type {
   MealHistoryEntry,
   NutritionFacts,
   ProgressivePreferenceAnswer,
+  RecommendationInteraction,
 } from "@/types";
 
 export const MEAL_COMPLETION_CHOICES: readonly {
@@ -27,16 +29,24 @@ export interface MealHistoryScore {
   preferenceBoost: number;
   /** Conservative broad learning from repeated protein/cuisine/station/size/time patterns. */
   learnedPreferenceBoost: number;
+  /** Small editor/replacement preference evidence. Optional for legacy score fixtures. */
+  interactionPreferenceBoost?: number;
   /** Explicit user-confirmed progressive-profile preference boost. Optional for legacy score fixtures. */
   progressivePreferenceBoost?: number;
   /** Human-readable learned signals that materially supported the candidate. */
   learnedSignals: string[];
   /** Human-readable user-confirmed progressive-profile signals. Optional for legacy score fixtures. */
   progressiveSignals?: string[];
+  /** Human-readable editor/replacement signals. */
+  interactionSignals?: string[];
   /** Distinct historical meals supporting the broad learned preference. */
   learnedEvidenceCount: number;
-  /** Explicit dislikes of similar historical meals. */
+  /** Deliberate interaction events that materially affected this candidate. */
+  interactionEvidenceCount?: number;
+  /** Explicit dislikes plus repeated item-removal evidence. */
   aversionPenalty: number;
+  /** Portion of aversionPenalty attributable to repeated item removals. */
+  interactionAversionPenalty?: number;
   /** Separate recent-repeat pressure so "likes it" never means "serve it every day." */
   repetitionPenalty: number;
   /** Bounded additive adjustment applied after nutrition scoring. */
@@ -148,7 +158,10 @@ function visibleLearnedSignals(
  * History influences ranking modestly; nutrition remains authoritative.
  *
  * Evidence hierarchy:
- * - recommendation exposure: zero (it is never stored as history)
+ * - recommendation exposure/view: zero ranking effect
+ * - one item removal: zero (an edit is not automatically a dislike)
+ * - repeated item removal: small bounded negative evidence
+ * - accepted replacement: small bounded positive evidence
  * - saved selection without a finish response: weak positive evidence
  * - reported zero consumption: no positive taste evidence
  * - partial/full consumption: progressively stronger evidence
@@ -166,6 +179,7 @@ export function scoreMealHistory(
   history: readonly MealHistoryEntry[] = [],
   learnedContext: LearnedPreferenceContext = {},
   progressivePreferences?: readonly ProgressivePreferenceAnswer[],
+  interactions: readonly RecommendationInteraction[] = [],
 ): MealHistoryScore {
   const recent = history.slice(0, 24);
   let unconfirmedPreference = 0;
@@ -201,6 +215,7 @@ export function scoreMealHistory(
   });
 
   const learned = scoreLearnedMealPreferences(candidate, recent, learnedContext);
+  const interaction = scoreRecommendationInteractions(candidate, interactions);
   const resolvedProgressivePreferences = progressivePreferences ?? (
     typeof window !== "undefined" ? browserProgressiveProfileRepository().getRecent() : []
   );
@@ -213,14 +228,14 @@ export function scoreMealHistory(
     learned.stationBoost + learned.mealSizeBoost + learned.timingBoost,
   ));
 
-  // Unconfirmed selections can teach only a little until the student supplies
-  // stronger evidence. This prevents accidental taps/saves from steering rank.
+  // Interaction evidence shares the same overall ceiling rather than creating a
+  // second path that could overwhelm nutrition fit.
   const preferenceBoost = round1(clamp(
-    Math.min(1.5, unconfirmedPreference) + confirmedPreference + explicitPreference + automaticLearnedBoost + progressive.totalBoost,
+    Math.min(1.5, unconfirmedPreference) + confirmedPreference + explicitPreference + automaticLearnedBoost + progressive.totalBoost + interaction.preferenceBoost,
     0,
     10,
   ));
-  const aversionPenalty = round1(clamp(aversion, 0, 25));
+  const aversionPenalty = round1(clamp(aversion + interaction.aversionPenalty, 0, 25));
   const repetitionPenalty = round1(clamp(repetition, 0, 18));
   const totalAdjustment = round1(clamp(preferenceBoost - aversionPenalty - repetitionPenalty, -30, 10));
   const progressiveEvidenceCount = resolvedProgressivePreferences
@@ -230,11 +245,15 @@ export function scoreMealHistory(
   return {
     preferenceBoost,
     learnedPreferenceBoost: automaticLearnedBoost,
+    interactionPreferenceBoost: interaction.preferenceBoost,
     progressivePreferenceBoost: progressive.totalBoost,
     learnedSignals: visibleLearnedSignals(learned, suppressProtein, suppressCuisine),
     progressiveSignals: progressive.signals,
+    interactionSignals: interaction.signals,
     learnedEvidenceCount: Math.max(learned.evidenceCount, progressiveEvidenceCount),
+    interactionEvidenceCount: interaction.evidenceCount,
     aversionPenalty,
+    interactionAversionPenalty: interaction.aversionPenalty,
     repetitionPenalty,
     totalAdjustment,
     evidenceCount,

@@ -51,15 +51,20 @@ export default function RecommendationWhyPanel({
     portionGuidanceFor(line.item, line.selection).confidence === "mock-estimate",
   );
   const structure = coherenceLabel(explanation.coherence);
-  const preferenceSignal = explanation.behaviorPreferenceBoost > 0 || explanation.softPreferenceBonus > 0;
+  const behaviorAffectedRank = explanation.behaviorPreferenceBoost > 0
+    || explanation.softPreferenceBonus > 0
+    || explanation.interactionAversionPenalty > 0
+    || explanation.repetitionPenalty > 0;
   const repetitionApplied = explanation.repetitionPenalty > 0;
-  const learnedPreferenceDetail = explanation.progressiveSignals.length > 0
+  const behaviorDetail = explanation.progressiveSignals.length > 0
     ? `You explicitly confirmed that Falcon Fuel may favor ${explanation.progressiveSignals.join(", ")}.`
-    : explanation.learnedSignals.length > 0
-      ? `Repeated choices across ${explanation.learnedEvidenceCount} prior meals support ${explanation.learnedSignals.join(", ")}.`
-      : repetitionApplied
-        ? "Recent repetition reduced this option’s rank."
-        : "No recent-repeat penalty was applied.";
+    : explanation.interactionSignals.length > 0
+      ? `Deliberate edits also informed this rank: ${explanation.interactionSignals.join("; ")}. One removal by itself is never treated as a dislike.`
+      : explanation.learnedSignals.length > 0
+        ? `Repeated choices across ${explanation.learnedEvidenceCount} prior meals support ${explanation.learnedSignals.join(", ")}.`
+        : repetitionApplied
+          ? "Recent repetition reduced this option’s rank."
+          : "No meaningful behavior adjustment was applied.";
 
   return (
     <div className="px-4 pb-4 text-sm text-emerald-950/78">
@@ -119,7 +124,7 @@ export default function RecommendationWhyPanel({
         <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-900/55">Other ranking evidence</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <p><strong>{structure ?? "Meal structure evaluated"}</strong><span className="block text-xs subtle">{explanation.stationCount} station{explanation.stationCount === 1 ? "" : "s"}; Falcon Fuel also checks whether the foods form a practical meal.</span></p>
-          <p><strong>{preferenceSignal ? "Preference evidence helped" : "No meaningful preference boost"}</strong><span className="block text-xs subtle">{learnedPreferenceDetail}</span></p>
+          <p><strong>{behaviorAffectedRank ? "Behavior evidence affected rank" : "No meaningful behavior adjustment"}</strong><span className="block text-xs subtle">{behaviorDetail}</span></p>
         </div>
       </section>
 

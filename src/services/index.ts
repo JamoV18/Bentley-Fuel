@@ -12,6 +12,8 @@ export * from "./recommendationBehavior";
 export * from "./recommendationPreferenceLearning";
 export * from "./recommendationReplacements";
 export * from "./recommendationExplanation";
+export * from "./progressiveProfile";
+export * from "./progressivePreferenceScoring";
 export * from "./portionGuidance";
 export * from "./mealHistoryRepository";
 export * from "./progressRepository";

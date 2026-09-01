@@ -12,8 +12,8 @@ const compact = (value: number) => Math.round(value * 10) / 10;
 const macroRows = (actual: Macros, target: Macros) => [
   { label: "Calories", actual: Math.round(actual.calories), target: Math.round(target.calories), unit: "cal" },
   { label: "Protein", actual: compact(actual.protein), target: compact(target.protein), unit: "g" },
-  { label: "Carbs", actual: compact(actual.carbs), target: compact(actual.carbs), unit: "g" },
-  { label: "Fat", actual: compact(actual.fat), target: compact(actual.fat), unit: "g" },
+  { label: "Carbs", actual: compact(actual.carbs), target: compact(target.carbs), unit: "g" },
+  { label: "Fat", actual: compact(actual.fat), target: compact(target.fat), unit: "g" },
 ];
 
 const macroLine = (macros: Macros | undefined) => macros

@@ -27,12 +27,12 @@ export interface MealHistoryScore {
   preferenceBoost: number;
   /** Conservative broad learning from repeated protein/cuisine/station/size/time patterns. */
   learnedPreferenceBoost: number;
-  /** Explicit user-confirmed progressive-profile preference boost. */
-  progressivePreferenceBoost: number;
+  /** Explicit user-confirmed progressive-profile preference boost. Optional for legacy score fixtures. */
+  progressivePreferenceBoost?: number;
   /** Human-readable learned signals that materially supported the candidate. */
   learnedSignals: string[];
-  /** Human-readable user-confirmed progressive-profile signals. */
-  progressiveSignals: string[];
+  /** Human-readable user-confirmed progressive-profile signals. Optional for legacy score fixtures. */
+  progressiveSignals?: string[];
   /** Distinct historical meals supporting the broad learned preference. */
   learnedEvidenceCount: number;
   /** Explicit dislikes of similar historical meals. */

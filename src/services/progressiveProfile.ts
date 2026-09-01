@@ -114,6 +114,15 @@ const buildText = (build: MealBuild): string => normalized(
   build.items.map((line) => line.display?.name ?? line.menuItemId).join(" "),
 );
 
+export function mealBuildMatchesProgressivePreference(
+  build: MealBuild,
+  kind: ProgressivePreferenceKind,
+  value: string,
+): boolean {
+  const definition = FAMILIES.find((family) => family.kind === kind && family.value === value);
+  return definition ? definition.matcher.test(buildText(build)) : false;
+}
+
 function positiveEvidenceWeight(entry: MealHistoryEntry): number {
   if (entry.explicitFeedback === "dislike" || entry.completionFraction === 0) return 0;
   if (entry.explicitFeedback === "like") return 1.6 + (entry.completionFraction ?? 0) * 0.4;

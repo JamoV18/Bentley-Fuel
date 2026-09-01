@@ -108,9 +108,13 @@ test("four usable weeks unlock cross-signal location, timing, and station patter
 });
 
 test("pending or zero-consumption meals do not become positive cross-signal evidence", () => {
+  const pendingMeal: MealHistoryEntry = {
+    ...meal("pending-high-protein", "2026-08-20T12:00:00.000Z", 400, 120, "loc-dana", "stn-nest"),
+    completionFraction: undefined,
+  };
   const history = [
     ...fourUsableWeeks(),
-    meal("pending-high-protein", "2026-08-20T12:00:00.000Z", 400, 120, "loc-dana", "stn-nest", undefined),
+    pendingMeal,
     meal("zero-high-protein", "2026-08-19T12:00:00.000Z", 400, 120, "loc-dana", "stn-nest", 0),
   ];
   const analysis = buildDeepNutritionPatternAnalysis(history, [], targets, new Date(2026, 8, 20, 12));

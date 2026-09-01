@@ -343,6 +343,6 @@ export function buildDeepNutritionPatternAnalysis(
     confidence: evidenceLevelWeeks >= 8 && strongFindings >= 2 ? "strong" : "developing",
     confirmedMeals: meals.length,
     interactionEvents,
-    findings: findings.slice(0, 4),
+    findings,
   };
 }

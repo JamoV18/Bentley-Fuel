@@ -1,6 +1,6 @@
 import { scaleNutrition } from "./nutrition";
 import { scoreLearnedMealPreferences, type LearnedPreferenceContext } from "./recommendationPreferenceLearning";
-import { scoreRecommendationInteractions } from "./recommendationInteractions";
+import { browserRecommendationInteractionRepository, scoreRecommendationInteractions } from "./recommendationInteractions";
 import { browserProgressiveProfileRepository } from "./progressiveProfile";
 import { scoreProgressivePreferences } from "./progressivePreferenceScoring";
 import type {
@@ -179,7 +179,7 @@ export function scoreMealHistory(
   history: readonly MealHistoryEntry[] = [],
   learnedContext: LearnedPreferenceContext = {},
   progressivePreferences?: readonly ProgressivePreferenceAnswer[],
-  interactions: readonly RecommendationInteraction[] = [],
+  interactions?: readonly RecommendationInteraction[],
 ): MealHistoryScore {
   const recent = history.slice(0, 24);
   let unconfirmedPreference = 0;
@@ -215,7 +215,10 @@ export function scoreMealHistory(
   });
 
   const learned = scoreLearnedMealPreferences(candidate, recent, learnedContext);
-  const interaction = scoreRecommendationInteractions(candidate, interactions);
+  const resolvedInteractions = interactions ?? (
+    typeof window !== "undefined" ? browserRecommendationInteractionRepository().getRecent() : []
+  );
+  const interaction = scoreRecommendationInteractions(candidate, resolvedInteractions);
   const resolvedProgressivePreferences = progressivePreferences ?? (
     typeof window !== "undefined" ? browserProgressiveProfileRepository().getRecent() : []
   );

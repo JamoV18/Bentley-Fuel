@@ -3,7 +3,8 @@ import { MEAL_HISTORY_STORAGE_KEY, createLocalMealHistoryRepository } from "./me
 import { PROFILE_STORAGE_KEY, createLocalProfileRepository } from "./profileRepository";
 import { PROGRESS_STORAGE_KEY, createLocalProgressRepository } from "./progressRepository";
 import { PROGRESSIVE_PROFILE_STORAGE_KEY, createLocalProgressiveProfileRepository } from "./progressiveProfile";
-import type { MealHistoryEntry, ProgressivePreferenceAnswer, UserProfile, WeightObservation } from "@/types";
+import { RECOMMENDATION_INTERACTION_STORAGE_KEY, createLocalRecommendationInteractionRepository } from "./recommendationInteractions";
+import type { MealHistoryEntry, ProgressivePreferenceAnswer, RecommendationInteraction, UserProfile, WeightObservation } from "@/types";
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -17,10 +18,11 @@ export const FALCON_FUEL_USER_DATA_KEYS = [
   PROGRESS_STORAGE_KEY,
   ACTIVITY_CHECK_IN_STORAGE_KEY,
   PROGRESSIVE_PROFILE_STORAGE_KEY,
+  RECOMMENDATION_INTERACTION_STORAGE_KEY,
 ] as const;
 
 export interface FalconFuelUserDataExport {
-  schemaVersion: 1;
+  schemaVersion: 2;
   exportedAt: string;
   storageScope: "this-device";
   profile: UserProfile | null;
@@ -28,6 +30,7 @@ export interface FalconFuelUserDataExport {
   progress: WeightObservation[];
   activityCheckIns: ActivityCheckInRecord[];
   progressivePreferences: ProgressivePreferenceAnswer[];
+  recommendationInteractions: RecommendationInteraction[];
 }
 
 export interface FalconFuelStoredDataSummary {
@@ -36,6 +39,7 @@ export interface FalconFuelStoredDataSummary {
   progressObservationCount: number;
   activityCheckInCount: number;
   progressivePreferenceCount: number;
+  recommendationInteractionCount: number;
   storageScope: "this-device";
 }
 
@@ -53,9 +57,10 @@ export function createLocalUserDataRepository(storage: StorageLike) {
   const progressRepository = createLocalProgressRepository(storage);
   const activityCheckInRepository = createLocalActivityCheckInRepository(storage);
   const progressiveProfileRepository = createLocalProgressiveProfileRepository(storage);
+  const recommendationInteractionRepository = createLocalRecommendationInteractionRepository(storage);
 
   const exportData = (): FalconFuelUserDataExport => ({
-    schemaVersion: 1,
+    schemaVersion: 2,
     exportedAt: new Date().toISOString(),
     storageScope: "this-device",
     profile: profileRepository.get(),
@@ -63,6 +68,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
     progress: progressRepository.getRecent(Number.MAX_SAFE_INTEGER),
     activityCheckIns: activityCheckInRepository.getRecent(Number.MAX_SAFE_INTEGER),
     progressivePreferences: progressiveProfileRepository.getRecent(Number.MAX_SAFE_INTEGER),
+    recommendationInteractions: recommendationInteractionRepository.getRecent(Number.MAX_SAFE_INTEGER),
   });
 
   const summary = (): FalconFuelStoredDataSummary => {
@@ -73,6 +79,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
       progressObservationCount: exported.progress.length,
       activityCheckInCount: exported.activityCheckIns.length,
       progressivePreferenceCount: exported.progressivePreferences.length,
+      recommendationInteractionCount: exported.recommendationInteractions.length,
       storageScope: "this-device",
     };
   };
@@ -83,6 +90,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
     progressRepository.clear();
     activityCheckInRepository.clear();
     progressiveProfileRepository.clear();
+    recommendationInteractionRepository.clear();
   };
 
   return { exportData, summary, clearAll };

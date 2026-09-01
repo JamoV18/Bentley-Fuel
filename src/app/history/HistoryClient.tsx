@@ -6,9 +6,12 @@ import { motion, useReducedMotion } from "motion/react";
 import AppNav from "@/components/AppNav";
 import BklitHistoryKpiCard from "@/components/BklitHistoryKpiCard";
 import HistoryConsistencyHeatmap from "@/components/HistoryConsistencyHeatmap";
+import HistoryInsightsPanel from "@/components/HistoryInsightsPanel";
 import MealImage from "@/components/MealImage";
 import {
   browserMealHistoryRepository,
+  browserProgressRepository,
+  buildLongitudinalNutritionInsights,
   createDailyNutritionSnapshot,
   resolveNutritionPlan,
   summarizeMonth,
@@ -16,7 +19,7 @@ import {
   type NutritionPeriodSummary,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
-import type { MealHistoryEntry, UserProfile } from "@/types";
+import type { MealHistoryEntry, UserProfile, WeightObservation } from "@/types";
 
 type Range = "yesterday" | "week" | "month";
 
@@ -42,6 +45,7 @@ export default function HistoryClient({
 }) {
   const [profile, setProfile] = useState<UserProfile | null>();
   const [history, setHistory] = useState<MealHistoryEntry[]>([]);
+  const [progress, setProgress] = useState<WeightObservation[]>([]);
   const [range, setRange] = useState<Range>("week");
   const [anchor] = useState(() => new Date());
   const reduceMotion = useReducedMotion();
@@ -52,6 +56,7 @@ export default function HistoryClient({
       const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - 90);
       const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1, 0, 0, 0, -1);
       setHistory(browserMealHistoryRepository().getByDateRange(start, end));
+      setProgress(browserProgressRepository().getRecent(52));
     });
   }, [anchor]);
 
@@ -61,6 +66,7 @@ export default function HistoryClient({
   const yesterdaySnapshot = useMemo(() => createDailyNutritionSnapshot(history, targets, yesterday), [history, targets, yesterday]);
   const week = useMemo(() => summarizeWeek(history, targets, anchor), [history, targets, anchor]);
   const month = useMemo(() => summarizeMonth(history, targets, anchor), [history, targets, anchor]);
+  const insights = useMemo(() => buildLongitudinalNutritionInsights(history, targets, progress, anchor), [history, targets, progress, anchor]);
   const period = range === "week" ? week : range === "month" ? month : undefined;
 
   if (profile === undefined) return <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10"><p>Loading history…</p></main>;
@@ -163,6 +169,8 @@ export default function HistoryClient({
 
         <HistoryConsistencyHeatmap history={history} anchor={anchor} />
       </div>
+
+      <HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem} />
 
       <section className="surface mt-5 p-5">
         <div className="flex items-center justify-between"><div><p className="eyebrow">Timeline</p><h2 className="mt-1 text-xl font-bold">Recent meals</h2></div><Link href="/today" className="text-sm font-bold text-emerald-800">Today →</Link></div>

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { MealHistoryEntry } from "@/types";
 import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
 import { createLocalRecommendationInteractionRepository } from "./recommendationInteractions";
 
@@ -49,12 +50,12 @@ test("saving an edited meal records chosen behavior and a conservative accepted 
 test("re-saving the same meal is idempotent for chosen interaction ids", () => {
   const storage = new MemoryStorage();
   const meals = createLocalMealHistoryRepository(storage);
-  const entry = {
+  const entry: MealHistoryEntry = {
     id: "meal-1",
     locationId: "loc-921",
     selectedAt: "2026-08-31T18:00:00.000Z",
     build: { locationId: "loc-921", items: [{ id: "line-1", menuItemId: "item-chicken", quantity: 1 }] },
-  } as const;
+  };
   meals.upsert(entry);
   meals.upsert(entry);
   const chosen = createLocalRecommendationInteractionRepository(storage).getRecent().filter((row) => row.kind === "meal-chosen");

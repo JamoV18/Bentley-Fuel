@@ -22,8 +22,21 @@ export function isBentleyMenuDate(value: string | undefined): value is string {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
-export function normalizeBentleyMenuDate(value: string | undefined): string {
-  return isBentleyMenuDate(value) ? value : bentleyMenuDate();
+/**
+ * Live dining routes are intentionally forward-looking. A bookmarked or still-open
+ * URL from yesterday must not pin Falcon Fuel to yesterday's DineOnCampus menu.
+ * Invalid and past dates roll forward to Bentley's current calendar date, while
+ * today and intentionally selected future dates remain unchanged.
+ */
+export function normalizeActiveBentleyMenuDate(value: string | undefined, now = new Date()): string {
+  const today = bentleyMenuDate(now);
+  if (!isBentleyMenuDate(value) || value < today) return today;
+  return value;
+}
+
+/** Shared route normalizer used by live menu pages. */
+export function normalizeBentleyMenuDate(value: string | undefined, now = new Date()): string {
+  return normalizeActiveBentleyMenuDate(value, now);
 }
 
 export function shiftMenuDate(value: string, days: number): string {

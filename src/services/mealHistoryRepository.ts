@@ -1,4 +1,5 @@
 import type { MealBuild, MealCompletionFraction, MealExplicitFeedback, MealHistoryEntry, NutritionFacts } from "@/types";
+import { recordChosenMealInteractions } from "./recommendationInteractions";
 
 export const MEAL_HISTORY_STORAGE_KEY = "bentley-fuel.meal-history.v1";
 const COMPLETION_VALUES: MealCompletionFraction[] = [0, 0.25, 0.5, 0.8, 1];
@@ -118,6 +119,10 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
       const next = [merged, ...current.filter((candidate) => candidate.id !== entry.id)]
         .sort((a, b) => mealTime(b) - mealTime(a));
       write(next);
+      // Meal history is the authoritative record that the student actually
+      // chose/saved this build. Interaction logging is kept separate so views,
+      // edits, selections, and confirmed eating remain distinct concepts.
+      recordChosenMealInteractions(storage, merged);
     },
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");

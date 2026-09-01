@@ -27,4 +27,5 @@ export * from "./nutritionAnalytics";
 export * from "./nutritionInsights";
 export * from "./deepNutritionPatterns";
 export * from "./weeklyNutritionReport";
+export * from "./nutritionForecast";
 export * from "./widgetNutrition";

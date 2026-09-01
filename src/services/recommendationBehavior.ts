@@ -1,5 +1,6 @@
 import { scaleNutrition } from "./nutrition";
 import { scoreLearnedMealPreferences, type LearnedPreferenceContext } from "./recommendationPreferenceLearning";
+import { browserProgressiveProfileRepository } from "./progressiveProfile";
 import { scoreProgressivePreferences } from "./progressivePreferenceScoring";
 import type {
   MealBuild,
@@ -164,7 +165,7 @@ export function scoreMealHistory(
   candidate: MealCandidate,
   history: readonly MealHistoryEntry[] = [],
   learnedContext: LearnedPreferenceContext = {},
-  progressivePreferences: readonly ProgressivePreferenceAnswer[] = [],
+  progressivePreferences?: readonly ProgressivePreferenceAnswer[],
 ): MealHistoryScore {
   const recent = history.slice(0, 24);
   let unconfirmedPreference = 0;
@@ -200,7 +201,10 @@ export function scoreMealHistory(
   });
 
   const learned = scoreLearnedMealPreferences(candidate, recent, learnedContext);
-  const progressive = scoreProgressivePreferences(candidate, progressivePreferences);
+  const resolvedProgressivePreferences = progressivePreferences ?? (
+    typeof window !== "undefined" ? browserProgressiveProfileRepository().getRecent() : []
+  );
+  const progressive = scoreProgressivePreferences(candidate, resolvedProgressivePreferences);
   const suppressProtein = progressive.suppressedKinds.includes("protein");
   const suppressCuisine = progressive.suppressedKinds.includes("cuisine");
   const automaticLearnedBoost = round1(Math.min(4.5,
@@ -219,7 +223,7 @@ export function scoreMealHistory(
   const aversionPenalty = round1(clamp(aversion, 0, 25));
   const repetitionPenalty = round1(clamp(repetition, 0, 18));
   const totalAdjustment = round1(clamp(preferenceBoost - aversionPenalty - repetitionPenalty, -30, 10));
-  const progressiveEvidenceCount = progressivePreferences
+  const progressiveEvidenceCount = resolvedProgressivePreferences
     .filter((answer) => answer.response === "favor" && progressive.signals.includes(answer.label))
     .reduce((max, answer) => Math.max(max, answer.evidenceCount), 0);
 

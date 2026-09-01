@@ -1,11 +1,13 @@
 import type {
   MealBuild,
   MealCandidate,
+  MealHistoryEntry,
   RecommendationInteraction,
   RecommendationInteractionItem,
 } from "@/types";
 
 export const RECOMMENDATION_INTERACTION_STORAGE_KEY = "bentley-fuel.recommendation-interactions.v1";
+const REPLACEMENT_LINK_WINDOW_MS = 30 * 60 * 1000;
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -98,6 +100,57 @@ const candidateMatchesItem = (candidate: MealCandidate, item: RecommendationInte
     return Boolean(name && lineName && name === lineName);
   });
 };
+
+const sameBuildLine = (a: MealBuild["items"][number], b: MealBuild["items"][number]) =>
+  stableMenuItemId(a.menuItemId) === stableMenuItemId(b.menuItemId) ||
+  Boolean(a.display?.name && b.display?.name && normalized(a.display.name) === normalized(b.display.name));
+
+/**
+ * Meal history is the authoritative acceptance record. When a chosen meal is
+ * preceded by one recent removal at the same location, compare the saved build
+ * with the post-removal build. Exactly one newly added line is enough to record
+ * a replacement-accepted event. Ambiguous edits are intentionally ignored.
+ */
+export function recordChosenMealInteractions(storage: StorageLike, entry: MealHistoryEntry): void {
+  const repository = createLocalRecommendationInteractionRepository(storage);
+  const chosenAt = Date.parse(entry.selectedAt);
+  const recentRemoval = repository.getRecent(20).find((interaction) => {
+    if (interaction.kind !== "item-removed" || !interaction.subject || !interaction.build) return false;
+    if (interaction.locationId !== entry.locationId) return false;
+    const removedAt = Date.parse(interaction.occurredAt);
+    const elapsed = chosenAt - removedAt;
+    return elapsed >= 0 && elapsed <= REPLACEMENT_LINK_WINDOW_MS;
+  });
+
+  if (recentRemoval?.subject && recentRemoval.build) {
+    const added = entry.build.items.filter((line) =>
+      !recentRemoval.build!.items.some((prior) => sameBuildLine(line, prior)),
+    );
+    if (added.length === 1) {
+      const replacement = added[0];
+      repository.append({
+        id: `replacement-accepted:${entry.id}:${recentRemoval.id}`,
+        kind: "replacement-accepted",
+        occurredAt: entry.selectedAt,
+        locationId: entry.locationId,
+        subject: recentRemoval.subject,
+        replacement: {
+          menuItemId: replacement.menuItemId,
+          name: replacement.display?.name,
+          stationId: replacement.display?.stationId,
+        },
+      });
+    }
+  }
+
+  repository.append({
+    id: `meal-chosen:${entry.id}`,
+    kind: "meal-chosen",
+    occurredAt: entry.selectedAt,
+    locationId: entry.locationId,
+    build: entry.build,
+  });
+}
 
 export interface RecommendationInteractionScore {
   /** Small positive evidence from deliberately accepting a replacement. */

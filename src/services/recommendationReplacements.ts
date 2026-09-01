@@ -1,5 +1,6 @@
 import { generateMealCandidatesFromResources } from "./recommendationCandidates";
 import { computeMealBuild, type MealBuildResources } from "./mealBuilder";
+import { browserRecommendationInteractionRepository } from "./recommendationInteractions";
 import {
   inferMealMainStyle,
   inferMealSideCategory,
@@ -141,6 +142,32 @@ export function suggestMealItemReplacements(
   const maxSuggestions = Math.max(1, Math.floor(options.maxSuggestions ?? 3));
   const currentMenuItemIds = new Set(buildWithoutRemoved.items.map((line) => line.menuItemId));
   const removedItem = resources.menuItems.find((item) => item.id === removedLine.menuItemId);
+
+  // This call is made from the deliberate remove-and-replace flow. Store the
+  // removal separately from meal history so one edit does not become a dislike,
+  // while repeated edits can eventually provide small preference evidence.
+  if (typeof window !== "undefined" && removedItem) {
+    browserRecommendationInteractionRepository().append({
+      id: crypto.randomUUID(),
+      kind: "item-removed",
+      occurredAt: new Date().toISOString(),
+      locationId: buildWithoutRemoved.locationId,
+      mealPeriod: context.mealPeriod,
+      build: {
+        ...buildWithoutRemoved,
+        items: buildWithoutRemoved.items.map((line) => ({
+          ...line,
+          componentSelections: line.componentSelections?.map((selection) => ({ ...selection })),
+          display: line.display ? { ...line.display } : undefined,
+        })),
+      },
+      subject: {
+        menuItemId: removedItem.id,
+        name: removedItem.name,
+        stationId: removedItem.stationId,
+      },
+    });
+  }
 
   const singleItemCandidates = generateMealCandidatesFromResources(
     resources.menuItems,

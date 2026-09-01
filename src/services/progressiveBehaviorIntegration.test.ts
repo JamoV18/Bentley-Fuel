@@ -33,7 +33,7 @@ const answer = (response: ProgressivePreferenceAnswer["response"]): ProgressiveP
 
 test("confirmed progressive preference adds a bounded explicit boost", () => {
   const score = scoreMealHistory(candidate, history, {}, [answer("favor")]);
-  assert.ok(score.progressivePreferenceBoost > 0);
+  assert.ok((score.progressivePreferenceBoost ?? 0) > 0);
   assert.ok(score.preferenceBoost <= 10);
   assert.deepEqual(score.progressiveSignals, ["chicken-based meals"]);
 });

@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createLocalActivityCheckInRepository } from "./activityCheckIn";
-import { createUserProfile } from "./profileRepository";
-import { createLocalUserDataRepository } from "./userDataRepository";
 import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
+import { createUserProfile } from "./profileRepository";
+import { createLocalProgressiveProfileRepository } from "./progressiveProfile";
 import { createLocalProgressRepository } from "./progressRepository";
+import { createLocalUserDataRepository } from "./userDataRepository";
 
 class MemoryStorage {
   private values = new Map<string, string>();
@@ -26,7 +27,7 @@ const profile = () => createUserProfile({
   metrics: { age: 20, sex: "male", heightCm: 178, weightKg: 75, activityLevel: "active" },
 });
 
-test("export keeps profile, meal history, progress, and activity reviews distinct", () => {
+test("export keeps profile, meal history, progress, activity reviews, and preference answers distinct", () => {
   const storage = new MemoryStorage();
   const data = createLocalUserDataRepository(storage);
   const created = profile();
@@ -50,6 +51,16 @@ test("export keeps profile, meal history, progress, and activity reviews distinc
     previousLevel: "low-active",
     confirmedLevel: "active",
   });
+  createLocalProgressiveProfileRepository(storage).upsert({
+    id: "preference-1",
+    key: "protein:chicken",
+    kind: "protein",
+    value: "chicken",
+    label: "chicken-based meals",
+    response: "favor",
+    evidenceCount: 3,
+    answeredAt: "2026-08-31T18:00:00.000Z",
+  });
 
   const exported = data.exportData();
   assert.equal(exported.schemaVersion, 1);
@@ -61,6 +72,9 @@ test("export keeps profile, meal history, progress, and activity reviews distinc
   assert.equal(exported.progress.length, 1);
   assert.equal(exported.activityCheckIns.length, 1);
   assert.equal(exported.activityCheckIns[0].confirmedLevel, "active");
+  assert.equal(exported.progressivePreferences.length, 1);
+  assert.equal(exported.progressivePreferences[0].key, "protein:chicken");
+  assert.equal(data.summary().progressivePreferenceCount, 1);
 });
 
 test("clearAll removes all Falcon Fuel nutrition data without relying on localStorage.clear", () => {
@@ -71,6 +85,7 @@ test("clearAll removes all Falcon Fuel nutrition data without relying on localSt
   storage.setItem("bentley-fuel.meal-history.v1", "[]");
   storage.setItem("bentley-fuel.progress.v1", "[]");
   storage.setItem("bentley-fuel.activity-check-ins.v1", "[]");
+  storage.setItem("bentley-fuel.progressive-profile.v1", "[]");
   storage.setItem("unrelated-app-key", "keep-me");
 
   data.clearAll();
@@ -79,5 +94,6 @@ test("clearAll removes all Falcon Fuel nutrition data without relying on localSt
   assert.equal(storage.getItem("bentley-fuel.meal-history.v1"), null);
   assert.equal(storage.getItem("bentley-fuel.progress.v1"), null);
   assert.equal(storage.getItem("bentley-fuel.activity-check-ins.v1"), null);
+  assert.equal(storage.getItem("bentley-fuel.progressive-profile.v1"), null);
   assert.equal(storage.getItem("unrelated-app-key"), "keep-me");
 });

@@ -27,7 +27,7 @@ const profile = () => createUserProfile({
   metrics: { age: 20, sex: "male", heightCm: 178, weightKg: 75, activityLevel: "active" },
 });
 
-test("export keeps profile, meal history, progress, activity reviews, and preference answers distinct", () => {
+test("export keeps profile, meals, progress, reviews, preferences, and recommendation interactions distinct", () => {
   const storage = new MemoryStorage();
   const data = createLocalUserDataRepository(storage);
   const created = profile();
@@ -63,7 +63,7 @@ test("export keeps profile, meal history, progress, activity reviews, and prefer
   });
 
   const exported = data.exportData();
-  assert.equal(exported.schemaVersion, 1);
+  assert.equal(exported.schemaVersion, 2);
   assert.equal(exported.storageScope, "this-device");
   assert.equal(exported.profile?.id, created.id);
   assert.equal(exported.mealHistory.length, 1);
@@ -74,7 +74,10 @@ test("export keeps profile, meal history, progress, activity reviews, and prefer
   assert.equal(exported.activityCheckIns[0].confirmedLevel, "active");
   assert.equal(exported.progressivePreferences.length, 1);
   assert.equal(exported.progressivePreferences[0].key, "protein:chicken");
+  assert.equal(exported.recommendationInteractions.length, 1);
+  assert.equal(exported.recommendationInteractions[0].kind, "meal-chosen");
   assert.equal(data.summary().progressivePreferenceCount, 1);
+  assert.equal(data.summary().recommendationInteractionCount, 1);
 });
 
 test("clearAll removes all Falcon Fuel nutrition data without relying on localStorage.clear", () => {
@@ -86,6 +89,7 @@ test("clearAll removes all Falcon Fuel nutrition data without relying on localSt
   storage.setItem("bentley-fuel.progress.v1", "[]");
   storage.setItem("bentley-fuel.activity-check-ins.v1", "[]");
   storage.setItem("bentley-fuel.progressive-profile.v1", "[]");
+  storage.setItem("bentley-fuel.recommendation-interactions.v1", "[]");
   storage.setItem("unrelated-app-key", "keep-me");
 
   data.clearAll();
@@ -95,5 +99,6 @@ test("clearAll removes all Falcon Fuel nutrition data without relying on localSt
   assert.equal(storage.getItem("bentley-fuel.progress.v1"), null);
   assert.equal(storage.getItem("bentley-fuel.activity-check-ins.v1"), null);
   assert.equal(storage.getItem("bentley-fuel.progressive-profile.v1"), null);
+  assert.equal(storage.getItem("bentley-fuel.recommendation-interactions.v1"), null);
   assert.equal(storage.getItem("unrelated-app-key"), "keep-me");
 });

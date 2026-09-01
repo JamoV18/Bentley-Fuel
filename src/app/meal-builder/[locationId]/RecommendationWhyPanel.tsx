@@ -12,8 +12,8 @@ const compact = (value: number) => Math.round(value * 10) / 10;
 const macroRows = (actual: Macros, target: Macros) => [
   { label: "Calories", actual: Math.round(actual.calories), target: Math.round(target.calories), unit: "cal" },
   { label: "Protein", actual: compact(actual.protein), target: compact(target.protein), unit: "g" },
-  { label: "Carbs", actual: compact(actual.carbs), target: compact(target.carbs), unit: "g" },
-  { label: "Fat", actual: compact(actual.fat), target: compact(target.fat), unit: "g" },
+  { label: "Carbs", actual: compact(actual.carbs), target: compact(actual.carbs), unit: "g" },
+  { label: "Fat", actual: compact(actual.fat), target: compact(actual.fat), unit: "g" },
 ];
 
 const macroLine = (macros: Macros | undefined) => macros
@@ -53,11 +53,13 @@ export default function RecommendationWhyPanel({
   const structure = coherenceLabel(explanation.coherence);
   const preferenceSignal = explanation.behaviorPreferenceBoost > 0 || explanation.softPreferenceBonus > 0;
   const repetitionApplied = explanation.repetitionPenalty > 0;
-  const learnedPreferenceDetail = explanation.learnedSignals.length > 0
-    ? `Repeated choices across ${explanation.learnedEvidenceCount} prior meals support ${explanation.learnedSignals.join(", ")}.`
-    : repetitionApplied
-      ? "Recent repetition reduced this option’s rank."
-      : "No recent-repeat penalty was applied.";
+  const learnedPreferenceDetail = explanation.progressiveSignals.length > 0
+    ? `You explicitly confirmed that Falcon Fuel may favor ${explanation.progressiveSignals.join(", ")}.`
+    : explanation.learnedSignals.length > 0
+      ? `Repeated choices across ${explanation.learnedEvidenceCount} prior meals support ${explanation.learnedSignals.join(", ")}.`
+      : repetitionApplied
+        ? "Recent repetition reduced this option’s rank."
+        : "No recent-repeat penalty was applied.";
 
   return (
     <div className="px-4 pb-4 text-sm text-emerald-950/78">

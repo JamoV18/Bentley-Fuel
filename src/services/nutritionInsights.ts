@@ -77,6 +77,21 @@ const fullyConfirmedTrackedDays = (summary: NutritionPeriodSummary) => summary.d
 
 const average = (values: readonly number[]) => values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : undefined;
 
+const averageDayNutrition = (days: readonly (NutritionPeriodSummary["days"][number])[]): NutritionFacts => {
+  const totals = days.reduce((sum, day) => ({
+    calories: sum.calories + day.consumed.calories,
+    protein: sum.protein + day.consumed.protein,
+    carbs: sum.carbs + day.consumed.carbs,
+    fat: sum.fat + day.consumed.fat,
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  return {
+    calories: totals.calories / days.length,
+    protein: totals.protein / days.length,
+    carbs: totals.carbs / days.length,
+    fat: totals.fat / days.length,
+  };
+};
+
 const targetAlignment = (summary: NutritionPeriodSummary, targets: MacroTargets | undefined): TargetAlignmentInsight | undefined => {
   if (!targets) return undefined;
   const days = fullyConfirmedTrackedDays(summary);
@@ -115,10 +130,21 @@ const nutritionDelta = (current: NutritionFacts, previous: NutritionFacts): Nutr
 });
 
 const comparableWeekDelta = (current: NutritionPeriodSummary, previous: NutritionPeriodSummary): NutritionTrendDelta | undefined => {
-  // Require at least two fully confirmed recorded days in both windows. This
-  // avoids presenting a one-meal swing as a meaningful week-over-week trend.
-  if (fullyConfirmedTrackedDays(current).length < 2 || fullyConfirmedTrackedDays(previous).length < 2) return undefined;
-  return nutritionDelta(current.averageConfirmedConsumption, previous.averageConfirmedConsumption);
+  // Compare only matched weekdays where both weeks have a fully confirmed
+  // Falcon Fuel record. If Wednesday is still pending this week, last week's
+  // Wednesday is excluded too, so an incomplete day cannot distort the trend.
+  const pairedDays = current.days
+    .map((currentDay, index) => ({ currentDay, previousDay: previous.days[index] }))
+    .filter(({ currentDay, previousDay }) =>
+      Boolean(previousDay) &&
+      currentDay.allSavedMealsConfirmed && currentDay.confirmedMeals > 0 &&
+      previousDay.allSavedMealsConfirmed && previousDay.confirmedMeals > 0,
+    );
+  if (pairedDays.length < 2) return undefined;
+  return nutritionDelta(
+    averageDayNutrition(pairedDays.map(({ currentDay }) => currentDay)),
+    averageDayNutrition(pairedDays.map(({ previousDay }) => previousDay)),
+  );
 };
 
 const confidenceFor = (summary: NutritionPeriodSummary, mealCheckInRate: number | undefined): InsightConfidence => {

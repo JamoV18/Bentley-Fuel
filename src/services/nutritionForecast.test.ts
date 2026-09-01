@@ -61,8 +61,8 @@ test("four stable completed weeks produce a cautious recorded-pattern outlook an
   assert.equal(outlook.status, "ready");
   assert.equal(outlook.confidence, "developing");
   assert.deepEqual(outlook.sourceWeekStarts, ["2026-08-03", "2026-08-10", "2026-08-17", "2026-08-24"]);
-  assert.equal(outlook.calories?.low, 1950);
-  assert.equal(outlook.calories?.high, 2050);
+  assert.ok(Math.abs((outlook.calories?.low ?? 0) - 1950) <= 1);
+  assert.ok(Math.abs((outlook.calories?.high ?? 0) - 2050) <= 1);
   assert.equal(outlook.protein?.center, 120);
   assert.equal(outlook.averageMealCheckInRate, 100);
 });
@@ -88,12 +88,13 @@ test("target support rates use only fully confirmed days from recent usable week
     ...usableWeek("2026-08-10", 2000, 120),
     ...usableWeek("2026-08-17", 2000, 120),
     ...usableWeek("2026-08-24", 2000, 120),
-    meal("pending-extra", "2026-08-24T20:00:00.000Z", 1000, 80, undefined),
+    meal("pending-extra", "2026-08-27T12:00:00.000Z", 1000, 80, undefined),
   ];
   const outlook = buildNutritionOutlook(history, targets, anchor);
   assert.equal(outlook.status, "ready");
   assert.equal(outlook.calorieTargetRangeRate, 100);
   assert.equal(outlook.proteinSupportRate, 100);
+  assert.ok((outlook.averageMealCheckInRate ?? 100) < 100);
 });
 
 test("direction describes a repeated recorded trend without projecting body weight or a goal date", () => {

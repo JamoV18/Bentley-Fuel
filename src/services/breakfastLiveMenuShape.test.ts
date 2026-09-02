@@ -83,7 +83,7 @@ const context: RecommendationContext = {
   remainingMacros: { calories: 1800, protein: 120, carbs: 180, fat: 60 },
 };
 
-const rank = (items: readonly MenuItem[]) => {
+const rank = (items: readonly MenuItem[], recommendationContext: RecommendationContext = context) => {
   const normalized = normalizeStationMenuForMealBuilder(items, stations, "breakfast");
   const resources = {
     location,
@@ -95,12 +95,12 @@ const rank = (items: readonly MenuItem[]) => {
     resources.menuItems,
     resources.stations,
     resources.components,
-    context,
+    recommendationContext,
     { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 4, requireMain: true },
   );
   return scoreResolvedMeals(
     candidates.map((candidate) => ({ candidate, computed: computeMealBuild(candidate.build, resources) })),
-    context,
+    recommendationContext,
   );
 };
 
@@ -127,4 +127,17 @@ test("realistic all-day staples beat strata-style breakfast for an explicit rout
   assert.ok(!topNames.some((name) => /fajita strata|country gravy/i.test(name)), `unexpected odd breakfast anchor in ${topNames.join(" + ")}`);
   assert.ok((ranked[0].score.breakfastRoutineBonus ?? 0) > 0, "expected explicit routine fit to survive final scoring");
   assert.ok((ranked[0].score.breakfastRoutineBonus ?? 0) <= 12, "routine fit must remain bounded");
+});
+
+test("an explicit eggs routine never overrides an egg-allergy hard constraint", () => {
+  const allergenItems = liveShapeItems.map((item) => item.id === "eggs" ? { ...item, allergens: ["eggs" as const] } : item);
+  const restrictedContext: RecommendationContext = {
+    ...context,
+    profile: { ...profile, allergensToAvoid: ["eggs"] },
+  };
+  const ranked = rank(allergenItems, restrictedContext);
+  assert.ok(ranked.length > 0);
+  for (const meal of ranked) {
+    assert.ok(!meal.computed.lines.some((line) => line.item?.id === "eggs"), "allergen-ineligible eggs must not survive candidate generation");
+  }
 });

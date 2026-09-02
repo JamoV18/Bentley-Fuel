@@ -192,13 +192,25 @@ function markBroadAppealPureEatsItem(item: MenuItem, station: Station | undefine
 }
 
 /**
+ * The meal-builder page passes one already-filtered menu slice into this
+ * normalizer. A real DineOnCampus breakfast slice commonly mixes explicit
+ * `breakfast` rows with `all-day` staples. Detect that slice once so an all-day
+ * egg/yogurt row is still understood as breakfast food in breakfast context.
+ */
+function isBreakfastScopedMenu(items: readonly MenuItem[]): boolean {
+  const hasBreakfastRows = items.some((item) => item.availability?.includes("breakfast"));
+  if (!hasBreakfastRows) return false;
+  return !items.some((item) => item.availability?.some((period) => period === "lunch" || period === "dinner" || period === "late-night"));
+}
+
+/**
  * A breakfast plate often has no conventional entree row. When DineOnCampus
  * publishes simple eggs and yogurt as separate rows, let eggs anchor the meal
  * and let yogurt behave as a side so complete-meal generation can produce
  * familiar combinations such as eggs + yogurt + fruit/granola.
  */
-function markBreakfastStapleRole(item: MenuItem): MenuItem {
-  if (item.mealRole || !item.availability?.includes("breakfast")) return item;
+function markBreakfastStapleRole(item: MenuItem, breakfastScope: boolean): MenuItem {
+  if (item.mealRole || !breakfastScope) return item;
   if (BREAKFAST_EGG_RE.test(item.name)) return { ...item, mealRole: "main" };
   if (BREAKFAST_YOGURT_RE.test(item.name)) return { ...item, mealRole: "side" };
   return item;
@@ -219,6 +231,7 @@ export function normalizeStationMenuForMealBuilder(
   stations: readonly Station[],
 ): StationMenuNormalizationResult {
   const stationById = new Map(stations.map((station) => [station.id, station]));
+  const breakfastScope = isBreakfastScopedMenu(items);
   const consumedIds = new Set<string>();
   const syntheticItems: MenuItem[] = [];
   const syntheticComponents: FoodComponent[] = [];
@@ -239,7 +252,7 @@ export function normalizeStationMenuForMealBuilder(
     ...items.filter((item) => !consumedIds.has(item.id)),
     ...syntheticItems,
   ]
-    .map(markBreakfastStapleRole)
+    .map((item) => markBreakfastStapleRole(item, breakfastScope))
     .map((item) => markBroadAppealPureEatsItem(item, stationById.get(item.stationId)));
 
   return { menuItems, components: syntheticComponents };

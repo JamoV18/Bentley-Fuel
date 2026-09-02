@@ -153,7 +153,30 @@ export default function OnboardingPage() {
         >
         {step === 1 && <><p className="eyebrow">Personalization</p><h1 className="mt-1 text-4xl font-bold tracking-[-0.04em]">What are your goals?</h1><p className="mt-2 max-w-2xl text-sm subtle">Choose up to 3. Your first selection is primary; the rest add context to your recommendations.</p><div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{GOALS.map((goal) => { const selected = form.goals.includes(goal.value); const position = form.goals.indexOf(goal.value); return <button type="button" key={goal.value} onClick={() => toggleGoal(goal.value)} aria-pressed={selected} className="choice" data-selected={selected}><span className="flex items-center justify-between gap-3"><span>{goal.label}</span>{selected && <span className="rounded-full bg-emerald-900 px-2 py-1 text-[9px] font-bold text-white">{position === 0 ? "Primary" : `#${position + 1}`}</span>}</span></button>; })}</div><p className="mt-2 text-xs subtle">{form.goals.length}/3 selected · weight-direction goals are mutually exclusive.</p>{form.goals.includes("lose-weight") && <fieldset className="surface-soft mt-7 p-5"><legend className="text-lg font-bold">Choose your intensity</legend><p className="mt-1 text-sm subtle">A planning level relative to estimated maintenance — not a promised weekly loss rate.</p><div className="mt-4 grid gap-3 sm:grid-cols-2">{WEIGHT_LOSS_INTENSITIES.map((choice) => <button type="button" key={choice.value} className="choice min-h-0 py-3" data-selected={form.weightLossIntensity === choice.value} aria-pressed={form.weightLossIntensity === choice.value} onClick={() => set("weightLossIntensity", choice.value)}><span className="block font-bold">{choice.title}</span><span className="mt-1 block text-sm font-normal leading-snug subtle">{choice.description}</span>{choice.warning && <span className="mt-2 block text-xs font-bold leading-relaxed text-red-700">{choice.warning}</span>}</button>)}</div></fieldset>}<fieldset className="mt-7"><legend className="text-lg font-bold">What else should Falcon Fuel help with? <span className="font-normal subtle">Optional</span></legend><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{BEHAVIORAL_GOALS.map((goal) => <button type="button" key={goal.value} className="choice min-h-0 py-3" data-selected={form.behavioralGoals.includes(goal.value)} aria-pressed={form.behavioralGoals.includes(goal.value)} onClick={() => toggle("behavioralGoals", goal.value)}>{goal.label}</button>)}</div></fieldset><label className="field mt-7 max-w-3xl">Tell us more <span className="font-normal subtle">Optional</span><textarea className="min-h-28 rounded-2xl border border-black/10 bg-white p-3 text-base font-normal shadow-inner" maxLength={500} value={form.goalDescription} onChange={(event) => set("goalDescription", event.target.value)} placeholder="I want to lose some body fat without hurting my performance at practice." /><span className="text-right text-xs font-normal subtle">{form.goalDescription.length}/500</span></label></>}
         {step === 2 && <><p className="eyebrow">Preferences</p><h1 className="mt-1 text-4xl font-bold tracking-[-0.04em]">What works for you?</h1><p className="mt-2 text-sm subtle">Set the things Falcon Fuel should know from day one. You can skip anything you do not care about.</p><div className="mt-7 grid items-start gap-6 lg:grid-cols-2"><fieldset className="surface-soft p-5"><legend className="text-lg font-bold">Allergens to avoid</legend><div className="mt-3 flex flex-wrap gap-2">{ALL_ALLERGENS.map((item) => <button type="button" className="chip" data-selected={form.allergens.includes(item)} aria-pressed={form.allergens.includes(item)} onClick={() => toggle("allergens", item)} key={item}>{label(item)}</button>)}</div><p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">{ALLERGEN_DISCLAIMER}</p></fieldset><fieldset className="surface-soft p-5"><legend className="text-lg font-bold">Dietary preferences</legend><div className="mt-3 flex flex-wrap gap-2">{ONBOARDING_DIETARY_TAGS.map((item) => <button type="button" className="chip" data-selected={form.diets.includes(item)} aria-pressed={form.diets.includes(item)} onClick={() => toggle("diets", item)} key={item}>{label(item)}</button>)}</div></fieldset></div><fieldset className="surface-soft mt-6 p-5"><legend className="text-lg font-bold">What does a normal breakfast look like?</legend><p className="mt-1 max-w-3xl text-sm leading-relaxed subtle">Pick up to 4 staples you actually like to repeat. Falcon Fuel will optimize around them instead of forcing breakfast variety just because another combination fits the math.</p><div className="mt-4 flex flex-wrap gap-2">{BREAKFAST_CHOICES.map((choice) => <button type="button" className="chip" data-selected={form.breakfastPreferences.includes(choice.value)} aria-pressed={form.breakfastPreferences.includes(choice.value)} onClick={() => toggleBreakfast(choice.value)} key={choice.value}>{choice.label}</button>)}</div><p className="mt-4 text-xs subtle">{form.breakfastPreferences.includes("variety") ? "Variety selected — breakfast can rotate normally." : form.breakfastPreferences.length > 0 ? `${form.breakfastPreferences.length}/4 staples selected · repeating these at breakfast is okay.` : "No selection is required. Falcon Fuel will use conservative common-breakfast defaults until your history provides better evidence."}</p></fieldset></>}
-        {step === 3 && <><p className="eyebrow">Your baseline</p><h1 className="mt-1 text-4xl font-bold tracking-[-0.04em]">A little about you</h1><p className="mt-2 max-w-2xl text-sm subtle">Optional. Complete the supported fields to unlock individualized calorie and macro targets.</p><div className="relative mt-6 flex max-w-sm rounded-2xl bg-black/[.04] p-1">{(["us", "metric"] as const).map((unit) => { const active = form.unitSystem === unit; return <button key={unit} type="button" className={`relative z-10 flex-1 rounded-xl px-3 py-2 text-sm font-bold ${active ? "text-emerald-900" : "subtle"}`} onClick={() => switchUnits(unit)}>{active && <motion.span layoutId="onboarding-unit-pill" className="absolute inset-0 -z-10 rounded-xl bg-white shadow-sm" transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34, mass: 0.55 }} />}<span className="relative z-10">{unit === "us" ? "US" : "Metric"}</span></button>; })}</div><div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Field name="Age" value={form.age} onChange={(v) => set("age", v)} min="13" max="120" /><label className="field">Sex<select value={form.sex} onChange={(e) => set("sex", e.target.value as Form["sex"])}><option value="">Select (optional)</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="prefer-not-to-say">Prefer not to say</option></select></label>{form.unitSystem === "us" ? <><Field name="Height (feet)" value={form.feet} onChange={(v) => set("feet", v)} min="2" max="8" /><Field name="Height (inches)" value={form.inches} onChange={(v) => set("inches", v)} min="0" max="11" /><Field name="Weight (pounds)" value={form.pounds} onChange={(v) => set("pounds", v)} min="55" max="882" /></> : <><Field name="Height (cm)" value={form.centimeters} onChange={(v) => set("centimeters", v)} min="80" max="260" /><Field name="Weight (kg)" value={form.kilograms} onChange={(v) => set("kilograms", v)} min="25" max="400" /></>}{direction && <label className="field">Target weight <span className="font-normal subtle">optional</span><input type="number" inputMode="decimal" value={form.targetWeight} onChange={(event) => set("targetWeight", event.target.value)} placeholder={form.unitSystem === "metric" ? "kg" : "lb"} /><span className="text-xs font-normal subtle">After you reach it, the plan transitions to maintenance.</span></label>}<fieldset className="sm:col-span-2 lg:col-span-3 mt-2"><legend className="text-sm font-bold">Activity level <span className="font-normal subtle">optional</span></legend><div className="mt-3 grid gap-3 sm:grid-cols-2">{activityChoices.map((choice) => <label className="choice flex cursor-pointer items-start gap-3" data-selected={form.activity === choice.value} key={choice.value}><input className="mt-1 accent-emerald-700" type="radio" name="activity-level" value={choice.value} checked={form.activity === choice.value} onChange={() => set("activity", choice.value)} /><span><span className="block font-bold">{choice.title}</span><span className="mt-0.5 block text-sm font-normal leading-snug subtle">{choice.description}</span></span></label>)}</div>{form.activity && <button type="button" className="mt-3 text-sm font-bold text-emerald-800 underline" onClick={() => set("activity", "")}>Clear activity level</button>}</fieldset></div></>}
+        {step === 3 && <>
+          <p className="eyebrow">Your baseline</p>
+          <h1 className="mt-1 text-4xl font-bold tracking-[-0.04em]">A little about you</h1>
+          <p className="mt-2 max-w-2xl text-sm subtle">Optional. Complete the supported fields to unlock individualized calorie and macro targets.</p>
+          <div className="relative mt-6 flex max-w-sm rounded-2xl bg-black/[.04] p-1">{(["us", "metric"] as const).map((unit) => { const active = form.unitSystem === unit; return <button key={unit} type="button" className={`relative z-10 flex-1 rounded-xl px-3 py-2 text-sm font-bold ${active ? "text-emerald-900" : "subtle"}`} onClick={() => switchUnits(unit)}>{active && <motion.span layoutId="onboarding-unit-pill" className="absolute inset-0 -z-10 rounded-xl bg-white shadow-sm" transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34, mass: 0.55 }} />}<span className="relative z-10">{unit === "us" ? "US" : "Metric"}</span></button>; })}</div>
+          <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Field name="Age" value={form.age} onChange={(v) => set("age", v)} min="13" max="120" />
+            <label className="field">Sex<select value={form.sex} onChange={(e) => set("sex", e.target.value as Form["sex"])}><option value="">Select (optional)</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="prefer-not-to-say">Prefer not to say</option></select></label>
+            <HeightField
+              unitSystem={form.unitSystem}
+              feet={form.feet}
+              inches={form.inches}
+              centimeters={form.centimeters}
+              onFeetChange={(value) => set("feet", value)}
+              onInchesChange={(value) => set("inches", value)}
+              onCentimetersChange={(value) => set("centimeters", value)}
+            />
+            {form.unitSystem === "us"
+              ? <Field name="Weight (pounds)" value={form.pounds} onChange={(v) => set("pounds", v)} min="55" max="882" />
+              : <Field name="Weight (kg)" value={form.kilograms} onChange={(v) => set("kilograms", v)} min="25" max="400" />}
+            {direction && <label className="field">Target weight <span className="font-normal subtle">optional</span><input type="number" inputMode="decimal" value={form.targetWeight} onChange={(event) => set("targetWeight", event.target.value)} placeholder={form.unitSystem === "metric" ? "kg" : "lb"} /><span className="text-xs font-normal subtle">After you reach it, the plan transitions to maintenance.</span></label>}
+            <fieldset className="sm:col-span-2 lg:col-span-3 mt-2"><legend className="text-sm font-bold">Activity level <span className="font-normal subtle">optional</span></legend><div className="mt-3 grid gap-3 sm:grid-cols-2">{activityChoices.map((choice) => <label className="choice flex cursor-pointer items-start gap-3" data-selected={form.activity === choice.value} key={choice.value}><input className="mt-1 accent-emerald-700" type="radio" name="activity-level" value={choice.value} checked={form.activity === choice.value} onChange={() => set("activity", choice.value)} /><span><span className="block font-bold">{choice.title}</span><span className="mt-0.5 block text-sm font-normal leading-snug subtle">{choice.description}</span></span></label>)}</div>{form.activity && <button type="button" className="mt-3 text-sm font-bold text-emerald-800 underline" onClick={() => set("activity", "")}>Clear activity level</button>}</fieldset>
+          </div>
+        </>}
         {step === 4 && <><p className="eyebrow">Ready to personalize</p><h1 className="mt-1 text-4xl font-bold tracking-[-0.04em]">Your plan at a glance</h1><p className="mt-2 text-sm subtle">Falcon Fuel handles the nutrition math underneath the surface.</p><div className="mt-6 grid items-start gap-5 lg:grid-cols-2"><div className="surface-soft p-5"><p className="eyebrow">Selected goals</p><p className="mt-1 text-lg font-bold">{form.goals.map((goal) => GOALS.find((item) => item.value === goal)?.label).join(" · ")}</p>{form.weightLossIntensity && <p className="mt-3 text-sm"><strong>Weight-loss intensity:</strong> {label(form.weightLossIntensity)}{form.weightLossIntensity === "extreme" ? " · not recommended" : ""}</p>}{form.behavioralGoals.length > 0 && <p className="mt-2 text-sm subtle">Also helping with: {form.behavioralGoals.map((goal) => BEHAVIORAL_GOALS.find((item) => item.value === goal)?.label).join(", ")}</p>}{form.goalDescription && <p className="mt-2 text-sm subtle">“{form.goalDescription}”</p>}{form.targetWeight && direction && <p className="mt-3 text-sm"><strong>Target:</strong> {form.targetWeight} {form.unitSystem === "metric" ? "kg" : "lb"}</p>}<div className="mt-4 border-t border-black/10 pt-4"><p className="eyebrow">Breakfast routine</p><p className="mt-1 text-sm leading-relaxed subtle">{breakfastSummary}</p></div></div>{estimate ? <div className="rounded-2xl bg-emerald-950 p-5 text-white"><p className="text-xs font-bold uppercase tracking-[.1em] text-white/55">Estimated maintenance</p><p className="mt-1 text-3xl font-bold">{estimate.toLocaleString()} <span className="text-sm font-medium text-white/55">cal/day</span></p>{form.weightLossIntensity && <p className="mt-2 text-sm leading-relaxed text-white/65">Your chosen intensity creates a lower daily target from this estimate. It is not a promised rate of weight change.</p>}</div> : <p className="rounded-2xl bg-black/[.035] p-5 text-sm leading-relaxed subtle">There isn’t enough supported body information for an individualized calorie target yet. Goal-based recommendations still work.</p>}</div>{form.weightLossIntensity === "extreme" && <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold leading-relaxed text-red-800">Extreme is not recommended. Qualified medical or dietitian guidance is recommended for aggressive weight-loss planning.</p>}<p className="mt-5 rounded-2xl border border-emerald-200 bg-white p-4 text-sm leading-relaxed"><strong>You don’t need to calculate calories, protein, carbs, or fat yourself.</strong> Falcon Fuel turns this profile into meals and adapts as you track.</p></>}
         </motion.div>
       </section>
@@ -162,4 +185,73 @@ export default function OnboardingPage() {
     </main>
   );
 }
+
+function HeightField({
+  unitSystem,
+  feet,
+  inches,
+  centimeters,
+  onFeetChange,
+  onInchesChange,
+  onCentimetersChange,
+}: {
+  unitSystem: UnitSystem;
+  feet: string;
+  inches: string;
+  centimeters: string;
+  onFeetChange(value: string): void;
+  onInchesChange(value: string): void;
+  onCentimetersChange(value: string): void;
+}) {
+  return (
+    <fieldset className="rounded-2xl border border-black/[.08] bg-white/55 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,.8)]">
+      <legend className="px-1 text-sm font-bold">Height</legend>
+      {unitSystem === "us" ? (
+        <div className="grid grid-cols-2 gap-2.5">
+          <label className="grid gap-1.5 text-xs font-semibold subtle">
+            Feet
+            <input
+              type="number"
+              inputMode="decimal"
+              min="2"
+              max="8"
+              value={feet}
+              onChange={(event) => onFeetChange(event.target.value)}
+              placeholder="ft"
+              className="w-full min-w-0 rounded-xl border border-black/10 bg-white px-3 py-3 text-center text-base font-semibold text-foreground outline-none focus:border-[var(--brand-600)] focus:ring-4 focus:ring-[rgba(0,117,190,.10)]"
+            />
+          </label>
+          <label className="grid gap-1.5 text-xs font-semibold subtle">
+            Inches
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              max="11"
+              value={inches}
+              onChange={(event) => onInchesChange(event.target.value)}
+              placeholder="in"
+              className="w-full min-w-0 rounded-xl border border-black/10 bg-white px-3 py-3 text-center text-base font-semibold text-foreground outline-none focus:border-[var(--brand-600)] focus:ring-4 focus:ring-[rgba(0,117,190,.10)]"
+            />
+          </label>
+        </div>
+      ) : (
+        <label className="grid gap-1.5 text-xs font-semibold subtle">
+          Centimeters
+          <input
+            type="number"
+            inputMode="decimal"
+            min="80"
+            max="260"
+            value={centimeters}
+            onChange={(event) => onCentimetersChange(event.target.value)}
+            placeholder="cm"
+            className="w-full min-w-0 rounded-xl border border-black/10 bg-white px-3 py-3 text-center text-base font-semibold text-foreground outline-none focus:border-[var(--brand-600)] focus:ring-4 focus:ring-[rgba(0,117,190,.10)]"
+          />
+        </label>
+      )}
+    </fieldset>
+  );
+}
+
 function Field({ name, value, onChange, min, max }: { name: string; value: string; onChange(value: string): void; min?: string; max?: string }) { return <label className="field">{name}<input type="number" inputMode="decimal" min={min} max={max} value={value} onChange={(event) => onChange(event.target.value)} /></label>; }

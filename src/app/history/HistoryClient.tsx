@@ -83,8 +83,14 @@ export default function HistoryClient({
   const weeklyReport = useMemo(() => buildLatestCompletedWeeklyNutritionReport(history, interactions, targets, anchor), [history, interactions, targets, anchor]);
   const outlook = useMemo(() => buildNutritionOutlook(history, targets, anchor), [history, targets, anchor]);
   const weeklyFocus = useMemo(() => buildWeeklyFocus(weeklyReport, outlook), [weeklyReport, outlook]);
-  const insights = useMemo(() => buildLongitudinalNutritionInsights(history, targets, progress, anchor), [history, targets, progress, anchor]);
-  const deepPatterns = useMemo(() => buildDeepNutritionPatternAnalysis(history, interactions, targets, anchor), [history, interactions, targets, anchor]);
+  const insights = useMemo(
+    () => showDeepAnalysis ? buildLongitudinalNutritionInsights(history, targets, progress, anchor) : undefined,
+    [showDeepAnalysis, history, targets, progress, anchor],
+  );
+  const deepPatterns = useMemo(
+    () => showDeepAnalysis ? buildDeepNutritionPatternAnalysis(history, interactions, targets, anchor) : undefined,
+    [showDeepAnalysis, history, interactions, targets, anchor],
+  );
   const period = range === "week" ? week : range === "month" ? month : undefined;
 
   if (profile === undefined) return <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10"><p>Loading history…</p></main>;
@@ -204,7 +210,7 @@ export default function HistoryClient({
         </div>
       </section>
 
-      {showDeepAnalysis && (
+      {showDeepAnalysis && insights && deepPatterns && (
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}

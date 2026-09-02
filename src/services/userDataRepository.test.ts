@@ -37,6 +37,7 @@ const profile = () => createUserProfile({
   goalDescription: "Maintain energy through the semester",
   dietaryPreferences: [],
   allergensToAvoid: [],
+  breakfastPreferences: ["eggs", "yogurt", "smoothie-fruit"],
   maintenanceEstimate: { calories: 2400, method: "national-academies-2023-adult-eer" },
   dailyTargets: { calories: 2400, protein: 140, carbs: 300, fat: 70 },
   unitSystem: "us",
@@ -87,6 +88,7 @@ test("export keeps profile, meals, progress, reviews, preferences, and recommend
   assert.equal(exported.schemaVersion, 2);
   assert.equal(exported.storageScope, "this-device");
   assert.equal(exported.profile?.id, created.id);
+  assert.deepEqual(exported.profile?.breakfastPreferences, ["eggs", "yogurt", "smoothie-fruit"]);
   assert.equal(exported.mealHistory.length, 1);
   assert.equal(exported.mealHistory[0].selectedAt, "2026-08-31T16:00:00.000Z");
   assert.equal(exported.mealHistory[0].eatenAt, undefined);
@@ -108,6 +110,7 @@ test("export preserves the raw stored profile instead of serializing read-time d
     goals: ["maintain-weight"],
     dietaryPreferences: [],
     allergensToAvoid: [],
+    breakfastPreferences: ["eggs"],
     maintenanceEstimate: { calories: 2400, method: "national-academies-2023-adult-eer" },
     dailyTargets: undefined,
     unitSystem: "us",
@@ -117,6 +120,7 @@ test("export preserves the raw stored profile instead of serializing read-time d
   storage.setItem("bentley-fuel.profile.v1", JSON.stringify(created));
   const exported = createLocalUserDataRepository(storage).exportData();
   assert.equal(exported.profile?.dailyTargets, undefined);
+  assert.deepEqual(exported.profile?.breakfastPreferences, ["eggs"]);
 });
 
 test("a valid export can be previewed and restored exactly without generating extra interaction events", () => {
@@ -137,6 +141,7 @@ test("a valid export can be previewed and restored exactly without generating ex
   const restored = targetData.exportData();
   assert.equal(restoredSummary.progressObservationCount, 1);
   assert.deepEqual(restored.profile, exported.profile);
+  assert.deepEqual(restored.profile?.breakfastPreferences, ["eggs", "yogurt", "smoothie-fruit"]);
   assert.deepEqual(restored.mealHistory, exported.mealHistory);
   assert.deepEqual(restored.progress, exported.progress);
   assert.deepEqual(restored.activityCheckIns, exported.activityCheckIns);

@@ -72,6 +72,95 @@
   to { transform: rotate(360deg); }
 }
 
+/*
+  Falcon Fuel launch canvas — Soft Aurora direction.
+  This intentionally replaces the old left/right reveal visually with one
+  continuous Bentley-navy field. There is no seam or 50/50 geometry.
+*/
+[class~="z-[100]"][class~="bg-[#10263d]"] {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 118%, rgba(0, 117, 190, 0.24), transparent 40%),
+    linear-gradient(145deg, #071726 0%, #0b2238 48%, #0a1b2d 100%) !important;
+}
+
+/* Retire the original split panels; the continuous aurora owns the launch. */
+[class~="z-[100]"][class~="bg-[#10263d]"] > [class~="w-1/2"] {
+  opacity: 0 !important;
+}
+
+[class~="z-[100]"][class~="bg-[#10263d]"]::before,
+[class~="z-[100]"][class~="bg-[#10263d]"]::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  will-change: transform, opacity, filter;
+}
+
+/* Large blurred ribbons: Bentley blue + teal, deliberately irregular. */
+[class~="z-[100]"][class~="bg-[#10263d]"]::before {
+  inset: -42%;
+  background:
+    radial-gradient(ellipse at 24% 44%, rgba(0, 117, 190, 0.78) 0 9%, rgba(0, 117, 190, 0.28) 22%, transparent 47%),
+    radial-gradient(ellipse at 72% 35%, rgba(66, 183, 176, 0.55) 0 8%, rgba(66, 183, 176, 0.18) 24%, transparent 50%),
+    radial-gradient(ellipse at 58% 76%, rgba(42, 111, 160, 0.62) 0 11%, rgba(42, 111, 160, 0.16) 28%, transparent 54%),
+    conic-gradient(from 214deg at 48% 54%, transparent 0 23%, rgba(67, 142, 190, 0.25) 31%, rgba(78, 201, 190, 0.18) 39%, transparent 48% 100%);
+  filter: blur(54px) saturate(1.18);
+  transform: translate3d(-2%, -1%, 0) rotate(-4deg) scale(1.03);
+  animation: falcon-soft-aurora-drift 8.8s ease-in-out infinite alternate;
+}
+
+/* Secondary bloom + very subtle grain, so the background feels dimensional. */
+[class~="z-[100]"][class~="bg-[#10263d]"]::after {
+  inset: -18%;
+  background:
+    radial-gradient(circle at 68% 58%, rgba(130, 188, 229, 0.22), transparent 24%),
+    radial-gradient(circle at 38% 34%, rgba(66, 183, 176, 0.15), transparent 22%),
+    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.018) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen;
+  filter: blur(10px);
+  opacity: 0.88;
+  transform: translate3d(2%, 1%, 0) scale(1.04);
+  animation: falcon-soft-aurora-bloom 6.8s ease-in-out infinite alternate;
+}
+
+/* Keep the Falcon Fuel mark above the light field. */
+[class~="z-[100]"][class~="bg-[#10263d]"] > :last-child {
+  position: relative;
+  z-index: 20;
+}
+
+@keyframes falcon-soft-aurora-drift {
+  0% {
+    transform: translate3d(-4%, -2%, 0) rotate(-6deg) scale(1.01);
+    filter: blur(58px) saturate(1.08);
+  }
+  48% {
+    transform: translate3d(3%, 2%, 0) rotate(1deg) scale(1.08);
+    filter: blur(48px) saturate(1.25);
+  }
+  100% {
+    transform: translate3d(-1%, 5%, 0) rotate(5deg) scale(1.04);
+    filter: blur(56px) saturate(1.16);
+  }
+}
+
+@keyframes falcon-soft-aurora-bloom {
+  0% {
+    opacity: 0.58;
+    transform: translate3d(4%, -2%, 0) scale(1.02);
+  }
+  55% {
+    opacity: 0.92;
+    transform: translate3d(-3%, 3%, 0) scale(1.09);
+  }
+  100% {
+    opacity: 0.72;
+    transform: translate3d(1%, -1%, 0) scale(1.05);
+  }
+}
+
 /* Selected recommendation emphasis: one short lift/settle when a card becomes active. */
 [data-recommendation-index] {
   transform-origin: center center;
@@ -126,6 +215,12 @@
   [data-recommendation-index="0"]::before {
     animation: none;
     transform: rotate(18deg);
+  }
+
+  [class~="z-[100]"][class~="bg-[#10263d]"]::before,
+  [class~="z-[100]"][class~="bg-[#10263d]"]::after {
+    animation: none;
+    transform: none;
   }
 
   [data-recommendation-index],

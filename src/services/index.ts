@@ -18,6 +18,7 @@ export * from "./progressiveProfile";
 export * from "./progressivePreferenceScoring";
 export * from "./portionGuidance";
 export * from "./mealHistoryRepository";
+export * from "./manualMealLog";
 export * from "./progressRepository";
 export * from "./activityCheckIn";
 export * from "./userDataRepository";

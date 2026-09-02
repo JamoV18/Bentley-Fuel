@@ -6,10 +6,6 @@ import { isOnboardingPreviewMode } from "@/lib/onboardingPreview";
 import { browserProfileRepository } from "@/services/profileRepository";
 
 export default function OnboardingLayout({ children }: { children: ReactNode }) {
-  // Render the first-time experience immediately instead of blocking the route
-  // behind a hydration placeholder. Existing profiles normally switch straight
-  // to the editable onboarding form, while ?preview=1 intentionally keeps the
-  // polished intro visible so it can be inspected without deleting saved data.
   const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
@@ -20,47 +16,100 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
 
   return (
     <>
-      {showIntro ? (
-        <OnboardingIntro onStart={() => setShowIntro(false)} />
-      ) : (
-        children
-      )}
+      {showIntro ? <OnboardingIntro onStart={() => setShowIntro(false)} /> : children}
       <style>{`
-        /* Let the Motion step container carry the user forward/back naturally. */
         main > section.surface.relative > div[style*="will-change"] {
           will-change: transform, opacity !important;
         }
 
-        /* The intro owns the first-impression timing; keep the form header quiet. */
         main > header > div.mt-7 > p:last-child {
           display: none;
         }
 
-        /*
-          Step 3 field rhythm: every top-level control uses the same label line,
-          3.5rem control height, radius and border language. Height stays one
-          field while ft/in become two internal segments of that same control.
-        */
+        /* Language chooser: one simple, aligned composition. */
+        main > header > section[data-i18n-skip] {
+          padding: 1.15rem 1.25rem !important;
+        }
+
+        main > header > section[data-i18n-skip] > div:first-child {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: end !important;
+          gap: 1rem 2rem !important;
+        }
+
+        main > header > section[data-i18n-skip] > div:first-child > div:first-child {
+          min-width: 0;
+        }
+
+        main > header > section[data-i18n-skip] > div:first-child > div:first-child > div {
+          display: block !important;
+          min-height: 0 !important;
+          margin-top: .2rem !important;
+        }
+
+        main > header > section[data-i18n-skip] > div:first-child > div:first-child > div > h2 {
+          font-size: 1.2rem !important;
+          line-height: 1.3 !important;
+        }
+
+        main > header > section[data-i18n-skip] > div:first-child > div:first-child > div > span {
+          display: none !important;
+        }
+
+        main > header > section[data-i18n-skip] > div:first-child > div:last-child {
+          justify-self: end;
+          justify-content: flex-start !important;
+          flex-wrap: nowrap !important;
+        }
+
+        main > header > section[data-i18n-skip] > p:last-child {
+          margin-top: .8rem !important;
+        }
+
+        @media (max-width: 720px) {
+          main > header > section[data-i18n-skip] > div:first-child {
+            grid-template-columns: 1fr;
+            align-items: start !important;
+          }
+
+          main > header > section[data-i18n-skip] > div:first-child > div:last-child {
+            justify-self: start;
+            max-width: 100%;
+            overflow-x: auto;
+          }
+        }
+
+        /* Step 3: all top-level fields share the exact same label and control rhythm. */
+        main > section.surface.relative [class~="mt-7"][class~="grid"][class~="gap-4"] > .field {
+          gap: .45rem;
+          line-height: 1.25rem;
+        }
+
         main > section.surface.relative [class~="mt-7"][class~="grid"][class~="gap-4"] > .field > input,
         main > section.surface.relative [class~="mt-7"][class~="grid"][class~="gap-4"] > .field > select {
           height: 3.5rem;
         }
 
+        /* Height uses an absolutely-positioned legend so browser fieldset layout cannot shift it. */
         main > section.surface.relative fieldset:has(input[min="2"][max="8"]),
         main > section.surface.relative fieldset:has(input[min="80"][max="260"]) {
+          position: relative;
           min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: .45rem;
+          display: block;
+          margin: 0;
+          padding: 1.7rem 0 0 !important;
           border: 0;
           border-radius: 0;
           background: transparent;
-          padding: 0;
           box-shadow: none;
         }
 
         main > section.surface.relative fieldset:has(input[min="2"][max="8"]) > legend,
         main > section.surface.relative fieldset:has(input[min="80"][max="260"]) > legend {
+          position: absolute;
+          top: 0;
+          left: 0;
           width: auto;
           margin: 0;
           padding: 0;
@@ -70,7 +119,6 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
           line-height: 1.25rem;
         }
 
-        /* US height: one normal-height box with two equal internal segments. */
         main > section.surface.relative fieldset:has(input[min="2"][max="8"]) > div {
           height: 3.5rem;
           display: grid;
@@ -88,11 +136,10 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
           height: 100%;
           display: flex;
           align-items: center;
-          gap: .3rem;
-          padding: 0 .8rem;
+          gap: .35rem;
+          padding: 0 .88rem;
           color: transparent;
           font-size: 0;
-          font-weight: 700;
         }
 
         main > section.surface.relative fieldset:has(input[min="2"][max="8"]) > div > label + label {
@@ -107,59 +154,15 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
           content: "in";
         }
 
-        main > section.surface.relative fieldset:has(input[min="2"][max="8"]) > div > label::after {
-          flex: 0 0 auto;
-          color: var(--muted);
-          font-size: .82rem;
-          font-weight: 700;
-        }
-
-        main > section.surface.relative fieldset:has(input[min="2"][max="8"]) input {
-          min-width: 0;
-          width: 100%;
-          height: 100%;
-          border: 0 !important;
-          border-radius: 0 !important;
-          background: transparent !important;
-          padding: 0 !important;
-          color: var(--foreground) !important;
-          text-align: right;
-          font-size: 1rem !important;
-          font-weight: 600 !important;
-          box-shadow: none !important;
-          outline: none;
-        }
-
-        main > section.surface.relative fieldset:has(input[min="2"][max="8"]):focus-within > div,
-        main > section.surface.relative fieldset:has(input[min="80"][max="260"]):focus-within > label {
-          border-color: var(--brand-600);
-          box-shadow: 0 0 0 4px rgba(0,117,190,.10);
-        }
-
-        /* Metric height uses the exact same outer dimensions as every other field. */
-        main > section.surface.relative fieldset:has(input[min="80"][max="260"]) > label {
-          height: 3.5rem;
-          display: flex;
-          align-items: center;
-          gap: .3rem;
-          overflow: hidden;
-          border: 1px solid var(--line);
-          border-radius: .9rem;
-          background: rgba(255,255,255,.94);
-          padding: 0 .88rem;
-          color: transparent;
-          font-size: 0;
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
-        }
-
+        main > section.surface.relative fieldset:has(input[min="2"][max="8"]) > div > label::after,
         main > section.surface.relative fieldset:has(input[min="80"][max="260"]) > label::after {
-          content: "cm";
           flex: 0 0 auto;
           color: var(--muted);
           font-size: .82rem;
           font-weight: 700;
         }
 
+        main > section.surface.relative fieldset:has(input[min="2"][max="8"]) input,
         main > section.surface.relative fieldset:has(input[min="80"][max="260"]) input {
           min-width: 0;
           width: 100%;
@@ -175,7 +178,41 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
           outline: none;
         }
 
-        /* Keep Target weight aligned with Weight; optional is metadata, not a new row. */
+        main > section.surface.relative fieldset:has(input[min="2"][max="8"]) input {
+          text-align: right;
+        }
+
+        main > section.surface.relative fieldset:has(input[min="2"][max="8"]) input::placeholder,
+        main > section.surface.relative fieldset:has(input[min="80"][max="260"]) input::placeholder {
+          color: transparent !important;
+        }
+
+        main > section.surface.relative fieldset:has(input[min="2"][max="8"]):focus-within > div,
+        main > section.surface.relative fieldset:has(input[min="80"][max="260"]):focus-within > label {
+          border-color: var(--brand-600);
+          box-shadow: 0 0 0 4px rgba(0,117,190,.10);
+        }
+
+        main > section.surface.relative fieldset:has(input[min="80"][max="260"]) > label {
+          height: 3.5rem;
+          display: flex;
+          align-items: center;
+          gap: .35rem;
+          overflow: hidden;
+          border: 1px solid var(--line);
+          border-radius: .9rem;
+          background: rgba(255,255,255,.94);
+          padding: 0 .88rem;
+          color: transparent;
+          font-size: 0;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+        }
+
+        main > section.surface.relative fieldset:has(input[min="80"][max="260"]) > label::after {
+          content: "cm";
+        }
+
+        /* Target weight's optional flag is metadata, not another layout row. */
         main > section.surface.relative label.field:has(> input[placeholder="lb"]),
         main > section.surface.relative label.field:has(> input[placeholder="kg"]) {
           position: relative;
@@ -184,22 +221,15 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
         main > section.surface.relative label.field:has(> input[placeholder="lb"]) > span:first-of-type,
         main > section.surface.relative label.field:has(> input[placeholder="kg"]) > span:first-of-type {
           position: absolute;
-          top: .05rem;
+          top: 0;
           right: 0;
+          line-height: 1.25rem;
           color: var(--muted);
           font-size: .72rem;
           font-weight: 600;
         }
 
-        main > section.surface.relative label.field:has(> input[placeholder="lb"]) > span:last-of-type,
-        main > section.surface.relative label.field:has(> input[placeholder="kg"]) > span:last-of-type {
-          margin-top: .05rem;
-        }
-
-        /*
-          Directional CTA feedback: quick tactile compression + a restrained
-          Bentley-blue/teal sweep. Motion then slides the next panel forward.
-        */
+        /* Directional CTA feedback. */
         main > nav .primary {
           position: relative;
           isolation: isolate;

@@ -1,4 +1,5 @@
 import type { ComputedMealBuild } from "./mealBuilder";
+import { breakfastCandidatePriority, breakfastRoutinePenalty } from "./breakfastRoutine";
 import type { MenuItem, RecommendationContext, WeightLossIntensity } from "@/types";
 
 const DISCRETIONARY_NAME_RE = /\b(muffin|donut|doughnut|danish|pastr(?:y|ies)|croissant|cinnamon roll|sticky bun|cake|cupcake|cookie|brownie|blondie|ice cream|gelato|pudding|candy|frosted|scone|turnover|strudel|pie|cobbler|cheesecake)\b/i;
@@ -70,11 +71,13 @@ export function menuItemDietQualityPenalty(item: MenuItem, context: Recommendati
 }
 
 export function mealDietQualityPenalty(meal: ComputedMealBuild, context: RecommendationContext): number {
-  const total = meal.lines.reduce((sum, line) => sum + (line.item ? menuItemDietQualityPenalty(line.item, context) : 0), 0);
-  return Math.min(45, Math.round(total * 10) / 10);
+  const items = meal.lines.flatMap((line) => line.item ? [line.item] : []);
+  const nutritionPenalty = meal.lines.reduce((sum, line) => sum + (line.item ? menuItemDietQualityPenalty(line.item, context) : 0), 0);
+  const routinePenalty = breakfastRoutinePenalty(items, context);
+  return Math.min(45, Math.round((nutritionPenalty + routinePenalty) * 10) / 10);
 }
 
-/** Used before candidate expansion so healthier combinations survive the candidate cap. */
+/** Used before candidate expansion so healthier, more practical combinations survive the candidate cap. */
 export function dietQualityPriority(items: readonly MenuItem[], context: RecommendationContext): number {
   const penalty = items.reduce((sum, item) => sum + menuItemDietQualityPenalty(item, context), 0);
   const proteinFiberBonus = items.reduce((sum, item) => {
@@ -90,5 +93,6 @@ export function dietQualityPriority(items: readonly MenuItem[], context: Recomme
   // out by dozens of decomposed ingredient rows. Nutrition scoring still decides
   // the final rank; this never overrides allergens, dietary rules, or target fit.
   const practicalAppealBonus = items.reduce((sum, item) => sum + (item.popular ? 2.5 : 0), 0);
-  return proteinFiberBonus + practicalAppealBonus - penalty;
+  const breakfastPriority = breakfastCandidatePriority(items, context);
+  return proteinFiberBonus + practicalAppealBonus + breakfastPriority - penalty;
 }

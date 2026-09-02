@@ -30,6 +30,8 @@ const SALAD_BASE_RE = /\b(lettuce|romaine|spinach|kale|mixed greens|spring mix|a
 const SALAD_PROTEIN_RE = /\b(chicken|turkey|salmon|tuna|fish|tofu|tempeh|egg|beans?|chickpeas?|lentils?|edamame|falafel)\b/i;
 const SALAD_DRESSING_RE = /\b(dressing|vinaigrette|ranch|caesar|oil|vinegar)\b/i;
 const BROAD_APPEAL_PROTEIN_RE = /\b(chicken|salmon|turkey|steak|beef|pork|fish|tofu|tempeh)\b/i;
+const BREAKFAST_EGG_RE = /\b(scrambled\s+eggs?|eggs?|egg\s+whites?|hard\s+boiled\s+eggs?)\b/i;
+const BREAKFAST_YOGURT_RE = /\b(greek\s+)?yogurt\b|\byoghurt\b/i;
 
 export const isDeliAssemblyStation = (station: Station): boolean => DELI_STATION_RE.test(station.name);
 export const isSaladBarAssemblyStation = (station: Station): boolean => SALAD_BAR_STATION_RE.test(station.name);
@@ -190,6 +192,19 @@ function markBroadAppealPureEatsItem(item: MenuItem, station: Station | undefine
 }
 
 /**
+ * A breakfast plate often has no conventional entree row. When DineOnCampus
+ * publishes simple eggs and yogurt as separate rows, let eggs anchor the meal
+ * and let yogurt behave as a side so complete-meal generation can produce
+ * familiar combinations such as eggs + yogurt + fruit/granola.
+ */
+function markBreakfastStapleRole(item: MenuItem): MenuItem {
+  if (item.mealRole || !item.availability?.includes("breakfast")) return item;
+  if (BREAKFAST_EGG_RE.test(item.name)) return { ...item, mealRole: "main" };
+  if (BREAKFAST_YOGURT_RE.test(item.name)) return { ...item, mealRole: "side" };
+  return item;
+}
+
+/**
  * DineOnCampus often publishes build-your-own stations as ingredient rows. Those
  * rows are authoritative nutrition data, but they are not always foods a student
  * would order by themselves. For the meal builder, turn deli and salad-bar rows
@@ -223,7 +238,9 @@ export function normalizeStationMenuForMealBuilder(
   const menuItems = [
     ...items.filter((item) => !consumedIds.has(item.id)),
     ...syntheticItems,
-  ].map((item) => markBroadAppealPureEatsItem(item, stationById.get(item.stationId)));
+  ]
+    .map(markBreakfastStapleRole)
+    .map((item) => markBroadAppealPureEatsItem(item, stationById.get(item.stationId)));
 
   return { menuItems, components: syntheticComponents };
 }

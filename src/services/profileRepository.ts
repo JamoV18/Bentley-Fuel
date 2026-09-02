@@ -2,7 +2,8 @@ import { maintenanceEstimateMethodForAge, MIN_SUPPORTED_AGE } from "../lib/energ
 import { isOnboardingPreviewMode } from "../lib/onboardingPreview.ts";
 import { ALL_ALLERGENS, ALL_DIETARY_TAGS } from "../types/nutrition.ts";
 import type { BehavioralGoal, UnitSystem, WeightGoalPlan, WeightLossIntensity } from "../types/plan.ts";
-import type { ActivityLevel, BodyMetrics, PrimaryGoal, UserProfile } from "../types/user.ts";
+import { ALL_BREAKFAST_PREFERENCES } from "../types/user.ts";
+import type { ActivityLevel, BodyMetrics, BreakfastPreference, PrimaryGoal, UserProfile } from "../types/user.ts";
 import { onboardingPreviewProfileRepository } from "./onboardingPreviewRepositories.ts";
 import { resolveNutritionPlan } from "./nutritionPlan.ts";
 import { createLocalProgressRepository } from "./progressRepository.ts";
@@ -39,6 +40,14 @@ function validWeightGoalPlan(value: unknown): value is WeightGoalPlan {
     validIso(value.startDate) && value.maintenanceAfterGoal === true;
 }
 
+function validBreakfastPreferences(value: unknown): value is BreakfastPreference[] {
+  if (value === undefined) return true;
+  if (!Array.isArray(value) || value.length > 4) return false;
+  if (!value.every((item) => ALL_BREAKFAST_PREFERENCES.includes(item as BreakfastPreference))) return false;
+  if (new Set(value).size !== value.length) return false;
+  return !value.includes("variety") || value.length === 1;
+}
+
 export function isValidUserProfile(value: unknown): value is UserProfile {
   if (!isRecord(value)) return false;
   const target = value.dailyTargets;
@@ -56,6 +65,7 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
     (value.unitSystem === undefined || UNITS.includes(value.unitSystem as UnitSystem)) &&
     (value.goalDescription === undefined || (typeof value.goalDescription === "string" && value.goalDescription.length <= 500)) &&
     (value.behavioralGoals === undefined || (Array.isArray(value.behavioralGoals) && value.behavioralGoals.every((goal) => BEHAVIORAL_GOALS.includes(goal as BehavioralGoal)))) &&
+    validBreakfastPreferences(value.breakfastPreferences) &&
     (value.weightGoalPlan === undefined || validWeightGoalPlan(value.weightGoalPlan)) &&
     Array.isArray(value.dietaryPreferences) && value.dietaryPreferences.every((tag) => ALL_DIETARY_TAGS.includes(tag)) &&
     Array.isArray(value.allergensToAvoid) && value.allergensToAvoid.every((item) => ALL_ALLERGENS.includes(item)) &&
@@ -65,7 +75,7 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
 }
 
 export function createUserProfile(
-  input: Pick<UserProfile, "primaryGoal" | "dietaryPreferences" | "allergensToAvoid"> & Pick<UserProfile, "goals" | "goalDescription" | "maintenanceEstimate" | "dailyTargets" | "unitSystem" | "behavioralGoals" | "weightGoalPlan"> & { metrics?: BodyMetrics },
+  input: Pick<UserProfile, "primaryGoal" | "dietaryPreferences" | "allergensToAvoid"> & Pick<UserProfile, "goals" | "goalDescription" | "maintenanceEstimate" | "dailyTargets" | "unitSystem" | "behavioralGoals" | "weightGoalPlan" | "breakfastPreferences"> & { metrics?: BodyMetrics },
   previous?: UserProfile,
 ): UserProfile {
   const now = new Date().toISOString();
@@ -80,6 +90,7 @@ export function createUserProfile(
     goals: input.goals ?? previousGoals ?? [input.primaryGoal],
     unitSystem: input.unitSystem ?? previous?.unitSystem ?? "us",
     behavioralGoals: input.behavioralGoals ?? previous?.behavioralGoals ?? [],
+    breakfastPreferences: input.breakfastPreferences ?? previous?.breakfastPreferences ?? [],
     id: previous?.id ?? crypto.randomUUID(),
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
@@ -106,6 +117,7 @@ export function withResolvedDailyTargets(profile: UserProfile, currentWeightKg =
     goals: profile.goals ?? [profile.primaryGoal],
     unitSystem: profile.unitSystem ?? "us",
     behavioralGoals: profile.behavioralGoals ?? [],
+    breakfastPreferences: profile.breakfastPreferences ?? [],
   };
   const plan = resolveNutritionPlan(withDefaults, new Date(), currentWeightKg);
   return plan.activeTargets ? { ...withDefaults, dailyTargets: plan.activeTargets } : withDefaults;

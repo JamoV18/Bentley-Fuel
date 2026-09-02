@@ -31,6 +31,24 @@ export type PrimaryGoal =
   | "eat-healthier"
   | "athletic-performance";
 
+/**
+ * Stable breakfast staples selected once during onboarding. These are soft
+ * meal-structure preferences, never dietary restrictions.
+ */
+export const ALL_BREAKFAST_PREFERENCES = [
+  "eggs",
+  "omelette",
+  "yogurt",
+  "oatmeal",
+  "smoothie-fruit",
+  "cereal-granola",
+  "breakfast-sandwich",
+  "pancakes-waffles",
+  "variety",
+] as const;
+
+export type BreakfastPreference = (typeof ALL_BREAKFAST_PREFERENCES)[number];
+
 /** Daily macro budget the student is trying to hit. */
 export type MacroTargets = Macros;
 
@@ -72,6 +90,13 @@ export interface UserProfile {
 
   /** Preferred eating styles (soft preferences that boost scoring). */
   dietaryPreferences: DietaryTag[];
+
+  /**
+   * What a normal breakfast looks like to this student. Selected during
+   * onboarding so breakfast can optimize familiar staples instead of forcing
+   * novelty. `variety` is mutually exclusive with specific staples.
+   */
+  breakfastPreferences?: BreakfastPreference[];
 
   /** Hard restrictions — items containing these are filtered/flagged out. */
   allergensToAvoid: Allergen[];

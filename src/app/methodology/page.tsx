@@ -46,13 +46,14 @@ export default function MethodologyPage() {
         <section className="surface p-5 sm:p-7">
           <p className="eyebrow">4 · Recommendation ranking</p>
           <h2 className="mt-1 text-2xl font-bold">Nutrition fit stays dominant</h2>
-          <p className="mt-3 leading-relaxed subtle">With individualized daily targets, the ranking engine weights meal-level target fit most heavily, then uses goal alignment, practical meal coherence, dietary-quality guardrails, soft preferences, and a bounded history adjustment. Hard allergen and dietary restrictions are applied before scoring.</p>
+          <p className="mt-3 leading-relaxed subtle">With individualized daily targets, the ranking engine weights meal-level target fit most heavily, then uses goal alignment, practical meal coherence, dietary-quality guardrails, explicit meal-routine preferences, and a bounded history adjustment. Hard allergen and dietary restrictions are applied before scoring.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-emerald-900/10 p-4"><strong>Target fit</strong><p className="mt-1 text-sm subtle">Compares calories, protein, carbohydrates, and fat against the current meal target. Macro importance varies by the selected goal.</p></div>
             <div className="rounded-xl border border-emerald-900/10 p-4"><strong>Meal coherence</strong><p className="mt-1 text-sm subtle">Checks whether the foods form a plausible meal, how many stations are required, and whether combinations look like how students actually eat.</p></div>
-            <div className="rounded-xl border border-emerald-900/10 p-4"><strong>Preferences and history</strong><p className="mt-1 text-sm subtle">Confirmed behavior can make a small ranking adjustment. Merely showing a recommendation does not count as preference evidence, and recent repetition can reduce rank.</p></div>
+            <div className="rounded-xl border border-emerald-900/10 p-4"><strong>Preferences and history</strong><p className="mt-1 text-sm subtle">Confirmed behavior can make a small ranking adjustment. Merely showing a recommendation does not count as preference evidence. Breakfast staples selected during onboarding receive a bounded routine-fit signal, and an established breakfast routine is not pushed toward novelty simply because it repeats.</p></div>
             <div className="rounded-xl border border-emerald-900/10 p-4"><strong>No fake health score</strong><p className="mt-1 text-sm subtle">Falcon Fuel uses internal ranking values to order candidates, but does not present the final number as an objective measure of how “healthy” a meal is.</p></div>
           </div>
+          <p className="mt-4 text-sm leading-relaxed subtle">A stated routine remains subordinate to eligibility and major nutrition fit. For example, choosing eggs as a normal breakfast can never make an egg-containing item eligible for a student who has selected an egg allergy.</p>
         </section>
 
         <section className="surface p-5 sm:p-7">

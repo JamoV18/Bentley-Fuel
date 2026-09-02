@@ -1,7 +1,7 @@
 import type { BreakfastPreference, MenuItem, RecommendationContext } from "@/types";
 
 export interface BreakfastRoutineAssessment {
-  /** Bounded additive ranking bonus. Zero outside breakfast. */
+  /** Bounded breakfast affinity score. Zero outside breakfast. */
   bonus: number;
   /** Explicit onboarding staples represented in this meal. */
   matchedPreferences: BreakfastPreference[];
@@ -11,6 +11,7 @@ export interface BreakfastRoutineAssessment {
 
 const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const textFor = (item: MenuItem) => normalized(`${item.name} ${item.description ?? ""}`);
+const LUNCH_DINNER_STYLE_RE = /\b(fajita|tacos?|quesadilla|enchilada|curry|teriyaki|stir fry|marinara|lasagna|ravioli|pizza)\b/;
 
 /**
  * Breakfast categories intentionally use narrow published-name matching. They
@@ -48,7 +49,7 @@ const COLD_START_WEIGHT: Partial<Record<BreakfastPreference, number>> = {
 /**
  * Breakfast is behaviorally different from lunch/dinner: familiar staples are
  * often the feature, not a lack of variety. Explicit onboarding preferences get
- * a meaningful but bounded boost; an unconfigured profile receives only a
+ * a meaningful but bounded affinity; an unconfigured profile receives only a
  * conservative common-breakfast prior so nutrition can still win decisively.
  */
 export function assessBreakfastRoutine(
@@ -95,6 +96,28 @@ export function assessBreakfastRoutine(
 /** Candidate-generation priority is deliberately stronger than final scoring. */
 export function breakfastCandidatePriority(items: readonly MenuItem[], context: RecommendationContext): number {
   return assessBreakfastRoutine(items, context).bonus * 3;
+}
+
+/**
+ * Practicality penalty used by final ranking. An explicit routine mainly
+ * penalizes meals that ignore the student's selected staples. Cold-start users
+ * get only a light common-breakfast prior, plus a guard against obviously
+ * lunch/dinner-style anchors winning breakfast on macro arithmetic alone.
+ */
+export function breakfastRoutinePenalty(items: readonly MenuItem[], context: RecommendationContext): number {
+  if (context.mealPeriod !== "breakfast") return 0;
+  const selected = context.profile.breakfastPreferences ?? [];
+  if (selected.includes("variety")) return 0;
+  const assessment = assessBreakfastRoutine(items, context);
+  const unusualStyle = items.some((item) => LUNCH_DINNER_STYLE_RE.test(textFor(item)));
+
+  if (assessment.hasExplicitRoutine) {
+    const mismatch = Math.max(0, 12 - assessment.bonus * 0.75);
+    return Math.round((mismatch + (unusualStyle && assessment.matchedPreferences.length === 0 ? 6 : 0)) * 10) / 10;
+  }
+
+  const coldStartMismatch = Math.max(0, 5 - assessment.bonus);
+  return Math.round((coldStartMismatch + (unusualStyle ? 8 : 0)) * 10) / 10;
 }
 
 /** Stable breakfast routines should not be penalized for being stable. */

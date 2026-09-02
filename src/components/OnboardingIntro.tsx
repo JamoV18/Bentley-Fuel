@@ -54,7 +54,7 @@ const MEALS = [
   "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=82",
   "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=82",
   "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=82",
-  "https://images.unsplash.com/photo-1574071318508-1cdbab80d00288?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=900&q=82",
   "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=900&q=82",
 ] as const;
 
@@ -107,18 +107,10 @@ function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
               transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
             >
               <motion.p
-                className="text-[10px] font-bold uppercase tracking-[0.34em] text-emerald-50/50 sm:text-xs"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.08 }}
-              >
-                Bentley campus nutrition
-              </motion.p>
-              <motion.p
-                className="mt-3 text-[clamp(3.2rem,10vw,6.6rem)] font-bold leading-none tracking-[-0.065em] text-white"
+                className="text-[clamp(3.2rem,10vw,6.6rem)] font-bold leading-none tracking-[-0.065em] text-white"
                 initial={{ y: 14, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.44, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.44, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
               >
                 Falcon Fuel
               </motion.p>
@@ -127,7 +119,7 @@ function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
                   className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-200 to-transparent"
                   initial={{ x: "-130%" }}
                   animate={{ x: "430%" }}
-                  transition={{ duration: 0.72, delay: 0.28, ease: [0.45, 0, 0.55, 1] }}
+                  transition={{ duration: 0.72, delay: 0.24, ease: [0.45, 0, 0.55, 1] }}
                 />
               </div>
             </motion.div>

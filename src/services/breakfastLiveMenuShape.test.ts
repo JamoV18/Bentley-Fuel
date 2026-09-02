@@ -83,14 +83,8 @@ const context: RecommendationContext = {
   remainingMacros: { calories: 1800, protein: 120, carbs: 180, fat: 60 },
 };
 
-test("live breakfast slice promotes all-day eggs and yogurt before complete-meal generation", () => {
-  const normalized = normalizeStationMenuForMealBuilder(liveShapeItems, stations);
-  assert.equal(normalized.menuItems.find((item) => item.id === "eggs")?.mealRole, "main");
-  assert.equal(normalized.menuItems.find((item) => item.id === "yogurt")?.mealRole, "side");
-});
-
-test("realistic all-day staples beat strata-style breakfast for an explicit routine", () => {
-  const normalized = normalizeStationMenuForMealBuilder(liveShapeItems, stations);
+const rank = (items: readonly MenuItem[]) => {
+  const normalized = normalizeStationMenuForMealBuilder(items, stations, "breakfast");
   const resources = {
     location,
     menuItems: normalized.menuItems,
@@ -104,14 +98,33 @@ test("realistic all-day staples beat strata-style breakfast for an explicit rout
     context,
     { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 4, requireMain: true },
   );
-  const ranked = scoreResolvedMeals(
+  return scoreResolvedMeals(
     candidates.map((candidate) => ({ candidate, computed: computeMealBuild(candidate.build, resources) })),
     context,
   );
+};
 
+test("explicit breakfast context promotes all-day eggs and yogurt before complete-meal generation", () => {
+  const normalized = normalizeStationMenuForMealBuilder(liveShapeItems, stations, "breakfast");
+  assert.equal(normalized.menuItems.find((item) => item.id === "eggs")?.mealRole, "main");
+  assert.equal(normalized.menuItems.find((item) => item.id === "yogurt")?.mealRole, "side");
+});
+
+test("explicit breakfast context works even when every staple row is published all-day", () => {
+  const allDayOnly = liveShapeItems.slice(0, 3);
+  const normalized = normalizeStationMenuForMealBuilder(allDayOnly, stations, "breakfast");
+  assert.equal(normalized.menuItems.find((item) => item.id === "eggs")?.mealRole, "main");
+  assert.equal(normalized.menuItems.find((item) => item.id === "yogurt")?.mealRole, "side");
+  assert.ok(rank(allDayOnly).length > 0);
+});
+
+test("realistic all-day staples beat strata-style breakfast for an explicit routine", () => {
+  const ranked = rank(liveShapeItems);
   assert.ok(ranked.length > 0);
   const topNames = ranked[0].computed.lines.map((line) => line.item?.name ?? "");
   assert.ok(topNames.some((name) => /egg/i.test(name)), `expected eggs in ${topNames.join(" + ")}`);
   assert.ok(topNames.some((name) => /yogurt/i.test(name)), `expected yogurt in ${topNames.join(" + ")}`);
   assert.ok(!topNames.some((name) => /fajita strata|country gravy/i.test(name)), `unexpected odd breakfast anchor in ${topNames.join(" + ")}`);
+  assert.ok((ranked[0].score.breakfastRoutineBonus ?? 0) > 0, "expected explicit routine fit to survive final scoring");
+  assert.ok((ranked[0].score.breakfastRoutineBonus ?? 0) <= 12, "routine fit must remain bounded");
 });

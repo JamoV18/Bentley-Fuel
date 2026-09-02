@@ -80,19 +80,19 @@ function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
       {visible && (
         <motion.div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-0 z-[100] overflow-hidden bg-[#022f25]"
+          className="pointer-events-none fixed inset-0 z-[100] overflow-hidden bg-[#10263d]"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.14, delay: 0.72 }}
         >
           <motion.div
-            className="absolute inset-y-0 left-0 w-1/2 bg-[radial-gradient(circle_at_80%_50%,#08765a_0%,#034a38_42%,#022f25_100%)]"
+            className="absolute inset-y-0 left-0 w-1/2 bg-[radial-gradient(circle_at_82%_50%,#315f83_0%,#203f60_38%,#10263d_100%)]"
             initial={{ x: 0 }}
             exit={{ x: "-103%" }}
             transition={{ duration: 0.74, delay: 0.56, ease: [0.76, 0, 0.24, 1] }}
           />
           <motion.div
-            className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_20%_50%,#08765a_0%,#034a38_42%,#022f25_100%)]"
+            className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_18%_50%,#2f6d7b_0%,#244a64_40%,#10263d_100%)]"
             initial={{ x: 0 }}
             exit={{ x: "103%" }}
             transition={{ duration: 0.74, delay: 0.56, ease: [0.76, 0, 0.24, 1] }}
@@ -114,9 +114,9 @@ function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
               >
                 Falcon Fuel
               </motion.p>
-              <div className="relative mt-6 h-px w-48 overflow-hidden bg-white/10 sm:w-64">
+              <div className="relative mt-6 h-px w-48 overflow-hidden bg-white/12 sm:w-64">
                 <motion.div
-                  className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-200 to-transparent"
+                  className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-[#82BCE5] to-[#42B7B0]"
                   initial={{ x: "-130%" }}
                   animate={{ x: "430%" }}
                   transition={{ duration: 0.72, delay: 0.24, ease: [0.45, 0, 0.55, 1] }}
@@ -161,9 +161,9 @@ function CircularMealCard({
       style={{ x, y, z, scale, opacity, rotateY, filter, zIndex, transformStyle: "preserve-3d" }}
     >
       <div
-        className="h-32 w-24 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.15rem] border border-white/80 bg-cover bg-center shadow-[0_18px_45px_rgba(20,45,34,.14)] sm:h-48 sm:w-36 lg:h-52 lg:w-40"
+        className="h-32 w-24 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.15rem] border border-white/90 bg-cover bg-center shadow-[0_20px_48px_rgba(24,50,76,.16)] sm:h-48 sm:w-36 lg:h-52 lg:w-40"
         style={{
-          backgroundImage: `linear-gradient(180deg,rgba(255,255,255,.03)_42%,rgba(0,45,32,.16)),url(\"${image}\")`,
+          backgroundImage: `linear-gradient(180deg,rgba(255,255,255,.02)_42%,rgba(25,55,82,.18)),url(\"${image}\")`,
         }}
       />
     </motion.div>
@@ -207,11 +207,11 @@ function CircularMealGallery({ reduceMotion }: { reduceMotion: boolean }) {
             }
       }
     >
-      <div className="absolute inset-x-[13%] top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-emerald-950/[.055] to-transparent" />
+      <div className="absolute inset-x-[13%] top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-[#294567]/10 to-transparent" />
       {MEALS.map((image, index) => (
         <CircularMealCard key={image} image={image} index={index} total={MEALS.length} rotation={rotation} />
       ))}
-      <div className="pointer-events-none absolute inset-x-[18%] bottom-1 h-10 rounded-[50%] bg-emerald-950/[.075] blur-2xl" />
+      <div className="pointer-events-none absolute inset-x-[18%] bottom-1 h-10 rounded-[50%] bg-[#294567]/10 blur-2xl" />
     </motion.div>
   );
 }
@@ -226,9 +226,10 @@ export default function OnboardingIntro({ onStart }: { onStart(): void }) {
   return (
     <>
       <OpeningReveal reduceMotion={Boolean(reduceMotion)} />
-      <main data-i18n-skip className="relative mx-auto flex min-h-[100svh] w-full max-w-[92rem] flex-1 flex-col overflow-hidden px-6 py-7 sm:px-8 sm:py-9 lg:px-12">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-[12%] top-20 h-[28rem] rounded-full bg-[radial-gradient(circle,rgba(10,154,110,.11)_0%,rgba(10,154,110,.035)_42%,transparent_72%)] blur-2xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-emerald-950/[.035] to-transparent" />
+      <main data-i18n-skip className="relative mx-auto flex min-h-[100svh] w-full max-w-[92rem] flex-1 flex-col overflow-hidden bg-[#f7f9fb] px-6 py-7 sm:px-8 sm:py-9 lg:px-12">
+        <div aria-hidden="true" className="pointer-events-none absolute -left-24 top-10 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,rgba(0,117,190,.12)_0%,rgba(0,117,190,.035)_46%,transparent_72%)] blur-2xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(66,183,176,.11)_0%,rgba(66,183,176,.028)_46%,transparent_72%)] blur-2xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#294567]/[.045] to-transparent" />
 
         <motion.header
           className="relative z-20 flex min-h-8 items-center justify-between"
@@ -236,12 +237,12 @@ export default function OnboardingIntro({ onStart }: { onStart(): void }) {
           animate={{ opacity: 1 }}
           transition={reduceMotion ? { duration: 0 } : { duration: 0.32, delay }}
         >
-          <Link href="/" className="brand-kicker transition-colors hover:text-emerald-950">Falcon Fuel</Link>
+          <Link href="/" className="text-xs font-bold uppercase tracking-[.18em] text-[#294567] transition-colors hover:text-[#0075BE]">Falcon Fuel</Link>
         </motion.header>
 
         <section className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center pb-8 pt-8 text-center sm:pt-12 lg:pb-12">
           <div className="[perspective:900px]">
-            <h1 className="flex flex-wrap justify-center text-[clamp(3.4rem,8vw,7.2rem)] font-bold leading-[.9] tracking-[-0.065em] text-emerald-950" aria-label={title}>
+            <h1 className="flex flex-wrap justify-center text-[clamp(3.4rem,8vw,7.2rem)] font-bold leading-[.9] tracking-[-0.065em] text-[#111820]" aria-label={title}>
               {title.split("").map((character, index) => (
                 <motion.span
                   key={`${character}-${index}`}
@@ -259,7 +260,7 @@ export default function OnboardingIntro({ onStart }: { onStart(): void }) {
           </div>
 
           <motion.h2
-            className="mt-6 max-w-4xl text-balance text-2xl font-semibold tracking-[-0.025em] text-black/72 sm:text-3xl lg:text-[2.15rem]"
+            className="mt-6 max-w-4xl text-balance text-2xl font-semibold tracking-[-0.025em] text-[#202b36]/80 sm:text-3xl lg:text-[2.15rem]"
             initial={reduceMotion ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.38, delay: delay + 0.34, ease: [0.22, 1, 0.36, 1] }}
@@ -268,18 +269,18 @@ export default function OnboardingIntro({ onStart }: { onStart(): void }) {
             <motion.span
               className="inline-block bg-clip-text text-transparent"
               style={{
-                backgroundImage: "linear-gradient(100deg, #075a42 0%, #0a9a6e 38%, #31b98a 52%, #087a58 72%, #075a42 100%)",
+                backgroundImage: "linear-gradient(100deg, #294567 0%, #0075BE 34%, #42B7B0 55%, #0075BE 74%, #294567 100%)",
                 backgroundSize: "220% 100%",
               }}
               animate={reduceMotion ? undefined : { backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-              transition={reduceMotion ? undefined : { duration: 9, repeat: Infinity, ease: "linear" }}
+              transition={reduceMotion ? undefined : { duration: 10, repeat: Infinity, ease: "linear" }}
             >
               {copy.accent}
             </motion.span>
           </motion.h2>
 
           <motion.p
-            className="mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-black/48 sm:text-base"
+            className="mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-[#111820]/48 sm:text-base"
             initial={reduceMotion ? false : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.34, delay: delay + 0.43, ease: [0.22, 1, 0.36, 1] }}
@@ -297,7 +298,7 @@ export default function OnboardingIntro({ onStart }: { onStart(): void }) {
           >
             <motion.button
               type="button"
-              className="primary min-w-48 px-7 py-3.5 text-base shadow-[0_12px_28px_rgba(0,59,42,.16)]"
+              className="min-w-48 rounded-2xl bg-[#294567] px-7 py-3.5 text-base font-bold text-white shadow-[0_14px_30px_rgba(31,60,88,.20)] transition-colors hover:bg-[#203b59] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0075BE]"
               onClick={onStart}
               whileTap={reduceMotion ? undefined : { scale: 0.985 }}
               transition={{ duration: 0.12 }}

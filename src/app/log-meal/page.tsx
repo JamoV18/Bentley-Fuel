@@ -30,7 +30,7 @@ const LOCATIONS = [
   { value: "Other / off campus", label: "Other / off campus" },
 ] as const;
 
-const LOCATION_LABEL = new Map(LOCATIONS.map((location) => [location.value, location.label]));
+const LOCATION_LABEL = new Map<string, string>(LOCATIONS.map((location) => [location.value, location.label]));
 
 const pad = (value: number) => String(value).padStart(2, "0");
 const localDateKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -274,7 +274,7 @@ export default function LogMealPage() {
                 <h3 className="text-lg font-black tracking-[-0.025em]">Snacks</h3>
                 <span className="rounded-full bg-black/[.035] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-black/45">Optional</span>
               </div>
-              <p className="mt-1 text-sm subtle">Add anything between meals. Snacks never count against the 3/3 daily check-in.</p>
+              <p className="mt-1 text-sm subtle">Add anything between meals. Snacks are optional and do not affect the 3/3 daily check-in.</p>
               {entriesBySlot.snack.length > 0 && <p className="mt-2 truncate text-xs font-semibold text-emerald-800">Latest: {mealTitle(entriesBySlot.snack[0])}</p>}
             </div>
           </div>

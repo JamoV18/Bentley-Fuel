@@ -1,0 +1,170 @@
+/*
+ * Falcon Fuel brand system
+ *
+ * Bentley dark blue is the identity anchor, Bentley blue carries interaction,
+ * and teal is a restrained nutrition/progress accent. This file loads after the
+ * base styles so legacy emerald utility classes inherit the Bentley palette
+ * without forcing every feature to maintain a separate color vocabulary.
+ */
+
+:root {
+  --background: #f5f8fb;
+  --foreground: #111820;
+  --brand-950: #172e46;
+  --brand-900: #294567;
+  --brand-800: #345d82;
+  --brand-700: #176b9a;
+  --brand-600: #0075be;
+  --brand-100: #dcebf5;
+  --brand-50: #f0f6fa;
+  --brand-teal: #42b7b0;
+  --cream: #fbfcfd;
+  --surface: rgba(255, 255, 255, 0.95);
+  --surface-solid: #ffffff;
+  --line: rgba(31, 60, 88, 0.105);
+  --muted: #667789;
+  --shadow: 0 14px 40px rgba(31, 60, 88, 0.09), 0 2px 8px rgba(31, 60, 88, 0.045);
+  --shadow-soft: 0 8px 24px rgba(31, 60, 88, 0.065);
+
+  /* Tailwind's existing emerald utilities become Falcon Fuel brand utilities. */
+  --color-emerald-50: #f0f6fa;
+  --color-emerald-100: #dcebf5;
+  --color-emerald-200: #bddcea;
+  --color-emerald-300: #82bce5;
+  --color-emerald-400: #42b7b0;
+  --color-emerald-500: #1698b8;
+  --color-emerald-600: #0075be;
+  --color-emerald-700: #176b9a;
+  --color-emerald-800: #345d82;
+  --color-emerald-900: #294567;
+  --color-emerald-950: #172e46;
+}
+
+body {
+  background:
+    radial-gradient(circle at 82% -12%, rgba(0, 117, 190, .105), transparent 35rem),
+    radial-gradient(circle at -12% 34%, rgba(66, 183, 176, .12), transparent 31rem),
+    var(--background);
+}
+
+::selection { background: #cce4f2; color: var(--brand-950); }
+
+.primary {
+  background: linear-gradient(135deg, var(--brand-900), var(--brand-600));
+  box-shadow: 0 10px 22px rgba(41, 69, 103, .19);
+}
+.primary:hover { box-shadow: 0 13px 27px rgba(41, 69, 103, .23); }
+.secondary { box-shadow: 0 3px 12px rgba(31, 60, 88, .045); }
+.secondary:hover { border-color: rgba(0, 117, 190, .28); }
+.choice { box-shadow: 0 4px 14px rgba(31, 60, 88, .04); }
+.choice:hover { border-color: rgba(0, 117, 190, .25); }
+.choice[data-selected="true"], .chip[data-selected="true"] {
+  box-shadow: inset 0 0 0 1px rgba(0, 117, 190, .32), 0 6px 16px rgba(41, 69, 103, .07);
+}
+.chip:hover { border-color: rgba(0, 117, 190, .30); }
+.field input:focus, .field select:focus { box-shadow: 0 0 0 4px rgba(0, 117, 190, .09); }
+
+.brand-kicker::before {
+  background: var(--brand-900);
+  color: #f4f9fc;
+  box-shadow: 0 5px 14px rgba(31, 60, 88, .19);
+}
+.surface-soft {
+  border-color: rgba(0, 117, 190, .09);
+  background: linear-gradient(145deg, rgba(240, 246, 250, .94), rgba(255, 255, 255, .94));
+}
+.meal-image {
+  border-color: rgba(31, 60, 88, .085);
+  background-color: #e7eef4;
+}
+.meal-row { box-shadow: 0 5px 16px rgba(31, 60, 88, .045); }
+
+.app-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.app-nav-item { color: #6b7886; }
+.app-nav-item:hover,
+.app-nav-item[data-active="true"] { color: var(--brand-700); }
+.app-nav-item[data-active="true"] { background: rgba(240, 246, 250, .94); }
+
+.nutrition-hero {
+  background:
+    radial-gradient(circle at 82% 10%, rgba(66, 183, 176, .25), transparent 18rem),
+    linear-gradient(145deg, #294567, #172e46 72%);
+  box-shadow: 0 18px 42px rgba(23, 46, 70, .22);
+}
+.progress-ring { background: conic-gradient(#76d0ca var(--value), rgba(255,255,255,.12) 0); }
+.progress-ring::before { background: #213b57; }
+
+/* Today inherits the same identity while keeping macro channels distinguishable. */
+.today-shell {
+  --carbs: #42b7b0;
+  --protein: #0075be;
+  --fat: #7d8fa3;
+  --success: #42b7b0;
+}
+.profile-orb {
+  background: linear-gradient(145deg, #294567, #0075be);
+  box-shadow: 0 8px 22px rgba(31, 60, 88, .18), inset 0 0 0 4px rgba(255,255,255,.92);
+}
+.day-slot-active {
+  background: linear-gradient(145deg, #294567, #176b9a);
+  box-shadow: 0 10px 25px rgba(31, 60, 88, .16);
+}
+.calorie-ring {
+  background: conic-gradient(from 215deg, #294567 0%, #0075be var(--calorie-progress), #e2eaf0 var(--calorie-progress), #e2eaf0 82%, transparent 82% 100%);
+}
+.calorie-ring::before { box-shadow: inset 0 0 35px rgba(0, 117, 190, .035); }
+.macro-glance { background: rgba(240, 246, 250, .62); }
+.macro-track { background: #e2eaf0; }
+.mini-ring { background: conic-gradient(currentColor var(--mini-progress), #e2eaf0 0); }
+.eat-cta {
+  background: linear-gradient(115deg, #172e46, #294567 55%, #0075be);
+  box-shadow: 0 15px 30px rgba(31, 60, 88, .19);
+}
+.meal-progress { background: conic-gradient(var(--success) var(--meal-progress), #e2eaf0 0); }
+
+/* The #1 recommendation glow now belongs to the same navy / blue / teal family. */
+[data-recommendation-index="0"] {
+  background: rgba(244, 249, 252, 0.97) !important;
+  box-shadow:
+    0 18px 42px rgba(31, 60, 88, 0.18),
+    0 5px 16px rgba(0, 117, 190, 0.12),
+    0 0 0 1px rgba(41, 69, 103, 0.08) !important;
+}
+[data-recommendation-index="0"]::before {
+  background: conic-gradient(
+    from 0deg,
+    rgba(23, 46, 70, 0.02) 0deg 104deg,
+    rgba(41, 69, 103, 0.28) 126deg,
+    rgba(0, 117, 190, 0.72) 150deg,
+    rgba(130, 188, 229, 0.98) 169deg,
+    rgba(241, 251, 252, 1) 180deg,
+    rgba(66, 183, 176, 0.96) 191deg,
+    rgba(0, 117, 190, 0.64) 207deg,
+    rgba(41, 69, 103, 0.18) 232deg,
+    rgba(23, 46, 70, 0.02) 254deg 360deg
+  );
+}
+[data-recommendation-index="0"]::after {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.99), transparent 34%),
+    linear-gradient(118deg, #fcfdff 0%, #e8f2f7 22%, #fbfdfe 42%, #dcebf2 59%, #f1f7fa 75%, #ffffff 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.99),
+    inset 0 -1px 0 rgba(41, 69, 103, 0.10),
+    inset 0 0 30px rgba(0, 117, 190, 0.035);
+}
+[data-recommendation-index="0"]:hover {
+  box-shadow:
+    0 21px 48px rgba(31, 60, 88, 0.22),
+    0 7px 20px rgba(0, 117, 190, 0.15),
+    0 0 0 1px rgba(41, 69, 103, 0.10) !important;
+}
+
+@media (max-width: 639px) {
+  body { background: #f6f9fb; }
+  .app-nav {
+    background: rgba(250, 252, 254, .91);
+    box-shadow: 0 14px 38px rgba(31, 60, 88, .19), inset 0 1px 0 rgba(255,255,255,.84);
+  }
+  .app-nav-item { font-size: .63rem; }
+}

@@ -3,6 +3,7 @@ import { recordChosenMealInteractions } from "./recommendationInteractions";
 
 export const MEAL_HISTORY_STORAGE_KEY = "bentley-fuel.meal-history.v1";
 const COMPLETION_VALUES: MealCompletionFraction[] = [0, 0.25, 0.5, 0.8, 1];
+const MEAL_LOG_SLOTS = ["breakfast", "lunch", "dinner", "snack"] as const;
 const OPTIONAL_NUTRIENT_KEYS: (keyof NutritionFacts)[] = [
   "fiber", "sugar", "addedSugar", "saturatedFat", "transFat", "cholesterol",
   "sodium", "potassium", "calcium", "iron", "vitaminD",
@@ -42,6 +43,7 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
   if (!isRecord(value)) return false;
   const feedback = value.explicitFeedback;
   const completion = value.completionFraction;
+  const mealSlot = value.mealSlot;
   return typeof value.id === "string" && value.id.length > 0 &&
     typeof value.locationId === "string" && value.locationId.length > 0 &&
     validBuild(value.build) && value.build.locationId === value.locationId &&
@@ -51,7 +53,8 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
     (value.nutrition === undefined || validNutrition(value.nutrition)) &&
     (completion === undefined || COMPLETION_VALUES.includes(completion as MealCompletionFraction)) &&
     (feedback === undefined || feedback === "like" || feedback === "dislike") &&
-    (value.source === undefined || value.source === "recommended" || value.source === "self-built");
+    (mealSlot === undefined || MEAL_LOG_SLOTS.includes(mealSlot as (typeof MEAL_LOG_SLOTS)[number])) &&
+    (value.source === undefined || value.source === "recommended" || value.source === "self-built" || value.source === "manual-log");
 };
 
 export interface MealHistoryRepository {
@@ -114,15 +117,17 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
             nutrition: entry.nutrition ?? existing.nutrition,
             completionFraction: entry.completionFraction ?? existing.completionFraction,
             explicitFeedback: entry.explicitFeedback ?? existing.explicitFeedback,
+            mealSlot: entry.mealSlot ?? existing.mealSlot,
+            source: entry.source ?? existing.source,
           }
         : entry;
       const next = [merged, ...current.filter((candidate) => candidate.id !== entry.id)]
         .sort((a, b) => mealTime(b) - mealTime(a));
       write(next);
-      // Meal history is the authoritative record that the student actually
-      // chose/saved this build. Interaction logging is kept separate so views,
-      // edits, selections, and confirmed eating remain distinct concepts.
-      recordChosenMealInteractions(storage, merged);
+      // Manual retroactive logs are real eating-history evidence but are not a
+      // Falcon Fuel recommendation-choice event. Keep those funnel semantics
+      // separate while recommended/self-built selections retain interaction data.
+      if (merged.source !== "manual-log") recordChosenMealInteractions(storage, merged);
     },
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");

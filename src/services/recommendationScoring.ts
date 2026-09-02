@@ -1,6 +1,7 @@
 import type { DiningDataProvider } from "./diningProvider";
 import { resolveMealBuild, type ComputedMealBuild } from "./mealBuilder";
 import { mealBuildSimilarity, scoreMealHistory, type MealHistoryScore } from "./recommendationBehavior";
+import { breakfastRepetitionPenaltyMultiplier } from "./breakfastRoutine";
 import { mealDietQualityPenalty } from "./recommendationDietQuality";
 import { inferMenuItemMealRole, mealCoherenceScore } from "./recommendationMealQuality";
 import type { Macros, MealCandidate, PrimaryGoal, RecommendationContext } from "@/types";
@@ -39,6 +40,21 @@ export interface RankedMealCandidate {
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const roundScore = (value: number) => Math.round(clamp(value, 0, 100) * 10) / 10;
+const round1 = (value: number) => Math.round(value * 10) / 10;
+
+function adjustHistoryBehaviorForBreakfast(
+  behavior: MealHistoryScore,
+  context: RecommendationContext,
+): MealHistoryScore {
+  const multiplier = breakfastRepetitionPenaltyMultiplier(context);
+  if (multiplier >= 1 || behavior.repetitionPenalty <= 0) return behavior;
+  const repetitionPenalty = round1(behavior.repetitionPenalty * multiplier);
+  return {
+    ...behavior,
+    repetitionPenalty,
+    totalAdjustment: round1(clamp(behavior.preferenceBoost - behavior.aversionPenalty - repetitionPenalty, -30, 10)),
+  };
+}
 
 const selectedGoals = (context: RecommendationContext): PrimaryGoal[] => {
   const primary = context.profile.primaryGoal;
@@ -445,7 +461,7 @@ export function scoreResolvedMeals(
       const nutritionTotal = roundScore(targetFit === undefined
         ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 + coherenceAdjustment + softPreferenceBonus - penalty - dietQualityPenalty - compositionPenalty - energyOvershootPenalty
         : targetFit * 0.80 + goalAlignment * 0.20 + coherenceAdjustment + softPreferenceBonus - penalty - dietQualityPenalty - compositionPenalty);
-      const behavior = scoreMealHistory(candidate, context.recentHistory ?? []);
+      const behavior = adjustHistoryBehaviorForBreakfast(scoreMealHistory(candidate, context.recentHistory ?? []), context);
       const total = roundScore(nutritionTotal + behavior.totalAdjustment);
       return {
         candidate,

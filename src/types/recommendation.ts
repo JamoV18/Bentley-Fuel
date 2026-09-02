@@ -25,6 +25,12 @@ export type MealCompletionFraction = 0 | 0.25 | 0.5 | 0.8 | 1;
 export type MealExplicitFeedback = "like" | "dislike";
 
 /**
+ * Human meal slots used by the daily logging experience. `snack` stays distinct
+ * from menu meal periods because students can log snacks at any time of day.
+ */
+export type MealLogSlot = "breakfast" | "lunch" | "dinner" | "snack";
+
+/**
  * A narrow preference Falcon Fuel learned enough evidence to ask the student
  * about. These are deliberately soft ranking signals, never dietary rules.
  */
@@ -64,7 +70,9 @@ export interface MealHistoryEntry {
   /** Optional because the student may skip the follow-up question. */
   completionFraction?: MealCompletionFraction;
   explicitFeedback?: MealExplicitFeedback;
-  source?: "recommended" | "self-built";
+  /** Explicit daily-log slot when known; older/recommended meals can infer from time. */
+  mealSlot?: MealLogSlot;
+  source?: "recommended" | "self-built" | "manual-log";
 }
 
 /** Deliberate recommendation/editor behaviors stored separately from meal history. */

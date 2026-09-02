@@ -20,6 +20,7 @@ export interface RecommendationExplanation {
   coherence?: number;
   stationCount: number;
   softPreferenceBonus: number;
+  breakfastRoutineBonus: number;
   behaviorPreferenceBoost: number;
   learnedPreferenceBoost: number;
   progressivePreferenceBoost: number;
@@ -59,7 +60,7 @@ export const activeTargetSourceLabel = (source: NutritionPlanSnapshot["activeTar
  * Turns the actual recommendation inputs and score breakdown into an inspectable
  * user-facing explanation. It intentionally does not expose the internal total
  * as a health score; the useful pieces are the measurable targets, fit,
- * coherence, behavior evidence, and provenance behind the ranking.
+ * coherence, explicit meal-routine fit, behavior evidence, and provenance.
  */
 export function buildRecommendationExplanation(
   ranked: RankedMealCandidate | undefined,
@@ -94,6 +95,7 @@ export function buildRecommendationExplanation(
     coherence: ranked.score.mealCoherence,
     stationCount: ranked.candidate.stationIds.length,
     softPreferenceBonus: ranked.score.softPreferenceBonus ?? 0,
+    breakfastRoutineBonus: ranked.score.breakfastRoutineBonus ?? 0,
     behaviorPreferenceBoost: ranked.score.behavior.preferenceBoost,
     learnedPreferenceBoost: ranked.score.behavior.learnedPreferenceBoost,
     progressivePreferenceBoost: ranked.score.behavior.progressivePreferenceBoost ?? 0,

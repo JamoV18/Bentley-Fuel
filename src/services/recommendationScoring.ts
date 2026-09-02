@@ -1,7 +1,7 @@
 import type { DiningDataProvider } from "./diningProvider";
 import { resolveMealBuild, type ComputedMealBuild } from "./mealBuilder";
 import { mealBuildSimilarity, scoreMealHistory, type MealHistoryScore } from "./recommendationBehavior";
-import { breakfastRepetitionPenaltyMultiplier } from "./breakfastRoutine";
+import { assessBreakfastRoutine, breakfastRepetitionPenaltyMultiplier } from "./breakfastRoutine";
 import { mealDietQualityPenalty } from "./recommendationDietQuality";
 import { inferMenuItemMealRole, mealCoherenceScore } from "./recommendationMealQuality";
 import type { Macros, MealCandidate, PrimaryGoal, RecommendationContext } from "@/types";
@@ -11,7 +11,7 @@ export type NutritionScoringMode = "daily-targets" | "goal-only";
 export interface NutritionScoreBreakdown {
   /** Final score after bounded behavior/history adjustment. */
   total: number;
-  /** Nutrition-only score before behavior/history adjustment. */
+  /** Nutrition-and-meal-fit score before behavior/history adjustment. */
   nutritionTotal: number;
   targetFit?: number;
   /** Goal-only fallback fit to a conservative meal-energy reference. */
@@ -28,6 +28,8 @@ export interface NutritionScoreBreakdown {
   mealCoherence?: number;
   /** Small positive-only boost for non-hard dietary preferences selected in the profile. */
   softPreferenceBonus?: number;
+  /** Bounded positive fit for an explicit breakfast routine selected during onboarding. */
+  breakfastRoutineBonus?: number;
   behavior: MealHistoryScore;
   mode: NutritionScoringMode;
 }
@@ -250,6 +252,8 @@ type Features = {
   fiberDensity: number;
 };
 
+type FeaturePool = Record<keyof Features, number[]>;
+
 const featuresFor = (meal: ComputedMealBuild): Features => {
   const nutrition = meal.nutrition!;
   const calories = Math.max(1, nutrition.calories);
@@ -263,6 +267,18 @@ const featuresFor = (meal: ComputedMealBuild): Features => {
   };
 };
 
+const buildFeaturePool = (pool: readonly ComputedMealBuild[]): FeaturePool => {
+  const features = pool.map(featuresFor);
+  return {
+    calories: features.map((entry) => entry.calories),
+    protein: features.map((entry) => entry.protein),
+    carbs: features.map((entry) => entry.carbs),
+    fat: features.map((entry) => entry.fat),
+    proteinDensity: features.map((entry) => entry.proteinDensity),
+    fiberDensity: features.map((entry) => entry.fiberDensity),
+  };
+};
+
 const normalizeFeature = (value: number, values: readonly number[], invert = false): number => {
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -272,14 +288,12 @@ const normalizeFeature = (value: number, values: readonly number[], invert = fal
 };
 
 function relativeGoalAlignment(
-  meal: ComputedMealBuild,
-  pool: readonly ComputedMealBuild[],
+  current: Features,
+  pool: FeaturePool,
   goal: PrimaryGoal,
 ): number {
-  const current = featuresFor(meal);
-  const all = pool.map(featuresFor);
   const normalized = (key: keyof Features, invert = false) =>
-    normalizeFeature(current[key], all.map((entry) => entry[key]), invert);
+    normalizeFeature(current[key], pool[key], invert);
 
   let score: number;
   switch (goal) {
@@ -308,11 +322,12 @@ function relativeGoalAlignment(
 
 function blendedGoalAlignment(
   meal: ComputedMealBuild,
-  pool: readonly ComputedMealBuild[],
+  pool: FeaturePool,
   context: RecommendationContext,
 ): number {
+  const current = featuresFor(meal);
   return roundScore(goalBlend(context).reduce(
-    (sum, { goal, weight }) => sum + relativeGoalAlignment(meal, pool, goal) * weight,
+    (sum, { goal, weight }) => sum + relativeGoalAlignment(current, pool, goal) * weight,
     0,
   ));
 }
@@ -369,6 +384,17 @@ function softDietaryPreferenceBonus(meal: ComputedMealBuild, context: Recommenda
   }
 
   return Math.min(8, Math.round(bonus * 10) / 10);
+}
+
+function breakfastRoutinePreferenceBonus(meal: ComputedMealBuild, context: RecommendationContext): number {
+  if (context.mealPeriod !== "breakfast") return 0;
+  const items = meal.lines.flatMap((line) => line.item ? [line.item] : []);
+  const assessment = assessBreakfastRoutine(items, context);
+  if (!assessment.hasExplicitRoutine || assessment.matchedPreferences.length === 0) return 0;
+  // Candidate generation already protects these foods from being crowded out.
+  // This smaller final-stage boost keeps the explicit routine relevant through
+  // macro scoring without allowing taste to override eligibility or major fit.
+  return Math.min(12, round1(assessment.bonus * 0.75));
 }
 
 const MAX_ALTERNATIVE_SCORE_DROP = 20;
@@ -433,13 +459,14 @@ export function scoreResolvedMeals(
 ): RankedMealCandidate[] {
   const valid = resolved.filter(({ computed }) => computed.isValid && Boolean(computed.nutrition));
   const pool = valid.map(({ computed }) => computed);
+  const featurePool = buildFeaturePool(pool);
   const target = deriveMealMacroTarget(context);
   const mode: NutritionScoringMode = target ? "daily-targets" : "goal-only";
   const goalOnlyReference = target ? undefined : deriveGoalOnlyMealCalorieReference(context);
 
   const sorted = valid
     .map(({ candidate, computed }): RankedMealCandidate => {
-      const goalAlignment = blendedGoalAlignment(computed, pool, context);
+      const goalAlignment = blendedGoalAlignment(computed, featurePool, context);
       const penalty = remainingBudgetPenalty(computed.nutrition!, context);
       const dietQualityPenalty = mealDietQualityPenalty(computed, context);
       const compositionPenalty = mealCompositionPenalty(computed);
@@ -448,6 +475,7 @@ export function scoreResolvedMeals(
       const mealCoherence = mealCoherenceScore(mealItems, mealStations, context);
       const coherenceAdjustment = (mealCoherence - 70) * 0.40;
       const softPreferenceBonus = softDietaryPreferenceBonus(computed, context);
+      const breakfastRoutineBonus = breakfastRoutinePreferenceBonus(computed, context);
       const targetFit = target
         ? blendedTargetFit(computed.nutrition!, target, context)
         : undefined;
@@ -459,8 +487,8 @@ export function scoreResolvedMeals(
         : goalOnlyEnergyOvershootPenalty(computed.nutrition!.calories, goalOnlyReference);
 
       const nutritionTotal = roundScore(targetFit === undefined
-        ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 + coherenceAdjustment + softPreferenceBonus - penalty - dietQualityPenalty - compositionPenalty - energyOvershootPenalty
-        : targetFit * 0.80 + goalAlignment * 0.20 + coherenceAdjustment + softPreferenceBonus - penalty - dietQualityPenalty - compositionPenalty);
+        ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 + coherenceAdjustment + softPreferenceBonus + breakfastRoutineBonus - penalty - dietQualityPenalty - compositionPenalty - energyOvershootPenalty
+        : targetFit * 0.80 + goalAlignment * 0.20 + coherenceAdjustment + softPreferenceBonus + breakfastRoutineBonus - penalty - dietQualityPenalty - compositionPenalty);
       const behavior = adjustHistoryBehaviorForBreakfast(scoreMealHistory(candidate, context.recentHistory ?? []), context);
       const total = roundScore(nutritionTotal + behavior.totalAdjustment);
       return {
@@ -478,6 +506,7 @@ export function scoreResolvedMeals(
           compositionPenalty,
           mealCoherence,
           softPreferenceBonus,
+          breakfastRoutineBonus,
           behavior,
           mode,
         },

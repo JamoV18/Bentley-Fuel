@@ -192,10 +192,10 @@ function markBroadAppealPureEatsItem(item: MenuItem, station: Station | undefine
 }
 
 /**
- * The meal-builder page passes one already-filtered menu slice into this
- * normalizer. A real DineOnCampus breakfast slice commonly mixes explicit
- * `breakfast` rows with `all-day` staples. Detect that slice once so an all-day
- * egg/yogurt row is still understood as breakfast food in breakfast context.
+ * Older callers can still omit a meal period. In that case, infer a breakfast
+ * slice only when the item metadata is unambiguous. The live meal-builder passes
+ * its already-selected period explicitly so all-day staples never depend on
+ * DineOnCampus repeating a redundant `breakfast` tag on each row.
  */
 function isBreakfastScopedMenu(items: readonly MenuItem[]): boolean {
   const hasBreakfastRows = items.some((item) => item.availability?.includes("breakfast"));
@@ -222,16 +222,16 @@ function markBreakfastStapleRole(item: MenuItem, breakfastScope: boolean): MenuI
  * would order by themselves. For the meal builder, turn deli and salad-bar rows
  * into configurable meal concepts while preserving true composed menu items.
  *
- * This is intentionally a presentation/recommendation normalization layer: the
- * underlying live provider remains an unmodified record of what DineOnCampus
- * published for the date.
+ * `mealPeriod` is optional for compatibility with generic/test callers. Live
+ * recommendation routes should pass the selected period explicitly.
  */
 export function normalizeStationMenuForMealBuilder(
   items: readonly MenuItem[],
   stations: readonly Station[],
+  mealPeriod?: MealPeriod,
 ): StationMenuNormalizationResult {
   const stationById = new Map(stations.map((station) => [station.id, station]));
-  const breakfastScope = isBreakfastScopedMenu(items);
+  const breakfastScope = mealPeriod === "breakfast" || (mealPeriod === undefined && isBreakfastScopedMenu(items));
   const consumedIds = new Set<string>();
   const syntheticItems: MenuItem[] = [];
   const syntheticComponents: FoodComponent[] = [];

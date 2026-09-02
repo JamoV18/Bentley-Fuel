@@ -124,10 +124,10 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
       const next = [merged, ...current.filter((candidate) => candidate.id !== entry.id)]
         .sort((a, b) => mealTime(b) - mealTime(a));
       write(next);
-      // Meal history is the authoritative record that the student actually
-      // chose/saved this build. Interaction logging is kept separate so views,
-      // edits, selections, and confirmed eating remain distinct concepts.
-      recordChosenMealInteractions(storage, merged);
+      // Manual retroactive logs are real eating-history evidence but are not a
+      // Falcon Fuel recommendation-choice event. Keep those funnel semantics
+      // separate while recommended/self-built selections retain interaction data.
+      if (merged.source !== "manual-log") recordChosenMealInteractions(storage, merged);
     },
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");

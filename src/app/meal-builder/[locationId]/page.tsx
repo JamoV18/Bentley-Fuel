@@ -92,7 +92,7 @@ export default async function MealBuilderPage({
   }
 
   const selectedItems = selectedPeriod ? allMenuItems.filter((item) => periodMatches(item.availability, selectedPeriod)) : allMenuItems;
-  const normalized = normalizeStationMenuForMealBuilder(selectedItems, allStations);
+  const normalized = normalizeStationMenuForMealBuilder(selectedItems, allStations, selectedPeriod);
   const menuItems = selectedPeriod
     ? normalized.menuItems.map((item) => ({ ...item, availability: ["all-day"] as MealPeriod[] }))
     : normalized.menuItems;

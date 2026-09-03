@@ -80,8 +80,9 @@
   animation: falcon-wave-crossflow 8.4s cubic-bezier(.45,0,.55,1) infinite alternate;
 }
 
-/* Keep the centered Falcon Fuel wordmark and sweep above the waves. */
+/* Keep the Falcon Fuel wordmark at the true viewport center above the waves. */
 [class~="z-[100]"][class~="bg-[#10263d]"] > :last-child {
+  position: absolute !important;
   z-index: 20;
 }
 

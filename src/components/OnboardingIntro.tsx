@@ -61,7 +61,8 @@ const MEALS = [
 const DEG_TO_RAD = Math.PI / 180;
 const RADIUS_X = 330;
 const DEPTH = 190;
-const CONTENT_DELAY = 0.72;
+const OPENING_HOLD_MS = 2400;
+const CONTENT_DELAY = 2.48;
 
 function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
   const [visible, setVisible] = useState(!reduceMotion);
@@ -71,7 +72,7 @@ function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
       queueMicrotask(() => setVisible(false));
       return;
     }
-    const timeout = window.setTimeout(() => setVisible(false), 1260);
+    const timeout = window.setTimeout(() => setVisible(false), OPENING_HOLD_MS);
     return () => window.clearTimeout(timeout);
   }, [reduceMotion]);
 
@@ -83,7 +84,7 @@ function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
           className="pointer-events-none fixed inset-0 z-[100] overflow-hidden bg-[#10263d]"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.14, delay: 0.72 }}
+          transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
         >
           <motion.div
             className="absolute inset-y-0 left-0 w-1/2 bg-[radial-gradient(circle_at_82%_50%,#315f83_0%,#203f60_38%,#10263d_100%)]"
@@ -98,19 +99,22 @@ function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
             transition={{ duration: 0.74, delay: 0.56, ease: [0.76, 0, 0.24, 1] }}
           />
 
-          <div className="absolute inset-0 flex items-center justify-center px-6">
+          <div
+            className="absolute z-20 w-full px-6"
+            style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+          >
             <motion.div
-              className="relative flex flex-col items-center text-center"
+              className="flex w-full flex-col items-center text-center"
               initial={{ opacity: 0, scale: 0.93, filter: "blur(12px)" }}
               animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, scale: 1.035, filter: "blur(5px)" }}
-              transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
+              exit={{ opacity: 0, scale: 1.025, filter: "blur(5px)" }}
+              transition={{ duration: 0.58, ease: [0.22, 1, 0.36, 1] }}
             >
               <motion.p
                 className="text-[clamp(3.2rem,10vw,6.6rem)] font-bold leading-none tracking-[-0.065em] text-white"
                 initial={{ y: 14, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.44, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.56, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
               >
                 Falcon Fuel
               </motion.p>
@@ -119,7 +123,7 @@ function OpeningReveal({ reduceMotion }: { reduceMotion: boolean }) {
                   className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-[#82BCE5] to-[#42B7B0]"
                   initial={{ x: "-130%" }}
                   animate={{ x: "430%" }}
-                  transition={{ duration: 0.72, delay: 0.24, ease: [0.45, 0, 0.55, 1] }}
+                  transition={{ duration: 0.92, delay: 0.56, ease: [0.45, 0, 0.55, 1] }}
                 />
               </div>
             </motion.div>

@@ -23,6 +23,7 @@ export default function DailyMealCheckinStrip() {
   const reduceMotion = useReducedMotion();
   const [entries, setEntries] = useState<MealHistoryEntry[]>([]);
 
+  // The Home checkpoint is a view over confirmed meal history, never a second log.
   const refresh = useCallback(() => setEntries(todayEntries()), []);
 
   useEffect(() => {

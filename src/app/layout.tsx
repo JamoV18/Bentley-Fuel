@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import "./globals.css";
 import "./react-bits.css";
+import "./onboarding-waves.css";
 import "./bentley-theme.css";
 
 export const metadata: Metadata = {

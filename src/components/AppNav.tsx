@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import ActivityReviewDueBanner from "./ActivityReviewDueBanner";
+import DailyMealCheckinStrip from "./DailyMealCheckinStrip";
 import ProgressiveProfilePrompt from "./ProgressiveProfilePrompt";
 
 const items = [
-  { href: "/today", label: "Today", icon: "home" },
+  { href: "/today", label: "Home", icon: "home" },
   { href: "/dashboard", label: "Eat", icon: "fork" },
   { href: "/log-meal", label: "Log", icon: "log" },
   { href: "/history", label: "History", icon: "chart" },
@@ -62,6 +63,7 @@ export default function AppNav() {
           );
         })}
       </nav>
+      {pathname === "/today" && <DailyMealCheckinStrip />}
       {pathname !== "/profile-summary" && <ActivityReviewDueBanner />}
       {showProgressivePrompt && <ProgressiveProfilePrompt />}
     </>

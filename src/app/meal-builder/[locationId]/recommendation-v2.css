@@ -804,6 +804,11 @@
   line-height: 1.55;
 }
 
+/* When the editor is open, it becomes the immediate next task after the hero. */
+.ff-rec-shell:has(.ff-rec-customize) > .ff-rec-section {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .ff-rec-hero {
     grid-template-columns: 1fr;

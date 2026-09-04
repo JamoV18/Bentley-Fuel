@@ -1,0 +1,109 @@
+/*
+ * Falcon Fuel viewport adaptation.
+ *
+ * Core app screens size themselves against the browser viewport rather than a
+ * fixed laptop mockup. Mobile behavior remains owned by the existing page
+ * styles; these rules only activate for laptop/desktop widths.
+ */
+
+@media (min-width: 1024px) {
+  /* Every primary app screen that renders AppNav gets the same fluid shell. */
+  main:has(> .app-nav) {
+    width: min(calc(100vw - clamp(2.5rem, 6vw, 7rem)), 96rem) !important;
+    max-width: 96rem !important;
+    margin-inline: auto !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: clamp(1.5rem, 3vh, 2.75rem) !important;
+    padding-bottom: clamp(3rem, 7vh, 5rem) !important;
+  }
+
+  /* Five destinations means five equal desktop nav tracks. */
+  .app-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin-top: clamp(.9rem, 1.8vh, 1.35rem);
+  }
+
+  .app-nav-item {
+    padding-block: clamp(.62rem, 1.2vh, .78rem);
+  }
+
+  /* Home should feel like a desktop dashboard, not a centered tablet. */
+  .today-shell {
+    width: min(calc(100vw - clamp(2.5rem, 6vw, 7rem)), 96rem);
+    max-width: 96rem;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: clamp(1.5rem, 3vh, 2.75rem);
+    padding-bottom: clamp(3rem, 7vh, 5rem);
+  }
+
+  .nutrition-carousel {
+    grid-template-columns: minmax(0, 1.28fr) minmax(20rem, .72fr);
+    gap: clamp(.85rem, 1.2vw, 1.25rem);
+  }
+
+  .calorie-layout {
+    min-height: clamp(15.5rem, 34vh, 18rem);
+  }
+
+  .calorie-ring {
+    width: min(clamp(12.5rem, 16vw, 14.5rem), 100%);
+  }
+
+  .today-card,
+  .eat-cta,
+  .nutrition-carousel {
+    margin-top: clamp(.75rem, 1.45vh, 1rem);
+  }
+}
+
+/* Short laptop displays: reduce vertical chrome while keeping touch targets. */
+@media (min-width: 1024px) and (max-height: 820px) {
+  main:has(> .app-nav),
+  .today-shell {
+    padding-top: 1.15rem !important;
+    padding-bottom: 2.5rem !important;
+  }
+
+  .today-greeting {
+    font-size: clamp(1.8rem, 3vw, 2.45rem);
+  }
+
+  .today-date {
+    margin-top: .2rem;
+  }
+
+  .app-nav {
+    margin-top: .75rem;
+  }
+
+  .day-switcher {
+    margin-top: .8rem;
+  }
+
+  .calorie-layout {
+    min-height: 13.75rem;
+  }
+
+  .calorie-ring {
+    width: min(12.5rem, 100%);
+  }
+
+  .macro-detail-grid {
+    margin-top: 1.25rem;
+  }
+
+  .macro-card-note {
+    margin-top: 1.25rem;
+  }
+}
+
+/* Large and ultrawide screens: stop growth before reading distances get silly. */
+@media (min-width: 1680px) {
+  main:has(> .app-nav),
+  .today-shell {
+    width: min(calc(100vw - 8rem), 100rem) !important;
+    max-width: 100rem !important;
+  }
+}

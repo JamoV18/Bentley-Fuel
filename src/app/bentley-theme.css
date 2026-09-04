@@ -212,6 +212,55 @@ section.from-emerald-950 [class~="bg-gradient-to-r"] { background: #a6b2ba !impo
   box-shadow: 0 17px 38px rgba(24, 35, 45, .12), 0 0 0 1px rgba(17, 24, 32, .08) !important;
 }
 
+/* Switching dates should feel tactile without becoming another visual event. */
+.day-arrow,
+.day-slot {
+  transform-origin: center;
+  transition:
+    transform .16s cubic-bezier(.22, 1, .36, 1),
+    border-color .18s ease,
+    background-color .18s ease,
+    box-shadow .18s ease;
+  will-change: transform;
+}
+.day-arrow:active,
+.day-slot:active {
+  transform: translateY(1px) scale(.96);
+  transition-duration: .08s;
+}
+
+/* TodayClient remounts this carousel for each loaded date, so this replays on every day change. */
+.nutrition-carousel .nutrition-card {
+  animation: falcon-day-card-settle .30s cubic-bezier(.22, 1, .36, 1) both;
+}
+.nutrition-carousel .nutrition-card:nth-child(2) { animation-delay: .035s; }
+
+@keyframes falcon-day-card-settle {
+  from {
+    opacity: .68;
+    transform: translateY(7px) scale(.994);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (hover: hover) {
+  .day-arrow:hover,
+  .day-slot:hover { transform: translateY(-1px); }
+  .day-arrow:active,
+  .day-slot:active { transform: translateY(1px) scale(.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-arrow,
+  .day-slot { transition: none; }
+  .day-arrow:active,
+  .day-slot:active { transform: none; }
+  .nutrition-carousel .nutrition-card { animation: none; }
+}
+
 @media (max-width: 639px) {
   body { background: #f7f8fa; }
   .app-nav {

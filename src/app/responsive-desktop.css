@@ -7,6 +7,17 @@
  */
 
 @media (min-width: 1024px) {
+  /* Home gets a quiet neutral canvas; brand color belongs to controls/data. */
+  body:has(.today-shell) {
+    background:
+      radial-gradient(circle at 76% -18%, rgba(0, 117, 190, .045), transparent 34rem),
+      #f7f9fc;
+  }
+
+  body:has(.today-shell)::before {
+    opacity: .32;
+  }
+
   /* Primary app screens use almost the entire viewport with a deliberate gutter. */
   main:has(> .app-nav) {
     width: min(calc(100vw - clamp(1.5rem, 3vw, 3rem)), 112rem) !important;
@@ -52,9 +63,22 @@
     margin-top: clamp(.72rem, 1.2vh, .95rem) !important;
   }
 
+  .today-shell .demo-note {
+    margin-top: .65rem;
+    border-color: rgba(41, 69, 103, .09);
+    background: rgba(255, 255, 255, .72);
+    color: #6a7887;
+    box-shadow: 0 3px 12px rgba(31, 60, 88, .025);
+  }
+
   .nutrition-carousel {
     grid-template-columns: minmax(0, 1.34fr) minmax(21rem, .66fr);
     gap: clamp(.8rem, 1vw, 1.1rem);
+  }
+
+  .nutrition-card {
+    border-color: rgba(41, 69, 103, .09);
+    box-shadow: 0 8px 25px rgba(31, 60, 88, .055);
   }
 
   .calorie-layout {
@@ -78,10 +102,6 @@
   .eat-cta,
   .nutrition-carousel {
     margin-top: clamp(.72rem, 1.2vh, .95rem);
-  }
-
-  .demo-note {
-    margin-top: .65rem;
   }
 }
 

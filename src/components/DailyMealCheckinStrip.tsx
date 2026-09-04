@@ -220,7 +220,7 @@ export default function DailyMealCheckinStrip() {
         <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#42b7b0]/18 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 left-[24%] h-44 w-64 rounded-full bg-[#0075be]/20 blur-3xl" />
 
-        <div className="relative flex h-full min-h-[14.5rem] flex-col">
+        <div className="relative flex h-full min-h-[13rem] flex-col">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[.17em] text-white/55">Your next move</p>
             <h2 className="mt-2.5 text-3xl font-black tracking-[-0.045em]">Time to eat?</h2>
@@ -229,11 +229,11 @@ export default function DailyMealCheckinStrip() {
             </p>
           </div>
 
-          <div className="mt-auto pt-5">
+          <div className="mt-auto pt-4">
             <motion.div whileTap={reduceMotion ? undefined : { scale: 0.992 }}>
               <Link
                 href="/dashboard"
-                className="group flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3.5 text-[#172e46] shadow-[0_9px_22px_rgba(7,23,38,.17)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_27px_rgba(7,23,38,.2)]"
+                className="group flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 text-[#172e46] shadow-[0_9px_22px_rgba(7,23,38,.17)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_27px_rgba(7,23,38,.2)]"
               >
                 <span>
                   <span className="block text-[10px] font-black uppercase tracking-[.13em] text-[#176b9a]">Recommended next</span>
@@ -243,7 +243,7 @@ export default function DailyMealCheckinStrip() {
               </Link>
             </motion.div>
 
-            <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+            <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-white/10 pt-2.5">
               <span className="text-[11px] font-medium text-white/48">Forgot to log something?</span>
               <Link href="/log-meal" className="shrink-0 rounded-xl border border-white/16 bg-white/[.07] px-3 py-1.5 text-[11px] font-black text-white/85 transition hover:bg-white/[.12]">
                 Log a meal

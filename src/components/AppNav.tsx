@@ -23,7 +23,7 @@ function Icon({ name }: { name: (typeof items)[number]["icon"] }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2" /></svg>;
 }
 
-export default function AppNav() {
+export default function AppNav({ showDailyMealCheckin = true }: { showDailyMealCheckin?: boolean }) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
   const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
@@ -63,7 +63,7 @@ export default function AppNav() {
           );
         })}
       </nav>
-      {pathname === "/today" && <DailyMealCheckinStrip />}
+      {pathname === "/today" && showDailyMealCheckin && <DailyMealCheckinStrip />}
       {pathname !== "/profile-summary" && <ActivityReviewDueBanner />}
       {showProgressivePrompt && <ProgressiveProfilePrompt />}
     </>

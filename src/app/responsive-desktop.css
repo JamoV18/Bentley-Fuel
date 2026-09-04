@@ -21,9 +21,9 @@
     display: none;
   }
 
-  /* Primary app screens use the viewport while preserving comfortable gutters. */
+  /* Primary app screens use the viewport while preserving a small, consistent gutter. */
   main:has(> .app-nav) {
-    width: min(calc(100vw - clamp(2.5rem, 5vw, 5.5rem)), 108rem) !important;
+    width: min(calc(100vw - clamp(3.25rem, 6vw, 6.5rem)), 108rem) !important;
     max-width: 108rem !important;
     margin-inline: auto !important;
     padding-left: 0 !important;
@@ -45,7 +45,7 @@
 
   /* Home should feel like a desktop dashboard, not a centered tablet. */
   .today-shell {
-    width: min(calc(100vw - clamp(2.5rem, 5vw, 5.5rem)), 108rem);
+    width: min(calc(100vw - clamp(3.25rem, 6vw, 6.5rem)), 108rem);
     max-width: 108rem;
     padding-left: 0;
     padding-right: 0;
@@ -58,17 +58,18 @@
   }
 
   .home-command-center {
-    margin-top: clamp(1.05rem, 1.9vh, 1.45rem) !important;
-    gap: clamp(1rem, 1.3vw, 1.35rem);
+    margin-top: clamp(1.05rem, 1.9vh, 1.4rem) !important;
+    gap: clamp(.9rem, 1.15vw, 1.2rem);
   }
 
   .daily-checkin-card,
+  .home-calorie-card,
   .home-primary-action {
-    min-height: 19rem;
+    min-height: 16rem;
   }
 
   .day-switcher {
-    margin-top: clamp(1.05rem, 1.9vh, 1.45rem);
+    margin-top: clamp(1.05rem, 1.9vh, 1.4rem);
     grid-template-columns: 2.4rem minmax(0, .92fr) minmax(0, 1.12fr) minmax(0, .92fr) 2.4rem;
   }
 
@@ -109,7 +110,7 @@
 
   .today-card,
   .nutrition-carousel {
-    margin-top: clamp(1.05rem, 1.9vh, 1.45rem);
+    margin-top: clamp(1.05rem, 1.9vh, 1.4rem);
   }
 }
 
@@ -139,18 +140,19 @@
   }
 
   .home-command-center {
-    gap: .9rem;
+    gap: .85rem;
   }
 
   .daily-checkin-card,
+  .home-calorie-card,
   .home-primary-action {
-    min-height: 16.5rem;
-    padding-top: 1.05rem !important;
-    padding-bottom: 1.05rem !important;
+    min-height: 14.75rem;
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
   }
 
   .home-primary-action > div {
-    min-height: 14.25rem !important;
+    min-height: 12.25rem !important;
   }
 
   .calorie-layout {
@@ -174,7 +176,7 @@
 @media (min-width: 1680px) {
   main:has(> .app-nav),
   .today-shell {
-    width: min(calc(100vw - 6rem), 112rem) !important;
+    width: min(calc(100vw - 7rem), 112rem) !important;
     max-width: 112rem !important;
   }
 }

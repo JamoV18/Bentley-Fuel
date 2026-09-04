@@ -92,6 +92,7 @@ export default function DailyMealCheckinStrip() {
   const caloriePercent = calories.target && calories.target > 0
     ? Math.min(100, Math.round((calories.consumed / calories.target) * 100))
     : 0;
+  const ringProgress = Math.max(0, Math.min(1, caloriePercent / 100));
 
   const entriesBySlot = useMemo(() => {
     const result = new Map<CoreSlot, MealHistoryEntry>();
@@ -174,22 +175,50 @@ export default function DailyMealCheckinStrip() {
         transition={reduceMotion ? { duration: 0 } : { duration: 0.31, delay: 0.025, ease: [0.22, 1, 0.36, 1] }}
         aria-label="Today's calorie progress"
       >
-        <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#176b9a]">Calories today</p>
-        <div className="mt-4">
-          <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
-            <strong className="text-3xl font-black tracking-[-0.055em] text-[#172e46]">
-              {Math.round(calories.consumed).toLocaleString()}
-            </strong>
-            {calories.target !== undefined && (
-              <span className="pb-1 text-sm font-bold text-[#718297]">/ {Math.round(calories.target).toLocaleString()}</span>
-            )}
-          </div>
-          <p className="mt-1 text-xs font-semibold text-[#7a8998]">
-            {calories.target === undefined ? "recorded calories" : "eaten / daily target"}
-          </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#176b9a]">Calories today</p>
+          <span className="text-[10px] font-black text-[#718297]">{caloriePercent}%</span>
         </div>
 
-        <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#e5edf3]">
+        <div className="mt-2.5 flex justify-center">
+          <div className="relative h-[7.6rem] w-[7.6rem]">
+            <svg className="h-full w-full" viewBox="0 0 120 120" aria-hidden="true">
+              <circle cx="60" cy="60" r="47" fill="none" stroke="#e5edf3" strokeWidth="10" />
+              <motion.circle
+                cx="60"
+                cy="60"
+                r="47"
+                fill="none"
+                stroke="#0075be"
+                strokeWidth="10"
+                strokeLinecap="round"
+                transform="rotate(-90 60 60)"
+                initial={reduceMotion ? false : { pathLength: 0 }}
+                animate={{ pathLength: ringProgress }}
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 85, damping: 18 }}
+              />
+            </svg>
+            <div className="absolute inset-0 grid place-content-center text-center">
+              <strong className="text-2xl font-black tracking-[-0.055em] text-[#172e46]">
+                {Math.round(calories.consumed).toLocaleString()}
+              </strong>
+              <span className="mt-0.5 text-[10px] font-bold uppercase tracking-[.08em] text-[#7a8998]">eaten</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2 text-center">
+          <p className="text-xs font-semibold text-[#7a8998]">
+            {calories.target === undefined
+              ? "Calories recorded today"
+              : `${Math.round(calories.consumed).toLocaleString()} of ${Math.round(calories.target).toLocaleString()} cal`}
+          </p>
+          <strong className="mt-1 block text-sm font-black text-[#294567]">
+            {calories.remaining === undefined ? "Tracking" : `${Math.round(calories.remaining).toLocaleString()} remaining`}
+          </strong>
+        </div>
+
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e5edf3]">
           <motion.div
             className="h-full rounded-full bg-gradient-to-r from-[#294567] via-[#0075be] to-[#42b7b0]"
             initial={false}
@@ -197,34 +226,23 @@ export default function DailyMealCheckinStrip() {
             transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 115, damping: 20 }}
           />
         </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-          <span className="font-semibold text-[#7a8998]">{caloriePercent}% of target</span>
-          <strong className="font-black text-[#294567]">
-            {calories.remaining === undefined ? "Tracking" : `${Math.round(calories.remaining).toLocaleString()} left`}
-          </strong>
-        </div>
-
-        <Link href="/profile-summary" className="mt-5 inline-flex text-xs font-black text-[#176b9a] hover:text-[#294567]">
-          View nutrition plan →
-        </Link>
       </motion.section>
 
       <motion.section
-        className="home-primary-action order-1 relative overflow-hidden rounded-[1.3rem] border border-[#294567]/10 bg-[linear-gradient(135deg,#172e46_0%,#294567_50%,#0f6f94_100%)] p-5 text-white shadow-[0_14px_32px_rgba(31,60,88,.145)] lg:order-3 sm:p-6"
+        className="home-primary-action order-1 relative overflow-hidden rounded-[1.3rem] border border-[#0075be]/15 bg-[linear-gradient(145deg,#fbfdff_0%,#edf5fa_55%,#eef8f7_100%)] p-5 text-[#172e46] shadow-[0_8px_24px_rgba(31,60,88,.065)] lg:order-3 sm:p-6"
         initial={reduceMotion ? false : { opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={reduceMotion ? { duration: 0 } : { duration: 0.32, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
         aria-label="Choose what to do next"
       >
-        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#42b7b0]/18 blur-3xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 left-[24%] h-44 w-64 rounded-full bg-[#0075be]/20 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-[#42b7b0]/12 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-[22%] h-40 w-60 rounded-full bg-[#0075be]/10 blur-3xl" />
 
         <div className="relative flex h-full min-h-[13rem] flex-col">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[.17em] text-white/55">Your next move</p>
-            <h2 className="mt-2.5 text-3xl font-black tracking-[-0.045em]">Time to eat?</h2>
-            <p className="mt-2.5 max-w-lg text-sm font-medium leading-relaxed text-white/68">
+            <p className="text-[10px] font-black uppercase tracking-[.17em] text-[#176b9a]">Your next move</p>
+            <h2 className="mt-2.5 text-3xl font-black tracking-[-0.045em] text-[#172e46]">Time to eat?</h2>
+            <p className="mt-2.5 max-w-lg text-sm font-medium leading-relaxed text-[#667789]">
               Pick where you&apos;re eating and Falcon Fuel will rank the best available complete meals for your plan right now.
             </p>
           </div>
@@ -233,19 +251,19 @@ export default function DailyMealCheckinStrip() {
             <motion.div whileTap={reduceMotion ? undefined : { scale: 0.992 }}>
               <Link
                 href="/dashboard"
-                className="group flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 text-[#172e46] shadow-[0_9px_22px_rgba(7,23,38,.17)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_27px_rgba(7,23,38,.2)]"
+                className="group flex w-full items-center justify-between rounded-2xl bg-[#294567] px-4 py-3 text-white shadow-[0_9px_22px_rgba(41,69,103,.16)] transition hover:-translate-y-0.5 hover:bg-[#345d82] hover:shadow-[0_12px_27px_rgba(41,69,103,.2)]"
               >
                 <span>
-                  <span className="block text-[10px] font-black uppercase tracking-[.13em] text-[#176b9a]">Recommended next</span>
+                  <span className="block text-[10px] font-black uppercase tracking-[.13em] text-[#bcd8e9]">Recommended next</span>
                   <span className="mt-0.5 block text-base font-black tracking-[-0.02em]">Find my meal</span>
                 </span>
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#edf5fa] text-lg font-black text-[#176b9a] transition-transform group-hover:translate-x-0.5">→</span>
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-white/12 text-lg font-black text-white transition-transform group-hover:translate-x-0.5">→</span>
               </Link>
             </motion.div>
 
-            <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-white/10 pt-2.5">
-              <span className="text-[11px] font-medium text-white/48">Forgot to log something?</span>
-              <Link href="/log-meal" className="shrink-0 rounded-xl border border-white/16 bg-white/[.07] px-3 py-1.5 text-[11px] font-black text-white/85 transition hover:bg-white/[.12]">
+            <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-[#294567]/10 pt-2.5">
+              <span className="text-[11px] font-medium text-[#7a8998]">Forgot to log something?</span>
+              <Link href="/log-meal" className="shrink-0 rounded-xl border border-[#294567]/12 bg-white/80 px-3 py-1.5 text-[11px] font-black text-[#294567] transition hover:border-[#0075be]/25 hover:bg-white">
                 Log a meal
               </Link>
             </div>

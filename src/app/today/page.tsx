@@ -1,5 +1,5 @@
 import { getDiningProvider } from "@/services";
-import TodayClient from "./TodayClient";
+import TodayV2Client from "./TodayV2Client";
 
 export default async function TodayPage() {
   const provider = getDiningProvider();
@@ -10,7 +10,7 @@ export default async function TodayPage() {
   const hasVerifiedMenuData = menuItems.some((item) => item.provenance.dataStatus === "verified");
 
   return (
-    <TodayClient
+    <TodayV2Client
       locationNames={Object.fromEntries(locations.map((location) => [location.id, location.shortName ?? location.name]))}
       itemNames={Object.fromEntries(menuItems.map((item) => [item.id, item.name]))}
       itemImageUrls={Object.fromEntries(menuItems.map((item) => [item.id, item.imageUrl]))}

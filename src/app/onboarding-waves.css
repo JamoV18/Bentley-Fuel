@@ -1,15 +1,15 @@
 /*
-  Falcon Fuel onboarding launch — animated Bentley gradient waves.
-  This layer deliberately replaces the legacy left/right split reveal with one
-  continuous field so the first impression never reads as a 50/50 screen.
+  Falcon Fuel onboarding launch — animated, restrained Bentley waves.
+  The motion stays expressive, but saturation is deliberately lower than the
+  action color used by real controls later in onboarding.
 */
 
 [class~="z-[100]"][class~="bg-[#10263d]"] {
   isolation: isolate;
   background:
-    radial-gradient(85% 70% at 15% 100%, rgba(0, 117, 190, 0.42), transparent 62%),
-    radial-gradient(70% 60% at 88% 2%, rgba(66, 183, 176, 0.24), transparent 58%),
-    linear-gradient(135deg, #061522 0%, #0a2740 38%, #0b3554 66%, #0c253a 100%) !important;
+    radial-gradient(85% 70% at 15% 100%, rgba(74, 105, 126, 0.34), transparent 62%),
+    radial-gradient(70% 60% at 88% 2%, rgba(100, 126, 120, 0.18), transparent 58%),
+    linear-gradient(135deg, #0b151d 0%, #14232e 38%, #1a2c38 66%, #14232d 100%) !important;
 }
 
 /* The original two half-screen panels are never visible. */
@@ -33,24 +33,24 @@
   background:
     radial-gradient(80% 38% at 48% 112%,
       transparent 0 46%,
-      rgba(0, 117, 190, 0.22) 50%,
-      rgba(0, 117, 190, 0.70) 57%,
-      rgba(130, 188, 229, 0.28) 64%,
+      rgba(83, 112, 132, 0.18) 50%,
+      rgba(93, 125, 147, 0.48) 57%,
+      rgba(154, 172, 184, 0.20) 64%,
       transparent 72%),
     radial-gradient(72% 34% at 62% 103%,
       transparent 0 42%,
-      rgba(66, 183, 176, 0.10) 47%,
-      rgba(66, 183, 176, 0.58) 55%,
-      rgba(0, 117, 190, 0.22) 63%,
+      rgba(103, 130, 124, 0.08) 47%,
+      rgba(109, 139, 132, 0.34) 55%,
+      rgba(82, 111, 130, 0.16) 63%,
       transparent 71%),
     radial-gradient(68% 31% at 34% 94%,
       transparent 0 44%,
-      rgba(41, 69, 103, 0.18) 49%,
-      rgba(0, 117, 190, 0.52) 56%,
-      rgba(66, 183, 176, 0.16) 64%,
+      rgba(64, 82, 96, 0.14) 49%,
+      rgba(82, 112, 134, 0.38) 56%,
+      rgba(100, 127, 121, 0.12) 64%,
       transparent 72%);
-  filter: blur(14px) saturate(1.18);
-  opacity: 0.96;
+  filter: blur(14px) saturate(.86);
+  opacity: 0.92;
   transform: translate3d(-3%, 4%, 0) rotate(-6deg) scale(1.05);
   animation: falcon-wave-drift 6.8s cubic-bezier(.45,0,.55,1) infinite alternate;
 }
@@ -62,20 +62,20 @@
   background:
     radial-gradient(76% 34% at 42% -7%,
       transparent 0 48%,
-      rgba(130, 188, 229, 0.08) 51%,
-      rgba(0, 117, 190, 0.40) 58%,
-      rgba(66, 183, 176, 0.18) 65%,
+      rgba(158, 175, 186, 0.06) 51%,
+      rgba(91, 119, 139, 0.28) 58%,
+      rgba(107, 133, 127, 0.12) 65%,
       transparent 73%),
     radial-gradient(64% 30% at 78% 22%,
       transparent 0 45%,
-      rgba(66, 183, 176, 0.10) 50%,
-      rgba(66, 183, 176, 0.36) 57%,
-      rgba(0, 117, 190, 0.18) 64%,
+      rgba(105, 132, 126, 0.07) 50%,
+      rgba(108, 137, 130, 0.24) 57%,
+      rgba(87, 115, 134, 0.12) 64%,
       transparent 72%),
-    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.018) 0 1px, transparent 1px 4px);
+    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.015) 0 1px, transparent 1px 4px);
   mix-blend-mode: screen;
-  filter: blur(11px);
-  opacity: 0.78;
+  filter: blur(11px) saturate(.82);
+  opacity: 0.70;
   transform: translate3d(4%, -3%, 0) rotate(5deg) scale(1.04);
   animation: falcon-wave-crossflow 8.4s cubic-bezier(.45,0,.55,1) infinite alternate;
 }
@@ -89,30 +89,30 @@
 @keyframes falcon-wave-drift {
   0% {
     transform: translate3d(-5%, 5%, 0) rotate(-8deg) scale(1.03);
-    opacity: 0.80;
+    opacity: 0.76;
   }
   52% {
     transform: translate3d(2%, -1%, 0) rotate(-2deg) scale(1.10);
-    opacity: 1;
+    opacity: 0.94;
   }
   100% {
     transform: translate3d(5%, 3%, 0) rotate(4deg) scale(1.06);
-    opacity: 0.88;
+    opacity: 0.82;
   }
 }
 
 @keyframes falcon-wave-crossflow {
   0% {
     transform: translate3d(5%, -4%, 0) rotate(7deg) scale(1.02);
-    opacity: 0.58;
+    opacity: 0.50;
   }
   55% {
     transform: translate3d(-3%, 3%, 0) rotate(1deg) scale(1.09);
-    opacity: 0.86;
+    opacity: 0.74;
   }
   100% {
     transform: translate3d(1%, 5%, 0) rotate(-5deg) scale(1.05);
-    opacity: 0.70;
+    opacity: 0.62;
   }
 }
 

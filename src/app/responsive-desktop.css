@@ -6,6 +6,11 @@
  * styles; these rules only activate for laptop/desktop widths.
  */
 
+/* Time to eat now lives in the Home command center, so suppress the old duplicate CTA. */
+.today-shell > .eat-cta {
+  display: none;
+}
+
 @media (min-width: 1024px) {
   /* Home stays visually quiet; richer gradients belong inside purposeful cards. */
   body:has(.today-shell) {
@@ -52,17 +57,23 @@
     padding-inline: clamp(.1rem, .5vw, .5rem);
   }
 
+  .home-command-center {
+    margin-top: clamp(1.05rem, 1.9vh, 1.45rem) !important;
+    gap: clamp(1rem, 1.3vw, 1.35rem);
+  }
+
+  .daily-checkin-card,
+  .home-primary-action {
+    min-height: 19rem;
+  }
+
   .day-switcher {
-    margin-top: clamp(1rem, 1.7vh, 1.3rem);
+    margin-top: clamp(1.05rem, 1.9vh, 1.45rem);
     grid-template-columns: 2.4rem minmax(0, .92fr) minmax(0, 1.12fr) minmax(0, .92fr) 2.4rem;
   }
 
-  .daily-checkin-strip {
-    margin-top: clamp(1rem, 1.7vh, 1.3rem) !important;
-  }
-
   .today-shell .demo-note {
-    margin-top: clamp(.8rem, 1.35vh, 1rem);
+    margin-top: clamp(.85rem, 1.45vh, 1.05rem);
     border-color: rgba(41, 69, 103, .09);
     background: rgba(255, 255, 255, .86);
     color: #6a7887;
@@ -97,9 +108,8 @@
   }
 
   .today-card,
-  .eat-cta,
   .nutrition-carousel {
-    margin-top: clamp(1rem, 1.7vh, 1.3rem);
+    margin-top: clamp(1.05rem, 1.9vh, 1.45rem);
   }
 }
 
@@ -123,19 +133,24 @@
     margin-top: .8rem;
   }
 
+  .home-command-center,
   .day-switcher {
-    margin-top: .85rem;
+    margin-top: .9rem !important;
   }
 
-  .daily-checkin-strip {
-    margin-top: .85rem !important;
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+  .home-command-center {
+    gap: .9rem;
   }
 
-  .daily-checkin-strip > div:nth-of-type(2),
-  .daily-checkin-strip > p:last-child {
-    margin-top: .7rem !important;
+  .daily-checkin-card,
+  .home-primary-action {
+    min-height: 16.5rem;
+    padding-top: 1.05rem !important;
+    padding-bottom: 1.05rem !important;
+  }
+
+  .home-primary-action > div {
+    min-height: 14.25rem !important;
   }
 
   .calorie-layout {

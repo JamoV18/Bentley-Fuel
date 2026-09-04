@@ -24,7 +24,6 @@ const round = (value: number) => Math.round(value);
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const coverage = (value: number, target: number) => target > 0 ? clamp(Math.round((value / target) * 100), 0, 100) : 0;
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const formatWeight = (kg: number, units: UserProfile["unitSystem"]) => units === "metric" ? `${Math.round(kg * 10) / 10} kg` : `${Math.round(kg / 0.45359237)} lb`;
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
@@ -84,10 +83,10 @@ function preferredLocation(recent: MealHistoryEntry[], locationNames: Record<str
     counts.set(entry.locationId, (counts.get(entry.locationId) ?? 0) + 1);
   }
   const learned = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-  if (learned) return { id: learned[0], count: learned[1], learned: learned[1] >= 2 };
-  if (locationNames["loc-921"]) return { id: "loc-921", count: 0, learned: false };
+  if (learned) return { id: learned[0], learned: learned[1] >= 2 };
+  if (locationNames["loc-921"]) return { id: "loc-921", learned: false };
   const fallback = Object.keys(locationNames)[0];
-  return { id: fallback, count: 0, learned: false };
+  return { id: fallback, learned: false };
 }
 
 export default function TodayV2Client({
@@ -180,7 +179,7 @@ export default function TodayV2Client({
   const proteinCoverage = target ? coverage(snapshot.consumed.protein, target.protein) : 0;
   const firstPending = pending[0];
   const savingFirstPending = firstPending ? savingCheckIn?.id === firstPending.id : false;
-  const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== 0).length;
+  const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0).length;
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const planLabel = plan?.phase === "maintenance" ? "Maintenance" : goals.map(readable).join(" · ");
   const recommendationHref = `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(currentMealPeriod)}`;
@@ -207,7 +206,7 @@ export default function TodayV2Client({
         <ProfileMenu profile={profile} />
       </header>
 
-      <AppNav showDailyMealCheckin={false} />
+      <AppNav showDailyMealCheckin={false} showContextPrompts={false} />
 
       <div className="ff-v2-daybar" aria-label="Choose day">
         <button type="button" onClick={() => changeDay(-1)} aria-label={`View ${dayLabel(yesterday)}`}><span>←</span><small>{dayLabel(yesterday)}</small></button>
@@ -308,7 +307,7 @@ export default function TodayV2Client({
             </AnimatedCalorieRing>
             <div className="ff-v2-calorie-copy">
               <strong>{remainingCalories === undefined ? "Tracking today" : `${round(remainingCalories).toLocaleString()} left`}</strong>
-              <p>{remainingCalories === undefined ? "Add meals and the day will take shape." : calorieCoverage > 100 ? "You’re over the daily target; tomorrow is another data point." : "Calories are context. The next decision matters more than the last one."}</p>
+              <p>{remainingCalories === undefined ? "Add meals and the day will take shape." : target && snapshot.consumed.calories > target.calories ? "You’re over today’s target. No scorekeeping—just use it as context." : "Calories are context. The next decision matters more than the last one."}</p>
             </div>
           </div>
 

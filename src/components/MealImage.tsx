@@ -1,7 +1,8 @@
 import "./recommendation-completeness.css";
 import type { CSSProperties } from "react";
-import FoodIllustration from "@/components/FoodIllustrationV2";
+import ServingAccurateFoodIllustration from "@/components/ServingAccurateFoodIllustration";
 import { hasFoodIllustration } from "@/lib/foodIllustrations";
+import { illustratedMealParts } from "@/lib/mealIllustrationComposition";
 
 const FOOD_IMAGES = {
   bowl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=82",
@@ -58,7 +59,23 @@ export default function MealImage({
         aria-label={`${name} food illustration`}
         className={`meal-image meal-image-${aspect} meal-image-illustrated ${className}`}
       >
-        <FoodIllustration name={name} />
+        <ServingAccurateFoodIllustration name={name} />
+      </div>
+    );
+  }
+
+  const illustratedParts = illustratedMealParts(name);
+  if (illustratedParts.length >= 2) {
+    return (
+      <div
+        role="img"
+        aria-label={`${name} complete meal illustration`}
+        className={`meal-image meal-image-${aspect} meal-image-illustrated meal-image-composed ${className}`}
+        data-food-count={Math.min(illustratedParts.length, 4)}
+      >
+        {illustratedParts.slice(0, 4).map((part) => (
+          <ServingAccurateFoodIllustration key={part} name={part} />
+        ))}
       </div>
     );
   }

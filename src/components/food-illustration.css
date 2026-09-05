@@ -1,1 +1,200 @@
-.meal-image-illustrated{display:grid;place-items:center;background:linear-gradient(145deg,#eef8ff 0%,#f8fcff 58%,#e5f3fb 100%);background-image:none!important;position:relative;isolation:isolate}.meal-image-illustrated::before{content:"";position:absolute;inset:9%;border:1px solid rgba(0,117,190,.08);border-radius:50%;transform:scale(.84);z-index:-1}.meal-image-illustrated .ff-food-art{display:block;width:88%;height:88%;overflow:visible;transform-origin:center;transition:transform .32s cubic-bezier(.22,1,.36,1),filter .32s cubic-bezier(.22,1,.36,1)}.meal-image-illustrated:hover .ff-food-art{transform:translateY(-2px) rotate(-.6deg) scale(1.035);filter:drop-shadow(0 8px 7px rgba(16,38,61,.08))}.meal-image-square.meal-image-illustrated .ff-food-art{width:96%;height:96%}.meal-image-wide.meal-image-illustrated .ff-food-art{width:82%;height:96%}.meal-image-hero.meal-image-illustrated .ff-food-art{width:min(86%,34rem);height:94%}.meal-image-composed{display:flex;align-items:center;justify-content:center;gap:clamp(.25rem,1.2vw,1rem);padding:clamp(.5rem,2vw,1.5rem);overflow:hidden}.meal-image-composed::before{inset:7%;transform:scale(.94)}.meal-image-composed .ff-food-art{flex:0 1 46%;width:46%!important;height:84%!important;min-width:0}.meal-image-composed[data-food-count="3"] .ff-food-art{flex-basis:31%;width:31%!important;height:76%!important}.meal-image-composed[data-food-count="4"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:.25rem}.meal-image-composed[data-food-count="4"] .ff-food-art{width:100%!important;height:100%!important}.meal-image-composed:hover .ff-food-art:nth-child(odd){transform:translateY(-2px) rotate(-.8deg) scale(1.025)}.meal-image-composed:hover .ff-food-art:nth-child(even){transform:translateY(-2px) rotate(.8deg) scale(1.025)}@media(prefers-reduced-motion:reduce){.meal-image-illustrated .ff-food-art{transition:none}.meal-image-illustrated:hover .ff-food-art,.meal-image-composed:hover .ff-food-art:nth-child(odd),.meal-image-composed:hover .ff-food-art:nth-child(even){transform:none;filter:none}}
+.meal-image-illustrated{
+  --ff-art-width:76%;
+  --ff-art-height:78%;
+  display:grid;
+  place-items:center;
+  box-sizing:border-box;
+  padding:clamp(.65rem,1.8vw,1.25rem);
+  overflow:hidden;
+  background:linear-gradient(145deg,#eef8ff 0%,#f8fcff 58%,#e5f3fb 100%);
+  background-image:none!important;
+  position:relative;
+  isolation:isolate;
+}
+
+.meal-image-illustrated::before{
+  content:"";
+  position:absolute;
+  inset:8%;
+  border:1px solid rgba(0,117,190,.08);
+  border-radius:50%;
+  transform:scale(.9);
+  z-index:-1;
+}
+
+.meal-image-illustrated .ff-food-art{
+  display:block;
+  width:var(--ff-art-width)!important;
+  height:var(--ff-art-height)!important;
+  max-width:100%;
+  max-height:100%;
+  overflow:visible;
+  transform-origin:center;
+  transition:transform .32s cubic-bezier(.22,1,.36,1),filter .32s cubic-bezier(.22,1,.36,1);
+}
+
+/*
+ * Serving scale reference: the plate artwork represents the 10.5-inch
+ * Bentley dining-hall plate. Other vessels keep a stable visual ratio to it.
+ */
+.meal-image-vessel-plate{
+  --ff-art-width:82%;
+  --ff-art-height:82%;
+}
+
+.meal-image-vessel-bowl{
+  --ff-art-width:68%;
+  --ff-art-height:74%;
+}
+
+.meal-image-vessel-drink{
+  --ff-art-width:56%;
+  --ff-art-height:78%;
+}
+
+.meal-image-vessel-ingredient{
+  --ff-art-width:70%;
+  --ff-art-height:72%;
+}
+
+.meal-image-wide.meal-image-vessel-plate{
+  --ff-art-width:74%;
+  --ff-art-height:78%;
+}
+
+.meal-image-wide.meal-image-vessel-bowl{
+  --ff-art-width:62%;
+  --ff-art-height:72%;
+}
+
+.meal-image-wide.meal-image-vessel-drink{
+  --ff-art-width:50%;
+  --ff-art-height:74%;
+}
+
+.meal-image-hero.meal-image-vessel-plate .ff-food-art{
+  width:min(78%,34rem)!important;
+  height:80%!important;
+}
+
+.meal-image-hero.meal-image-vessel-bowl .ff-food-art{
+  width:min(66%,29rem)!important;
+  height:74%!important;
+}
+
+.meal-image-hero.meal-image-vessel-drink .ff-food-art{
+  width:min(54%,24rem)!important;
+  height:76%!important;
+}
+
+.meal-image-illustrated:hover .ff-food-art{
+  transform:translateY(-2px) scale(1.018);
+  filter:drop-shadow(0 8px 7px rgba(16,38,61,.08));
+}
+
+/* Complete meals are arranged like one neat place setting in front of the diner. */
+.meal-image-composed{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  padding:clamp(.8rem,2.4vw,1.75rem) clamp(.95rem,3vw,2.1rem);
+  overflow:hidden;
+}
+
+.meal-image-composed::before{
+  inset:8%;
+  transform:scale(.92);
+}
+
+.meal-image-composed-part{
+  display:grid;
+  place-items:center;
+  flex:0 1 auto;
+  height:82%;
+  min-width:0;
+  position:relative;
+}
+
+.meal-image-composed-part + .meal-image-composed-part{
+  margin-left:-5.5%;
+}
+
+.meal-image-composed-part-plate{
+  width:46%;
+  z-index:2;
+}
+
+.meal-image-composed-part-bowl{
+  width:32%;
+  transform:translateY(4%);
+  z-index:3;
+}
+
+.meal-image-composed-part-drink{
+  width:22%;
+  margin-left:-9%!important;
+  transform:translateY(1%);
+  z-index:4;
+}
+
+.meal-image-composed-part-ingredient{
+  width:24%;
+  transform:translateY(3%);
+  z-index:3;
+}
+
+.meal-image-composed-part .ff-food-art{
+  width:100%!important;
+  height:100%!important;
+  max-width:100%;
+  max-height:100%;
+}
+
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-plate{width:40%}
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-bowl{width:29%}
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-drink{width:20%}
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-ingredient{width:22%}
+
+.meal-image-composed[data-food-count="4"]{
+  padding-inline:5%;
+}
+
+.meal-image-composed[data-food-count="4"] .meal-image-composed-part{
+  max-width:27%;
+  height:72%;
+}
+
+.meal-image-composed:hover .meal-image-composed-part .ff-food-art{
+  transform:translateY(-2px) scale(1.012);
+}
+
+@media(max-width:640px){
+  .meal-image-illustrated{
+    padding:.65rem;
+  }
+
+  .meal-image-composed{
+    padding:.7rem .75rem;
+  }
+
+  .meal-image-composed-part + .meal-image-composed-part{
+    margin-left:-4.5%;
+  }
+
+  .meal-image-composed-part-drink{
+    margin-left:-8%!important;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .meal-image-illustrated .ff-food-art{
+    transition:none;
+  }
+
+  .meal-image-illustrated:hover .ff-food-art,
+  .meal-image-composed:hover .meal-image-composed-part .ff-food-art{
+    transform:none;
+    filter:none;
+  }
+}

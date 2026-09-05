@@ -16,6 +16,15 @@ const sexLabel: Record<NonNullable<NonNullable<UserProfile["metrics"]>["sex"]>, 
 const activityLabel: Record<NonNullable<NonNullable<UserProfile["metrics"]>["activityLevel"]>, string> = {
   inactive: "Inactive", "low-active": "Low active", active: "Active", "very-active": "Very active",
 };
+const DINING_LOCATIONS = [
+  { id: "loc-921", label: "The 921" },
+  { id: "loc-lacava", label: "LaCava" },
+  { id: "loc-market", label: "Collins / Falcon Market" },
+  { id: "loc-dana", label: "Dana Center" },
+  { id: "loc-harrys", label: "Harry’s" },
+  { id: "loc-dunkin", label: "Dunkin’" },
+  { id: "loc-einstein", label: "Einstein Bros." },
+] as const;
 
 function Row({ name, value }: { name: string; value: string }) {
   return <div className="flex items-start justify-between gap-5 border-b border-black/[.05] py-3 last:border-b-0"><dt className="text-sm subtle">{name}</dt><dd className="text-right text-sm font-bold text-emerald-950">{value}</dd></div>;
@@ -24,6 +33,7 @@ function Row({ name, value }: { name: string; value: string }) {
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>();
   const [latestWeightKg, setLatestWeightKg] = useState<number>();
+  const [locationSaved, setLocationSaved] = useState(false);
   const { language, setLanguage, locale } = useLanguage();
 
   useEffect(() => {
@@ -54,6 +64,16 @@ export default function ProfilePage() {
   const sex = profile.metrics?.sex ? sexLabel[profile.metrics.sex] : "Not provided";
   const activity = profile.metrics?.activityLevel ? activityLabel[profile.metrics.activityLevel] : "Not provided";
   const joined = new Date(profile.createdAt).toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" });
+  const homeLocationLabel = DINING_LOCATIONS.find((option) => option.id === profile.homeLocationId)?.label ?? "Not set";
+
+  const saveHomeLocation = (homeLocationId: string) => {
+    if (locationSaved || homeLocationId === profile.homeLocationId) return;
+    const nextProfile: UserProfile = { ...profile, homeLocationId, updatedAt: new Date().toISOString() };
+    browserProfileRepository().save(nextProfile);
+    setProfile(nextProfile);
+    setLocationSaved(true);
+    window.setTimeout(() => setLocationSaved(false), 700);
+  };
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
@@ -65,7 +85,7 @@ export default function ProfilePage() {
       <header className="mt-8">
         <p className="brand-kicker">Falcon Fuel</p>
         <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Your profile</h1>
-        <p className="mt-2 max-w-3xl subtle">Personal details and dietary preferences used across Falcon Fuel.</p>
+        <p className="mt-2 max-w-3xl subtle">Personal details and dining preferences Falcon Fuel uses to make the next decision more realistic.</p>
       </header>
 
       <AppNav />
@@ -81,7 +101,7 @@ export default function ProfilePage() {
             </div>
             <div className="mt-10 border-t border-white/12 pt-5">
               <div className="flex items-center justify-between gap-4 text-sm"><span className="text-white/55">Member since</span><strong>{joined}</strong></div>
-              <div className="mt-3 flex items-center justify-between gap-4 text-sm"><span className="text-white/55">Profile home</span><strong>Today</strong></div>
+              <div className="mt-3 flex items-center justify-between gap-4 text-sm"><span className="text-white/55">Usual dining</span><strong>{homeLocationLabel}</strong></div>
               <Link href="/profile-summary" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-white">View plan <span aria-hidden="true">→</span></Link>
             </div>
           </div>
@@ -113,9 +133,23 @@ export default function ProfilePage() {
         </section>
 
         <section className="surface p-5 sm:p-6 lg:col-span-3">
-          <p className="eyebrow">Account</p>
-          <h2 className="mt-1 text-2xl font-bold">Profile & settings</h2>
+          <p className="eyebrow">Settings</p>
+          <h2 className="mt-1 text-2xl font-bold">Profile & app</h2>
+
           <div className="mt-5">
+            <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">Usual dining location</p><p className="mt-1 text-xs leading-relaxed subtle">Today starts here unless a strong meal-specific routine suggests context worth showing.</p></div>{locationSaved && <span className="text-xs font-bold text-emerald-800">Saved</span>}</div>
+            <select
+              className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm font-bold text-emerald-950"
+              value={profile.homeLocationId ?? ""}
+              onChange={(event) => saveHomeLocation(event.target.value)}
+              aria-label="Usual dining location"
+            >
+              <option value="" disabled>Choose a location</option>
+              {DINING_LOCATIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </div>
+
+          <div className="mt-6 border-t border-black/[.06] pt-5">
             <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">App language</p><p className="mt-1 text-xs leading-relaxed subtle">Choose the language Falcon Fuel uses across the app.</p></div><span className="text-xs font-bold text-emerald-800">{SUPPORTED_LANGUAGE_OPTIONS.find((option) => option.code === language)?.label}</span></div>
             <div data-i18n-skip className="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-black/[.035] p-1">
               {SUPPORTED_LANGUAGE_OPTIONS.map((option) => <button key={option.code} type="button" onClick={() => setLanguage(option.code)} aria-pressed={language === option.code} className={`rounded-xl px-2 py-2.5 text-sm font-bold transition ${language === option.code ? "bg-white text-emerald-950 shadow-sm" : "text-black/45 hover:text-emerald-900"}`}>{option.code === "zh" ? "中文" : option.label}</button>)}

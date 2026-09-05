@@ -1,6 +1,9 @@
 import FoodIllustration from "@/components/FoodIllustrationV2";
 import LunchFoodIllustration from "@/components/LunchFoodIllustration";
 import MenuFoodIllustration from "@/components/MenuFoodIllustration";
+import VegetableDishIllustration, {
+  isRecognizableVegetableDish,
+} from "@/components/VegetableDishIllustration";
 import { foodIllustrationKind, hasLunchFoodIllustration } from "@/lib/foodIllustrations";
 import { hasExactMenuVisual } from "@/lib/menuIllustrationCatalog";
 
@@ -63,6 +66,10 @@ export default function ServingAccurateFoodIllustration({ name }: { name: string
 
   if (hasLunchFoodIllustration(name)) {
     return <LunchFoodIllustration name={name} />;
+  }
+
+  if (isRecognizableVegetableDish(name)) {
+    return <VegetableDishIllustration name={name} />;
   }
 
   if (hasExactMenuVisual(name)) {

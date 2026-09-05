@@ -1,6 +1,6 @@
-import DetailedMenuFoodIllustration from "@/components/DetailedMenuFoodIllustration";
 import FoodIllustration from "@/components/FoodIllustrationV2";
 import LunchFoodIllustration from "@/components/LunchFoodIllustration";
+import PremiumMenuFoodIllustration from "@/components/PremiumMenuFoodIllustration";
 import VegetableDishIllustration, {
   isRecognizableVegetableDish,
 } from "@/components/VegetableDishIllustration";
@@ -64,8 +64,16 @@ export default function ServingAccurateFoodIllustration({ name }: { name: string
     return <PumpkinBakedOatmealBowl />;
   }
 
-  // Keep the hand-tuned lunch drawings for dishes where we know the exact
-  // serving form from the verified menu payload.
+  // Exact lunch/dinner menu items use the highest-detail scalable renderer.
+  // This deliberately takes priority over the older hand-tuned lunch SVGs so
+  // deli breads, soup, vegetables, pizza, proteins, sauces, etc. can carry the
+  // same visual richness as the approved Falcon Fuel reference artwork.
+  if (hasExactMenuVisual(name)) {
+    return <PremiumMenuFoodIllustration name={name} />;
+  }
+
+  // Keep specific verified lunch drawings for items not yet represented in the
+  // exact catalog (for example some La Mesa/Pure Eats components).
   if (hasLunchFoodIllustration(name)) {
     return <LunchFoodIllustration name={name} />;
   }
@@ -74,17 +82,13 @@ export default function ServingAccurateFoodIllustration({ name }: { name: string
     return <VegetableDishIllustration name={name} />;
   }
 
-  // Exact menu items now use the richer vector renderer instead of the old
-  // primitive-symbol fallback (rectangles/circles that looked like pixels).
-  if (hasExactMenuVisual(name)) {
-    return <DetailedMenuFoodIllustration name={name} />;
-  }
-
+  // Breakfast remains on its dedicated serving-aware drawing system.
   if (foodIllustrationKind(name)) {
     return <FoodIllustration name={name} />;
   }
 
-  // Unknown/live dinner items still stay in the Falcon illustration language,
-  // but now use the detailed serving-aware renderer as the fallback.
-  return <DetailedMenuFoodIllustration name={name} />;
+  // New/live dinner items are inferred into a vessel + food category and drawn
+  // with the same premium vector grammar instead of dropping to generic blocks
+  // or photography.
+  return <PremiumMenuFoodIllustration name={name} />;
 }

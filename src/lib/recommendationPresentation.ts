@@ -94,7 +94,7 @@ export function personalizationCue(ranking: RankedMealCandidate | undefined): st
     return "Built around the breakfast staples you chose.";
   }
   if (behavior.learnedSignals.length > 0 && behavior.learnedEvidenceCount >= 2) {
-    return `We learned this from your meals: ${behavior.learnedSignals.join(", ")} keep showing up across ${behavior.learnedEvidenceCount} recent choices.`;
+    return `We learned this from your meals: ${behavior.learnedSignals.join(", ")}, across ${behavior.learnedEvidenceCount} recent choices.`;
   }
   if ((behavior.interactionSignals?.length ?? 0) > 0) {
     return `Your recent meal edits helped shape this pick: ${behavior.interactionSignals!.join("; ")}.`;

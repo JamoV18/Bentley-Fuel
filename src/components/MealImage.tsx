@@ -1,6 +1,6 @@
 import "./recommendation-completeness.css";
 import type { CSSProperties } from "react";
-import FoodIllustration from "@/components/FoodIllustration";
+import FoodIllustration from "@/components/FoodIllustrationV2";
 import { hasFoodIllustration } from "@/lib/foodIllustrations";
 
 const FOOD_IMAGES = {

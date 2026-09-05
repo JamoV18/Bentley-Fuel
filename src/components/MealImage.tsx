@@ -1,3 +1,4 @@
+import "./recommendation-completeness.css";
 import type { CSSProperties } from "react";
 
 const FOOD_IMAGES = {

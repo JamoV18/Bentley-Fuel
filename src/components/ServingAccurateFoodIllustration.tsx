@@ -1,6 +1,8 @@
 import FoodIllustration from "@/components/FoodIllustrationV2";
 import LunchFoodIllustration from "@/components/LunchFoodIllustration";
-import { hasLunchFoodIllustration } from "@/lib/foodIllustrations";
+import MenuFoodIllustration from "@/components/MenuFoodIllustration";
+import { foodIllustrationKind, hasLunchFoodIllustration } from "@/lib/foodIllustrations";
+import { hasExactMenuVisual } from "@/lib/menuIllustrationCatalog";
 
 const INK = "#10263d";
 const BOWL = "#fffdf8";
@@ -63,5 +65,16 @@ export default function ServingAccurateFoodIllustration({ name }: { name: string
     return <LunchFoodIllustration name={name} />;
   }
 
-  return <FoodIllustration name={name} />;
+  if (hasExactMenuVisual(name)) {
+    return <MenuFoodIllustration name={name} />;
+  }
+
+  if (foodIllustrationKind(name)) {
+    return <FoodIllustration name={name} />;
+  }
+
+  // The menu artwork is now the fallback itself. Unknown dinner/live-menu
+  // items still render in the Falcon illustration language instead of
+  // reverting to a stock or unpublished dining photo.
+  return <MenuFoodIllustration name={name} />;
 }

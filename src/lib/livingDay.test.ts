@@ -17,15 +17,15 @@ const meal = (
   build: { locationId: "loc-test", items: [{ id: `${id}-line`, menuItemId: `${id}-item`, quantity: 1 }] },
 });
 
-test("explicit meal slots win over timestamp inference", () => {
-  assert.equal(inferCoreMealSlot(meal("planned-lunch", 10, 1, "lunch")), "lunch");
+test("explicit meal slots preserve planned-ahead intent", () => {
+  assert.equal(inferCoreMealSlot(meal("planned-lunch", 9, 1, "lunch")), "lunch");
   assert.equal(inferCoreMealSlot(meal("snack", 13, 1, "snack")), undefined);
 });
 
-test("completion time keeps a meal planned early in the correct later slot", () => {
-  const plannedLunch = meal("planned-lunch", 9, 1);
-  plannedLunch.completionRecordedAt = new Date(2026, 8, 4, 12, 30, 0).toISOString();
-  assert.equal(inferCoreMealSlot(plannedLunch), "lunch");
+test("delayed feedback does not rewrite a legacy meal into a later slot", () => {
+  const breakfast = meal("legacy-breakfast", 8, 1);
+  breakfast.completionRecordedAt = new Date(2026, 8, 4, 12, 30, 0).toISOString();
+  assert.equal(inferCoreMealSlot(breakfast), "breakfast");
 });
 
 test("morning advances from breakfast to lunch after breakfast is confirmed", () => {

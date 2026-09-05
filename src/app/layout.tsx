@@ -6,6 +6,7 @@ import "./react-bits.css";
 import "./onboarding-waves.css";
 import "./bentley-theme.css";
 import "./luxury-system.css";
+import "./motion-polish.css";
 
 export const metadata: Metadata = {
   title: "Falcon Fuel",

@@ -16,6 +16,7 @@ export interface ProgressivePreferencePrompt {
   value: string;
   label: string;
   evidenceCount: number;
+  direction: "favor" | "avoid";
   question: string;
 }
 
@@ -56,7 +57,7 @@ const FAMILIES: readonly FamilyDefinition[] = [
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const validIso = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
-const RESPONSES: ProgressivePreferenceResponse[] = ["favor", "neutral", "later"];
+const RESPONSES: ProgressivePreferenceResponse[] = ["favor", "avoid", "neutral", "later"];
 const KINDS: ProgressivePreferenceKind[] = ["protein", "cuisine"];
 
 export const isValidProgressivePreferenceAnswer = (value: unknown): value is ProgressivePreferenceAnswer => {
@@ -139,26 +140,28 @@ const keyFor = (kind: ProgressivePreferenceKind, value: string) => `${kind}:${va
 function blockedByAnswer(key: string, answers: readonly ProgressivePreferenceAnswer[], now: Date): boolean {
   const answer = answers.find((entry) => entry.key === key);
   if (!answer) return false;
-  if (answer.response === "favor" || answer.response === "neutral") return true;
+  if (answer.response === "favor" || answer.response === "avoid" || answer.response === "neutral") return true;
   const answeredMs = Date.parse(answer.answeredAt);
   return Number.isFinite(answeredMs) && now.getTime() < answeredMs + PROGRESSIVE_PROFILE_LATER_DAYS * DAY_MS;
 }
 
 /**
- * Ask only when a broad pattern has at least three distinct positive meals and
- * enough weighted evidence to be more than a one-off. One prompt is returned at
- * a time so profiling stays progressive instead of becoming a second onboarding.
+ * Ask only when a broad positive pattern or an explicit repeated dislike has at
+ * least three distinct meals behind it. Zero-consumption, browsing, and editor
+ * actions never manufacture a negative taste preference.
  */
 export function deriveProgressivePreferencePrompt(
   history: readonly MealHistoryEntry[],
   answers: readonly ProgressivePreferenceAnswer[] = [],
   now = new Date(),
 ): ProgressivePreferencePrompt | undefined {
-  const evidence = new Map<string, Evidence>();
+  const positive = new Map<string, Evidence>();
+  const negative = new Map<string, Evidence>();
 
   history.slice(0, 24).forEach((entry, index) => {
-    const base = positiveEvidenceWeight(entry);
-    if (base <= 0) return;
+    const positiveBase = positiveEvidenceWeight(entry);
+    const explicitDislike = entry.explicitFeedback === "dislike";
+    if (positiveBase <= 0 && !explicitDislike) return;
     const recency = 1 / (1 + index * 0.15);
     const text = buildText(entry.build);
     const seen = new Set<string>();
@@ -167,27 +170,50 @@ export function deriveProgressivePreferencePrompt(
       const key = keyFor(family.kind, family.value);
       if (seen.has(key)) continue;
       seen.add(key);
-      const current = evidence.get(key) ?? { weight: 0, count: 0 };
-      evidence.set(key, { weight: current.weight + base * recency, count: current.count + 1 });
+      if (positiveBase > 0) {
+        const current = positive.get(key) ?? { weight: 0, count: 0 };
+        positive.set(key, { weight: current.weight + positiveBase * recency, count: current.count + 1 });
+      }
+      if (explicitDislike) {
+        const current = negative.get(key) ?? { weight: 0, count: 0 };
+        negative.set(key, { weight: current.weight + 1.4 * recency, count: current.count + 1 });
+      }
     }
   });
 
   const candidates = FAMILIES.flatMap((family) => {
     const key = keyFor(family.kind, family.value);
-    const row = evidence.get(key);
-    if (!row || row.count < 3 || row.weight < 2.2 || blockedByAnswer(key, answers, now)) return [];
-    const question = family.kind === "protein"
-      ? `You keep choosing ${family.label}. Want Falcon Fuel to favor them a little more?`
-      : `You keep choosing ${family.label}. Want Falcon Fuel to favor that style a little more?`;
-    return [{
-      key,
-      kind: family.kind,
-      value: family.value,
-      label: family.label,
-      evidenceCount: row.count,
-      question,
-      score: row.weight + row.count * 0.2 + (family.kind === "protein" ? 0.05 : 0),
-    }];
+    if (blockedByAnswer(key, answers, now)) return [];
+    const positiveRow = positive.get(key);
+    const negativeRow = negative.get(key);
+    const rows: Array<ProgressivePreferencePrompt & { score: number }> = [];
+    if (negativeRow && negativeRow.count >= 3 && negativeRow.weight >= 2.5) {
+      rows.push({
+        key,
+        kind: family.kind,
+        value: family.value,
+        label: family.label,
+        evidenceCount: negativeRow.count,
+        direction: "avoid",
+        question: `You’ve said “Skip next time” on ${family.label} a few times. Want fewer like that?`,
+        score: negativeRow.weight + negativeRow.count * 0.3 + 1,
+      });
+    }
+    if (positiveRow && positiveRow.count >= 3 && positiveRow.weight >= 2.2) {
+      rows.push({
+        key,
+        kind: family.kind,
+        value: family.value,
+        label: family.label,
+        evidenceCount: positiveRow.count,
+        direction: "favor",
+        question: family.kind === "protein"
+          ? `You keep choosing ${family.label}. Want Falcon Fuel to favor them a little more?`
+          : `You keep choosing ${family.label}. Want Falcon Fuel to favor that style a little more?`,
+        score: positiveRow.weight + positiveRow.count * 0.2 + (family.kind === "protein" ? 0.05 : 0),
+      });
+    }
+    return rows;
   }).sort((a, b) => b.score - a.score || b.evidenceCount - a.evidenceCount || a.key.localeCompare(b.key));
 
   const best = candidates[0];

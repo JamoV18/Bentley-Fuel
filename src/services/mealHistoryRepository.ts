@@ -1,4 +1,4 @@
-import type { MealBuild, MealCompletionFraction, MealExplicitFeedback, MealHistoryEntry, NutritionFacts } from "@/types";
+import type { MealBuild, MealCompletionFraction, MealExplicitFeedback, MealHistoryEntry, MealLogSlot, NutritionFacts } from "@/types";
 import { recordChosenMealInteractions } from "./recommendationInteractions";
 
 export const MEAL_HISTORY_STORAGE_KEY = "bentley-fuel.meal-history.v1";
@@ -155,5 +155,26 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
   };
 }
 
-export const browserMealHistoryRepository = (): MealHistoryRepository =>
-  createLocalMealHistoryRepository(window.localStorage);
+/** Maps the meal-builder route period onto the human daily-log slot. */
+export const mealSlotForBuilderPeriod = (period: string | null | undefined): MealLogSlot | undefined => {
+  if (period === "breakfast" || period === "lunch" || period === "dinner") return period;
+  if (period === "late-night") return "snack";
+  return undefined;
+};
+
+export const browserMealHistoryRepository = (): MealHistoryRepository => {
+  const repository = createLocalMealHistoryRepository(window.localStorage);
+  const routedSlot = mealSlotForBuilderPeriod(new URLSearchParams(window.location.search).get("period"));
+  if (!routedSlot) return repository;
+
+  return {
+    ...repository,
+    upsert(entry) {
+      if (entry.mealSlot || entry.source === "manual-log") {
+        repository.upsert(entry);
+        return;
+      }
+      repository.upsert({ ...entry, mealSlot: routedSlot });
+    },
+  };
+};

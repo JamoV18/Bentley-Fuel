@@ -7,9 +7,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import AppNav from "@/components/AppNav";
+import LocationImage from "@/components/LocationImage";
 import MealImage from "@/components/MealImage";
 import ProfileMenu from "@/components/ProfileMenu";
 import SuccessMorphLabel from "@/components/SuccessMorphLabel";
+import { diningDecisionLabel, resolveDiningDecision } from "@/lib/diningDecision";
 import { resolveLivingDayState, type CoreMealSlot } from "@/lib/livingDay";
 import {
   browserMealHistoryRepository,
@@ -19,7 +21,7 @@ import {
   resolveNutritionPlan,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
-import type { MealCompletionFraction, MealHistoryEntry, MealPeriod, UserProfile } from "@/types";
+import type { MealCompletionFraction, MealHistoryEntry, UserProfile } from "@/types";
 
 const PENDING_CHECK_IN_WINDOW_MS = 36 * 60 * 60 * 1000;
 const CORE_MEALS: CoreMealSlot[] = ["breakfast", "lunch", "dinner"];
@@ -72,19 +74,6 @@ function AnimatedCalorieRing({ progress, children }: { progress: number; childre
   return <motion.div className="ff-v2-ring" style={{ "--ff-ring": cssProgress } as unknown as CSSProperties}>{children}</motion.div>;
 }
 
-function preferredLocation(recent: MealHistoryEntry[], locationNames: Record<string, string>) {
-  const counts = new Map<string, number>();
-  for (const entry of recent) {
-    if (!locationNames[entry.locationId]) continue;
-    counts.set(entry.locationId, (counts.get(entry.locationId) ?? 0) + 1);
-  }
-  const learned = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-  if (learned) return { id: learned[0], learned: learned[1] >= 2 };
-  if (locationNames["loc-921"]) return { id: "loc-921", learned: false };
-  const fallback = Object.keys(locationNames)[0];
-  return { id: fallback, learned: false };
-}
-
 export default function TodayV2Client({
   locationNames,
   itemNames,
@@ -116,7 +105,7 @@ export default function TodayV2Client({
     setProfile(browserProfileRepository().get());
     setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
     setEntries(repository.getByDateRange(start, end));
-    setRecentEntries(repository.getRecent(24));
+    setRecentEntries(repository.getRecent(80));
     setPending(isToday ? repository.getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS)) : []);
   }, [selectedDate, isToday]);
 
@@ -134,7 +123,6 @@ export default function TodayV2Client({
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);
   const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets, selectedDate), [entries, plan?.activeTargets, profile?.dailyTargets, selectedDate]);
-  const locationPreference = useMemo(() => preferredLocation(recentEntries, locationNames), [recentEntries, locationNames]);
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;
@@ -168,7 +156,13 @@ export default function TodayV2Client({
   const livingDay = resolveLivingDayState(snapshot.meals, hour);
   const recommendationPeriod = livingDay.recommendationPeriod;
   const mealPeriodLabel = recommendationPeriod ? readable(recommendationPeriod) : undefined;
-  const preferredLocationName = locationNames[locationPreference.id] ?? "campus dining";
+  const locationPreference = resolveDiningDecision(profile, recentEntries, recommendationPeriod, Object.keys(locationNames), now)
+    ?? { locationId: Object.keys(locationNames)[0] ?? "loc-921", source: "fallback" as const };
+  const preferredLocationName = locationNames[locationPreference.locationId] ?? "campus dining";
+  const locationDecisionLabel = diningDecisionLabel(locationPreference);
+  const conflictingMealHabit = locationPreference.source === "home" && locationPreference.mealHabit && locationPreference.mealHabit.locationId !== locationPreference.locationId
+    ? locationPreference.mealHabit
+    : undefined;
   const target = snapshot.targets;
   const remainingCalories = target ? Math.max(0, snapshot.remaining?.calories ?? target.calories - snapshot.consumed.calories) : undefined;
   const remainingProtein = target ? Math.max(0, snapshot.remaining?.protein ?? target.protein - snapshot.consumed.protein) : undefined;
@@ -179,7 +173,7 @@ export default function TodayV2Client({
   const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0).length;
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const planLabel = plan?.phase === "maintenance" ? "Maintenance" : goals.map(readable).join(" · ");
-  const recommendationHref = recommendationPeriod ? `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
+  const recommendationHref = recommendationPeriod ? `/meal-builder/${locationPreference.locationId}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
 
   const nutritionCue = livingDay.mode === "late-night"
     ? "No need to close every number tonight. This is context only—use late-night options if you actually want another meal."
@@ -197,16 +191,24 @@ export default function TodayV2Client({
     ? `${mealPeriodLabel} is next.`
     : livingDay.mode === "late-night"
       ? "Still need something tonight?"
-      : locationPreference.learned
+      : locationPreference.source === "home"
         ? `Go to ${preferredLocationName}.`
-        : `Start at ${preferredLocationName}.`;
+        : locationPreference.source === "meal-habit"
+          ? `${preferredLocationName} fits your routine.`
+          : `Start at ${preferredLocationName}.`;
   const heroReason = livingDay.mode === "anticipate" && mealPeriodLabel
     ? `${previousMealLabel ?? "Your last meal"} is locked in. When you’re ready, I’ll rank ${mealPeriodLabel.toLowerCase()} at ${preferredLocationName} around what remains in your day.`
     : livingDay.mode === "late-night"
       ? "Falcon Fuel won’t push another meal just to finish a target. If you’re still hungry, I can rank the late-night options that fit best."
-      : locationPreference.learned
-        ? `You choose ${preferredLocationName} most often. I’ll rank what’s there against the rest of your day.`
-        : `I’ll rank a complete ${mealPeriodLabel?.toLowerCase() ?? "meal"} there against your plan and what you’ve already eaten.`;
+      : conflictingMealHabit
+        ? `You saved ${preferredLocationName} as your usual place. Your recent ${mealPeriodLabel?.toLowerCase() ?? "meal"} pattern leans ${locationNames[conflictingMealHabit.locationId] ?? conflictingMealHabit.locationId} (${conflictingMealHabit.sharePercent}% across ${conflictingMealHabit.evidenceCount} confirmed visits), so switch locations if today matches that routine.`
+        : locationPreference.source === "home"
+          ? `You picked ${preferredLocationName} as your usual place. I’ll rank what’s there against the rest of your day.`
+          : locationPreference.source === "meal-habit"
+            ? `${locationPreference.sharePercent}% of your recent confirmed ${mealPeriodLabel?.toLowerCase() ?? "meal"} visits were at ${preferredLocationName}. I’ll start with the place your routine already supports.`
+            : locationPreference.source === "overall-habit"
+              ? `${locationPreference.sharePercent}% of your recent confirmed meals were at ${preferredLocationName}. I’ll keep the recommendation practical and start there.`
+              : `I’ll rank a complete ${mealPeriodLabel?.toLowerCase() ?? "meal"} there against your plan and what you’ve already eaten.`;
   const heroCta = livingDay.mode === "anticipate" && mealPeriodLabel
     ? `Plan ${mealPeriodLabel.toLowerCase()}`
     : livingDay.mode === "late-night"
@@ -279,9 +281,9 @@ export default function TodayV2Client({
             transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ff-v2-hero-visual">
-              <MealImage name={`${preferredLocationName} ${mealPeriodLabel ?? "meal"}`} aspect="hero" className="ff-v2-hero-image" />
+              <LocationImage id={locationPreference.locationId} name={preferredLocationName} aspect="hero" className="ff-v2-hero-image" />
               <div className="ff-v2-photo-shade" />
-              <span className="ff-v2-photo-label">{livingDay.mode === "anticipate" ? `Up next · ${mealPeriodLabel}` : mealPeriodLabel}</span>
+              <span className="ff-v2-photo-label">{locationDecisionLabel}{mealPeriodLabel ? ` · ${mealPeriodLabel}` : ""}</span>
             </div>
             <div className="ff-v2-hero-copy">
               <span className="ff-v3-hero-state">{livingDay.mode === "anticipate" ? "Planning ahead" : livingDay.mode === "late-night" ? "No pressure" : "Right now"}</span>

@@ -8,6 +8,7 @@ import "./bentley-theme.css";
 import "./luxury-system.css";
 import "./motion-polish.css";
 import "./today-composition.css";
+import "./site-canvas.css";
 
 export const metadata: Metadata = {
   title: "Falcon Fuel",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#294567",
+  themeColor: "#edf6fb",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

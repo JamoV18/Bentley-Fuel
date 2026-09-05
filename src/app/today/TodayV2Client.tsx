@@ -159,15 +159,15 @@ export default function TodayV2Client({
     ? resolveDiningDecision(profile, recentEntries, recommendationPeriod, Object.keys(locationNames), now) ?? { locationId: fallbackLocationId, source: "fallback" }
     : { locationId: fallbackLocationId, source: "fallback" };
 
-  const mealPreview = useMemo(() => {
-    if (!profile || !isToday || freshSelection || !recommendationPeriod || livingDay.mode === "complete" || livingDay.mode === "late-night") return undefined;
+  let mealPreview: ReturnType<typeof buildTodayRecommendationPreview>;
+  if (profile && isToday && !freshSelection && recommendationPeriod && livingDay.mode !== "complete" && livingDay.mode !== "late-night") {
     const activeTargets = plan?.activeTargets ?? profile.dailyTargets;
     const recommendationProfile: UserProfile = {
       ...profile,
       primaryGoal: plan?.phase === "maintenance" ? "maintain-weight" : profile.primaryGoal,
       ...(activeTargets ? { dailyTargets: activeTargets } : {}),
     };
-    return buildTodayRecommendationPreview({
+    mealPreview = buildTodayRecommendationPreview({
       profile: recommendationProfile,
       locationId: locationPreference.locationId,
       mealPeriod: recommendationPeriod,
@@ -179,7 +179,7 @@ export default function TodayV2Client({
       stations,
       components,
     });
-  }, [profile, isToday, freshSelection, recommendationPeriod, livingDay.mode, plan, locationPreference.locationId, snapshot.remaining, recentEntries, entries, locations, menuItems, stations, components]);
+  }
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;

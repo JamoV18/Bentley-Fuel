@@ -1,5 +1,6 @@
 export type FoodIllustrationKind =
   | "omelet"
+  | "breakfast-plate"
   | "breakfast-bowl"
   | "eggs"
   | "egg-whites"
@@ -49,10 +50,18 @@ export type OmeletIngredient =
 
 export type BreakfastBowlBase = "oatmeal" | "strawberry-yogurt" | "vanilla-greek-yogurt";
 export type BreakfastBowlTopping = "granola" | "honey";
+export type BreakfastFruitSide = "cantaloupe" | "honeydew" | "grapefruit";
 
 export interface BreakfastBowlComposition {
   base: BreakfastBowlBase;
   toppings: BreakfastBowlTopping[];
+}
+
+export interface BreakfastPlateComposition {
+  eggBase: "eggs" | "egg-whites";
+  omeletIngredients: OmeletIngredient[];
+  bowl?: BreakfastBowlComposition;
+  fruitSides: BreakfastFruitSide[];
 }
 
 const NORMALIZE = (value: string) => value.trim().toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, " ");
@@ -107,6 +116,20 @@ const INGREDIENT_MATCHERS: Array<[OmeletIngredient, RegExp]> = [
   ["jalapeno", /jalapeno/],
 ];
 
+function bowlBaseForValue(value: string): BreakfastBowlBase | undefined {
+  if (/(^|\+)\s*oatmeal\s*(\+|$)/.test(value)) return "oatmeal";
+  if (/low fat strawberry yogurt/.test(value)) return "strawberry-yogurt";
+  if (/fat free vanilla greek yogurt/.test(value)) return "vanilla-greek-yogurt";
+  return undefined;
+}
+
+function bowlToppingsForValue(value: string): BreakfastBowlTopping[] {
+  const toppings: BreakfastBowlTopping[] = [];
+  if (/oats 'n honey protein granola/.test(value)) toppings.push("granola");
+  if (/(^|\+)\s*honey\s*(\+|$)/.test(value)) toppings.push("honey");
+  return toppings;
+}
+
 export function omeletIngredientsForName(name: string): OmeletIngredient[] {
   const value = NORMALIZE(name);
   return INGREDIENT_MATCHERS.filter(([, matcher]) => matcher.test(value)).map(([ingredient]) => ingredient);
@@ -122,21 +145,37 @@ export function isOmeletComposition(name: string): boolean {
 export function breakfastBowlComposition(name: string): BreakfastBowlComposition | undefined {
   const value = NORMALIZE(name);
   if (!value.includes("+")) return undefined;
-
-  const base: BreakfastBowlBase | undefined =
-    /(^|\+)\s*oatmeal\s*(\+|$)/.test(value) ? "oatmeal" :
-    /low fat strawberry yogurt/.test(value) ? "strawberry-yogurt" :
-    /fat free vanilla greek yogurt/.test(value) ? "vanilla-greek-yogurt" :
-    undefined;
+  const base = bowlBaseForValue(value);
   if (!base) return undefined;
-
-  const toppings: BreakfastBowlTopping[] = [];
-  if (/oats 'n honey protein granola/.test(value)) toppings.push("granola");
-  if (/(^|\+)\s*honey\s*(\+|$)/.test(value)) toppings.push("honey");
+  const toppings = bowlToppingsForValue(value);
   return toppings.length > 0 ? { base, toppings } : undefined;
 }
 
+export function breakfastPlateComposition(name: string): BreakfastPlateComposition | undefined {
+  const value = NORMALIZE(name);
+  if (!value.includes("+")) return undefined;
+  const eggBase: BreakfastPlateComposition["eggBase"] | undefined = /egg whites?/.test(value)
+    ? "egg-whites"
+    : /(^|\+)\s*eggs?\s*(\+|$)/.test(value)
+      ? "eggs"
+      : undefined;
+  if (!eggBase) return undefined;
+
+  const bowlBase = bowlBaseForValue(value);
+  const bowl = bowlBase ? { base: bowlBase, toppings: bowlToppingsForValue(value) } : undefined;
+  const fruitSides: BreakfastFruitSide[] = [];
+  if (/cubed cantaloupe/.test(value)) fruitSides.push("cantaloupe");
+  if (/cubed honeydew/.test(value)) fruitSides.push("honeydew");
+  if (/(^|\+)\s*grapefruit\s*(\+|$)/.test(value)) fruitSides.push("grapefruit");
+  const omeletIngredients = omeletIngredientsForName(value);
+
+  return bowl || fruitSides.length > 0
+    ? { eggBase, omeletIngredients, bowl, fruitSides }
+    : undefined;
+}
+
 export function foodIllustrationKind(name: string): FoodIllustrationKind | undefined {
+  if (breakfastPlateComposition(name)) return "breakfast-plate";
   if (isOmeletComposition(name)) return "omelet";
   if (breakfastBowlComposition(name)) return "breakfast-bowl";
   const value = NORMALIZE(name);

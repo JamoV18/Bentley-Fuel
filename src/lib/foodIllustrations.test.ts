@@ -69,6 +69,25 @@ test("next verified ten menu rows map to exact drawings", () => {
   }
 });
 
+test("remaining pasted breakfast rows all map to drawings", () => {
+  const expected = new Map([
+    ["Steamed Broccoli", "steamed-broccoli"],
+    ["Scrambled Eggs", "scrambled-eggs"],
+    ["Pumpkin Chocolate Chip Pancakes", "pumpkin-chocolate-chip-pancakes"],
+    ["Pork Sausage Link", "pork-sausage-link"],
+    ["Sweet Potato Tater Tots", "sweet-potato-tots"],
+    ["Meatless Vegetarian Sausage Patty", "vegetarian-sausage-patty"],
+    ["Five Spice Caramel Sticky Buns", "five-spice-sticky-bun"],
+    ["Birthday Cake Glazed Doughnuts", "birthday-cake-doughnut"],
+    ["Apple Danish", "apple-danish"],
+  ] as const);
+
+  for (const [name, kind] of expected) {
+    assert.equal(foodIllustrationKind(name), kind, name);
+    assert.equal(hasFoodIllustration(name), true, name);
+  }
+});
+
 test("plain oatmeal never implies fruit or granola", () => {
   assert.equal(foodIllustrationKind("Oatmeal"), "oatmeal");
   assert.equal(foodIllustrationKind("Oatmeal + Strawberries"), undefined);
@@ -109,6 +128,31 @@ test("full breakfast meal becomes one plate with the bowl on the side", () => {
     omeletIngredients: ["spinach"],
     bowl: { base: "vanilla-greek-yogurt", toppings: ["granola"] },
     fruitSides: [],
+    plateSides: [],
+  });
+});
+
+test("classic hot breakfast components combine on one plate", () => {
+  const name = "Scrambled Eggs + Pumpkin Chocolate Chip Pancakes + Pork Sausage Link";
+  assert.equal(foodIllustrationKind(name), "breakfast-plate");
+  assert.deepEqual(breakfastPlateComposition(name), {
+    eggBase: "eggs",
+    omeletIngredients: [],
+    bowl: undefined,
+    fruitSides: [],
+    plateSides: ["pumpkin-pancakes", "pork-sausage"],
+  });
+});
+
+test("breakfast plate can assemble sides even without eggs", () => {
+  const name = "Pumpkin Chocolate Chip Pancakes + Pork Sausage Link";
+  assert.equal(foodIllustrationKind(name), "breakfast-plate");
+  assert.deepEqual(breakfastPlateComposition(name), {
+    eggBase: undefined,
+    omeletIngredients: [],
+    bowl: undefined,
+    fruitSides: [],
+    plateSides: ["pumpkin-pancakes", "pork-sausage"],
   });
 });
 

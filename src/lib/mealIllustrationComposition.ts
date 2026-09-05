@@ -1,5 +1,3 @@
-import { hasFoodIllustration } from "./foodIllustrations";
-
 const NORMALIZE_PART = (value: string) => value.trim().replace(/\s+/g, " ");
 
 export function illustratedMealParts(name: string): string[] {
@@ -8,7 +6,7 @@ export function illustratedMealParts(name: string): string[] {
     .map(NORMALIZE_PART)
     .filter(Boolean);
 
-  if (parts.length < 2) return [];
-  if (!parts.every((part) => hasFoodIllustration(part))) return [];
-  return parts;
+  // Every menu item now has an illustration fallback, so complete meals can
+  // compose any real selected parts instead of dropping back to photography.
+  return parts.length >= 2 ? parts : [];
 }

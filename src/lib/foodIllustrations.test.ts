@@ -28,6 +28,12 @@ test("first Omelet Bar batch maps to drawings", () => {
   }
 });
 
+test("plain oatmeal maps to its own illustration without implying toppings", () => {
+  assert.equal(foodIllustrationKind("Oatmeal"), "oatmeal");
+  assert.equal(hasFoodIllustration("Oatmeal"), true);
+  assert.equal(foodIllustrationKind("Oatmeal + Strawberries"), undefined);
+});
+
 test("egg plus Omelet Bar toppings becomes one omelet composition", () => {
   const name = "Eggs + Chopped Spinach + Chopped Tomatoes + Shredded Cheddar Cheese";
   assert.equal(isOmeletComposition(name), true);

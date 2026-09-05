@@ -4,52 +4,53 @@ import type { RankedMealCandidate } from "@/services";
 import type { MealHistoryEntry } from "@/types";
 import { findUsualRecommendation, personalizationCue, recommendationLabels } from "./recommendationPresentation";
 
-const ranked = (id: string, name: string, calories: number, protein: number, stationCount = 1, preferenceBoost = 0): RankedMealCandidate => ({
-  candidate: {
-    id,
-    stationIds: Array.from({ length: stationCount }, (_, index) => `station-${index + 1}`),
-    build: { locationId: "loc-921", items: [{ id: `${id}-line`, menuItemId: id, quantity: 1, display: { name, stationId: "station-1" } }] },
-  },
-  computed: {
-    locationId: "loc-921",
-    lines: [{
-      selection: { id: `${id}-line`, menuItemId: id, quantity: 1, display: { name, stationId: "station-1" } },
-      item: undefined,
-      station: undefined,
+const ranked = (id: string, name: string, calories: number, protein: number, stationCount = 1, preferenceBoost = 0): RankedMealCandidate => {
+  const build = { locationId: "loc-921", items: [{ id: `${id}-line`, menuItemId: id, quantity: 1, display: { name, stationId: "station-1" } }] };
+  return {
+    candidate: {
+      id,
+      stationIds: Array.from({ length: stationCount }, (_, index) => `station-${index + 1}`),
+      build,
+    },
+    computed: {
+      build,
+      lines: [{
+        selection: build.items[0],
+        nutrition: { calories, protein, carbs: 50, fat: 15 },
+        allergens: [],
+        mayContainAllergens: [],
+        dietaryTags: [],
+        issues: [],
+      }],
       nutrition: { calories, protein, carbs: 50, fat: 15 },
       allergens: [],
       mayContainAllergens: [],
       dietaryTags: [],
+      isValid: true,
       issues: [],
-    }],
-    nutrition: { calories, protein, carbs: 50, fat: 15 },
-    allergens: [],
-    mayContainAllergens: [],
-    dietaryTags: [],
-    isValid: true,
-    issues: [],
-  },
-  score: {
-    total: 90,
-    nutritionTotal: 88,
-    goalAlignment: 85,
-    remainingBudgetPenalty: 0,
-    dietQualityPenalty: 0,
-    energyOvershootPenalty: 0,
-    compositionPenalty: 0,
-    behavior: {
-      preferenceBoost,
-      learnedPreferenceBoost: preferenceBoost,
-      learnedSignals: preferenceBoost > 0 ? ["chicken"] : [],
-      learnedEvidenceCount: preferenceBoost > 0 ? 3 : 0,
-      aversionPenalty: 0,
-      repetitionPenalty: 0,
-      totalAdjustment: preferenceBoost,
-      evidenceCount: preferenceBoost > 0 ? 3 : 0,
     },
-    mode: "daily-targets",
-  },
-});
+    score: {
+      total: 90,
+      nutritionTotal: 88,
+      goalAlignment: 85,
+      remainingBudgetPenalty: 0,
+      dietQualityPenalty: 0,
+      energyOvershootPenalty: 0,
+      compositionPenalty: 0,
+      behavior: {
+        preferenceBoost,
+        learnedPreferenceBoost: preferenceBoost,
+        learnedSignals: preferenceBoost > 0 ? ["chicken"] : [],
+        learnedEvidenceCount: preferenceBoost > 0 ? 3 : 0,
+        aversionPenalty: 0,
+        repetitionPenalty: 0,
+        totalAdjustment: preferenceBoost,
+        evidenceCount: preferenceBoost > 0 ? 3 : 0,
+      },
+      mode: "daily-targets",
+    },
+  };
+};
 
 const historyMeal = (id: string, itemName: string): MealHistoryEntry => ({
   id,
@@ -75,5 +76,5 @@ test("labels are descriptive and capped at two", () => {
 });
 
 test("personalization cue exposes real learned evidence", () => {
-  assert.equal(personalizationCue(ranked("a", "Chicken Bowl", 620, 42, 1, 4)), "We learned this from your meals: chicken keep showing up across 3 recent choices.");
+  assert.equal(personalizationCue(ranked("a", "Chicken Bowl", 620, 42, 1, 4)), "We learned this from your meals: chicken, across 3 recent choices.");
 });

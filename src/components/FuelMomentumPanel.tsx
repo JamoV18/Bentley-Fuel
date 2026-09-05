@@ -47,10 +47,13 @@ export default function FuelMomentumPanel({ history }: { history: readonly MealH
     }
     const next = momentum.earnedAchievements.find((achievement) => !seen.includes(achievement.id));
     if (!next) return;
-    setUnlocked(next);
     window.localStorage.setItem(SEEN_ACHIEVEMENTS_KEY, JSON.stringify([...new Set([...seen, next.id])]));
-    const timer = window.setTimeout(() => setUnlocked(undefined), 4200);
-    return () => window.clearTimeout(timer);
+    const showTimer = window.setTimeout(() => setUnlocked(next), 0);
+    const hideTimer = window.setTimeout(() => setUnlocked(undefined), 4200);
+    return () => {
+      window.clearTimeout(showTimer);
+      window.clearTimeout(hideTimer);
+    };
   }, [momentum.earnedAchievements]);
 
   const streakCopy = momentum.streakActiveToday

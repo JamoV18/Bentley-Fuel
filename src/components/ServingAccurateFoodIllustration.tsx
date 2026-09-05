@@ -1,6 +1,6 @@
+import DetailedMenuFoodIllustration from "@/components/DetailedMenuFoodIllustration";
 import FoodIllustration from "@/components/FoodIllustrationV2";
 import LunchFoodIllustration from "@/components/LunchFoodIllustration";
-import MenuFoodIllustration from "@/components/MenuFoodIllustration";
 import VegetableDishIllustration, {
   isRecognizableVegetableDish,
 } from "@/components/VegetableDishIllustration";
@@ -64,6 +64,8 @@ export default function ServingAccurateFoodIllustration({ name }: { name: string
     return <PumpkinBakedOatmealBowl />;
   }
 
+  // Keep the hand-tuned lunch drawings for dishes where we know the exact
+  // serving form from the verified menu payload.
   if (hasLunchFoodIllustration(name)) {
     return <LunchFoodIllustration name={name} />;
   }
@@ -72,16 +74,17 @@ export default function ServingAccurateFoodIllustration({ name }: { name: string
     return <VegetableDishIllustration name={name} />;
   }
 
+  // Exact menu items now use the richer vector renderer instead of the old
+  // primitive-symbol fallback (rectangles/circles that looked like pixels).
   if (hasExactMenuVisual(name)) {
-    return <MenuFoodIllustration name={name} />;
+    return <DetailedMenuFoodIllustration name={name} />;
   }
 
   if (foodIllustrationKind(name)) {
     return <FoodIllustration name={name} />;
   }
 
-  // The menu artwork is now the fallback itself. Unknown dinner/live-menu
-  // items still render in the Falcon illustration language instead of
-  // reverting to a stock or unpublished dining photo.
-  return <MenuFoodIllustration name={name} />;
+  // Unknown/live dinner items still stay in the Falcon illustration language,
+  // but now use the detailed serving-aware renderer as the fallback.
+  return <DetailedMenuFoodIllustration name={name} />;
 }

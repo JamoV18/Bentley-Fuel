@@ -241,8 +241,12 @@ export default function TodayV2Client({
   const target = snapshot.targets;
   const remainingCalories = target ? Math.max(0, snapshot.remaining?.calories ?? target.calories - snapshot.consumed.calories) : undefined;
   const remainingProtein = target ? Math.max(0, snapshot.remaining?.protein ?? target.protein - snapshot.consumed.protein) : undefined;
+  const remainingCarbs = target ? Math.max(0, snapshot.remaining?.carbs ?? target.carbs - snapshot.consumed.carbs) : undefined;
+  const remainingFat = target ? Math.max(0, snapshot.remaining?.fat ?? target.fat - snapshot.consumed.fat) : undefined;
   const calorieCoverage = target ? coverage(snapshot.consumed.calories, target.calories) : 0;
   const proteinCoverage = target ? coverage(snapshot.consumed.protein, target.protein) : 0;
+  const carbsCoverage = target ? coverage(snapshot.consumed.carbs, target.carbs) : 0;
+  const fatCoverage = target ? coverage(snapshot.consumed.fat, target.fat) : 0;
   const firstPending = pendingTiming.dueCheckIns[0];
   const savingFirstPending = firstPending ? savingCheckIn?.id === firstPending.id : false;
   const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0).length;
@@ -404,6 +408,7 @@ export default function TodayV2Client({
                     <span>{round(previewNutrition.calories)} cal</span>
                     <span>{round(previewNutrition.protein)}g protein</span>
                     <span>{round(previewNutrition.carbs)}g carbs</span>
+                    <span>{round(previewNutrition.fat)}g fat</span>
                   </div>
                   {previewLearning && <div className="ff-v2-hero-learning"><strong>Learned from you</strong>{previewLearning}</div>}
                 </>
@@ -514,14 +519,24 @@ export default function TodayV2Client({
             </div>
           </div>
 
-          <div className="ff-v2-stat-stack">
-            <div className="ff-v2-stat-line">
+          <div className="ff-v2-stat-stack ff-v2-macro-stack">
+            <div className="ff-v2-stat-line ff-v2-macro-line">
               <div className="ff-v2-stat-heading"><span>Protein</span><strong><AnimatedCounter value={round(snapshot.consumed.protein)} suffix="g" /></strong></div>
               <div className="ff-v2-track"><motion.span initial={false} animate={{ scaleX: proteinCoverage / 100 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 110, damping: 20 }} /></div>
               <small>{target ? `${round(target.protein)}g target${remainingProtein !== undefined ? ` · ${round(remainingProtein)}g left` : ""}` : "Tracked today"}</small>
             </div>
-            <div className="ff-v2-stat-line ff-v2-meals-stat">
-              <div className="ff-v2-stat-heading"><span>Meals</span><strong>{completedMeals}</strong></div>
+            <div className="ff-v2-stat-line ff-v2-macro-line">
+              <div className="ff-v2-stat-heading"><span>Carbs</span><strong><AnimatedCounter value={round(snapshot.consumed.carbs)} suffix="g" /></strong></div>
+              <div className="ff-v2-track"><motion.span initial={false} animate={{ scaleX: carbsCoverage / 100 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 110, damping: 20 }} /></div>
+              <small>{target ? `${round(target.carbs)}g target${remainingCarbs !== undefined ? ` · ${round(remainingCarbs)}g left` : ""}` : "Tracked today"}</small>
+            </div>
+            <div className="ff-v2-stat-line ff-v2-macro-line">
+              <div className="ff-v2-stat-heading"><span>Fat</span><strong><AnimatedCounter value={round(snapshot.consumed.fat)} suffix="g" /></strong></div>
+              <div className="ff-v2-track"><motion.span initial={false} animate={{ scaleX: fatCoverage / 100 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 110, damping: 20 }} /></div>
+              <small>{target ? `${round(target.fat)}g target${remainingFat !== undefined ? ` · ${round(remainingFat)}g left` : ""}` : "Tracked today"}</small>
+            </div>
+            <div className="ff-v2-stat-line ff-v2-meals-stat ff-v2-meals-footer">
+              <div><span>Meals confirmed</span><strong>{completedMeals}</strong></div>
               <p>{completedMeals === 0 ? "Nothing confirmed yet." : completedMeals === 1 ? "One meal confirmed." : `${completedMeals} meals confirmed.`}</p>
               <Link href="/log-meal">Log something else →</Link>
             </div>

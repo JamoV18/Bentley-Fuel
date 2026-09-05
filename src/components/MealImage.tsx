@@ -1,5 +1,7 @@
 import "./recommendation-completeness.css";
 import type { CSSProperties } from "react";
+import FoodIllustration from "@/components/FoodIllustration";
+import { hasFoodIllustration } from "@/lib/foodIllustrations";
 
 const FOOD_IMAGES = {
   bowl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=82",
@@ -49,6 +51,18 @@ export default function MealImage({
   className?: string;
   aspect?: "square" | "wide" | "hero";
 }) {
+  if (hasFoodIllustration(name)) {
+    return (
+      <div
+        role="img"
+        aria-label={`${name} food illustration`}
+        className={`meal-image meal-image-${aspect} meal-image-illustrated ${className}`}
+      >
+        <FoodIllustration name={name} />
+      </div>
+    );
+  }
+
   const source = imageUrl || fallbackForName(name);
   const style: CSSProperties = {
     backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 58%, rgba(0,31,22,.14)), url("${source}")`,

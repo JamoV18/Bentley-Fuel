@@ -1,7 +1,7 @@
 import "./recommendation-completeness.css";
 import type { CSSProperties } from "react";
 import ServingAccurateFoodIllustration from "@/components/ServingAccurateFoodIllustration";
-import { hasFoodIllustration } from "@/lib/foodIllustrations";
+import { foodIllustrationKind, hasFoodIllustration } from "@/lib/foodIllustrations";
 import { illustratedMealParts } from "@/lib/mealIllustrationComposition";
 
 const FOOD_IMAGES = {
@@ -21,6 +21,52 @@ const FOOD_IMAGES = {
   fish: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=900&q=82",
   default: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=82",
 } as const;
+
+type ServingVessel = "plate" | "bowl" | "drink" | "ingredient";
+
+const PLATE_KINDS = new Set([
+  "breakfast-plate",
+  "omelet",
+  "eggs",
+  "egg-whites",
+  "scrambled-eggs",
+  "steamed-broccoli",
+  "pumpkin-chocolate-chip-pancakes",
+  "pork-sausage-link",
+  "sweet-potato-tots",
+  "vegetarian-sausage-patty",
+  "five-spice-sticky-bun",
+  "apple-danish",
+]);
+
+const BOWL_KINDS = new Set([
+  "breakfast-bowl",
+  "oatmeal",
+  "broccoli-cheddar-soup",
+  "strawberry-yogurt",
+  "vanilla-greek-yogurt",
+  "cottage-cheese",
+  "date-caramel-overnight-oats",
+  "pumpkin-spice-baked-oatmeal",
+  "lentil-kale-potato-hash",
+]);
+
+const DRINK_KINDS = new Set([
+  "raspberry-peach-smoothie",
+  "avocado-spinach-smoothie",
+]);
+
+function servingVesselForName(name: string): ServingVessel {
+  const kind = foodIllustrationKind(name);
+  if (kind && PLATE_KINDS.has(kind)) return "plate";
+  if (kind && BOWL_KINDS.has(kind)) return "bowl";
+  if (kind && DRINK_KINDS.has(kind)) return "drink";
+
+  const value = name.toLowerCase();
+  if (/(smoothie|shake|juice|drink)/.test(value)) return "drink";
+  if (/(oatmeal|overnight oats|yogurt|soup|cottage cheese)/.test(value)) return "bowl";
+  return "ingredient";
+}
 
 function fallbackForName(name: string): string {
   const value = name.toLowerCase();
@@ -53,11 +99,13 @@ export default function MealImage({
   aspect?: "square" | "wide" | "hero";
 }) {
   if (hasFoodIllustration(name)) {
+    const vessel = servingVesselForName(name);
     return (
       <div
         role="img"
         aria-label={`${name} food illustration`}
-        className={`meal-image meal-image-${aspect} meal-image-illustrated ${className}`}
+        className={`meal-image meal-image-${aspect} meal-image-illustrated meal-image-vessel-${vessel} ${className}`}
+        data-plate-reference={vessel === "plate" ? "10.5in" : undefined}
       >
         <ServingAccurateFoodIllustration name={name} />
       </div>
@@ -72,10 +120,20 @@ export default function MealImage({
         aria-label={`${name} complete meal illustration`}
         className={`meal-image meal-image-${aspect} meal-image-illustrated meal-image-composed ${className}`}
         data-food-count={Math.min(illustratedParts.length, 4)}
+        data-plate-reference="10.5in"
       >
-        {illustratedParts.slice(0, 4).map((part) => (
-          <ServingAccurateFoodIllustration key={part} name={part} />
-        ))}
+        {illustratedParts.slice(0, 4).map((part) => {
+          const vessel = servingVesselForName(part);
+          return (
+            <span
+              className={`meal-image-composed-part meal-image-composed-part-${vessel}`}
+              data-serving-vessel={vessel}
+              key={part}
+            >
+              <ServingAccurateFoodIllustration name={part} />
+            </span>
+          );
+        })}
       </div>
     );
   }

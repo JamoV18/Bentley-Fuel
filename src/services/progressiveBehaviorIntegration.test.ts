@@ -43,5 +43,15 @@ test("do-not-assume removes the candidate's automatic protein-family boost witho
   const neutral = scoreMealHistory(candidate, history, {}, [answer("neutral")]);
   assert.ok(automatic.learnedPreferenceBoost > neutral.learnedPreferenceBoost);
   assert.equal(neutral.progressivePreferenceBoost, 0);
+  assert.equal(neutral.progressiveAversionPenalty, 0);
   assert.equal(neutral.aversionPenalty, automatic.aversionPenalty);
+});
+
+test("show-fewer adds a bounded soft penalty without making the candidate ineligible", () => {
+  const automatic = scoreMealHistory(candidate, history, {}, []);
+  const avoided = scoreMealHistory(candidate, history, {}, [answer("avoid")]);
+  assert.equal(avoided.progressiveAversionPenalty, 3.5);
+  assert.deepEqual(avoided.progressiveNegativeSignals, ["chicken-based meals"]);
+  assert.ok(avoided.totalAdjustment < automatic.totalAdjustment);
+  assert.ok(avoided.aversionPenalty <= 25);
 });

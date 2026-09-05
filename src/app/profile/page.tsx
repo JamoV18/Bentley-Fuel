@@ -155,6 +155,13 @@ export default function ProfilePage() {
               {SUPPORTED_LANGUAGE_OPTIONS.map((option) => <button key={option.code} type="button" onClick={() => setLanguage(option.code)} aria-pressed={language === option.code} className={`rounded-xl px-2 py-2.5 text-sm font-bold transition ${language === option.code ? "bg-white text-emerald-950 shadow-sm" : "text-black/45 hover:text-emerald-900"}`}>{option.code === "zh" ? "中文" : option.label}</button>)}
             </div>
           </div>
+
+          <div className="mt-6 border-t border-black/[.06] pt-5">
+            <Link href="/evidence" className="group block">
+              <span className="text-sm font-bold text-[#10263d]">Evidence & methodology <span className="inline-block text-[#0075be] transition-transform group-hover:translate-x-0.5">→</span></span>
+              <span className="mt-1 block text-xs leading-relaxed subtle">Research sources, target logic, dining-data provenance, and known limitations.</span>
+            </Link>
+          </div>
         </section>
       </div>
     </main>

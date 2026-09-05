@@ -136,7 +136,7 @@ function OmeletFilling({ ingredient, index }: { ingredient: OmeletIngredient; in
   if (ingredient === "spinach") return <path d={`M${x-11} ${y+5}q10-20 21 0q-11 13-21 0Z`} fill={GREEN} stroke={INK} strokeWidth="4" />;
   if (ingredient === "tomatoes") return <rect x={x-10} y={y-9} width="20" height="17" rx="5" fill={RED} stroke={INK} strokeWidth="4" />;
   if (ingredient === "onions") return <path d={`M${x-10} ${y+4}q10-15 20 0`} fill="none" stroke={PURPLE} strokeWidth="7" strokeLinecap="round" />;
-  if (ingredient === "mushrooms") return <path d={`M${x-11} ${y}q2-13 11-13t11 13h-7v10h-8V0Z`} fill={MUSHROOM} stroke={INK} strokeWidth="4" />;
+  if (ingredient === "mushrooms") return <path d={`M${x-11} ${y}q2-13 11-13t11 13h-7v10h-8V${y}Z`} fill={MUSHROOM} stroke={INK} strokeWidth="4" />;
   if (ingredient === "green-pepper") return <rect x={x-10} y={y-8} width="21" height="15" rx="4" fill={GREEN_LIGHT} stroke={INK} strokeWidth="4" />;
   if (ingredient === "cheddar") return <path d={`M${x-13} ${y}h26`} stroke={CHEESE} strokeWidth="7" strokeLinecap="round" />;
   if (ingredient === "turkey-sausage") return <rect x={x-10} y={y-9} width="20" height="18" rx="5" fill={SAUSAGE} stroke={INK} strokeWidth="4" />;

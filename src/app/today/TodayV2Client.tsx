@@ -15,6 +15,7 @@ import SuccessMorphLabel from "@/components/SuccessMorphLabel";
 import { diningDecisionLabel, resolveDiningDecision, type DiningDecision } from "@/lib/diningDecision";
 import { softSuccessHaptic } from "@/lib/haptics";
 import { resolveLivingDayState, type CoreMealSlot } from "@/lib/livingDay";
+import { splitPendingMealTiming } from "@/lib/mealCheckInTiming";
 import { personalizationCue, recommendationLabels } from "@/lib/recommendationPresentation";
 import { buildTodayRecommendationPreview } from "@/lib/todayRecommendation";
 import {
@@ -124,12 +125,12 @@ export default function TodayV2Client({
     const repository = browserMealHistoryRepository();
     const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
     const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1, 0, 0, 0, -1);
-    const now = new Date();
+    const current = new Date();
     setProfile(browserProfileRepository().get());
     setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
     setEntries(repository.getByDateRange(start, end));
     setRecentEntries(repository.getRecent(80));
-    setPending(isToday ? repository.getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS)) : []);
+    setPending(isToday ? repository.getPendingCheckIns(4, new Date(current.getTime() - PENDING_CHECK_IN_WINDOW_MS)) : []);
   }, [selectedDate, isToday]);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
@@ -151,13 +152,15 @@ export default function TodayV2Client({
   const hour = now.getHours();
   const livingDay = resolveLivingDayState(snapshot.meals, hour);
   const recommendationPeriod = livingDay.recommendationPeriod;
+  const pendingTiming = splitPendingMealTiming(pending, now);
+  const freshSelection = pendingTiming.freshSelection;
   const fallbackLocationId = Object.keys(locationNames)[0] ?? "loc-921";
   const locationPreference: DiningDecision = profile
     ? resolveDiningDecision(profile, recentEntries, recommendationPeriod, Object.keys(locationNames), now) ?? { locationId: fallbackLocationId, source: "fallback" }
     : { locationId: fallbackLocationId, source: "fallback" };
 
   const mealPreview = useMemo(() => {
-    if (!profile || !isToday || !recommendationPeriod || livingDay.mode === "complete" || livingDay.mode === "late-night") return undefined;
+    if (!profile || !isToday || freshSelection || !recommendationPeriod || livingDay.mode === "complete" || livingDay.mode === "late-night") return undefined;
     const activeTargets = plan?.activeTargets ?? profile.dailyTargets;
     const recommendationProfile: UserProfile = {
       ...profile,
@@ -176,7 +179,7 @@ export default function TodayV2Client({
       stations,
       components,
     });
-  }, [profile, isToday, recommendationPeriod, livingDay.mode, plan, locationPreference.locationId, snapshot.remaining, recentEntries, entries, locations, menuItems, stations, components]);
+  }, [profile, isToday, freshSelection, recommendationPeriod, livingDay.mode, plan, locationPreference.locationId, snapshot.remaining, recentEntries, entries, locations, menuItems, stations, components]);
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;
@@ -240,12 +243,16 @@ export default function TodayV2Client({
   const remainingProtein = target ? Math.max(0, snapshot.remaining?.protein ?? target.protein - snapshot.consumed.protein) : undefined;
   const calorieCoverage = target ? coverage(snapshot.consumed.calories, target.calories) : 0;
   const proteinCoverage = target ? coverage(snapshot.consumed.protein, target.protein) : 0;
-  const firstPending = pending[0];
+  const firstPending = pendingTiming.dueCheckIns[0];
   const savingFirstPending = firstPending ? savingCheckIn?.id === firstPending.id : false;
   const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0).length;
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const planLabel = plan?.phase === "maintenance" ? "Maintenance" : goals.map(readable).join(" · ");
   const recommendationHref = recommendationPeriod ? `/meal-builder/${locationPreference.locationId}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
+  const selectedPeriod = freshSelection?.mealSlot === "snack" ? "late-night" : freshSelection?.mealSlot;
+  const selectedDetailsHref = freshSelection && selectedPeriod
+    ? `/meal-builder/${freshSelection.locationId}?period=${encodeURIComponent(selectedPeriod)}`
+    : recommendationHref;
 
   const nutritionCue = livingDay.mode === "late-night"
     ? "No need to close every number tonight. This is context only—use late-night options if you actually want another meal."
@@ -293,6 +300,9 @@ export default function TodayV2Client({
   const previewStations = [...new Set(mealPreview?.ranking.computed.lines.map((line) => line.station?.name).filter((value): value is string => Boolean(value)) ?? [])];
   const previewLabels = mealPreview ? recommendationLabels(mealPreview.ranking, 0, mealPreview.rankings) : [];
   const previewLearning = mealPreview ? personalizationCue(mealPreview.ranking) : undefined;
+  const selectedName = freshSelection ? mealName(freshSelection, itemNames) : undefined;
+  const selectedImage = freshSelection ? mealImageUrl(freshSelection, itemImageUrls) : undefined;
+  const selectedLocationName = freshSelection ? locationNames[freshSelection.locationId] ?? freshSelection.locationId : undefined;
 
   const completionCopy = livingDay.completedSlots.dinner
     ? remainingProtein !== undefined && remainingProtein > 0
@@ -360,7 +370,12 @@ export default function TodayV2Client({
             transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ff-v2-hero-visual">
-              {mealPreview ? (
+              {freshSelection && selectedName ? (
+                <>
+                  <MealImage name={selectedName} imageUrl={selectedImage} aspect="hero" className="ff-v2-hero-image" />
+                  <div className="ff-v2-hero-badges"><span className="ff-v2-hero-badge">SELECTED</span></div>
+                </>
+              ) : mealPreview ? (
                 <>
                   <MealImage name={previewName} imageUrl={previewImage} aspect="hero" className="ff-v2-hero-image" />
                   <div className="ff-v2-hero-badges">{previewLabels.map((label) => <span className="ff-v2-hero-badge" key={label}>{label}</span>)}</div>
@@ -369,13 +384,20 @@ export default function TodayV2Client({
                 <LocationImage id={locationPreference.locationId} name={preferredLocationName} aspect="hero" className="ff-v2-hero-image" />
               )}
               <div className="ff-v2-photo-shade" />
-              <span className="ff-v2-photo-label">{mealPreview ? `${previewStations.join(" + ") || "Campus dining"} · ${preferredLocationName}` : `${locationDecisionLabel}${mealPeriodLabel ? ` · ${mealPeriodLabel}` : ""}`}</span>
+              <span className="ff-v2-photo-label">{freshSelection ? `Picked · ${selectedLocationName ?? "Campus dining"}` : mealPreview ? `${previewStations.join(" + ") || "Campus dining"} · ${preferredLocationName}` : `${locationDecisionLabel}${mealPeriodLabel ? ` · ${mealPeriodLabel}` : ""}`}</span>
             </div>
             <div className="ff-v2-hero-copy">
-              <span className="ff-v3-hero-state">{livingDay.mode === "anticipate" ? "Planning ahead" : livingDay.mode === "late-night" ? "No pressure" : "Right now"}</span>
-              <p className="ff-v2-eyebrow">{mealPreview ? (livingDay.mode === "anticipate" ? `${mealPeriodLabel ?? "Next meal"} is next` : "Your best move") : heroEyebrow}</p>
-              <h2>{mealPreview ? previewName : heroTitle}</h2>
-              {mealPreview && previewNutrition ? (
+              <span className="ff-v3-hero-state">{freshSelection ? "Locked in" : livingDay.mode === "anticipate" ? "Planning ahead" : livingDay.mode === "late-night" ? "No pressure" : "Right now"}</span>
+              <p className="ff-v2-eyebrow">{freshSelection ? `${freshSelection.mealSlot ? readable(freshSelection.mealSlot) : "Meal"} picked` : mealPreview ? (livingDay.mode === "anticipate" ? `${mealPeriodLabel ?? "Next meal"} is next` : "Your best move") : heroEyebrow}</p>
+              <h2>{freshSelection && selectedName ? selectedName : mealPreview ? previewName : heroTitle}</h2>
+              {freshSelection ? (
+                <>
+                  <p className="ff-v2-hero-reason">You chose this meal. It stays planned for now and does not count toward today’s nutrition until you tell Falcon Fuel how much you actually ate.</p>
+                  {freshSelection.nutrition && <div className="ff-v2-hero-macros"><span>{round(freshSelection.nutrition.calories)} cal if finished</span><span>{round(freshSelection.nutrition.protein)}g protein</span></div>}
+                  <div className="ff-v2-selected-lock"><strong>Meal selected ✓</strong><span>Check-in unlocks after a short eating window.</span></div>
+                  <div className="ff-v2-selected-actions"><Link href={selectedDetailsHref}>View recommendation / order details →</Link><Link href="/dashboard">Change location</Link></div>
+                </>
+              ) : mealPreview && previewNutrition ? (
                 <>
                   <p className="ff-v2-hero-reason">This is the top complete meal at {preferredLocationName} after your plan, remaining nutrition, dietary constraints, recent meals, and learned preferences are applied.</p>
                   <div className="ff-v2-hero-macros">
@@ -388,8 +410,8 @@ export default function TodayV2Client({
               ) : (
                 <p className="ff-v2-hero-reason">{heroReason}</p>
               )}
-              <div className="ff-v2-nutrition-cue"><span aria-hidden="true">↗</span><p>{nutritionCue}</p></div>
-              {mealPreview && previewNutrition ? (
+              {!freshSelection && <div className="ff-v2-nutrition-cue"><span aria-hidden="true">↗</span><p>{nutritionCue}</p></div>}
+              {!freshSelection && (mealPreview && previewNutrition ? (
                 <div className="ff-v2-hero-actions">
                   <motion.button type="button" className="ff-v2-primary-cta" disabled={choosingPreview} onClick={choosePreviewMeal} whileTap={reduceMotion || choosingPreview ? undefined : { scale: 0.985 }}>
                     <SuccessMorphLabel success={choosingPreview} idleLabel="I’m getting this" successLabel="Meal selected" /> <span>→</span>
@@ -400,9 +422,9 @@ export default function TodayV2Client({
                 <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
                   <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>
                 </motion.div>
-              )}
-              <Link href="/dashboard" className="ff-v2-secondary-link">Eating somewhere else? Choose a location</Link>
-              {conflictingMealHabit && mealPreview && <p className="ff-v2-selected-note">Your recent {mealPeriodLabel?.toLowerCase() ?? "meal"} routine also leans {locationNames[conflictingMealHabit.locationId] ?? conflictingMealHabit.locationId}. Your saved usual location stays in control until you change it.</p>}
+              ))}
+              {!freshSelection && <Link href="/dashboard" className="ff-v2-secondary-link">Eating somewhere else? Choose a location</Link>}
+              {conflictingMealHabit && mealPreview && !freshSelection && <p className="ff-v2-selected-note">Your recent {mealPeriodLabel?.toLowerCase() ?? "meal"} routine also leans {locationNames[conflictingMealHabit.locationId] ?? conflictingMealHabit.locationId}. Your saved usual location stays in control until you change it.</p>}
               {livingDay.mode === "late-night" && <p className="ff-v3-late-note">If you’re done eating, you’re done here too. No streak or score depends on adding more.</p>}
             </div>
           </motion.section>
@@ -412,10 +434,11 @@ export default function TodayV2Client({
               {CORE_MEALS.map((slot) => {
                 const done = livingDay.completedSlots[slot];
                 const next = recommendationPeriod === slot;
-                const status = done ? "Confirmed" : next ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : "Later";
+                const picked = Boolean(freshSelection && freshSelection.mealSlot === slot);
+                const status = done ? "Confirmed" : picked ? "Picked" : next ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : "Later";
                 return (
-                  <div key={slot} className={`ff-v3-day-step${done ? " is-done" : ""}${next ? " is-next" : ""}`}>
-                    <span className="ff-v3-day-dot" aria-hidden="true">{done ? "✓" : next ? "→" : "·"}</span>
+                  <div key={slot} className={`ff-v3-day-step${done ? " is-done" : ""}${next || picked ? " is-next" : ""}`}>
+                    <span className="ff-v3-day-dot" aria-hidden="true">{done ? "✓" : picked ? "✓" : next ? "→" : "·"}</span>
                     <div><strong>{readable(slot)}</strong><small>{status}</small></div>
                   </div>
                 );
@@ -521,9 +544,9 @@ export default function TodayV2Client({
                 <div className="ff-v2-meal-copy">
                   <span>{locationNames[entry.locationId] ?? entry.locationId}</span>
                   <h3>{mealName(entry, itemNames)}</h3>
-                  {entry.nutrition && <p>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</p>}
+                  {entry.nutrition && <p>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · selected, not counted yet` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</p>}
                 </div>
-                <div className="ff-v2-meal-status" aria-label={entry.completionFraction === undefined ? "Check-in pending" : `${Math.round(entry.completionFraction * 100)} percent finished`}>
+                <div className="ff-v2-meal-status" aria-label={entry.completionFraction === undefined ? "Meal selected; check-in pending" : `${Math.round(entry.completionFraction * 100)} percent finished`}>
                   {entry.completionFraction === undefined ? "…" : entry.completionFraction === 1 ? "✓" : `${Math.round(entry.completionFraction * 100)}%`}
                 </div>
               </article>

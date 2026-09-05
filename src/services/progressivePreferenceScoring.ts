@@ -4,8 +4,12 @@ import { mealBuildMatchesProgressivePreference } from "./progressiveProfile";
 export interface ProgressivePreferenceScore {
   /** Explicit user-confirmed soft preference boost. */
   totalBoost: number;
+  /** Explicit user-confirmed soft preference penalty; never a hard exclusion. */
+  totalPenalty: number;
   /** User-confirmed families that supported this candidate. */
   signals: string[];
+  /** User-confirmed families the student asked to see less often. */
+  negativeSignals: string[];
   /** Automatic broad-learning categories the user explicitly told us not to assume. */
   suppressedKinds: ProgressivePreferenceKind[];
 }
@@ -14,9 +18,9 @@ const round1 = (value: number) => Math.round(value * 10) / 10;
 
 /**
  * Progressive-profile answers are intentionally modest. A confirmed preference
- * can break close ties but cannot rescue a nutritionally poor candidate. Saying
- * "don't assume that" removes the matching automatic family boost rather than
- * turning the answer into a hard food exclusion.
+ * can break close ties but cannot rescue a nutritionally poor candidate. Asking
+ * for fewer of a family applies a bounded ranking penalty, never an eligibility
+ * rule. Saying "don't assume that" removes the matching automatic family boost.
  */
 export function scoreProgressivePreferences(
   candidate: MealCandidate,
@@ -28,7 +32,9 @@ export function scoreProgressivePreferences(
   }
 
   let totalBoost = 0;
+  let totalPenalty = 0;
   const signals: string[] = [];
+  const negativeSignals: string[] = [];
   const suppressedKinds = new Set<ProgressivePreferenceKind>();
 
   for (const answer of activeByKey.values()) {
@@ -39,6 +45,11 @@ export function scoreProgressivePreferences(
       suppressedKinds.add(answer.kind);
       continue;
     }
+    if (answer.response === "avoid") {
+      totalPenalty += 3.5;
+      negativeSignals.push(answer.label);
+      continue;
+    }
 
     totalBoost += 1.25;
     signals.push(answer.label);
@@ -46,7 +57,9 @@ export function scoreProgressivePreferences(
 
   return {
     totalBoost: round1(Math.min(2.5, totalBoost)),
+    totalPenalty: round1(Math.min(7, totalPenalty)),
     signals: [...new Set(signals)].slice(0, 2),
+    negativeSignals: [...new Set(negativeSignals)].slice(0, 2),
     suppressedKinds: [...suppressedKinds],
   };
 }

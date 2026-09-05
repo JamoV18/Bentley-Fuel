@@ -8,6 +8,11 @@ const station = (id: string, mealPeriods: Station["mealPeriods"]): Station => ({
   locationId: "loc-921",
   name: id,
   mealPeriods,
+  provenance: {
+    dataStatus: "mock",
+    source: { type: "mock-generator", name: "Station browse test" },
+    confidence: 1,
+  },
 });
 
 test("period matching accepts all-day stations", () => {

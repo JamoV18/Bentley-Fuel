@@ -1,3 +1,4 @@
+import DiningHabitCue from "@/components/DiningHabitCue";
 import MealReflectionDock from "@/components/MealReflectionDock";
 import { getDiningProvider } from "@/services";
 import TodayV2Client from "./TodayV2Client";
@@ -21,6 +22,7 @@ export default async function TodayPage() {
         isDemo={!hasVerifiedMenuData}
       />
       <MealReflectionDock locationNames={locationNames} itemNames={itemNames} />
+      <DiningHabitCue locationNames={locationNames} />
     </>
   );
 }

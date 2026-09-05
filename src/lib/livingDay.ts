@@ -12,7 +12,10 @@ export interface LivingDayState {
 
 const coreSlots = new Set<CoreMealSlot>(["breakfast", "lunch", "dinner"]);
 
-const occurredAt = (entry: MealHistoryEntry) => new Date(entry.completionRecordedAt ?? entry.eatenAt ?? entry.selectedAt);
+// New meal-builder selections carry an explicit mealSlot. Older entries fall
+// back to their eating/selection time so a delayed check-in cannot move a
+// breakfast into the lunch window after the fact.
+const occurredAt = (entry: MealHistoryEntry) => new Date(entry.eatenAt ?? entry.selectedAt);
 
 export function inferCoreMealSlot(entry: MealHistoryEntry): CoreMealSlot | undefined {
   if (entry.mealSlot && coreSlots.has(entry.mealSlot as CoreMealSlot)) return entry.mealSlot as CoreMealSlot;

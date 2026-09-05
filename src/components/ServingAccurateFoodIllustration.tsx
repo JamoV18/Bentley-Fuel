@@ -1,4 +1,4 @@
-import FoodIllustration from "@/components/FoodIllustration";
+import FoodIllustration from "@/components/FoodIllustrationV2";
 
 const INK = "#10263d";
 const BOWL = "#fffdf8";

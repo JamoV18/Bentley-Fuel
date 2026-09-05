@@ -9,7 +9,8 @@ export type FoodIllustrationKind =
   | "green-pepper"
   | "cheddar"
   | "turkey-sausage"
-  | "black-beans";
+  | "black-beans"
+  | "oatmeal";
 
 export type OmeletIngredient =
   | "spinach"
@@ -34,6 +35,7 @@ const ITEM_MATCHERS: Array<[FoodIllustrationKind, RegExp]> = [
   ["cheddar", /^(shredded )?cheddar cheese$/],
   ["turkey-sausage", /^(diced )?turkey sausage( link)?$/],
   ["black-beans", /^black beans$/],
+  ["oatmeal", /^oatmeal$/],
   ["omelet", /^omelet( bar)?$/],
 ];
 

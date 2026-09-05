@@ -1,6 +1,7 @@
 "use client";
 
 import "./today-v2.css";
+import "./today-living-day.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
@@ -9,6 +10,7 @@ import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import ProfileMenu from "@/components/ProfileMenu";
 import SuccessMorphLabel from "@/components/SuccessMorphLabel";
+import { resolveLivingDayState, type CoreMealSlot } from "@/lib/livingDay";
 import {
   browserMealHistoryRepository,
   browserProgressRepository,
@@ -20,6 +22,7 @@ import { browserProfileRepository } from "@/services/profileRepository";
 import type { MealCompletionFraction, MealHistoryEntry, MealPeriod, UserProfile } from "@/types";
 
 const PENDING_CHECK_IN_WINDOW_MS = 36 * 60 * 60 * 1000;
+const CORE_MEALS: CoreMealSlot[] = ["breakfast", "lunch", "dinner"];
 const round = (value: number) => Math.round(value);
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const coverage = (value: number, target: number) => target > 0 ? clamp(Math.round((value / target) * 100), 0, 100) : 0;
@@ -29,13 +32,6 @@ const formatWeight = (kg: number, units: UserProfile["unitSystem"]) => units ===
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
 const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => item.display?.name ?? itemNames[item.menuItemId] ?? "Meal item").join(" + ");
 const mealImageUrl = (entry: MealHistoryEntry, itemImageUrls: Record<string, string | undefined>) => entry.build.items[0]?.display?.imageUrl ?? itemImageUrls[primaryItemId(entry)];
-
-function mealPeriodForHour(hour: number): MealPeriod {
-  if (hour >= 5 && hour < 11) return "breakfast";
-  if (hour >= 11 && hour < 16) return "lunch";
-  if (hour >= 16 && hour < 22) return "dinner";
-  return "late-night";
-}
 
 function dayLabel(date: Date) {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(date);
@@ -169,8 +165,9 @@ export default function TodayV2Client({
 
   const now = new Date();
   const hour = now.getHours();
-  const currentMealPeriod = mealPeriodForHour(hour);
-  const mealPeriodLabel = readable(currentMealPeriod);
+  const livingDay = resolveLivingDayState(snapshot.meals, hour);
+  const recommendationPeriod = livingDay.recommendationPeriod;
+  const mealPeriodLabel = recommendationPeriod ? readable(recommendationPeriod) : undefined;
   const preferredLocationName = locationNames[locationPreference.id] ?? "campus dining";
   const target = snapshot.targets;
   const remainingCalories = target ? Math.max(0, snapshot.remaining?.calories ?? target.calories - snapshot.consumed.calories) : undefined;
@@ -182,15 +179,45 @@ export default function TodayV2Client({
   const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0).length;
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const planLabel = plan?.phase === "maintenance" ? "Maintenance" : goals.map(readable).join(" · ");
-  const recommendationHref = `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(currentMealPeriod)}`;
+  const recommendationHref = recommendationPeriod ? `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
 
-  const nutritionCue = remainingProtein !== undefined && remainingProtein >= 35
-    ? `Protein is the priority. You have about ${round(remainingProtein)}g left today.`
-    : remainingCalories !== undefined && remainingCalories <= 650
-      ? `Keep this one efficient. About ${round(remainingCalories)} calories remain today.`
-      : remainingCalories !== undefined
-        ? `You have room to eat normally. About ${round(remainingCalories)} calories remain today.`
-        : "I’ll rank the menu around your goal and dietary needs.";
+  const nutritionCue = livingDay.mode === "late-night"
+    ? "No need to close every number tonight. This is context only—use late-night options if you actually want another meal."
+    : remainingProtein !== undefined && remainingProtein >= 35
+      ? `Protein is the priority. You have about ${round(remainingProtein)}g left today.`
+      : remainingCalories !== undefined && remainingCalories <= 650
+        ? `Keep this one efficient. About ${round(remainingCalories)} calories remain today.`
+        : remainingCalories !== undefined
+          ? `You have room to eat normally. About ${round(remainingCalories)} calories remain today.`
+          : "I’ll rank the menu around your goal and dietary needs.";
+
+  const previousMealLabel = recommendationPeriod === "lunch" ? "Breakfast" : recommendationPeriod === "dinner" ? "Lunch" : undefined;
+  const heroEyebrow = livingDay.mode === "anticipate" ? "Up next" : livingDay.mode === "late-night" ? "Optional tonight" : "Your next move";
+  const heroTitle = livingDay.mode === "anticipate" && mealPeriodLabel
+    ? `${mealPeriodLabel} is next.`
+    : livingDay.mode === "late-night"
+      ? "Still need something tonight?"
+      : locationPreference.learned
+        ? `Go to ${preferredLocationName}.`
+        : `Start at ${preferredLocationName}.`;
+  const heroReason = livingDay.mode === "anticipate" && mealPeriodLabel
+    ? `${previousMealLabel ?? "Your last meal"} is locked in. When you’re ready, I’ll rank ${mealPeriodLabel.toLowerCase()} at ${preferredLocationName} around what remains in your day.`
+    : livingDay.mode === "late-night"
+      ? "Falcon Fuel won’t push another meal just to finish a target. If you’re still hungry, I can rank the late-night options that fit best."
+      : locationPreference.learned
+        ? `You choose ${preferredLocationName} most often. I’ll rank what’s there against the rest of your day.`
+        : `I’ll rank a complete ${mealPeriodLabel?.toLowerCase() ?? "meal"} there against your plan and what you’ve already eaten.`;
+  const heroCta = livingDay.mode === "anticipate" && mealPeriodLabel
+    ? `Plan ${mealPeriodLabel.toLowerCase()}`
+    : livingDay.mode === "late-night"
+      ? "See late-night options"
+      : `Show my best ${mealPeriodLabel?.toLowerCase() ?? "meal"}`;
+
+  const completionCopy = livingDay.completedSlots.dinner
+    ? remainingProtein !== undefined && remainingProtein > 0
+      ? `Dinner is locked in and today is captured. Protein ended about ${round(remainingProtein)}g below plan; that’s useful context for tomorrow, not a reason to chase food tonight.`
+      : "Dinner is locked in and today is captured. Nothing else to solve tonight."
+    : "Today is captured. Falcon Fuel won’t push another meal just because a number is still open.";
 
   const yesterday = new Date(selectedDate); yesterday.setDate(selectedDate.getDate() - 1);
   const tomorrow = new Date(selectedDate); tomorrow.setDate(selectedDate.getDate() + 1);
@@ -216,33 +243,76 @@ export default function TodayV2Client({
 
       {isDemo && <p className="ff-v2-data-note">Some locations still use demo menu data. Verified Bentley Dining data is used where available.</p>}
 
-      {isToday ? (
+      {isToday ? livingDay.mode === "complete" ? (
         <motion.section
-          className="ff-v2-hero"
-          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+          className="ff-v3-complete"
+          initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.995 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="ff-v2-hero-visual">
-            <MealImage name={`${preferredLocationName} ${mealPeriodLabel} meal`} aspect="hero" className="ff-v2-hero-image" />
-            <div className="ff-v2-photo-shade" />
-            <span className="ff-v2-photo-label">{mealPeriodLabel}</span>
+          <motion.div
+            className="ff-v3-complete-mark"
+            initial={reduceMotion ? false : { scale: 0.65, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={reduceMotion ? { duration: 0 } : { delay: 0.08, type: "spring", stiffness: 190, damping: 16 }}
+            aria-hidden="true"
+          >✓</motion.div>
+          <p className="ff-v3-complete-kicker">Day wrapped</p>
+          <h2>You’re covered.</h2>
+          <p className="ff-v3-complete-copy">{completionCopy}</p>
+          <div className="ff-v3-complete-facts">
+            <span>{completedMeals} meal{completedMeals === 1 ? "" : "s"} confirmed</span>
+            <span>{round(snapshot.consumed.protein)}g protein logged</span>
+            <span>{round(snapshot.consumed.calories).toLocaleString()} calories logged</span>
           </div>
-          <div className="ff-v2-hero-copy">
-            <p className="ff-v2-eyebrow">Your next move</p>
-            <h2>{locationPreference.learned ? `Go to ${preferredLocationName}.` : `Start at ${preferredLocationName}.`}</h2>
-            <p className="ff-v2-hero-reason">
-              {locationPreference.learned
-                ? `You choose ${preferredLocationName} most often. I’ll rank what’s there against the rest of your day.`
-                : `I’ll rank a complete ${mealPeriodLabel.toLowerCase()} there against your plan and what you’ve already eaten.`}
-            </p>
-            <div className="ff-v2-nutrition-cue"><span aria-hidden="true">↗</span><p>{nutritionCue}</p></div>
-            <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
-              <Link href={recommendationHref} className="ff-v2-primary-cta">Show my best {mealPeriodLabel.toLowerCase()} <span>→</span></Link>
-            </motion.div>
-            <Link href="/dashboard" className="ff-v2-secondary-link">Eating somewhere else? Choose a location</Link>
+          <div className="ff-v3-complete-actions">
+            <Link href="#today-progress-title">Review today</Link>
+            <Link href="/history">See the bigger picture →</Link>
           </div>
         </motion.section>
+      ) : (
+        <>
+          <motion.section
+            className="ff-v2-hero"
+            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="ff-v2-hero-visual">
+              <MealImage name={`${preferredLocationName} ${mealPeriodLabel ?? "meal"}`} aspect="hero" className="ff-v2-hero-image" />
+              <div className="ff-v2-photo-shade" />
+              <span className="ff-v2-photo-label">{livingDay.mode === "anticipate" ? `Up next · ${mealPeriodLabel}` : mealPeriodLabel}</span>
+            </div>
+            <div className="ff-v2-hero-copy">
+              <span className="ff-v3-hero-state">{livingDay.mode === "anticipate" ? "Planning ahead" : livingDay.mode === "late-night" ? "No pressure" : "Right now"}</span>
+              <p className="ff-v2-eyebrow">{heroEyebrow}</p>
+              <h2>{heroTitle}</h2>
+              <p className="ff-v2-hero-reason">{heroReason}</p>
+              <div className="ff-v2-nutrition-cue"><span aria-hidden="true">↗</span><p>{nutritionCue}</p></div>
+              <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
+                <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>
+              </motion.div>
+              <Link href="/dashboard" className="ff-v2-secondary-link">Eating somewhere else? Choose a location</Link>
+              {livingDay.mode === "late-night" && <p className="ff-v3-late-note">If you’re done eating, you’re done here too. No streak or score depends on adding more.</p>}
+            </div>
+          </motion.section>
+
+          {recommendationPeriod !== "late-night" && (
+            <div className="ff-v3-day-path" aria-label="Today’s meal progression">
+              {CORE_MEALS.map((slot) => {
+                const done = livingDay.completedSlots[slot];
+                const next = recommendationPeriod === slot;
+                const status = done ? "Confirmed" : next ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : "Later";
+                return (
+                  <div key={slot} className={`ff-v3-day-step${done ? " is-done" : ""}${next ? " is-next" : ""}`}>
+                    <span className="ff-v3-day-dot" aria-hidden="true">{done ? "✓" : next ? "→" : "·"}</span>
+                    <div><strong>{readable(slot)}</strong><small>{status}</small></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       ) : (
         <section className="ff-v2-history-hero">
           <p className="ff-v2-eyebrow">Recorded day</p>
@@ -284,7 +354,7 @@ export default function TodayV2Client({
                   );
                 })}
               </div>
-              <p className="ff-v2-confirm-note">This updates today’s numbers and improves future recommendations.</p>
+              <p className="ff-v2-confirm-note">This updates today’s numbers and improves the next recommendation.</p>
             </div>
           </motion.section>
         )}
@@ -307,7 +377,7 @@ export default function TodayV2Client({
             </AnimatedCalorieRing>
             <div className="ff-v2-calorie-copy">
               <strong>{remainingCalories === undefined ? "Tracking today" : `${round(remainingCalories).toLocaleString()} left`}</strong>
-              <p>{remainingCalories === undefined ? "Add meals and the day will take shape." : target && snapshot.consumed.calories > target.calories ? "You’re over today’s target. No scorekeeping—just use it as context." : "Calories are context. The next decision matters more than the last one."}</p>
+              <p>{remainingCalories === undefined ? "Add meals and the day will take shape." : target && snapshot.consumed.calories > target.calories ? "You’re over today’s target. No scorekeeping—just use it as context." : livingDay.mode === "complete" ? "Today is logged. The week matters more than any single number." : "Calories are context. The next decision matters more than the last one."}</p>
             </div>
           </div>
 
@@ -332,7 +402,7 @@ export default function TodayV2Client({
           <Link href="/history">History →</Link>
         </div>
         {snapshot.meals.length === 0 ? (
-          <div className="ff-v2-empty-meals"><strong>Nothing here yet.</strong><p>{isToday ? "Your first confirmed meal will show up here." : "No meals were logged for this date."}</p>{isToday && <Link href={recommendationHref}>Find my next meal →</Link>}</div>
+          <div className="ff-v2-empty-meals"><strong>Nothing here yet.</strong><p>{isToday ? "Your first confirmed meal will show up here." : "No meals were logged for this date."}</p>{isToday && livingDay.mode !== "complete" && <Link href={recommendationHref}>Find my next meal →</Link>}</div>
         ) : (
           <div className="ff-v2-meal-list">
             {snapshot.meals.map((entry) => (

@@ -5,6 +5,7 @@ import {
   breakfastPlateComposition,
   foodIllustrationKind,
   hasFoodIllustration,
+  hasLunchFoodIllustration,
   isOmeletComposition,
   omeletIngredientsForName,
   omeletUsesEggWhites,
@@ -159,4 +160,35 @@ test("breakfast plate can assemble sides even without eggs", () => {
 test("a single egg serving remains scrambled rather than becoming an omelet", () => {
   assert.equal(isOmeletComposition("Eggs"), false);
   assert.equal(foodIllustrationKind("Eggs"), "eggs");
+});
+
+test("verified lunch illustration batch is available to the shared MealImage pipeline", () => {
+  const lunchItems = [
+    "Lentil Bolognese Pasta",
+    "Lentil Bolognese",
+    "Pasta, Chickpeas and Vegetable Marinara",
+    "Sautéed Spinach and Onion",
+    "Pesto Sauce",
+    "Build Your Own Nachos",
+    "Crispy Tortilla Chips",
+    "Spicy Jalapeno Chicken",
+    "Roasted Mushrooms, Garlic and Lime",
+    "Smashed Black Beans",
+    "Spicy Chipotle Crema",
+    "Sour Cream",
+    "Pico de Gallo",
+    "Mango Pineapple Salsa",
+    "Shredded Romaine",
+    "Chopped Green Onions",
+  ];
+
+  for (const name of lunchItems) {
+    assert.equal(hasLunchFoodIllustration(name), true, name);
+    assert.equal(hasFoodIllustration(name), true, name);
+  }
+
+  assert.equal(foodIllustrationKind("Chopped Yellow Onions"), "onions");
+  assert.equal(foodIllustrationKind("Chopped Tomatoes"), "tomatoes");
+  assert.equal(foodIllustrationKind("Shredded Cheddar Cheese"), "cheddar");
+  assert.equal(foodIllustrationKind("Sliced Jalapeno Pepper"), "jalapeno");
 });

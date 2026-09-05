@@ -20,6 +20,7 @@ import type {
 
 export interface TodayRecommendationPreview {
   ranking: RankedMealCandidate;
+  rankings: RankedMealCandidate[];
   resources: MealBuildResources;
   context: RecommendationContext;
 }
@@ -113,9 +114,10 @@ export function buildTodayRecommendationPreview({
   }
   if (candidates.length === 0) return undefined;
 
-  const ranking = scoreResolvedMeals(
+  const rankings = scoreResolvedMeals(
     candidates.map((candidate) => ({ candidate, computed: computeMealBuild(candidate.build, resources) })),
     context,
-  )[0];
-  return ranking ? { ranking, resources, context } : undefined;
+  );
+  const ranking = rankings[0];
+  return ranking ? { ranking, rankings, resources, context } : undefined;
 }

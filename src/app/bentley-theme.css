@@ -1,170 +1,271 @@
 /*
- * Falcon Fuel brand system
+ * Falcon Fuel interaction hierarchy
  *
- * Bentley dark blue is the identity anchor, Bentley blue carries interaction,
- * and teal is a restrained nutrition/progress accent. This file loads after the
- * base styles so legacy emerald utility classes inherit the Bentley palette
- * without forcing every feature to maintain a separate color vocabulary.
+ * One saturated UI color has one job: tell the student what to press next.
+ * Bentley blue is therefore reserved for primary actions. Navigation, selected
+ * states, charts, progress, badges, surfaces, and secondary controls live in a
+ * quiet slate / neutral system so the intended action wins immediately.
  */
 
 :root {
-  --background: #f5f8fb;
+  --action: #0075be;
+  --action-hover: #005f99;
+  --action-soft: #e9f2f7;
+
+  --background: #f7f8fa;
   --foreground: #111820;
-  --brand-950: #172e46;
-  --brand-900: #294567;
-  --brand-800: #345d82;
-  --brand-700: #176b9a;
-  --brand-600: #0075be;
-  --brand-100: #dcebf5;
-  --brand-50: #f0f6fa;
-  --brand-teal: #42b7b0;
+  --brand-950: #1f2932;
+  --brand-900: #303f4d;
+  --brand-800: #465b6c;
+  --brand-700: #5e7181;
+  --brand-600: #6f8291;
+  --brand-100: #eaedef;
+  --brand-50: #f4f5f6;
+  --brand-teal: #90aaa4;
   --cream: #fbfcfd;
-  --surface: rgba(255, 255, 255, 0.95);
+  --surface: rgba(255, 255, 255, 0.97);
   --surface-solid: #ffffff;
-  --line: rgba(31, 60, 88, 0.105);
-  --muted: #667789;
-  --shadow: 0 14px 40px rgba(31, 60, 88, 0.09), 0 2px 8px rgba(31, 60, 88, 0.045);
-  --shadow-soft: 0 8px 24px rgba(31, 60, 88, 0.065);
+  --line: rgba(17, 24, 32, 0.09);
+  --muted: #6e7a86;
+  --data-strong: #8ea1b0;
+  --data-soft: #dfe5e8;
+  --success-muted: #8fa8a2;
+  --shadow: 0 14px 38px rgba(24, 35, 45, 0.075), 0 2px 7px rgba(24, 35, 45, 0.035);
+  --shadow-soft: 0 7px 21px rgba(24, 35, 45, 0.05);
 
-  /* Tailwind's existing emerald utilities become Falcon Fuel brand utilities. */
-  --color-emerald-50: #f0f6fa;
-  --color-emerald-100: #dcebf5;
-  --color-emerald-200: #bddcea;
-  --color-emerald-300: #82bce5;
-  --color-emerald-400: #42b7b0;
-  --color-emerald-500: #1698b8;
-  --color-emerald-600: #0075be;
-  --color-emerald-700: #176b9a;
-  --color-emerald-800: #345d82;
-  --color-emerald-900: #294567;
-  --color-emerald-950: #172e46;
+  /* Legacy emerald utilities become deliberately neutral sitewide. */
+  --color-emerald-50: #f4f5f6;
+  --color-emerald-100: #eaedef;
+  --color-emerald-200: #d8dde1;
+  --color-emerald-300: #bcc5cc;
+  --color-emerald-400: #9eabb5;
+  --color-emerald-500: #83939f;
+  --color-emerald-600: #6f8291;
+  --color-emerald-700: #5e7181;
+  --color-emerald-800: #465b6c;
+  --color-emerald-900: #303f4d;
+  --color-emerald-950: #1f2932;
 }
 
-body {
-  background:
-    radial-gradient(circle at 82% -12%, rgba(0, 117, 190, .105), transparent 35rem),
-    radial-gradient(circle at -12% 34%, rgba(66, 183, 176, .12), transparent 31rem),
-    var(--background);
-}
+body { background: var(--background); }
+body::before { display: none; }
+::selection { background: #dce8ef; color: #111820; }
 
-::selection { background: #cce4f2; color: var(--brand-950); }
-
+/* Primary means primary: this is where the strong Falcon Fuel color lives. */
 .primary {
-  background: linear-gradient(135deg, var(--brand-900), var(--brand-600));
-  box-shadow: 0 10px 22px rgba(41, 69, 103, .19);
+  background: var(--action);
+  box-shadow: 0 8px 20px rgba(0, 117, 190, .18);
 }
-.primary:hover { box-shadow: 0 13px 27px rgba(41, 69, 103, .23); }
-.secondary { box-shadow: 0 3px 12px rgba(31, 60, 88, .045); }
-.secondary:hover { border-color: rgba(0, 117, 190, .28); }
-.choice { box-shadow: 0 4px 14px rgba(31, 60, 88, .04); }
-.choice:hover { border-color: rgba(0, 117, 190, .25); }
-.choice[data-selected="true"], .chip[data-selected="true"] {
-  box-shadow: inset 0 0 0 1px rgba(0, 117, 190, .32), 0 6px 16px rgba(41, 69, 103, .07);
+.primary:hover {
+  background: var(--action-hover);
+  filter: none;
+  box-shadow: 0 10px 24px rgba(0, 117, 190, .22);
 }
-.chip:hover { border-color: rgba(0, 117, 190, .30); }
-.field input:focus, .field select:focus { box-shadow: 0 0 0 4px rgba(0, 117, 190, .09); }
 
+/* Everything that is not the intended next action stays quiet. */
+.secondary {
+  border-color: #d8dde1;
+  background: #fff;
+  color: #3d4b57;
+  box-shadow: 0 3px 10px rgba(24, 35, 45, .035);
+}
+.secondary:hover { border-color: #bcc5cc; background: #f7f8f9; }
+.choice { box-shadow: 0 4px 12px rgba(24, 35, 45, .03); }
+.choice:hover { border-color: #c4ccd2; }
+.choice[data-selected="true"],
+.chip[data-selected="true"] {
+  border-color: #bcc5cc;
+  background: #f0f2f4;
+  color: #26333e;
+  box-shadow: inset 0 0 0 1px rgba(48, 63, 77, .05), 0 4px 12px rgba(24, 35, 45, .035);
+}
+.chip:hover { border-color: #bcc5cc; }
+.field input:focus,
+.field select:focus { box-shadow: 0 0 0 4px rgba(0, 117, 190, .09); }
+
+.brand-kicker { color: #5e6b77; }
 .brand-kicker::before {
-  background: var(--brand-900);
-  color: #f4f9fc;
-  box-shadow: 0 5px 14px rgba(31, 60, 88, .19);
+  background: #303f4d;
+  color: #fff;
+  box-shadow: 0 5px 13px rgba(24, 35, 45, .13);
 }
 .surface-soft {
-  border-color: rgba(0, 117, 190, .09);
-  background: linear-gradient(145deg, rgba(240, 246, 250, .94), rgba(255, 255, 255, .94));
+  border-color: #e0e4e7;
+  background: linear-gradient(145deg, #f5f6f7, #fff);
 }
 .meal-image {
-  border-color: rgba(31, 60, 88, .085);
-  background-color: #e7eef4;
+  border-color: rgba(17, 24, 32, .075);
+  background-color: #e9edef;
 }
-.meal-row { box-shadow: 0 5px 16px rgba(31, 60, 88, .045); }
+.meal-row { box-shadow: 0 5px 15px rgba(24, 35, 45, .035); }
 
+/* Navigation communicates location, not a call to action. */
 .app-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.app-nav-item { color: #6b7886; }
+.app-nav-item,
 .app-nav-item:hover,
-.app-nav-item[data-active="true"] { color: var(--brand-700); }
-.app-nav-item[data-active="true"] { background: rgba(240, 246, 250, .94); }
-
-.nutrition-hero {
-  background:
-    radial-gradient(circle at 82% 10%, rgba(66, 183, 176, .25), transparent 18rem),
-    linear-gradient(145deg, #294567, #172e46 72%);
-  box-shadow: 0 18px 42px rgba(23, 46, 70, .22);
+.app-nav-item[data-active="true"] { color: #66737f; }
+.app-nav-item[data-active="true"] { background: #f1f3f5; }
+.app-nav-item[data-active="true"] > span:first-child {
+  background: #f1f3f5 !important;
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 32, .075), 0 2px 7px rgba(24, 35, 45, .035) !important;
 }
-.progress-ring { background: conic-gradient(#76d0ca var(--value), rgba(255,255,255,.12) 0); }
-.progress-ring::before { background: #213b57; }
 
-/* Today inherits the same identity while keeping macro channels distinguishable. */
+/* Dark feature surfaces may use contrast, but stay neutral rather than saturated. */
+.nutrition-hero {
+  background: linear-gradient(145deg, #303940, #20272d 72%);
+  box-shadow: 0 16px 36px rgba(20, 28, 35, .15);
+}
+.progress-ring { background: conic-gradient(#a5b4bd var(--value), rgba(255,255,255,.12) 0); }
+.progress-ring::before { background: #293138; }
+
+/* Today keeps data legible with restrained, low-saturation channels. */
 .today-shell {
-  --carbs: #42b7b0;
-  --protein: #0075be;
-  --fat: #7d8fa3;
-  --success: #42b7b0;
+  --carbs: #829c92;
+  --protein: #7d8d9b;
+  --fat: #9a9384;
+  --success: var(--success-muted);
 }
 .profile-orb {
-  background: linear-gradient(145deg, #294567, #0075be);
-  box-shadow: 0 8px 22px rgba(31, 60, 88, .18), inset 0 0 0 4px rgba(255,255,255,.92);
+  background: #303f4d;
+  color: white;
+  box-shadow: 0 7px 18px rgba(24, 35, 45, .12), inset 0 0 0 4px rgba(255,255,255,.94);
 }
 .day-slot-active {
-  background: linear-gradient(145deg, #294567, #176b9a);
-  box-shadow: 0 10px 25px rgba(31, 60, 88, .16);
+  border-color: #cfd6dc;
+  background: #f1f3f5;
+  color: #687580;
+  box-shadow: none;
 }
+.day-slot-active strong { color: #111820; }
 .calorie-ring {
-  background: conic-gradient(from 215deg, #294567 0%, #0075be var(--calorie-progress), #e2eaf0 var(--calorie-progress), #e2eaf0 82%, transparent 82% 100%);
+  background: conic-gradient(from 215deg, #8799a6 0%, #8799a6 var(--calorie-progress), #e3e7ea var(--calorie-progress), #e3e7ea 82%, transparent 82% 100%);
 }
-.calorie-ring::before { box-shadow: inset 0 0 35px rgba(0, 117, 190, .035); }
-.macro-glance { background: rgba(240, 246, 250, .62); }
-.macro-track { background: #e2eaf0; }
-.mini-ring { background: conic-gradient(currentColor var(--mini-progress), #e2eaf0 0); }
+.calorie-ring::before { box-shadow: inset 0 0 30px rgba(24, 35, 45, .02); }
+.macro-glance { background: #f6f7f7; }
+.macro-track { background: #e4e8ea; }
+.mini-ring { background: conic-gradient(currentColor var(--mini-progress), #e4e8ea 0); }
 .eat-cta {
-  background: linear-gradient(115deg, #172e46, #294567 55%, #0075be);
-  box-shadow: 0 15px 30px rgba(31, 60, 88, .19);
+  background: var(--action);
+  box-shadow: 0 10px 24px rgba(0, 117, 190, .18);
 }
-.meal-progress { background: conic-gradient(var(--success) var(--meal-progress), #e2eaf0 0); }
+.meal-progress { background: conic-gradient(var(--success) var(--meal-progress), #e3e7e9 0); }
 
-/* The #1 recommendation glow now belongs to the same navy / blue / teal family. */
+/* Home command center: only Find my meal gets the saturated action color. */
+.home-command-center [class*="text-[#176b9a]"] { color: #65727d !important; }
+.home-command-center [class*="text-[#345d82]"] { color: #52606c !important; }
+.home-command-center [class*="text-[#294567]"] { color: #34424e !important; }
+.home-command-center [class*="text-[#172e46]"] { color: #202b34 !important; }
+
+.home-calorie-card svg circle:nth-of-type(2) { stroke: var(--data-strong) !important; }
+.home-calorie-card .bg-gradient-to-r { background: var(--data-strong) !important; }
+
+.daily-checkin-card a[class*="border-[#42b7b0]"] {
+  border-color: #cbd4d2 !important;
+  background: #f2f4f3 !important;
+}
+.daily-checkin-card span[class*="bg-[#42b7b0]"] {
+  background: #a8b7b3 !important;
+  color: #263631 !important;
+  box-shadow: none !important;
+}
+.daily-checkin-card a:hover { border-color: #c2cbd1 !important; background: #f5f6f7 !important; }
+
+.home-primary-action {
+  border-color: #dde2e5 !important;
+  background: #ffffff !important;
+  box-shadow: 0 7px 21px rgba(24, 35, 45, .05) !important;
+}
+.home-primary-action > [aria-hidden="true"] { display: none; }
+.home-primary-action a[href="/dashboard"] {
+  background: var(--action) !important;
+  color: white !important;
+  box-shadow: 0 9px 22px rgba(0, 117, 190, .19) !important;
+}
+.home-primary-action a[href="/dashboard"]:hover {
+  background: var(--action-hover) !important;
+  box-shadow: 0 11px 26px rgba(0, 117, 190, .22) !important;
+}
+.home-primary-action a[href="/dashboard"] span { color: white !important; }
+.home-primary-action a[href="/log-meal"] {
+  border-color: #d7dde1 !important;
+  background: #f6f7f8 !important;
+  color: #46535e !important;
+}
+.home-primary-action a[href="/log-meal"]:hover { background: #eef1f3 !important; }
+
+/* The full Log experience can keep depth, but its decorative color is neutral. */
+section.from-emerald-950 [class~="bg-gradient-to-r"] { background: #a6b2ba !important; }
+
+/* Recommendation #1 is distinguished by hierarchy, not a competing blue glow. */
 [data-recommendation-index="0"] {
-  background: rgba(244, 249, 252, 0.97) !important;
-  box-shadow:
-    0 18px 42px rgba(31, 60, 88, 0.18),
-    0 5px 16px rgba(0, 117, 190, 0.12),
-    0 0 0 1px rgba(41, 69, 103, 0.08) !important;
+  background: rgba(255, 255, 255, .98) !important;
+  box-shadow: 0 14px 34px rgba(24, 35, 45, .10), 0 0 0 1px rgba(17, 24, 32, .07) !important;
 }
 [data-recommendation-index="0"]::before {
-  background: conic-gradient(
-    from 0deg,
-    rgba(23, 46, 70, 0.02) 0deg 104deg,
-    rgba(41, 69, 103, 0.28) 126deg,
-    rgba(0, 117, 190, 0.72) 150deg,
-    rgba(130, 188, 229, 0.98) 169deg,
-    rgba(241, 251, 252, 1) 180deg,
-    rgba(66, 183, 176, 0.96) 191deg,
-    rgba(0, 117, 190, 0.64) 207deg,
-    rgba(41, 69, 103, 0.18) 232deg,
-    rgba(23, 46, 70, 0.02) 254deg 360deg
-  );
+  background: conic-gradient(from 0deg, rgba(48, 63, 77, .02), rgba(120, 135, 146, .24), rgba(48, 63, 77, .02)) !important;
 }
 [data-recommendation-index="0"]::after {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.99), transparent 34%),
-    linear-gradient(118deg, #fcfdff 0%, #e8f2f7 22%, #fbfdfe 42%, #dcebf2 59%, #f1f7fa 75%, #ffffff 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.99),
-    inset 0 -1px 0 rgba(41, 69, 103, 0.10),
-    inset 0 0 30px rgba(0, 117, 190, 0.035);
+  background: linear-gradient(118deg, #fff 0%, #f4f5f6 48%, #fafbfb 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.98), inset 0 -1px 0 rgba(17,24,32,.06) !important;
 }
 [data-recommendation-index="0"]:hover {
-  box-shadow:
-    0 21px 48px rgba(31, 60, 88, 0.22),
-    0 7px 20px rgba(0, 117, 190, 0.15),
-    0 0 0 1px rgba(41, 69, 103, 0.10) !important;
+  box-shadow: 0 17px 38px rgba(24, 35, 45, .12), 0 0 0 1px rgba(17, 24, 32, .08) !important;
+}
+
+/* Switching dates should feel tactile without becoming another visual event. */
+.day-arrow,
+.day-slot {
+  transform-origin: center;
+  transition:
+    transform .16s cubic-bezier(.22, 1, .36, 1),
+    border-color .18s ease,
+    background-color .18s ease,
+    box-shadow .18s ease;
+  will-change: transform;
+}
+.day-arrow:active,
+.day-slot:active {
+  transform: translateY(1px) scale(.96);
+  transition-duration: .08s;
+}
+
+/* TodayClient remounts this carousel for each loaded date, so this replays on every day change. */
+.nutrition-carousel .nutrition-card {
+  animation: falcon-day-card-settle .30s cubic-bezier(.22, 1, .36, 1) both;
+}
+.nutrition-carousel .nutrition-card:nth-child(2) { animation-delay: .035s; }
+
+@keyframes falcon-day-card-settle {
+  from {
+    opacity: .68;
+    transform: translateY(7px) scale(.994);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (hover: hover) {
+  .day-arrow:hover,
+  .day-slot:hover { transform: translateY(-1px); }
+  .day-arrow:active,
+  .day-slot:active { transform: translateY(1px) scale(.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-arrow,
+  .day-slot { transition: none; }
+  .day-arrow:active,
+  .day-slot:active { transform: none; }
+  .nutrition-carousel .nutrition-card { animation: none; }
 }
 
 @media (max-width: 639px) {
-  body { background: #f6f9fb; }
+  body { background: #f7f8fa; }
   .app-nav {
-    background: rgba(250, 252, 254, .91);
-    box-shadow: 0 14px 38px rgba(31, 60, 88, .19), inset 0 1px 0 rgba(255,255,255,.84);
+    background: rgba(252, 252, 253, .94);
+    box-shadow: 0 12px 32px rgba(24, 35, 45, .12), inset 0 1px 0 rgba(255,255,255,.9);
   }
   .app-nav-item { font-size: .63rem; }
 }

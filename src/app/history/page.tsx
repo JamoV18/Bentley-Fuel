@@ -1,5 +1,5 @@
 import { getDiningProvider } from "@/services";
-import HistoryClient from "./HistoryClient";
+import HistoryV2Client from "./HistoryV2Client";
 
 export default async function HistoryPage() {
   const provider = getDiningProvider();
@@ -9,7 +9,7 @@ export default async function HistoryPage() {
     provider.getMenuItems(),
   ]);
   return (
-    <HistoryClient
+    <HistoryV2Client
       locationNames={Object.fromEntries(locations.map((location) => [location.id, location.shortName ?? location.name]))}
       stationNames={Object.fromEntries(stations.map((station) => [station.id, station.name]))}
       itemNames={Object.fromEntries(menuItems.map((item) => [item.id, item.name]))}

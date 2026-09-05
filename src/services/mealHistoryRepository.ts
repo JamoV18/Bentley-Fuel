@@ -52,6 +52,7 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
     validIso(value.selectedAt) &&
     (value.eatenAt === undefined || validIso(value.eatenAt)) &&
     (value.completionRecordedAt === undefined || validIso(value.completionRecordedAt)) &&
+    (value.reflectionRecordedAt === undefined || validIso(value.reflectionRecordedAt)) &&
     (value.nutrition === undefined || validNutrition(value.nutrition)) &&
     (completion === undefined || COMPLETION_VALUES.includes(completion as MealCompletionFraction)) &&
     (portion === undefined || PORTION_VALUES.includes(portion as MealPortionScale)) &&
@@ -116,6 +117,7 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
             ...entry,
             eatenAt: entry.eatenAt ?? existing.eatenAt,
             completionRecordedAt: entry.completionRecordedAt ?? existing.completionRecordedAt,
+            reflectionRecordedAt: entry.reflectionRecordedAt ?? existing.reflectionRecordedAt,
             nutrition: entry.nutrition ?? existing.nutrition,
             completionFraction: entry.completionFraction ?? existing.completionFraction,
             portionScale: entry.portionScale ?? existing.portionScale,
@@ -147,10 +149,12 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
     },
     updateReflection(id, portionScale, explicitFeedback) {
       if (portionScale !== undefined && !PORTION_VALUES.includes(portionScale)) throw new Error("Invalid portion scale");
+      const now = new Date().toISOString();
       const next = read().map((entry) => entry.id === id ? {
         ...entry,
         portionScale: portionScale ?? entry.portionScale,
         explicitFeedback: explicitFeedback ?? entry.explicitFeedback,
+        reflectionRecordedAt: now,
       } : entry);
       write(next);
     },

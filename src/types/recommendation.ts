@@ -67,6 +67,8 @@ export interface MealHistoryEntry {
   eatenAt?: string;
   /** When the completion response was recorded; may be later than the meal itself. */
   completionRecordedAt?: string;
+  /** When taste/portion reflection was completed, including a neutral taste response. */
+  reflectionRecordedAt?: string;
   /** Snapshot of the selected meal so later menu changes cannot rewrite history. */
   nutrition?: NutritionFacts;
   /** Optional because the student may skip the follow-up question. */

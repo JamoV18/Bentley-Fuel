@@ -2,6 +2,7 @@
 
 import "./today-v2.css";
 import "./today-living-day.css";
+import "./today-completeness.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
@@ -11,17 +12,29 @@ import LocationImage from "@/components/LocationImage";
 import MealImage from "@/components/MealImage";
 import ProfileMenu from "@/components/ProfileMenu";
 import SuccessMorphLabel from "@/components/SuccessMorphLabel";
-import { diningDecisionLabel, resolveDiningDecision } from "@/lib/diningDecision";
+import { diningDecisionLabel, resolveDiningDecision, type DiningDecision } from "@/lib/diningDecision";
+import { softSuccessHaptic } from "@/lib/haptics";
 import { resolveLivingDayState, type CoreMealSlot } from "@/lib/livingDay";
+import { personalizationCue, recommendationLabels } from "@/lib/recommendationPresentation";
+import { buildTodayRecommendationPreview } from "@/lib/todayRecommendation";
 import {
   browserMealHistoryRepository,
   browserProgressRepository,
   createDailyNutritionSnapshot,
+  mealSlotForBuilderPeriod,
   MEAL_COMPLETION_CHOICES,
   resolveNutritionPlan,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
-import type { MealCompletionFraction, MealHistoryEntry, UserProfile } from "@/types";
+import type {
+  FoodComponent,
+  Location,
+  MealCompletionFraction,
+  MealHistoryEntry,
+  MenuItem,
+  Station,
+  UserProfile,
+} from "@/types";
 
 const PENDING_CHECK_IN_WINDOW_MS = 36 * 60 * 60 * 1000;
 const CORE_MEALS: CoreMealSlot[] = ["breakfast", "lunch", "dinner"];
@@ -78,11 +91,19 @@ export default function TodayV2Client({
   locationNames,
   itemNames,
   itemImageUrls,
+  locations,
+  stations,
+  menuItems,
+  components,
   isDemo,
 }: {
   locationNames: Record<string, string>;
   itemNames: Record<string, string>;
   itemImageUrls: Record<string, string | undefined>;
+  locations: Location[];
+  stations: Station[];
+  menuItems: MenuItem[];
+  components: FoodComponent[];
   isDemo: boolean;
 }) {
   const reduceMotion = useReducedMotion();
@@ -93,7 +114,9 @@ export default function TodayV2Client({
   const [pending, setPending] = useState<MealHistoryEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [savingCheckIn, setSavingCheckIn] = useState<{ id: string; fraction: MealCompletionFraction }>();
+  const [choosingPreview, setChoosingPreview] = useState(false);
   const checkInTimer = useRef<number | null>(null);
+  const previewTimer = useRef<number | null>(null);
 
   const isToday = sameDay(selectedDate, new Date());
 
@@ -118,11 +141,42 @@ export default function TodayV2Client({
       window.removeEventListener("focus", onReturn);
       window.removeEventListener("pageshow", onReturn);
       if (checkInTimer.current !== null) window.clearTimeout(checkInTimer.current);
+      if (previewTimer.current !== null) window.clearTimeout(previewTimer.current);
     };
   }, [refresh]);
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);
   const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets, selectedDate), [entries, plan?.activeTargets, profile?.dailyTargets, selectedDate]);
+  const now = new Date();
+  const hour = now.getHours();
+  const livingDay = resolveLivingDayState(snapshot.meals, hour);
+  const recommendationPeriod = livingDay.recommendationPeriod;
+  const fallbackLocationId = Object.keys(locationNames)[0] ?? "loc-921";
+  const locationPreference: DiningDecision = profile
+    ? resolveDiningDecision(profile, recentEntries, recommendationPeriod, Object.keys(locationNames), now) ?? { locationId: fallbackLocationId, source: "fallback" }
+    : { locationId: fallbackLocationId, source: "fallback" };
+
+  const mealPreview = useMemo(() => {
+    if (!profile || !isToday || !recommendationPeriod || livingDay.mode === "complete" || livingDay.mode === "late-night") return undefined;
+    const activeTargets = plan?.activeTargets ?? profile.dailyTargets;
+    const recommendationProfile: UserProfile = {
+      ...profile,
+      primaryGoal: plan?.phase === "maintenance" ? "maintain-weight" : profile.primaryGoal,
+      ...(activeTargets ? { dailyTargets: activeTargets } : {}),
+    };
+    return buildTodayRecommendationPreview({
+      profile: recommendationProfile,
+      locationId: locationPreference.locationId,
+      mealPeriod: recommendationPeriod,
+      remainingMacros: snapshot.remaining,
+      recentHistory: recentEntries,
+      dayEntries: entries,
+      locations,
+      menuItems,
+      stations,
+      components,
+    });
+  }, [profile, isToday, recommendationPeriod, livingDay.mode, plan, locationPreference.locationId, snapshot.remaining, recentEntries, entries, locations, menuItems, stations, components]);
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;
@@ -140,6 +194,30 @@ export default function TodayV2Client({
     checkInTimer.current = window.setTimeout(finish, 520);
   };
 
+  const choosePreviewMeal = () => {
+    const ranking = mealPreview?.ranking;
+    if (!ranking?.computed.nutrition || !recommendationPeriod || choosingPreview) return;
+    const selectedAt = new Date().toISOString();
+    browserMealHistoryRepository().upsert({
+      id: crypto.randomUUID(),
+      locationId: ranking.candidate.build.locationId,
+      build: ranking.candidate.build,
+      selectedAt,
+      nutrition: ranking.computed.nutrition,
+      mealSlot: mealSlotForBuilderPeriod(recommendationPeriod),
+      source: "recommended",
+    });
+    softSuccessHaptic();
+    setChoosingPreview(true);
+    const finish = () => {
+      setChoosingPreview(false);
+      refresh();
+      previewTimer.current = null;
+    };
+    if (reduceMotion) finish();
+    else previewTimer.current = window.setTimeout(finish, 460);
+  };
+
   const changeDay = (amount: number) => {
     setSelectedDate((current) => {
       const next = new Date(current);
@@ -151,13 +229,7 @@ export default function TodayV2Client({
   if (profile === undefined) return <main className="ff-v2-shell"><p className="ff-v2-loading">Loading your day…</p></main>;
   if (!profile) return <main className="ff-v2-shell"><p className="brand-kicker">Falcon Fuel</p><h1 className="ff-v2-empty-title">Know what to eat before you get there.</h1><p className="ff-v2-empty-copy">Build your plan once. Falcon Fuel will turn it into campus meals you can actually get.</p><Link className="primary ff-v2-empty-cta" href="/onboarding">Build my plan</Link></main>;
 
-  const now = new Date();
-  const hour = now.getHours();
-  const livingDay = resolveLivingDayState(snapshot.meals, hour);
-  const recommendationPeriod = livingDay.recommendationPeriod;
   const mealPeriodLabel = recommendationPeriod ? readable(recommendationPeriod) : undefined;
-  const locationPreference = resolveDiningDecision(profile, recentEntries, recommendationPeriod, Object.keys(locationNames), now)
-    ?? { locationId: Object.keys(locationNames)[0] ?? "loc-921", source: "fallback" as const };
   const preferredLocationName = locationNames[locationPreference.locationId] ?? "campus dining";
   const locationDecisionLabel = diningDecisionLabel(locationPreference);
   const conflictingMealHabit = locationPreference.source === "home" && locationPreference.mealHabit && locationPreference.mealHabit.locationId !== locationPreference.locationId
@@ -214,6 +286,13 @@ export default function TodayV2Client({
     : livingDay.mode === "late-night"
       ? "See late-night options"
       : `Show my best ${mealPeriodLabel?.toLowerCase() ?? "meal"}`;
+
+  const previewNutrition = mealPreview?.ranking.computed.nutrition;
+  const previewName = mealPreview?.ranking.computed.lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || "Complete meal";
+  const previewImage = mealPreview?.ranking.computed.lines[0]?.item?.imageUrl;
+  const previewStations = [...new Set(mealPreview?.ranking.computed.lines.map((line) => line.station?.name).filter((value): value is string => Boolean(value)) ?? [])];
+  const previewLabels = mealPreview ? recommendationLabels(mealPreview.ranking, 0, mealPreview.rankings) : [];
+  const previewLearning = mealPreview ? personalizationCue(mealPreview.ranking) : undefined;
 
   const completionCopy = livingDay.completedSlots.dinner
     ? remainingProtein !== undefined && remainingProtein > 0
@@ -281,20 +360,49 @@ export default function TodayV2Client({
             transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ff-v2-hero-visual">
-              <LocationImage id={locationPreference.locationId} name={preferredLocationName} aspect="hero" className="ff-v2-hero-image" />
+              {mealPreview ? (
+                <>
+                  <MealImage name={previewName} imageUrl={previewImage} aspect="hero" className="ff-v2-hero-image" />
+                  <div className="ff-v2-hero-badges">{previewLabels.map((label) => <span className="ff-v2-hero-badge" key={label}>{label}</span>)}</div>
+                </>
+              ) : (
+                <LocationImage id={locationPreference.locationId} name={preferredLocationName} aspect="hero" className="ff-v2-hero-image" />
+              )}
               <div className="ff-v2-photo-shade" />
-              <span className="ff-v2-photo-label">{locationDecisionLabel}{mealPeriodLabel ? ` · ${mealPeriodLabel}` : ""}</span>
+              <span className="ff-v2-photo-label">{mealPreview ? `${previewStations.join(" + ") || "Campus dining"} · ${preferredLocationName}` : `${locationDecisionLabel}${mealPeriodLabel ? ` · ${mealPeriodLabel}` : ""}`}</span>
             </div>
             <div className="ff-v2-hero-copy">
               <span className="ff-v3-hero-state">{livingDay.mode === "anticipate" ? "Planning ahead" : livingDay.mode === "late-night" ? "No pressure" : "Right now"}</span>
-              <p className="ff-v2-eyebrow">{heroEyebrow}</p>
-              <h2>{heroTitle}</h2>
-              <p className="ff-v2-hero-reason">{heroReason}</p>
+              <p className="ff-v2-eyebrow">{mealPreview ? (livingDay.mode === "anticipate" ? `${mealPeriodLabel ?? "Next meal"} is next` : "Your best move") : heroEyebrow}</p>
+              <h2>{mealPreview ? previewName : heroTitle}</h2>
+              {mealPreview && previewNutrition ? (
+                <>
+                  <p className="ff-v2-hero-reason">This is the top complete meal at {preferredLocationName} after your plan, remaining nutrition, dietary constraints, recent meals, and learned preferences are applied.</p>
+                  <div className="ff-v2-hero-macros">
+                    <span>{round(previewNutrition.calories)} cal</span>
+                    <span>{round(previewNutrition.protein)}g protein</span>
+                    <span>{round(previewNutrition.carbs)}g carbs</span>
+                  </div>
+                  {previewLearning && <div className="ff-v2-hero-learning"><strong>Learned from you</strong>{previewLearning}</div>}
+                </>
+              ) : (
+                <p className="ff-v2-hero-reason">{heroReason}</p>
+              )}
               <div className="ff-v2-nutrition-cue"><span aria-hidden="true">↗</span><p>{nutritionCue}</p></div>
-              <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
-                <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>
-              </motion.div>
+              {mealPreview && previewNutrition ? (
+                <div className="ff-v2-hero-actions">
+                  <motion.button type="button" className="ff-v2-primary-cta" disabled={choosingPreview} onClick={choosePreviewMeal} whileTap={reduceMotion || choosingPreview ? undefined : { scale: 0.985 }}>
+                    <SuccessMorphLabel success={choosingPreview} idleLabel="I’m getting this" successLabel="Meal selected" /> <span>→</span>
+                  </motion.button>
+                  <Link href={recommendationHref} className="ff-v2-hero-detail">See why / order details →</Link>
+                </div>
+              ) : (
+                <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
+                  <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>
+                </motion.div>
+              )}
               <Link href="/dashboard" className="ff-v2-secondary-link">Eating somewhere else? Choose a location</Link>
+              {conflictingMealHabit && mealPreview && <p className="ff-v2-selected-note">Your recent {mealPeriodLabel?.toLowerCase() ?? "meal"} routine also leans {locationNames[conflictingMealHabit.locationId] ?? conflictingMealHabit.locationId}. Your saved usual location stays in control until you change it.</p>}
               {livingDay.mode === "late-night" && <p className="ff-v3-late-note">If you’re done eating, you’re done here too. No streak or score depends on adding more.</p>}
             </div>
           </motion.section>

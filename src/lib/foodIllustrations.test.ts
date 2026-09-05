@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  breakfastBowlComposition,
+  breakfastPlateComposition,
   foodIllustrationKind,
   hasFoodIllustration,
   isOmeletComposition,
@@ -28,10 +30,56 @@ test("first Omelet Bar batch maps to drawings", () => {
   }
 });
 
-test("plain oatmeal maps to its own illustration without implying toppings", () => {
+test("remaining omelet, soup, and dairy rows map without invented toppings", () => {
+  const expected = new Map([
+    ["Diced Bacon", "bacon"],
+    ["Diced Smoked Ham", "ham"],
+    ["Crumbled Feta Cheese", "feta"],
+    ["Chopped Broccoli", "broccoli"],
+    ["Sliced Jalapeno Pepper", "jalapeno"],
+    ["Oatmeal", "oatmeal"],
+    ["Broccoli Cheddar Soup", "broccoli-cheddar-soup"],
+    ["Low Fat Strawberry Yogurt", "strawberry-yogurt"],
+    ["Fat Free Vanilla Greek Yogurt", "vanilla-greek-yogurt"],
+    ["2% Low Fat Cottage Cheese", "cottage-cheese"],
+  ] as const);
+
+  for (const [name, kind] of expected) assert.equal(foodIllustrationKind(name), kind, name);
+  assert.equal(breakfastBowlComposition("Fat Free Vanilla Greek Yogurt"), undefined);
+  assert.equal(breakfastBowlComposition("Low Fat Strawberry Yogurt"), undefined);
+});
+
+test("next verified ten menu rows map to exact drawings", () => {
+  const expected = new Map([
+    ["Cubed Cantaloupe", "cantaloupe"],
+    ["Cubed Honeydew", "honeydew"],
+    ["Oats 'n Honey Protein Granola", "granola"],
+    ["Honey", "honey"],
+    ["Date Caramel Overnight Oats", "date-caramel-overnight-oats"],
+    ["Grapefruit", "grapefruit"],
+    ["Raspberry Peach Yogurt Smoothie", "raspberry-peach-smoothie"],
+    ["Avocado and Spinach Smoothie", "avocado-spinach-smoothie"],
+    ["Pumpkin Spice Baked Oatmeal", "pumpkin-spice-baked-oatmeal"],
+    ["Spiced Lentil Kale and Potato Hash", "lentil-kale-potato-hash"],
+  ] as const);
+
+  for (const [name, kind] of expected) {
+    assert.equal(foodIllustrationKind(name), kind, name);
+    assert.equal(hasFoodIllustration(name), true, name);
+  }
+});
+
+test("plain oatmeal never implies fruit or granola", () => {
   assert.equal(foodIllustrationKind("Oatmeal"), "oatmeal");
-  assert.equal(hasFoodIllustration("Oatmeal"), true);
   assert.equal(foodIllustrationKind("Oatmeal + Strawberries"), undefined);
+});
+
+test("granola and honey only enter a yogurt bowl when they are selected", () => {
+  assert.deepEqual(
+    breakfastBowlComposition("Fat Free Vanilla Greek Yogurt + Oats 'n Honey Protein Granola + Honey"),
+    { base: "vanilla-greek-yogurt", toppings: ["granola", "honey"] },
+  );
+  assert.equal(foodIllustrationKind("Fat Free Vanilla Greek Yogurt + Oats 'n Honey Protein Granola"), "breakfast-bowl");
 });
 
 test("egg plus Omelet Bar toppings becomes one omelet composition", () => {
@@ -41,10 +89,27 @@ test("egg plus Omelet Bar toppings becomes one omelet composition", () => {
   assert.deepEqual(omeletIngredientsForName(name), ["spinach", "tomatoes", "cheddar"]);
 });
 
+test("new omelet toppings remain inside the omelet", () => {
+  const name = "Eggs + Diced Bacon + Diced Smoked Ham + Crumbled Feta Cheese + Chopped Broccoli + Sliced Jalapeno Pepper";
+  assert.equal(foodIllustrationKind(name), "omelet");
+  assert.deepEqual(omeletIngredientsForName(name), ["bacon", "ham", "feta", "broccoli", "jalapeno"]);
+});
+
 test("egg whites keep the pale omelet base in a combined meal", () => {
   const name = "Egg Whites + Sliced Mushrooms + Chopped Green Bell Pepper";
   assert.equal(foodIllustrationKind(name), "omelet");
   assert.equal(omeletUsesEggWhites(name), true);
+});
+
+test("full breakfast meal becomes one plate with the bowl on the side", () => {
+  const name = "Eggs + Chopped Spinach + Fat Free Vanilla Greek Yogurt + Oats 'n Honey Protein Granola";
+  assert.equal(foodIllustrationKind(name), "breakfast-plate");
+  assert.deepEqual(breakfastPlateComposition(name), {
+    eggBase: "eggs",
+    omeletIngredients: ["spinach"],
+    bowl: { base: "vanilla-greek-yogurt", toppings: ["granola"] },
+    fruitSides: [],
+  });
 });
 
 test("a single egg serving remains scrambled rather than becoming an omelet", () => {

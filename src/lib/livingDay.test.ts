@@ -22,6 +22,12 @@ test("explicit meal slots win over timestamp inference", () => {
   assert.equal(inferCoreMealSlot(meal("snack", 13, 1, "snack")), undefined);
 });
 
+test("completion time keeps a meal planned early in the correct later slot", () => {
+  const plannedLunch = meal("planned-lunch", 9, 1);
+  plannedLunch.completionRecordedAt = new Date(2026, 8, 4, 12, 30, 0).toISOString();
+  assert.equal(inferCoreMealSlot(plannedLunch), "lunch");
+});
+
 test("morning advances from breakfast to lunch after breakfast is confirmed", () => {
   assert.deepEqual(resolveLivingDayState([], 8).mode, "active");
   assert.equal(resolveLivingDayState([], 8).recommendationPeriod, "breakfast");

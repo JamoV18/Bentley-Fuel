@@ -63,6 +63,7 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
   return typeof value.id === "string" && value.id.length > 0 &&
     GOALS.includes(value.primaryGoal as PrimaryGoal) && goalsValid &&
     (value.unitSystem === undefined || UNITS.includes(value.unitSystem as UnitSystem)) &&
+    (value.homeLocationId === undefined || (typeof value.homeLocationId === "string" && value.homeLocationId.length > 0)) &&
     (value.goalDescription === undefined || (typeof value.goalDescription === "string" && value.goalDescription.length <= 500)) &&
     (value.behavioralGoals === undefined || (Array.isArray(value.behavioralGoals) && value.behavioralGoals.every((goal) => BEHAVIORAL_GOALS.includes(goal as BehavioralGoal)))) &&
     validBreakfastPreferences(value.breakfastPreferences) &&
@@ -75,7 +76,7 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
 }
 
 export function createUserProfile(
-  input: Pick<UserProfile, "primaryGoal" | "dietaryPreferences" | "allergensToAvoid"> & Pick<UserProfile, "goals" | "goalDescription" | "maintenanceEstimate" | "dailyTargets" | "unitSystem" | "behavioralGoals" | "weightGoalPlan" | "breakfastPreferences"> & { metrics?: BodyMetrics },
+  input: Pick<UserProfile, "primaryGoal" | "dietaryPreferences" | "allergensToAvoid"> & Pick<UserProfile, "goals" | "goalDescription" | "maintenanceEstimate" | "dailyTargets" | "unitSystem" | "behavioralGoals" | "weightGoalPlan" | "breakfastPreferences" | "homeLocationId"> & { metrics?: BodyMetrics },
   previous?: UserProfile,
 ): UserProfile {
   const now = new Date().toISOString();
@@ -91,6 +92,7 @@ export function createUserProfile(
     unitSystem: input.unitSystem ?? previous?.unitSystem ?? "us",
     behavioralGoals: input.behavioralGoals ?? previous?.behavioralGoals ?? [],
     breakfastPreferences: input.breakfastPreferences ?? previous?.breakfastPreferences ?? [],
+    ...(input.homeLocationId ?? previous?.homeLocationId ? { homeLocationId: input.homeLocationId ?? previous?.homeLocationId } : {}),
     id: previous?.id ?? crypto.randomUUID(),
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,

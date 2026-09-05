@@ -23,6 +23,8 @@ export type HardDietaryRestriction = (typeof HARD_DIETARY_RESTRICTIONS)[number];
 /** Lightweight post-meal response options shown as human labels in the UI. */
 export type MealCompletionFraction = 0 | 0.25 | 0.5 | 0.8 | 1;
 export type MealExplicitFeedback = "like" | "dislike";
+/** Student-observed serving size relative to the saved dining portion. */
+export type MealPortionScale = 0.75 | 1 | 1.5 | 2;
 
 /**
  * Human meal slots used by the daily logging experience. `snack` stays distinct
@@ -65,10 +67,14 @@ export interface MealHistoryEntry {
   eatenAt?: string;
   /** When the completion response was recorded; may be later than the meal itself. */
   completionRecordedAt?: string;
+  /** When taste/portion reflection was completed, including a neutral taste response. */
+  reflectionRecordedAt?: string;
   /** Snapshot of the selected meal so later menu changes cannot rewrite history. */
   nutrition?: NutritionFacts;
   /** Optional because the student may skip the follow-up question. */
   completionFraction?: MealCompletionFraction;
+  /** Optional correction when the served portion was clearly smaller/larger than the saved reference. */
+  portionScale?: MealPortionScale;
   explicitFeedback?: MealExplicitFeedback;
   /** Explicit daily-log slot when known; older/recommended meals can infer from time. */
   mealSlot?: MealLogSlot;

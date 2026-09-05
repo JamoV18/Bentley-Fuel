@@ -64,7 +64,8 @@ function servingVesselForName(name: string): ServingVessel {
 
   const value = name.toLowerCase();
   if (/(smoothie|shake|juice|drink)/.test(value)) return "drink";
-  if (/(oatmeal|overnight oats|yogurt|soup|cottage cheese)/.test(value)) return "bowl";
+  if (/(oatmeal|overnight oats|yogurt|soup|cottage cheese|lentil bolognese$|pesto sauce|smashed black beans|crema|sour cream|pico de gallo|salsa)/.test(value)) return "bowl";
+  if (/(pasta|nachos|tortilla chips|jalapeno chicken|roasted mushrooms|sautéed spinach|sauteed spinach)/.test(value)) return "plate";
   return "ingredient";
 }
 

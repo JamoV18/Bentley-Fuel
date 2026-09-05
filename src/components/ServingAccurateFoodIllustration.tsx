@@ -1,4 +1,6 @@
 import FoodIllustration from "@/components/FoodIllustrationV2";
+import LunchFoodIllustration from "@/components/LunchFoodIllustration";
+import { hasLunchFoodIllustration } from "@/lib/foodIllustrations";
 
 const INK = "#10263d";
 const BOWL = "#fffdf8";
@@ -55,6 +57,10 @@ export default function ServingAccurateFoodIllustration({ name }: { name: string
 
   if (normalized === "pumpkin spice baked oatmeal") {
     return <PumpkinBakedOatmealBowl />;
+  }
+
+  if (hasLunchFoodIllustration(name)) {
+    return <LunchFoodIllustration name={name} />;
   }
 
   return <FoodIllustration name={name} />;

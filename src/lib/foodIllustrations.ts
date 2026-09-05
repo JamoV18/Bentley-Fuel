@@ -84,13 +84,32 @@ export interface BreakfastPlateComposition {
 
 const NORMALIZE = (value: string) => value.trim().toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, " ");
 
+const LUNCH_ILLUSTRATION_MATCHERS: RegExp[] = [
+  /^lentil bolognese pasta$/,
+  /^lentil bolognese$/,
+  /^pasta, chickpeas and vegetable marinara$/,
+  /^(sautéed|sauteed) spinach and onion$/,
+  /^pesto sauce$/,
+  /^build your own nachos$/,
+  /^crispy tortilla chips$/,
+  /^spicy jalapeno chicken$/,
+  /^roasted mushrooms, garlic and lime$/,
+  /^smashed black beans$/,
+  /^spicy chipotle crema$/,
+  /^sour cream$/,
+  /^pico de gallo$/,
+  /^mango pineapple salsa$/,
+  /^shredded romaine$/,
+  /^chopped green onions$/,
+];
+
 const ITEM_MATCHERS: Array<[FoodIllustrationKind, RegExp]> = [
   ["egg-whites", /^egg whites?$/],
   ["eggs", /^eggs?$/],
   ["scrambled-eggs", /^scrambled eggs$/],
   ["spinach", /^(chopped )?spinach$/],
   ["tomatoes", /^(chopped|diced) tomatoes?$/],
-  ["onions", /^(diced|chopped) onions?$/],
+  ["onions", /^(diced|chopped)( yellow)? onions?$/],
   ["mushrooms", /^(sliced )?mushrooms?$/],
   ["green-pepper", /^(chopped )?green bell pepper$/],
   ["cheddar", /^(shredded )?cheddar cheese$/],
@@ -224,8 +243,13 @@ export function foodIllustrationKind(name: string): FoodIllustrationKind | undef
   return ITEM_MATCHERS.find(([, matcher]) => matcher.test(value))?.[0];
 }
 
+export function hasLunchFoodIllustration(name: string): boolean {
+  const value = NORMALIZE(name);
+  return LUNCH_ILLUSTRATION_MATCHERS.some((matcher) => matcher.test(value));
+}
+
 export function hasFoodIllustration(name: string): boolean {
-  return Boolean(foodIllustrationKind(name));
+  return Boolean(foodIllustrationKind(name)) || hasLunchFoodIllustration(name);
 }
 
 export function omeletUsesEggWhites(name: string): boolean {

@@ -1,0 +1,216 @@
+/*
+ * Falcon Fuel motion personality
+ *
+ * Motion should communicate depth, direction, and consequence. Nothing here
+ * carries information by itself, and every effect has a reduced-motion exit.
+ */
+
+/* Shared navigation glider. Motion/react moves this one line between tabs. */
+.app-nav-item {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+.app-nav-motion-label {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .42rem;
+}
+.app-nav-glider {
+  position: absolute;
+  z-index: 3;
+  left: 22%;
+  right: 22%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0075be, #42b7b0);
+  box-shadow: 0 0 14px rgba(0,117,190,.18);
+}
+
+/* The active state is defined by the glider, not a generated-looking pill. */
+@media (min-width: 640px) {
+  .app-nav-item[data-active="true"]::after { content: none !important; }
+}
+
+/* Hero imagery gains depth only when the user approaches it. */
+.ff-v2-hero-visual,
+.ff-rec-photo {
+  isolation: isolate;
+}
+.ff-v2-hero-image,
+.ff-rec-photo > *:first-child {
+  transform: scale(1.001);
+  transition:
+    transform .72s cubic-bezier(.16,1,.3,1),
+    filter .72s cubic-bezier(.16,1,.3,1);
+  will-change: transform;
+}
+.ff-v2-hero:hover .ff-v2-hero-image,
+.ff-rec-hero:hover .ff-rec-photo > *:first-child {
+  transform: scale(1.018) translate3d(-.15%, -.15%, 0);
+  filter: saturate(1.025) contrast(1.01);
+}
+
+/* A quiet light response across the dark copy field replaces perpetual glow. */
+.ff-v2-hero-copy,
+.ff-rec-hero-copy {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.ff-v2-hero-copy::after,
+.ff-rec-hero-copy::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  width: 17rem;
+  height: 17rem;
+  right: -10rem;
+  top: -10rem;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(130,188,229,.14), rgba(66,183,176,.055) 34%, transparent 69%);
+  opacity: .28;
+  transform: scale(.86);
+  transition: opacity .55s ease, transform .7s cubic-bezier(.16,1,.3,1);
+}
+.ff-v2-hero:hover .ff-v2-hero-copy::after,
+.ff-rec-hero:hover .ff-rec-hero-copy::after {
+  opacity: .78;
+  transform: scale(1.1) translate(-1.1rem, 1rem);
+}
+.ff-v2-hero-copy > *,
+.ff-rec-hero-copy > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Direction should feel directional. */
+.ff-v2-daybar > button:first-child > span,
+.ff-v2-daybar > button:last-child > span {
+  display: inline-block;
+  transition: transform .24s cubic-bezier(.22,1,.36,1), color .18s ease;
+}
+.ff-v2-daybar > button:first-child:hover > span { transform: translateX(-4px); }
+.ff-v2-daybar > button:last-child:hover > span { transform: translateX(4px); }
+.ff-v2-daybar > button:first-child:hover,
+.ff-v2-daybar > button:last-child:hover { color: #0075be; }
+
+/* CTAs respond with a small sense of travel instead of a generic hover lift. */
+.ff-v2-primary-cta > span:last-child,
+.ff-rec-primary-arrow,
+.ff-v2-hero-detail,
+.ff-v2-secondary-link,
+.ff-rec-text-button,
+.ff-rec-secondary-row a {
+  transition: transform .22s cubic-bezier(.22,1,.36,1), color .18s ease, opacity .18s ease;
+}
+.ff-v2-primary-cta:hover > span:last-child,
+.ff-rec-primary:hover .ff-rec-primary-arrow { transform: translateX(4px); }
+.ff-v2-hero-detail:hover,
+.ff-v2-secondary-link:hover,
+.ff-rec-text-button:hover,
+.ff-rec-secondary-row a:hover { transform: translateX(2px); }
+
+/* Meal surfaces feel tangible without becoming floating cards. */
+.meal-row,
+.ff-v2-meal-row,
+.ff-history-meal,
+.ff-rec-alt {
+  transition:
+    transform .28s cubic-bezier(.22,1,.36,1),
+    border-color .2s ease,
+    background-color .2s ease,
+    box-shadow .28s ease;
+}
+.meal-row .meal-image,
+.ff-v2-meal-row .meal-image,
+.ff-history-meal .meal-image,
+.ff-rec-alt .meal-image {
+  transition: transform .5s cubic-bezier(.16,1,.3,1), filter .35s ease;
+}
+.meal-row:hover,
+.ff-v2-meal-row:hover,
+.ff-history-meal:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0,117,190,.17);
+  background-color: rgba(255,255,255,.88);
+}
+.meal-row:hover .meal-image,
+.ff-v2-meal-row:hover .meal-image,
+.ff-history-meal:hover .meal-image,
+.ff-rec-alt:hover .meal-image {
+  transform: scale(1.035);
+  filter: saturate(1.035);
+}
+
+/* Inputs get a deliberate focus response rather than the browser suddenly changing state. */
+.field input,
+.field select,
+input,
+select {
+  transition: border-color .18s ease, box-shadow .22s ease, background-color .18s ease;
+}
+.field input:focus,
+.field select:focus,
+input:focus-visible,
+select:focus-visible {
+  box-shadow: 0 0 0 4px rgba(0,117,190,.075);
+}
+
+/* A very short confirmation pulse is allowed where the user has just acted. */
+.is-selected,
+[data-selected="true"] {
+  animation: ff-control-settle .28s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes ff-control-settle {
+  0% { transform: scale(1); }
+  48% { transform: scale(.985); }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 639px) {
+  .app-nav-glider {
+    left: 31%;
+    right: 31%;
+    bottom: .18rem;
+    height: 2px;
+  }
+  .ff-v2-hero:hover .ff-v2-hero-image,
+  .ff-rec-hero:hover .ff-rec-photo > *:first-child,
+  .meal-row:hover .meal-image,
+  .ff-v2-meal-row:hover .meal-image,
+  .ff-history-meal:hover .meal-image {
+    transform: none;
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-v2-hero-image,
+  .ff-rec-photo > *:first-child,
+  .ff-v2-hero-copy::after,
+  .ff-rec-hero-copy::after,
+  .ff-v2-daybar > button > span,
+  .ff-v2-primary-cta > span:last-child,
+  .ff-rec-primary-arrow,
+  .ff-v2-hero-detail,
+  .ff-v2-secondary-link,
+  .ff-rec-text-button,
+  .ff-rec-secondary-row a,
+  .meal-row,
+  .ff-v2-meal-row,
+  .ff-history-meal,
+  .ff-rec-alt,
+  .meal-image {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .ff-v2-hero-copy::after,
+  .ff-rec-hero-copy::after { display: none; }
+}

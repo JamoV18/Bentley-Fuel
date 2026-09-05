@@ -20,12 +20,38 @@ const CHEESE = "#f3a90b";
 const SAUSAGE = "#b86b35";
 const SAUSAGE_CUT = "#e5b982";
 const BEAN = "#25213b";
+const OAT = "#d9b46e";
+const OAT_LIGHT = "#efcf91";
 
 function Plate() {
   return (
     <g>
       <ellipse cx="160" cy="163" rx="126" ry="57" fill={PLATE} stroke={INK} strokeWidth="7" />
       <ellipse cx="160" cy="163" rx="105" ry="43" fill="none" stroke={INK} strokeWidth="4" />
+    </g>
+  );
+}
+
+function Bowl() {
+  return (
+    <g stroke={INK} strokeLinejoin="round">
+      <ellipse cx="160" cy="122" rx="92" ry="43" fill={PLATE} strokeWidth="7" />
+      <path d="M69 122c6 61 43 87 91 87s85-26 91-87c-22 22-55 34-91 34s-69-12-91-34Z" fill={PLATE} strokeWidth="7" />
+    </g>
+  );
+}
+
+function Oatmeal() {
+  const oats = [[101,115,13,-8],[126,105,15,8],[153,117,13,-4],[180,105,15,9],[207,117,13,-8],[118,132,13,6],[146,137,14,-7],[176,133,13,5],[202,137,14,-6]] as const;
+  return (
+    <g>
+      <Bowl />
+      <ellipse cx="160" cy="122" rx="78" ry="31" fill={OAT_LIGHT} stroke={INK} strokeWidth="5" />
+      <g fill={OAT} stroke={INK} strokeWidth="3">
+        {oats.map(([x,y,rx,r], index) => (
+          <ellipse key={index} cx={x} cy={y} rx={rx} ry="6" transform={`rotate(${r} ${x} ${y})`} />
+        ))}
+      </g>
     </g>
   );
 }
@@ -175,6 +201,7 @@ export default function FoodIllustration({ name }: { name: string }) {
       {kind === "cheddar" && <Cheddar />}
       {kind === "turkey-sausage" && <TurkeySausage />}
       {kind === "black-beans" && <BlackBeans />}
+      {kind === "oatmeal" && <Oatmeal />}
     </svg>
   );
 }

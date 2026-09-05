@@ -9,9 +9,9 @@ test("separately served drawn foods compose into one final meal scene", () => {
   );
 });
 
-test("composition does not invent a drawing when one selected food has no drawing", () => {
+test("new live-menu foods still compose because generic illustration fallback exists", () => {
   assert.deepEqual(
     illustratedMealParts("Pumpkin Spice Baked Oatmeal + Mystery Food"),
-    [],
+    ["Pumpkin Spice Baked Oatmeal", "Mystery Food"],
   );
 });

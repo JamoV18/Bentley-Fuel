@@ -1,7 +1,7 @@
 "use client";
 
 import "./meal-reflection.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { softSuccessHaptic } from "@/lib/haptics";
 import { browserMealHistoryRepository } from "@/services";
@@ -22,7 +22,7 @@ export default function MealReflectionDock({ locationNames, itemNames }: { locat
   const [dismissedId, setDismissedId] = useState<string>();
   const timer = useRef<number | null>(null);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     const cutoff = Date.now() - REFLECTION_WINDOW_MS;
     const next = browserMealHistoryRepository().getRecent(12).find((entry) =>
       entry.id !== dismissedId &&
@@ -31,19 +31,18 @@ export default function MealReflectionDock({ locationNames, itemNames }: { locat
       mealTime(entry) >= cutoff,
     );
     setCandidate(next);
-  };
+  }, [dismissedId]);
 
   useEffect(() => {
     queueMicrotask(refresh);
-    const onReturn = () => refresh();
-    window.addEventListener("focus", onReturn);
-    window.addEventListener("pageshow", onReturn);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
     return () => {
-      window.removeEventListener("focus", onReturn);
-      window.removeEventListener("pageshow", onReturn);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
       if (timer.current !== null) window.clearTimeout(timer.current);
     };
-  }, [dismissedId]);
+  }, [refresh]);
 
   const displayName = useMemo(() => candidate ? mealName(candidate, itemNames) : "", [candidate, itemNames]);
 

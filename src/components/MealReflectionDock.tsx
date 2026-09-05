@@ -3,6 +3,7 @@
 import "./meal-reflection.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { softSuccessHaptic } from "@/lib/haptics";
 import { browserMealHistoryRepository } from "@/services";
 import type { MealExplicitFeedback, MealHistoryEntry, MealPortionScale } from "@/types";
 
@@ -57,6 +58,7 @@ export default function MealReflectionDock({ locationNames, itemNames }: { locat
     if (!taste || !portion) return;
     const feedback: MealExplicitFeedback | undefined = taste === "neutral" ? undefined : taste;
     browserMealHistoryRepository().updateReflection(candidate.id, portion, feedback);
+    softSuccessHaptic();
     setSaved(true);
     const finish = () => {
       setCandidate(undefined);

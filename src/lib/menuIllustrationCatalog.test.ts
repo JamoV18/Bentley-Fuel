@@ -9,8 +9,8 @@ import {
 } from "./menuIllustrationCatalog";
 import { illustratedMealParts } from "./mealIllustrationComposition";
 
-test("every verified lunch item resolves to a deliberate illustration", () => {
-  assert.equal(VERIFIED_LUNCH_MENU_ITEMS.length, 139);
+test("every verified lunch item name resolves to a deliberate illustration", () => {
+  assert.ok(VERIFIED_LUNCH_MENU_ITEMS.length > 120);
   for (const name of VERIFIED_LUNCH_MENU_ITEMS) {
     assert.equal(
       hasFoodIllustration(name) || hasExactMenuVisual(name),

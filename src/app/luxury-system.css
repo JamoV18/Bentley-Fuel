@@ -1,0 +1,317 @@
+/*
+ * Falcon Fuel luxury system
+ *
+ * One app canvas, one spacing rhythm, and a quieter premium surface language.
+ * This file intentionally loads after the legacy theme files so older screens
+ * inherit the same geometry without requiring a full rewrite before review.
+ */
+
+:root {
+  --ff-shell-max: 78rem;
+  --ff-page-gutter: clamp(1rem, 2.4vw, 1.75rem);
+  --ff-page-top: clamp(1.6rem, 2.8vw, 2.35rem);
+  --ff-page-bottom: 7rem;
+  --ff-section-gap: clamp(2.8rem, 5vw, 4rem);
+  --ff-ink: #10263d;
+  --ff-ink-2: #294567;
+  --ff-blue: #0075be;
+  --ff-teal: #42b7b0;
+  --ff-paper: #f5f8fb;
+  --ff-line: rgba(16, 38, 61, .11);
+  --ff-line-strong: rgba(16, 38, 61, .18);
+  --ff-muted: rgba(16, 38, 61, .60);
+  --ff-lux-shadow: 0 1px 0 rgba(255,255,255,.88), 0 18px 46px rgba(16,38,61,.055);
+}
+
+body {
+  background:
+    radial-gradient(circle at 82% -12%, rgba(0, 117, 190, .075), transparent 34rem),
+    radial-gradient(circle at -10% 30%, rgba(66, 183, 176, .075), transparent 30rem),
+    linear-gradient(180deg, #f8fafc 0%, #f4f7fa 100%);
+  color: var(--ff-ink);
+}
+
+body::before {
+  opacity: .16;
+  background-image: linear-gradient(rgba(16,38,61,.018) 1px, transparent 1px);
+  background-size: 100% 72px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.16), transparent 58%);
+}
+
+/* Canonical app canvas. Immersive onboarding remains intentionally exempt. */
+.ff-page-shell,
+.ff-v2-shell,
+.ff-history-v2,
+.ff-rec-shell,
+main.mx-auto.w-full.max-w-5xl,
+main.mx-auto.w-full.max-w-6xl {
+  width: min(100%, var(--ff-shell-max)) !important;
+  max-width: var(--ff-shell-max) !important;
+  margin-inline: auto !important;
+  padding-top: var(--ff-page-top) !important;
+  padding-right: var(--ff-page-gutter) !important;
+  padding-bottom: var(--ff-page-bottom) !important;
+  padding-left: var(--ff-page-gutter) !important;
+}
+
+/* Typography feels more editorial when the identity label is not another badge. */
+.brand-kicker {
+  gap: 0;
+  color: var(--ff-blue);
+  font-size: .67rem;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+.brand-kicker::before { content: none; }
+.eyebrow {
+  color: var(--ff-blue);
+  font-size: .66rem;
+  font-weight: 900;
+  letter-spacing: .145em;
+}
+.subtle { color: var(--ff-muted); }
+
+/* Lower-radius, lower-shadow surface language. */
+.surface {
+  border-color: var(--ff-line);
+  border-radius: .95rem;
+  background: rgba(255,255,255,.78);
+  box-shadow: var(--ff-lux-shadow);
+  backdrop-filter: blur(12px);
+}
+.surface-soft {
+  border-color: var(--ff-line);
+  border-radius: .78rem;
+  background: rgba(248,251,253,.82);
+  box-shadow: none;
+}
+.meal-row {
+  border-color: var(--ff-line);
+  border-radius: .8rem;
+  background: rgba(255,255,255,.72);
+  box-shadow: none;
+}
+.meal-image { border-radius: .75rem; }
+.meal-image-hero { border-radius: .9rem; }
+
+/* Specular-button treatment: one restrained light pass, never perpetual motion. */
+.primary {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: .72rem;
+  background: #176b9a;
+  box-shadow: 0 11px 26px rgba(23,107,154,.16);
+  transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s ease, background-color .18s ease;
+}
+.primary::after {
+  content: "";
+  position: absolute;
+  top: -45%;
+  bottom: -45%;
+  left: -35%;
+  width: 24%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+  transform: translateX(-220%) rotate(12deg);
+  transition: transform .62s cubic-bezier(.22,1,.36,1);
+}
+.primary:hover {
+  background: #12618e;
+  box-shadow: 0 14px 32px rgba(23,107,154,.20);
+  transform: translateY(-1px);
+}
+.primary:hover::after { transform: translateX(560%) rotate(12deg); }
+.primary:active { transform: translateY(0) scale(.995); }
+.primary:disabled::after { display: none; }
+
+.secondary {
+  border-color: var(--ff-line);
+  border-radius: .72rem;
+  background: rgba(255,255,255,.72);
+  box-shadow: none;
+  color: var(--ff-ink);
+}
+.secondary:hover {
+  border-color: rgba(0,117,190,.28);
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.choice {
+  border-radius: .78rem;
+  box-shadow: none;
+}
+.chip { box-shadow: none; }
+.field input,
+.field select { border-radius: .72rem; box-shadow: none; }
+
+/* Desktop nav becomes a quiet editorial rail instead of another floating card. */
+@media (min-width: 640px) {
+  .app-nav {
+    grid-template-columns: repeat(5, minmax(0,1fr));
+    gap: 0;
+    margin-top: 1.7rem;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--ff-line);
+    border-bottom: 1px solid var(--ff-line);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .app-nav-item {
+    position: relative;
+    border-radius: 0;
+    padding: .9rem .5rem .82rem;
+    background: transparent !important;
+    color: rgba(16,38,61,.52);
+  }
+  .app-nav-item:hover { color: var(--ff-ink); }
+  .app-nav-item[data-active="true"] { color: var(--ff-blue); }
+  .app-nav-item[data-active="true"]::after {
+    content: "";
+    position: absolute;
+    left: 20%;
+    right: 20%;
+    bottom: -1px;
+    height: 2px;
+    background: var(--ff-blue);
+  }
+}
+
+/*
+ * Daily Log: preserve the simplicity the user liked, but remove the stacked
+ * rounded-card template look. The route is currently the only max-w-5xl app page,
+ * so it serves as a safe legacy hook until the JSX adopts ff-page-shell directly.
+ */
+main.max-w-5xl > section:first-of-type {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  border-radius: 1rem !important;
+  background: #10263d !important;
+  box-shadow: 0 24px 64px rgba(16,38,61,.15) !important;
+  padding: clamp(1.45rem, 3vw, 2.2rem) !important;
+}
+main.max-w-5xl > section:first-of-type::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6rem;
+  height: .24rem;
+  background: var(--ff-teal);
+}
+main.max-w-5xl > section:first-of-type label {
+  border-radius: .58rem !important;
+  border-color: rgba(255,255,255,.14) !important;
+  background: rgba(255,255,255,.055) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+main.max-w-5xl > section:first-of-type > div:nth-child(2) {
+  height: .28rem !important;
+  margin-top: 1.6rem !important;
+  border-radius: 0 !important;
+  background: rgba(255,255,255,.12) !important;
+}
+main.max-w-5xl > section:first-of-type > div:nth-child(2) > div { border-radius: 0 !important; }
+main.max-w-5xl > section:first-of-type > div:last-child {
+  gap: 0 !important;
+  margin-top: 1.35rem !important;
+  border-top: 1px solid rgba(255,255,255,.12);
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+main.max-w-5xl > section:first-of-type > div:last-child > div {
+  border: 0 !important;
+  border-right: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 1rem .75rem !important;
+}
+main.max-w-5xl > section:first-of-type > div:last-child > div:last-child { border-right: 0 !important; }
+
+main.max-w-5xl > section:first-of-type + div {
+  margin-top: 2.35rem !important;
+  padding-bottom: .85rem;
+  border-bottom: 1px solid var(--ff-line);
+}
+main.max-w-5xl > section:first-of-type + div h2 {
+  font-size: clamp(1.8rem, 3vw, 2.45rem) !important;
+  letter-spacing: -.045em !important;
+}
+main.max-w-5xl > section:first-of-type + div + div {
+  gap: 0 !important;
+  margin-top: 0 !important;
+  border-top: 0;
+}
+main.max-w-5xl > section:first-of-type + div + div > section.surface {
+  position: relative;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ff-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 1.35rem 1.15rem !important;
+}
+main.max-w-5xl > section:first-of-type + div + div > section.surface::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1.35rem;
+  bottom: 1.35rem;
+  width: 1px;
+  background: transparent;
+  transition: background-color .18s ease;
+}
+main.max-w-5xl > section:first-of-type + div + div > section.surface:hover::before { background: var(--ff-blue); }
+main.max-w-5xl > section:first-of-type + div + div > section.surface .primary,
+main.max-w-5xl > section:first-of-type + div + div > section.surface .secondary {
+  min-height: 3rem;
+  margin-top: 1rem !important;
+}
+
+/* Keep core screens on the same vertical cadence. */
+.ff-v2-progress-section,
+.ff-v2-meals,
+.ff-history-section,
+.ff-rec-section { margin-top: var(--ff-section-gap) !important; }
+
+/* Recommendation hero: less giant-card silhouette, more product/editorial split. */
+.ff-rec-hero,
+.ff-v2-hero {
+  border-radius: 1.15rem !important;
+  box-shadow: 0 24px 64px rgba(16,38,61,.11) !important;
+}
+.ff-rec-primary,
+.ff-v2-primary-cta { border-radius: .72rem !important; }
+.ff-rec-alt { border-radius: .82rem !important; box-shadow: none !important; }
+
+@media (min-width: 1024px) {
+  main.max-w-5xl > section:first-of-type + div + div > section.surface:nth-child(odd) {
+    border-right: 1px solid var(--ff-line) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  :root {
+    --ff-page-gutter: 1rem;
+    --ff-page-top: 1.3rem;
+  }
+  body { background: #f7f9fb; }
+  .app-nav {
+    border-color: rgba(16,38,61,.11);
+    background: rgba(250,252,254,.91);
+    box-shadow: 0 14px 38px rgba(16,38,61,.16), inset 0 1px 0 rgba(255,255,255,.84);
+  }
+  main.max-w-5xl > section:first-of-type > div:last-child {
+    grid-template-columns: repeat(3, minmax(0,1fr));
+  }
+  main.max-w-5xl > section:first-of-type + div + div > section.surface { padding-inline: .2rem !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary::after { display: none; }
+}

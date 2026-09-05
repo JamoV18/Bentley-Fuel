@@ -30,7 +30,8 @@ export const mealOccurredAt = (entry: MealHistoryEntry): string => entry.eatenAt
 /**
  * Turns lightweight completion feedback into a deterministic daily intake ledger.
  * A selected meal is not treated as eaten until the student supplies a completion
- * fraction. Nutrition snapshots keep later menu edits from rewriting history.
+ * fraction. `portionScale` corrects the saved dining reference when the served
+ * portion was visibly smaller/larger, without asking the student for grams.
  */
 export function summarizeDailyNutrition(
   history: readonly MealHistoryEntry[],
@@ -47,7 +48,7 @@ export function summarizeDailyNutrition(
       continue;
     }
 
-    const consumed = scaleNutrition(entry.nutrition, entry.completionFraction);
+    const consumed = scaleNutrition(entry.nutrition, entry.completionFraction * (entry.portionScale ?? 1));
     nutrition = nutrition ? addNutrition(nutrition, consumed) : consumed;
     confirmedMeals += 1;
   }

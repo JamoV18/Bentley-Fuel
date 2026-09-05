@@ -1,15 +1,37 @@
-import assert from "node:assert/strict";
 import test from "node:test";
-import { LOCATION_IDS } from "@/data/mock/locations";
-import { DineOnCampusHybridProvider } from "./dineOnCampusProvider";
-import { installDineOnCampusServerFetchHeaders } from "./dineOnCampusServerFetch";
+import { execFileSync } from "node:child_process";
 
-installDineOnCampusServerFetchHeaders();
+function textOnly(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-test("probe first ten published 921 menu items for 2026-09-06", async () => {
-  const provider = new DineOnCampusHybridProvider();
-  const items = await provider.getMenuItems({ locationId: LOCATION_IDS.nineTwentyOne, date: "2026-09-06" });
-  const liveItems = items.filter((item) => item.id.startsWith("doc-921-2026-09-06-"));
-  console.log("TOMORROW_MENU_PROBE", JSON.stringify(liveItems.slice(0, 10).map((item) => ({ id: item.id, name: item.name, stationId: item.stationId, availability: item.availability, status: item.provenance.dataStatus }))));
-  assert.ok(liveItems.length >= 10, `Expected at least 10 verified live items; got ${liveItems.length}. Returned ids: ${items.slice(0, 5).map((item) => item.id).join(", ")}`);
+test("inspect rendered 921 menu page for 2026-09-06", () => {
+  const url = "https://dineoncampus.com/bentley/whats-on-the-menu/921-dining-hall?date=2026-09-06";
+  const chrome = ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "google-chrome"].find((candidate) => {
+    try {
+      execFileSync("bash", ["-lc", `command -v ${candidate} >/dev/null 2>&1 || test -x ${candidate}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (!chrome) throw new Error("Chrome not available on runner");
+  const html = execFileSync(chrome, [
+    "--headless=new",
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--virtual-time-budget=15000",
+    "--dump-dom",
+    url,
+  ], { encoding: "utf8", maxBuffer: 20 * 1024 * 1024, timeout: 45000 });
+  const text = textOnly(html);
+  console.log("DINE_RENDERED_TEXT", text.slice(0, 16000));
 });

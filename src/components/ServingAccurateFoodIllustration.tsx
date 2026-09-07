@@ -1,3 +1,4 @@
+import Image from "next/image";
 import FoodIllustration from "@/components/FoodIllustrationV2";
 import LunchFoodIllustration from "@/components/LunchFoodIllustration";
 import PremiumMenuFoodIllustration from "@/components/PremiumMenuFoodIllustration";
@@ -6,6 +7,7 @@ import VegetableDishIllustration, {
 } from "@/components/VegetableDishIllustration";
 import { foodIllustrationKind, hasLunchFoodIllustration } from "@/lib/foodIllustrations";
 import { hasExactMenuVisual } from "@/lib/menuIllustrationCatalog";
+import { prerenderedFoodArtForName } from "@/lib/prerenderedFoodArt";
 
 const INK = "#10263d";
 const BOWL = "#fffdf8";
@@ -57,23 +59,38 @@ function PumpkinBakedOatmealBowl() {
   );
 }
 
+function PrerenderedFoodArt({ src }: { src: string }) {
+  return (
+    <Image
+      src={src}
+      alt=""
+      aria-hidden="true"
+      width={520}
+      height={360}
+      unoptimized
+      className="ff-food-art ff-food-art-prerendered"
+    />
+  );
+}
+
 export default function ServingAccurateFoodIllustration({ name }: { name: string }) {
   const normalized = name.trim().toLowerCase().replace(/\s+/g, " ");
+
+  const prerendered = prerenderedFoodArtForName(name);
+  if (prerendered) {
+    return <PrerenderedFoodArt src={prerendered} />;
+  }
 
   if (normalized === "pumpkin spice baked oatmeal") {
     return <PumpkinBakedOatmealBowl />;
   }
 
-  // Exact lunch/dinner menu items use the highest-detail scalable renderer.
-  // This deliberately takes priority over the older hand-tuned lunch SVGs so
-  // deli breads, soup, vegetables, pizza, proteins, sauces, etc. can carry the
-  // same visual richness as the approved Falcon Fuel reference artwork.
+  // Pre-rendered art is now canonical whenever an approved generated asset exists.
+  // These SVG renderers remain only as coverage while the art library is populated.
   if (hasExactMenuVisual(name)) {
     return <PremiumMenuFoodIllustration name={name} />;
   }
 
-  // Keep specific verified lunch drawings for items not yet represented in the
-  // exact catalog (for example some La Mesa/Pure Eats components).
   if (hasLunchFoodIllustration(name)) {
     return <LunchFoodIllustration name={name} />;
   }
@@ -82,13 +99,9 @@ export default function ServingAccurateFoodIllustration({ name }: { name: string
     return <VegetableDishIllustration name={name} />;
   }
 
-  // Breakfast remains on its dedicated serving-aware drawing system.
   if (foodIllustrationKind(name)) {
     return <FoodIllustration name={name} />;
   }
 
-  // New/live dinner items are inferred into a vessel + food category and drawn
-  // with the same premium vector grammar instead of dropping to generic blocks
-  // or photography.
   return <PremiumMenuFoodIllustration name={name} />;
 }

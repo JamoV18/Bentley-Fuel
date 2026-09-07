@@ -1,0 +1,247 @@
+.meal-image-illustrated{
+  --ff-art-width:80%;
+  --ff-art-height:82%;
+  display:grid;
+  place-items:center;
+  box-sizing:border-box;
+  padding:clamp(.55rem,1.4vw,1rem);
+  overflow:hidden;
+  background:linear-gradient(145deg,#eef8ff 0%,#f8fcff 58%,#e5f3fb 100%);
+  background-image:none!important;
+  position:relative;
+  isolation:isolate;
+}
+
+.meal-image-illustrated::before{
+  content:"";
+  position:absolute;
+  inset:7%;
+  border:1px solid rgba(0,117,190,.07);
+  border-radius:50%;
+  transform:scale(.94);
+  z-index:-1;
+}
+
+.meal-image-illustrated .ff-food-art{
+  display:block;
+  width:var(--ff-art-width)!important;
+  height:var(--ff-art-height)!important;
+  max-width:100%;
+  max-height:100%;
+  overflow:visible;
+  transform-origin:center;
+  transition:transform .32s cubic-bezier(.22,1,.36,1),filter .32s cubic-bezier(.22,1,.36,1);
+}
+
+.meal-image-illustrated .ff-food-art-premium{
+  shape-rendering:geometricPrecision;
+  text-rendering:geometricPrecision;
+  image-rendering:auto;
+  width:min(92%,42rem)!important;
+  height:min(90%,32rem)!important;
+}
+
+.meal-image-illustrated .ff-food-art-prerendered{
+  object-fit:contain;
+  object-position:center;
+  image-rendering:auto;
+  width:min(94%,44rem)!important;
+  height:min(92%,34rem)!important;
+}
+
+/*
+ * Serving scale reference: the plate artwork represents the 10.5-inch
+ * Bentley dining-hall plate. Other vessels keep a stable visual ratio to it.
+ */
+.meal-image-vessel-plate{
+  --ff-art-width:88%;
+  --ff-art-height:86%;
+}
+
+.meal-image-vessel-bowl{
+  --ff-art-width:76%;
+  --ff-art-height:80%;
+}
+
+.meal-image-vessel-drink{
+  --ff-art-width:60%;
+  --ff-art-height:80%;
+}
+
+.meal-image-vessel-ingredient{
+  --ff-art-width:78%;
+  --ff-art-height:78%;
+}
+
+.meal-image-wide.meal-image-vessel-plate{
+  --ff-art-width:82%;
+  --ff-art-height:84%;
+}
+
+.meal-image-wide.meal-image-vessel-bowl{
+  --ff-art-width:70%;
+  --ff-art-height:78%;
+}
+
+.meal-image-wide.meal-image-vessel-drink{
+  --ff-art-width:54%;
+  --ff-art-height:76%;
+}
+
+.meal-image-hero.meal-image-vessel-plate .ff-food-art{
+  width:min(86%,38rem)!important;
+  height:86%!important;
+}
+
+.meal-image-hero.meal-image-vessel-bowl .ff-food-art{
+  width:min(76%,33rem)!important;
+  height:82%!important;
+}
+
+.meal-image-hero.meal-image-vessel-drink .ff-food-art{
+  width:min(58%,25rem)!important;
+  height:78%!important;
+}
+
+.meal-image-hero .ff-food-art-premium,
+.meal-image-hero .ff-food-art-prerendered{
+  width:min(94%,43rem)!important;
+  height:90%!important;
+}
+
+.meal-image-illustrated:hover .ff-food-art{
+  transform:translateY(-2px) scale(1.012);
+  filter:drop-shadow(0 9px 8px rgba(16,38,61,.07));
+}
+
+/* Complete meals are arranged like one neat place setting in front of the diner. */
+.meal-image-composed{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  padding:clamp(.55rem,1.6vw,1rem) clamp(.7rem,2vw,1.25rem);
+  overflow:hidden;
+}
+
+.meal-image-composed::before{
+  inset:6%;
+  transform:scale(.96);
+}
+
+.meal-image-composed-part{
+  display:grid;
+  place-items:center;
+  flex:0 1 auto;
+  height:90%;
+  min-width:0;
+  position:relative;
+}
+
+.meal-image-composed-part + .meal-image-composed-part{
+  margin-left:-4%;
+}
+
+.meal-image-composed-part-plate{
+  width:48%;
+  z-index:2;
+}
+
+.meal-image-composed-part-bowl{
+  width:36%;
+  transform:translateY(3%);
+  z-index:3;
+}
+
+.meal-image-composed-part-drink{
+  width:24%;
+  margin-left:-7%!important;
+  transform:translateY(1%);
+  z-index:4;
+}
+
+.meal-image-composed-part-ingredient{
+  width:30%;
+  transform:translateY(3%);
+  z-index:3;
+}
+
+.meal-image-composed-part .ff-food-art{
+  width:100%!important;
+  height:100%!important;
+  max-width:100%;
+  max-height:100%;
+}
+
+.meal-image-composed-part .ff-food-art-premium{
+  width:108%!important;
+  height:108%!important;
+  max-width:none;
+  max-height:none;
+}
+
+.meal-image-composed-part .ff-food-art-prerendered{
+  width:112%!important;
+  height:112%!important;
+  max-width:none;
+  max-height:none;
+  object-fit:contain;
+}
+
+.meal-image-composed[data-food-count="2"] .meal-image-composed-part-plate{width:55%}
+.meal-image-composed[data-food-count="2"] .meal-image-composed-part-bowl{width:43%}
+.meal-image-composed[data-food-count="2"] .meal-image-composed-part-ingredient{width:38%}
+
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-plate{width:44%}
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-bowl{width:35%}
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-drink{width:21%}
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-ingredient{width:29%}
+
+.meal-image-composed[data-food-count="4"]{
+  padding-inline:4%;
+}
+
+.meal-image-composed[data-food-count="4"] .meal-image-composed-part{
+  max-width:29%;
+  height:80%;
+}
+
+.meal-image-composed:hover .meal-image-composed-part .ff-food-art{
+  transform:translateY(-2px) scale(1.008);
+}
+
+@media(max-width:640px){
+  .meal-image-illustrated{
+    padding:.5rem;
+  }
+
+  .meal-image-composed{
+    padding:.5rem .55rem;
+  }
+
+  .meal-image-composed-part + .meal-image-composed-part{
+    margin-left:-3%;
+  }
+
+  .meal-image-composed-part-drink{
+    margin-left:-6%!important;
+  }
+
+  .meal-image-composed-part .ff-food-art-premium,
+  .meal-image-composed-part .ff-food-art-prerendered{
+    width:104%!important;
+    height:104%!important;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .meal-image-illustrated .ff-food-art{
+    transition:none;
+  }
+
+  .meal-image-illustrated:hover .ff-food-art,
+  .meal-image-composed:hover .meal-image-composed-part .ff-food-art{
+    transform:none;
+    filter:none;
+  }
+}

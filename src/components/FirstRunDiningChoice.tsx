@@ -4,7 +4,7 @@ import "./first-run-dining.css";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import MealImage from "@/components/MealImage";
+import LocationImage from "@/components/LocationImage";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { softSuccessHaptic } from "@/lib/haptics";
 import { browserMealHistoryRepository } from "@/services";
@@ -79,7 +79,7 @@ export default function FirstRunDiningChoice({ locations }: { locations: Locatio
               whileHover={reduceMotion || choosing ? undefined : { y: -3 }}
               whileTap={reduceMotion || choosing ? undefined : { scale: .985 }}
             >
-              <MealImage name={`${location.name} dining`} aspect="hero" className="ff-first-run-image" />
+              <LocationImage id={location.id} name={location.name} aspect="hero" className="ff-first-run-image" />
               <div className="ff-first-run-copy"><span>Start here</span><strong>{location.shortName ?? location.name}</strong><small>{location.building ?? "Bentley dining"}</small></div>
             </motion.button>
           ))}

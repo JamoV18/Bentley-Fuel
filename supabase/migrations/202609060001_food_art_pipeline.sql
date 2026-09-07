@@ -18,6 +18,25 @@ create table if not exists public.food_art_items (
   updated_at timestamptz not null default now()
 );
 
+-- A name can legitimately describe more than one recipe at the same time.
+-- Keep every observed DineOnCampus source fingerprint so each date/location can
+-- resolve to the exact artwork matching that recipe instead of whichever row
+-- happened to win a name-only dedupe.
+create table if not exists public.food_art_sources (
+  canonical_id text not null references public.food_art_items(canonical_id) on delete cascade,
+  source_fingerprint text not null,
+  normalized_name text not null,
+  display_name text not null,
+  description text,
+  ingredients text,
+  serving_description text,
+  last_menu_date date not null,
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (canonical_id, source_fingerprint)
+);
+
 create table if not exists public.food_art_assets (
   id uuid primary key default gen_random_uuid(),
   canonical_id text not null references public.food_art_items(canonical_id) on delete cascade,
@@ -32,8 +51,12 @@ create table if not exists public.food_art_assets (
   generator_model text not null,
   prompt text not null,
   quality_status text not null default 'technical_pass' check (quality_status in ('technical_pass','needs_review','approved','rejected')),
+  qa_model text,
+  qa_result jsonb,
   created_at timestamptz not null default now(),
-  unique (canonical_id, source_fingerprint)
+  unique (canonical_id, source_fingerprint),
+  foreign key (canonical_id, source_fingerprint)
+    references public.food_art_sources(canonical_id, source_fingerprint) on delete cascade
 );
 
 alter table public.food_art_items
@@ -44,7 +67,7 @@ alter table public.food_art_items
 
 create table if not exists public.food_art_jobs (
   id uuid primary key default gen_random_uuid(),
-  canonical_id text not null references public.food_art_items(canonical_id) on delete cascade,
+  canonical_id text not null,
   source_fingerprint text not null,
   status text not null default 'queued' check (status in ('queued','running','completed','failed')),
   attempts integer not null default 0 check (attempts >= 0),
@@ -54,12 +77,14 @@ create table if not exists public.food_art_jobs (
   last_error text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (canonical_id, source_fingerprint)
+  unique (canonical_id, source_fingerprint),
+  foreign key (canonical_id, source_fingerprint)
+    references public.food_art_sources(canonical_id, source_fingerprint) on delete cascade
 );
 
 create table if not exists public.food_art_observations (
   id uuid primary key default gen_random_uuid(),
-  canonical_id text not null references public.food_art_items(canonical_id) on delete cascade,
+  canonical_id text not null,
   source_fingerprint text not null,
   menu_date date not null,
   location_id text not null,
@@ -68,10 +93,13 @@ create table if not exists public.food_art_observations (
   provider_item_id text not null,
   display_name text not null,
   observed_at timestamptz not null default now(),
-  unique (menu_date, location_id, station_id, provider_item_id)
+  unique (menu_date, location_id, station_id, provider_item_id),
+  foreign key (canonical_id, source_fingerprint)
+    references public.food_art_sources(canonical_id, source_fingerprint) on delete cascade
 );
 
 create index if not exists food_art_items_status_idx on public.food_art_items(status);
+create index if not exists food_art_sources_seen_idx on public.food_art_sources(last_menu_date desc, last_seen_at desc);
 create index if not exists food_art_assets_canonical_idx on public.food_art_assets(canonical_id, version desc);
 create index if not exists food_art_jobs_claim_idx on public.food_art_jobs(status, run_after, created_at);
 create index if not exists food_art_observations_canonical_idx on public.food_art_observations(canonical_id, menu_date desc);
@@ -118,14 +146,17 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $$;
 begin
+  -- Only make an asset the name-level current pointer if this exact recipe is
+  -- still current. A DineOnCampus change that lands while generation is in
+  -- flight must never be overwritten by the older job finishing afterward.
   update public.food_art_items
   set current_asset_id = p_asset_id,
-      source_fingerprint = p_source_fingerprint,
       status = 'ready',
       updated_at = now()
-  where canonical_id = p_canonical_id;
+  where canonical_id = p_canonical_id
+    and source_fingerprint = p_source_fingerprint;
 
   update public.food_art_jobs
   set status = 'completed',
@@ -133,7 +164,9 @@ begin
       worker_id = null,
       last_error = null,
       updated_at = now()
-  where id = p_job_id;
+  where id = p_job_id
+    and canonical_id = p_canonical_id
+    and source_fingerprint = p_source_fingerprint;
 end;
 $$;
 
@@ -150,12 +183,22 @@ set search_path = public
 as $$
 declare
   current_attempts integer;
+  job_fingerprint text;
+  next_status text;
 begin
-  select attempts into current_attempts from public.food_art_jobs where id = p_job_id;
+  select attempts, source_fingerprint
+  into current_attempts, job_fingerprint
+  from public.food_art_jobs
+  where id = p_job_id and canonical_id = p_canonical_id;
+
+  next_status := case
+    when p_retry and coalesce(current_attempts, 0) < 3 then 'queued'
+    else 'failed'
+  end;
 
   update public.food_art_jobs
-  set status = case when p_retry and coalesce(current_attempts, 0) < 3 then 'queued' else 'failed' end,
-      run_after = case when p_retry and coalesce(current_attempts, 0) < 3
+  set status = next_status,
+      run_after = case when next_status = 'queued'
         then now() + make_interval(mins => least(30, power(2, greatest(0, coalesce(current_attempts, 1) - 1))::integer * 2))
         else run_after end,
       locked_at = null,
@@ -164,10 +207,13 @@ begin
       updated_at = now()
   where id = p_job_id;
 
+  -- Like completion, a stale job is not allowed to change the state of a newer
+  -- recipe version that now owns the canonical item pointer.
   update public.food_art_items
-  set status = case when p_retry and coalesce(current_attempts, 0) < 3 then 'queued' else 'failed' end,
+  set status = case when next_status = 'queued' then 'queued' else 'failed' end,
       updated_at = now()
-  where canonical_id = p_canonical_id;
+  where canonical_id = p_canonical_id
+    and source_fingerprint = job_fingerprint;
 end;
 $$;
 

@@ -1,0 +1,58 @@
+name: Sync Falcon Food Art
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: falcon-food-art
+  cancel-in-progress: false
+
+jobs:
+  sync-and-generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      FALCON_APP_URL: ${{ secrets.FALCON_APP_URL }}
+      FALCON_ART_CRON_SECRET: ${{ secrets.FALCON_ART_CRON_SECRET }}
+    steps:
+      - name: Check configuration
+        id: config
+        shell: bash
+        run: |
+          if [[ -z "$FALCON_APP_URL" || -z "$FALCON_ART_CRON_SECRET" ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Food Art automation is dormant until FALCON_APP_URL and FALCON_ART_CRON_SECRET are configured."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Diff DineOnCampus menus into the art registry
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --retry 2 --retry-all-errors \
+            -X POST "${FALCON_APP_URL%/}/api/food-art/sync" \
+            -H "Authorization: Bearer $FALCON_ART_CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{"daysBack":0,"daysForward":7}'
+
+      - name: Drain a bounded generation batch
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for iteration in 1 2 3; do
+            response=$(curl --fail-with-body --retry 2 --retry-all-errors \
+              -X POST "${FALCON_APP_URL%/}/api/food-art/work" \
+              -H "Authorization: Bearer $FALCON_ART_CRON_SECRET" \
+              -H "Content-Type: application/json" \
+              --data '{"limit":3}')
+            echo "$response"
+            claimed=$(echo "$response" | jq -r '.claimed // 0')
+            if [[ "$claimed" == "0" ]]; then
+              break
+            fi
+          done

@@ -146,7 +146,7 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $$;
+as $$
 begin
   -- Only make an asset the name-level current pointer if this exact recipe is
   -- still current. A DineOnCampus change that lands while generation is in

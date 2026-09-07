@@ -19,6 +19,11 @@ export function canonicalFoodArtId(name: string): string {
   return slug || "unnamed-food";
 }
 
+export function foodArtImageUrl(name: string, sourceFingerprint?: string): string {
+  const base = `/api/food-art/image/${encodeURIComponent(canonicalFoodArtId(name))}`;
+  return sourceFingerprint ? `${base}?fingerprint=${encodeURIComponent(sourceFingerprint)}` : base;
+}
+
 export function splitComposedFoodArtName(name: string): string[] {
   return name
     .split(/\s+\+\s+/)

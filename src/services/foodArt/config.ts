@@ -6,10 +6,18 @@ export interface FoodArtConfig {
   cronSecret: string;
   imageModel: string;
   imageSize: string;
+  qaModel: string;
+  maxCandidatesPerJob: number;
 }
 
 function env(name: string, fallbackName?: string): string {
   return process.env[name]?.trim() || (fallbackName ? process.env[fallbackName]?.trim() : "") || "";
+}
+
+function boundedInt(value: string, fallback: number, min: number, max: number): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
 }
 
 export function readFoodArtConfig(): FoodArtConfig {
@@ -25,6 +33,10 @@ export function readFoodArtConfig(): FoodArtConfig {
     // 2880² is the largest square allowed by GPT Image 2's 8,294,400-pixel
     // output ceiling, while both edges remain valid multiples of 16.
     imageSize: env("FALCON_ART_IMAGE_SIZE") || "2880x2880",
+    // Semantic QA uses a vision-capable reasoning model before an image is
+    // allowed to become a production master.
+    qaModel: env("FALCON_ART_QA_MODEL") || "gpt-5.6-sol",
+    maxCandidatesPerJob: boundedInt(env("FALCON_ART_MAX_CANDIDATES"), 3, 1, 4),
   };
 }
 

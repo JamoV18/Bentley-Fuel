@@ -3,11 +3,16 @@ import type { FoodArtItemRecord } from "./types";
 
 const GENERATION_ATTEMPTS = 3;
 
+export type FoodArtPromptSource = Pick<
+  FoodArtItemRecord,
+  "display_name" | "description" | "ingredients" | "serving_description"
+>;
+
 function sourceLine(label: string, value: string | null): string {
   return value?.trim() ? `${label}: ${value.trim()}` : `${label}: not published by the dining source`;
 }
 
-export function buildFalconFoodArtPrompt(item: FoodArtItemRecord): string {
+export function buildFalconFoodArtPrompt(item: FoodArtPromptSource): string {
   return [
     "Create one finished Falcon Fuel food illustration for use directly as a production app asset.",
     "",
@@ -38,7 +43,7 @@ function shouldRetry(status: number): boolean {
 }
 
 export async function generateFalconFoodArt(
-  item: FoodArtItemRecord,
+  item: FoodArtPromptSource,
   config: FoodArtConfig = readFoodArtConfig(),
 ): Promise<{ bytes: Uint8Array; prompt: string; model: string }> {
   if (!config.openAiApiKey) throw new Error("OPENAI_API_KEY is required to generate Falcon Food Art.");

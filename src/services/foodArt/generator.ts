@@ -1,5 +1,5 @@
 import { readFoodArtConfig, type FoodArtConfig } from "./config";
-import type { FoodArtItemRecord } from "./types";
+import type { FoodArtApiUsage, FoodArtItemRecord } from "./types";
 
 const GENERATION_ATTEMPTS = 3;
 
@@ -42,10 +42,26 @@ function shouldRetry(status: number): boolean {
   return status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
+function normalizeUsage(value: unknown): FoodArtApiUsage | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const usage: FoodArtApiUsage = {};
+  if (typeof raw.input_tokens === "number") usage.input_tokens = raw.input_tokens;
+  if (typeof raw.output_tokens === "number") usage.output_tokens = raw.output_tokens;
+  if (typeof raw.total_tokens === "number") usage.total_tokens = raw.total_tokens;
+  if (raw.input_tokens_details && typeof raw.input_tokens_details === "object") {
+    usage.input_tokens_details = raw.input_tokens_details as Record<string, unknown>;
+  }
+  if (raw.output_tokens_details && typeof raw.output_tokens_details === "object") {
+    usage.output_tokens_details = raw.output_tokens_details as Record<string, unknown>;
+  }
+  return Object.keys(usage).length > 0 ? usage : null;
+}
+
 export async function generateFalconFoodArt(
   item: FoodArtPromptSource,
   config: FoodArtConfig = readFoodArtConfig(),
-): Promise<{ bytes: Uint8Array; prompt: string; model: string }> {
+): Promise<{ bytes: Uint8Array; prompt: string; model: string; usage: FoodArtApiUsage | null }> {
   if (!config.openAiApiKey) throw new Error("OPENAI_API_KEY is required to generate Falcon Food Art.");
   const prompt = buildFalconFoodArtPrompt(item);
 
@@ -68,10 +84,18 @@ export async function generateFalconFoodArt(
     });
 
     if (response.ok) {
-      const payload = await response.json() as { data?: Array<{ b64_json?: string }> };
+      const payload = await response.json() as {
+        data?: Array<{ b64_json?: string }>;
+        usage?: unknown;
+      };
       const encoded = payload.data?.[0]?.b64_json;
       if (!encoded) throw new Error("Image generation succeeded but returned no PNG bytes.");
-      return { bytes: new Uint8Array(Buffer.from(encoded, "base64")), prompt, model: config.imageModel };
+      return {
+        bytes: new Uint8Array(Buffer.from(encoded, "base64")),
+        prompt,
+        model: config.imageModel,
+        usage: normalizeUsage(payload.usage),
+      };
     }
 
     const detail = (await response.text()).slice(0, 2000);

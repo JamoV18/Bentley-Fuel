@@ -19,7 +19,11 @@ export function readFoodArtConfig(): FoodArtConfig {
     bucket: env("FALCON_ART_BUCKET") || "falcon-food-art",
     openAiApiKey: env("OPENAI_API_KEY"),
     cronSecret: env("FALCON_ART_CRON_SECRET"),
-    imageModel: env("FALCON_ART_IMAGE_MODEL") || "gpt-image-2",
+    // Snapshot-lock the illustrator so a moving model alias cannot silently
+    // change Falcon Fuel's visual language between menu cycles.
+    imageModel: env("FALCON_ART_IMAGE_MODEL") || "gpt-image-2-2026-04-21",
+    // 2880² is the largest square allowed by GPT Image 2's 8,294,400-pixel
+    // output ceiling, while both edges remain valid multiples of 16.
     imageSize: env("FALCON_ART_IMAGE_SIZE") || "2880x2880",
   };
 }

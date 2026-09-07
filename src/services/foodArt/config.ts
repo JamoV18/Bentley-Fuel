@@ -1,0 +1,42 @@
+export interface FoodArtConfig {
+  supabaseUrl: string;
+  supabaseServiceRoleKey: string;
+  bucket: string;
+  openAiApiKey: string;
+  cronSecret: string;
+  imageModel: string;
+  imageSize: string;
+}
+
+function env(name: string, fallbackName?: string): string {
+  return process.env[name]?.trim() || (fallbackName ? process.env[fallbackName]?.trim() : "") || "";
+}
+
+export function readFoodArtConfig(): FoodArtConfig {
+  return {
+    supabaseUrl: env("FALCON_ART_SUPABASE_URL", "SUPABASE_URL").replace(/\/$/, ""),
+    supabaseServiceRoleKey: env("FALCON_ART_SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY"),
+    bucket: env("FALCON_ART_BUCKET") || "falcon-food-art",
+    openAiApiKey: env("OPENAI_API_KEY"),
+    cronSecret: env("FALCON_ART_CRON_SECRET"),
+    imageModel: env("FALCON_ART_IMAGE_MODEL") || "gpt-image-2",
+    imageSize: env("FALCON_ART_IMAGE_SIZE") || "2880x2880",
+  };
+}
+
+export function foodArtConfigurationIssues(config = readFoodArtConfig()): string[] {
+  const issues: string[] = [];
+  if (!config.supabaseUrl) issues.push("FALCON_ART_SUPABASE_URL (or SUPABASE_URL)");
+  if (!config.supabaseServiceRoleKey) issues.push("FALCON_ART_SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_ROLE_KEY)");
+  if (!config.openAiApiKey) issues.push("OPENAI_API_KEY");
+  if (!config.cronSecret) issues.push("FALCON_ART_CRON_SECRET");
+  return issues;
+}
+
+export function isFoodArtStorageConfigured(config = readFoodArtConfig()): boolean {
+  return Boolean(config.supabaseUrl && config.supabaseServiceRoleKey);
+}
+
+export function isFoodArtGenerationConfigured(config = readFoodArtConfig()): boolean {
+  return isFoodArtStorageConfigured(config) && Boolean(config.openAiApiKey);
+}

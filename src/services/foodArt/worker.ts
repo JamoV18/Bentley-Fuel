@@ -2,8 +2,16 @@ import { randomUUID } from "node:crypto";
 import { readFoodArtConfig } from "./config";
 import { generateFalconFoodArt } from "./generator";
 import { parseImageSize, validateMasterPng } from "./png";
+import { reviewFalconFoodArt } from "./qa";
 import { FoodArtRepository } from "./repository";
-import type { FoodArtWorkSummary } from "./types";
+import type { FoodArtQaResult, FoodArtWorkSummary } from "./types";
+
+function qaFailureSummary(result: FoodArtQaResult | undefined): string {
+  if (!result) return "Semantic QA did not approve a candidate.";
+  const issues = [...result.unsupported_elements, ...result.issues].slice(0, 5);
+  const scores = `identity ${Math.round(result.identity_score)}, fidelity ${Math.round(result.source_fidelity_score)}, detail ${Math.round(result.detail_score)}, polish ${Math.round(result.polish_score)}, composition ${Math.round(result.composition_score)}`;
+  return [result.summary || "Semantic QA rejected candidate.", scores, ...issues].filter(Boolean).join(" · ");
+}
 
 export async function processFoodArtQueue(
   limit = 1,
@@ -19,50 +27,76 @@ export async function processFoodArtQueue(
     completed: 0,
     failed: 0,
     skipped: 0,
+    qaRejectedCandidates: 0,
     failures: [],
   };
   const expectedSize = parseImageSize(config.imageSize);
 
   for (const job of jobs) {
     try {
-      const item = await repository.getItem(job.canonical_id);
-      if (!item || item.source_fingerprint !== job.source_fingerprint) {
+      // Jobs are keyed to an exact DineOnCampus source fingerprint. Historical
+      // or concurrently published same-name recipes remain valid generation
+      // work and must not be discarded just because another recipe is current.
+      const source = await repository.getSource(job.canonical_id, job.source_fingerprint);
+      if (!source) {
         summary.skipped += 1;
         await repository.supersedeJob(job);
         continue;
       }
 
-      const existingAsset = await repository.getLatestAsset(job.canonical_id);
-      if (existingAsset?.source_fingerprint === job.source_fingerprint) {
+      const existingAsset = await repository.getAssetForFingerprint(job.canonical_id, job.source_fingerprint);
+      if (existingAsset) {
         await repository.completeJob(job, existingAsset);
         summary.skipped += 1;
         continue;
       }
 
-      await repository.markItemGenerating(job.canonical_id);
-      const generated = await generateFalconFoodArt(item, config);
-      const validated = validateMasterPng(generated.bytes, expectedSize);
-      const version = (existingAsset?.version ?? 0) + 1;
-      const fingerprint = job.source_fingerprint.slice(0, 12);
-      const checksum = validated.checksumSha256.slice(0, 12);
-      const objectPath = `${job.canonical_id}/v${String(version).padStart(3, "0")}-${fingerprint}-${checksum}.png`;
-      const publicUrl = await repository.uploadMaster(objectPath, generated.bytes);
-      const asset = await repository.insertAsset({
-        canonical_id: job.canonical_id,
-        version,
-        source_fingerprint: job.source_fingerprint,
-        object_path: objectPath,
-        public_url: publicUrl,
-        width: validated.width,
-        height: validated.height,
-        format: "png",
-        checksum_sha256: validated.checksumSha256,
-        generator_model: generated.model,
-        prompt: generated.prompt,
-        quality_status: "technical_pass",
-      });
-      await repository.completeJob(job, asset);
-      summary.completed += 1;
+      const latestAsset = await repository.getLatestAsset(job.canonical_id);
+      const version = (latestAsset?.version ?? 0) + 1;
+      await repository.markItemGenerating(job.canonical_id, job.source_fingerprint);
+
+      let approved = false;
+      let lastQa: FoodArtQaResult | undefined;
+      for (let candidate = 1; candidate <= config.maxCandidatesPerJob; candidate += 1) {
+        const generated = await generateFalconFoodArt(source, config);
+        const validated = validateMasterPng(generated.bytes, expectedSize);
+        const qa = await reviewFalconFoodArt(source, generated.bytes, config);
+        lastQa = qa;
+
+        if (!qa.pass) {
+          summary.qaRejectedCandidates += 1;
+          continue;
+        }
+
+        const fingerprint = job.source_fingerprint.slice(0, 12);
+        const checksum = validated.checksumSha256.slice(0, 12);
+        const objectPath = `${job.canonical_id}/v${String(version).padStart(3, "0")}-${fingerprint}-${checksum}.png`;
+        const publicUrl = await repository.uploadMaster(objectPath, generated.bytes);
+        const asset = await repository.insertAsset({
+          canonical_id: job.canonical_id,
+          version,
+          source_fingerprint: job.source_fingerprint,
+          object_path: objectPath,
+          public_url: publicUrl,
+          width: validated.width,
+          height: validated.height,
+          format: "png",
+          checksum_sha256: validated.checksumSha256,
+          generator_model: generated.model,
+          prompt: generated.prompt,
+          quality_status: "approved",
+          qa_model: config.qaModel,
+          qa_result: qa,
+        });
+        await repository.completeJob(job, asset);
+        summary.completed += 1;
+        approved = true;
+        break;
+      }
+
+      if (!approved) {
+        throw new Error(`No generated candidate cleared Falcon Food Art QA after ${config.maxCandidatesPerJob} attempts: ${qaFailureSummary(lastQa)}`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       summary.failed += 1;

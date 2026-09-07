@@ -41,6 +41,14 @@
   height:min(90%,32rem)!important;
 }
 
+.meal-image-illustrated .ff-food-art-prerendered{
+  object-fit:contain;
+  object-position:center;
+  image-rendering:auto;
+  width:min(94%,44rem)!important;
+  height:min(92%,34rem)!important;
+}
+
 /*
  * Serving scale reference: the plate artwork represents the 10.5-inch
  * Bentley dining-hall plate. Other vessels keep a stable visual ratio to it.
@@ -95,7 +103,8 @@
   height:78%!important;
 }
 
-.meal-image-hero .ff-food-art-premium{
+.meal-image-hero .ff-food-art-premium,
+.meal-image-hero .ff-food-art-prerendered{
   width:min(94%,43rem)!important;
   height:90%!important;
 }
@@ -171,6 +180,14 @@
   max-height:none;
 }
 
+.meal-image-composed-part .ff-food-art-prerendered{
+  width:112%!important;
+  height:112%!important;
+  max-width:none;
+  max-height:none;
+  object-fit:contain;
+}
+
 .meal-image-composed[data-food-count="2"] .meal-image-composed-part-plate{width:55%}
 .meal-image-composed[data-food-count="2"] .meal-image-composed-part-bowl{width:43%}
 .meal-image-composed[data-food-count="2"] .meal-image-composed-part-ingredient{width:38%}
@@ -210,7 +227,8 @@
     margin-left:-6%!important;
   }
 
-  .meal-image-composed-part .ff-food-art-premium{
+  .meal-image-composed-part .ff-food-art-premium,
+  .meal-image-composed-part .ff-food-art-prerendered{
     width:104%!important;
     height:104%!important;
   }

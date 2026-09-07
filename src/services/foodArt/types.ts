@@ -4,6 +4,14 @@ export type FoodArtQualityStatus = "technical_pass" | "needs_review" | "approved
 export type FoodArtAttemptOutcome = "accepted" | "qa_rejected" | "validation_rejected" | "generation_error" | "qa_error";
 export type FoodArtReviewStatus = "open" | "dismissed" | "regeneration_requested";
 
+export interface FoodArtApiUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  input_tokens_details?: Record<string, unknown>;
+  output_tokens_details?: Record<string, unknown>;
+}
+
 export interface FoodArtSourceSnapshot {
   canonicalId: string;
   normalizedName: string;
@@ -112,6 +120,10 @@ export interface FoodArtAttemptRecord {
   qa_result: FoodArtQaResult | null;
   error: string | null;
   duration_ms: number;
+  generation_ms: number | null;
+  qa_ms: number | null;
+  generator_usage: FoodArtApiUsage | null;
+  qa_usage: FoodArtApiUsage | null;
   width: number | null;
   height: number | null;
   checksum_sha256: string | null;
@@ -190,4 +202,32 @@ export interface FoodArtWorkSummary {
   recovered: FoodArtRecoverySummary;
   telemetryWarnings: string[];
   failures: Array<{ canonicalId: string; error: string }>;
+}
+
+export interface FoodArtCanaryItemReport {
+  canonicalId: string;
+  displayName: string;
+  sourceFingerprint: string;
+  status: FoodArtStatus | "missing";
+  assetUrl: string | null;
+  width: number | null;
+  height: number | null;
+  checksumSha256: string | null;
+  qa: FoodArtQaResult | null;
+  generationMs: number | null;
+  qaMs: number | null;
+  totalMs: number | null;
+  generatorUsage: FoodArtApiUsage | null;
+  qaUsage: FoodArtApiUsage | null;
+}
+
+export interface FoodArtCanaryReport {
+  generatedAt: string;
+  rolloutMode: "off" | "canary" | "full";
+  selectedCanonicalIds: string[];
+  sync?: FoodArtSyncSummary;
+  work?: FoodArtWorkSummary;
+  items: FoodArtCanaryItemReport[];
+  pass: boolean;
+  blockers: string[];
 }

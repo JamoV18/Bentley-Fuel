@@ -1,19 +1,18 @@
-import { describe, expect, it } from "vitest";
+import test from "node:test";
+import assert from "node:assert/strict";
 import { prerenderedFoodArtForName } from "@/lib/prerenderedFoodArt";
 
-describe("prerenderedFoodArtForName", () => {
-  it("uses approved generated art for exact known foods", () => {
-    expect(prerenderedFoodArtForName("Barbeque Chicken")).toBe("/food-art/bbq-chicken.svg");
-    expect(prerenderedFoodArtForName("Blonde Brownies")).toBe("/food-art/blonde-brownies.svg");
-  });
+test("uses approved generated art for exact known foods", () => {
+  assert.equal(prerenderedFoodArtForName("Barbeque Chicken"), "/food-art/bbq-chicken.svg");
+  assert.equal(prerenderedFoodArtForName("Blonde Brownies"), "/food-art/blonde-brownies.svg");
+});
 
-  it("uses a chicken fallback only for chicken proteins", () => {
-    expect(prerenderedFoodArtForName("Grilled Chicken Breast")).toBe("/food-art/protein-portion.svg");
-    expect(prerenderedFoodArtForName("Grilled Salmon")).toBeNull();
-  });
+test("uses a chicken fallback only for chicken proteins", () => {
+  assert.equal(prerenderedFoodArtForName("Grilled Chicken Breast"), "/food-art/protein-portion.svg");
+  assert.equal(prerenderedFoodArtForName("Grilled Salmon"), null);
+});
 
-  it("does not turn every dessert into a brownie", () => {
-    expect(prerenderedFoodArtForName("Chocolate Brownie")).toBe("/food-art/dessert-fallback.svg");
-    expect(prerenderedFoodArtForName("Chocolate Chip Cookie")).toBeNull();
-  });
+test("does not turn every dessert into a brownie", () => {
+  assert.equal(prerenderedFoodArtForName("Chocolate Brownie"), "/food-art/dessert-fallback.svg");
+  assert.equal(prerenderedFoodArtForName("Chocolate Chip Cookie"), null);
 });

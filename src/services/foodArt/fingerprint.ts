@@ -7,20 +7,18 @@ function normalizedOptional(value: string | undefined): string {
 }
 
 export function foodArtSourceFingerprint(
-  item: Pick<MenuItem, "name" | "description" | "ingredients" | "serving" | "locationId" | "stationId">,
+  item: Pick<MenuItem, "name" | "description" | "ingredients" | "serving">,
 ): string {
-  const name = normalizeFoodArtText(item.name);
-  const description = normalizedOptional(item.description);
-  const ingredients = normalizedOptional(item.ingredients);
-  const serving = normalizedOptional(item.serving?.description);
+  const source = [
+    normalizeFoodArtText(item.name),
+    normalizedOptional(item.description),
+    normalizedOptional(item.ingredients),
+    normalizedOptional(item.serving?.description),
+  ].join("\u001f");
 
-  // A descriptive recipe should dedupe across stations. When DineOnCampus only
-  // gives us a bare name, location + station prevent two ambiguous same-name
-  // foods from silently sharing art until richer source data arrives.
-  const ambiguityScope = description || ingredients || serving
-    ? ""
-    : `${item.locationId}::${item.stationId}`;
-
-  const source = [name, description, ingredients, serving, ambiguityScope].join("\u001f");
+  // Location and station deliberately do not participate: the same published
+  // food can appear at multiple Bentley stations and should reuse one master.
+  // A material recipe/description/serving change creates a new fingerprint and
+  // therefore a new immutable artwork version.
   return createHash("sha256").update(source, "utf8").digest("hex");
 }

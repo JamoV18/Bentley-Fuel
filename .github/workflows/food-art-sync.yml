@@ -56,3 +56,36 @@ jobs:
               break
             fi
           done
+
+      - name: Report Food Art queue health
+        if: always() && steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set +e
+          response=$(curl --silent --show-error --fail-with-body \
+            "${FALCON_APP_URL%/}/api/food-art/status" \
+            -H "Authorization: Bearer $FALCON_ART_CRON_SECRET")
+          status=$?
+          if [[ $status -ne 0 ]]; then
+            echo "::warning::Could not read Falcon Food Art operational status after this run."
+            exit 0
+          fi
+
+          echo "$response" | jq '{items, operations}'
+          failed=$(echo "$response" | jq -r '.operations.jobCounts.failed // 0')
+          open_reviews=$(echo "$response" | jq -r '.operations.reviewCounts.open // 0')
+          stale=$(echo "$response" | jq -r '.operations.staleRunningJobs // 0')
+          oldest=$(echo "$response" | jq -r '.operations.oldestQueuedAgeSeconds // 0')
+
+          if [[ "$failed" -gt 0 ]]; then
+            echo "::warning::$failed Falcon Food Art queue job(s) are in terminal failure."
+          fi
+          if [[ "$open_reviews" -gt 0 ]]; then
+            echo "::warning::$open_reviews QA-rejected Falcon Food Art candidate(s) are waiting for private operator review."
+          fi
+          if [[ "$stale" -gt 0 ]]; then
+            echo "::warning::$stale Falcon Food Art job(s) still hold stale worker locks."
+          fi
+          if [[ "$oldest" -gt 21600 ]]; then
+            echo "::warning::The oldest queued Falcon Food Art job has waited more than six hours."
+          fi

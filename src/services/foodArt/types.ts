@@ -1,6 +1,8 @@
 export type FoodArtStatus = "queued" | "generating" | "ready" | "stale" | "needs_review" | "failed";
 export type FoodArtJobStatus = "queued" | "running" | "completed" | "failed";
 export type FoodArtQualityStatus = "technical_pass" | "needs_review" | "approved" | "rejected";
+export type FoodArtAttemptOutcome = "accepted" | "qa_rejected" | "validation_rejected" | "generation_error" | "qa_error";
+export type FoodArtReviewStatus = "open" | "dismissed" | "regeneration_requested";
 
 export interface FoodArtSourceSnapshot {
   canonicalId: string;
@@ -97,6 +99,31 @@ export interface FoodArtJobRecord {
   updated_at: string;
 }
 
+export interface FoodArtAttemptRecord {
+  id: string;
+  job_id: string;
+  job_attempt: number;
+  canonical_id: string;
+  source_fingerprint: string;
+  candidate_number: number;
+  outcome: FoodArtAttemptOutcome;
+  generator_model: string | null;
+  qa_model: string | null;
+  qa_result: FoodArtQaResult | null;
+  error: string | null;
+  duration_ms: number;
+  width: number | null;
+  height: number | null;
+  checksum_sha256: string | null;
+  review_object_path: string | null;
+  review_status: FoodArtReviewStatus | null;
+  created_at: string;
+}
+
+export interface FoodArtReviewRecord extends FoodArtAttemptRecord {
+  display_name?: string;
+}
+
 export interface FoodArtObservationRecord {
   id?: string;
   canonical_id: string;
@@ -122,11 +149,45 @@ export interface FoodArtSyncSummary {
   unavailableLocations: number;
 }
 
+export interface FoodArtRecoverySummary {
+  requeued: number;
+  failed: number;
+}
+
+export interface FoodArtOperationalSnapshot {
+  generatedAt: string;
+  itemCounts: Record<string, number>;
+  jobCounts: Record<string, number>;
+  assetQualityCounts: Record<string, number>;
+  reviewCounts: Record<string, number>;
+  oldestQueuedAt: string | null;
+  oldestQueuedAgeSeconds: number | null;
+  staleRunningJobs: number;
+  attempts24h: {
+    total: number;
+    accepted: number;
+    qaRejected: number;
+    validationRejected: number;
+    generationErrors: number;
+    qaErrors: number;
+  };
+  recentFailures: Array<{
+    id: string;
+    canonical_id: string;
+    source_fingerprint: string;
+    attempts: number;
+    last_error: string | null;
+    updated_at: string;
+  }>;
+}
+
 export interface FoodArtWorkSummary {
   claimed: number;
   completed: number;
   failed: number;
   skipped: number;
   qaRejectedCandidates: number;
+  recovered: FoodArtRecoverySummary;
+  telemetryWarnings: string[];
   failures: Array<{ canonicalId: string; error: string }>;
 }

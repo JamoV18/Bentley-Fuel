@@ -1,6 +1,6 @@
 import { readFoodArtConfig, type FoodArtConfig } from "./config";
 import type { FoodArtPromptSource } from "./generator";
-import type { FoodArtQaResult } from "./types";
+import type { FoodArtApiUsage, FoodArtQaResult } from "./types";
 
 export const FOOD_ART_QA_THRESHOLDS = {
   identity: 80,
@@ -89,6 +89,22 @@ function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function normalizeUsage(value: unknown): FoodArtApiUsage | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const usage: FoodArtApiUsage = {};
+  if (typeof raw.input_tokens === "number") usage.input_tokens = raw.input_tokens;
+  if (typeof raw.output_tokens === "number") usage.output_tokens = raw.output_tokens;
+  if (typeof raw.total_tokens === "number") usage.total_tokens = raw.total_tokens;
+  if (raw.input_tokens_details && typeof raw.input_tokens_details === "object") {
+    usage.input_tokens_details = raw.input_tokens_details as Record<string, unknown>;
+  }
+  if (raw.output_tokens_details && typeof raw.output_tokens_details === "object") {
+    usage.output_tokens_details = raw.output_tokens_details as Record<string, unknown>;
+  }
+  return Object.keys(usage).length > 0 ? usage : null;
+}
+
 export function normalizeFoodArtQaResult(value: unknown): FoodArtQaResult {
   const raw = objectValue(value);
   return applyFoodArtQaPolicy({
@@ -126,6 +142,7 @@ type ResponsesPayload = {
       text?: string;
     }>;
   }>;
+  usage?: unknown;
 };
 
 function responseText(payload: ResponsesPayload): string | undefined {
@@ -146,7 +163,7 @@ export async function reviewFalconFoodArt(
   source: FoodArtPromptSource,
   bytes: Uint8Array,
   config: FoodArtConfig = readFoodArtConfig(),
-): Promise<FoodArtQaResult> {
+): Promise<{ result: FoodArtQaResult; usage: FoodArtApiUsage | null }> {
   if (!config.openAiApiKey) throw new Error("OPENAI_API_KEY is required to review Falcon Food Art.");
   const imageUrl = `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`;
   const prompt = buildFoodArtQaPrompt(source);
@@ -185,7 +202,10 @@ export async function reviewFalconFoodArt(
       const text = responseText(payload);
       if (!text) throw new Error("Food Art QA returned no structured review text.");
       try {
-        return normalizeFoodArtQaResult(JSON.parse(text));
+        return {
+          result: normalizeFoodArtQaResult(JSON.parse(text)),
+          usage: normalizeUsage(payload.usage),
+        };
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         throw new Error(`Food Art QA returned invalid JSON: ${detail}`);

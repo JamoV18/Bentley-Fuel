@@ -4,13 +4,29 @@ import { generateFalconFoodArt } from "./generator";
 import { parseImageSize, validateMasterPng } from "./png";
 import { reviewFalconFoodArt } from "./qa";
 import { FoodArtRepository } from "./repository";
-import type { FoodArtQaResult, FoodArtWorkSummary } from "./types";
+import type { FoodArtAttemptRecord, FoodArtQaResult, FoodArtWorkSummary } from "./types";
 
 function qaFailureSummary(result: FoodArtQaResult | undefined): string {
   if (!result) return "Semantic QA did not approve a candidate.";
   const issues = [...result.unsupported_elements, ...result.issues].slice(0, 5);
   const scores = `identity ${Math.round(result.identity_score)}, fidelity ${Math.round(result.source_fidelity_score)}, detail ${Math.round(result.detail_score)}, polish ${Math.round(result.polish_score)}, composition ${Math.round(result.composition_score)}`;
   return [result.summary || "Semantic QA rejected candidate.", scores, ...issues].filter(Boolean).join(" · ");
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function recordAttemptSafely(
+  repository: FoodArtRepository,
+  row: Omit<FoodArtAttemptRecord, "id" | "created_at">,
+  summary: FoodArtWorkSummary,
+): Promise<void> {
+  try {
+    await repository.recordAttempt(row);
+  } catch (error) {
+    summary.telemetryWarnings.push(`${row.canonical_id}: could not persist ${row.outcome} attempt telemetry: ${errorMessage(error)}`);
+  }
 }
 
 export async function processFoodArtQueue(
@@ -20,6 +36,10 @@ export async function processFoodArtQueue(
   const config = readFoodArtConfig();
   if (!config.openAiApiKey) throw new Error("OPENAI_API_KEY is required to process the Falcon Food Art queue.");
 
+  // Recover locks left behind by a terminated deployment/runner before claiming
+  // new work. The conservative timeout is configurable and recovery itself is
+  // transactional in Postgres so two workers cannot reclaim the same job.
+  const recovered = await repository.recoverAbandonedJobs(config.staleJobMinutes, config.maxJobAttempts);
   const workerId = `falcon-art-${randomUUID()}`;
   const jobs = await repository.claimJobs(Math.max(1, Math.min(limit, 10)), workerId);
   const summary: FoodArtWorkSummary = {
@@ -28,6 +48,8 @@ export async function processFoodArtQueue(
     failed: 0,
     skipped: 0,
     qaRejectedCandidates: 0,
+    recovered,
+    telemetryWarnings: [],
     failures: [],
   };
   const expectedSize = parseImageSize(config.imageSize);
@@ -58,13 +80,114 @@ export async function processFoodArtQueue(
       let approved = false;
       let lastQa: FoodArtQaResult | undefined;
       for (let candidate = 1; candidate <= config.maxCandidatesPerJob; candidate += 1) {
-        const generated = await generateFalconFoodArt(source, config);
-        const validated = validateMasterPng(generated.bytes, expectedSize);
-        const qa = await reviewFalconFoodArt(source, generated.bytes, config);
+        const startedAt = Date.now();
+        let generated: Awaited<ReturnType<typeof generateFalconFoodArt>>;
+
+        try {
+          generated = await generateFalconFoodArt(source, config);
+        } catch (error) {
+          await recordAttemptSafely(repository, {
+            job_id: job.id,
+            job_attempt: job.attempts,
+            canonical_id: job.canonical_id,
+            source_fingerprint: job.source_fingerprint,
+            candidate_number: candidate,
+            outcome: "generation_error",
+            generator_model: config.imageModel,
+            qa_model: null,
+            qa_result: null,
+            error: errorMessage(error).slice(0, 4000),
+            duration_ms: Date.now() - startedAt,
+            width: null,
+            height: null,
+            checksum_sha256: null,
+            review_object_path: null,
+            review_status: null,
+          }, summary);
+          throw error;
+        }
+
+        let validated: ReturnType<typeof validateMasterPng>;
+        try {
+          validated = validateMasterPng(generated.bytes, expectedSize);
+        } catch (error) {
+          await recordAttemptSafely(repository, {
+            job_id: job.id,
+            job_attempt: job.attempts,
+            canonical_id: job.canonical_id,
+            source_fingerprint: job.source_fingerprint,
+            candidate_number: candidate,
+            outcome: "validation_rejected",
+            generator_model: generated.model,
+            qa_model: null,
+            qa_result: null,
+            error: errorMessage(error).slice(0, 4000),
+            duration_ms: Date.now() - startedAt,
+            width: null,
+            height: null,
+            checksum_sha256: null,
+            review_object_path: null,
+            review_status: null,
+          }, summary);
+          continue;
+        }
+
+        let qa: FoodArtQaResult;
+        try {
+          qa = await reviewFalconFoodArt(source, generated.bytes, config);
+        } catch (error) {
+          await recordAttemptSafely(repository, {
+            job_id: job.id,
+            job_attempt: job.attempts,
+            canonical_id: job.canonical_id,
+            source_fingerprint: job.source_fingerprint,
+            candidate_number: candidate,
+            outcome: "qa_error",
+            generator_model: generated.model,
+            qa_model: config.qaModel,
+            qa_result: null,
+            error: errorMessage(error).slice(0, 4000),
+            duration_ms: Date.now() - startedAt,
+            width: validated.width,
+            height: validated.height,
+            checksum_sha256: validated.checksumSha256,
+            review_object_path: null,
+            review_status: null,
+          }, summary);
+          throw error;
+        }
         lastQa = qa;
 
         if (!qa.pass) {
           summary.qaRejectedCandidates += 1;
+          const checksum = validated.checksumSha256.slice(0, 12);
+          const reviewPath = `${job.canonical_id}/job-${job.id}/attempt-${job.attempts}-candidate-${candidate}-${checksum}.png`;
+          let storedReviewPath: string | null = null;
+          try {
+            await repository.uploadReviewCandidate(reviewPath, generated.bytes);
+            storedReviewPath = reviewPath;
+          } catch (error) {
+            summary.telemetryWarnings.push(`${job.canonical_id}: QA-rejected candidate could not be stored privately for operator review: ${errorMessage(error)}`);
+          }
+
+          await recordAttemptSafely(repository, {
+            job_id: job.id,
+            job_attempt: job.attempts,
+            canonical_id: job.canonical_id,
+            source_fingerprint: job.source_fingerprint,
+            candidate_number: candidate,
+            outcome: "qa_rejected",
+            generator_model: generated.model,
+            qa_model: config.qaModel,
+            qa_result: qa,
+            error: qaFailureSummary(qa).slice(0, 4000),
+            duration_ms: Date.now() - startedAt,
+            width: validated.width,
+            height: validated.height,
+            checksum_sha256: validated.checksumSha256,
+            review_object_path: storedReviewPath,
+            review_status: storedReviewPath ? "open" : null,
+          }, summary);
           continue;
         }
 
@@ -89,6 +212,24 @@ export async function processFoodArtQueue(
           qa_result: qa,
         });
         await repository.completeJob(job, asset);
+        await recordAttemptSafely(repository, {
+          job_id: job.id,
+          job_attempt: job.attempts,
+          canonical_id: job.canonical_id,
+          source_fingerprint: job.source_fingerprint,
+          candidate_number: candidate,
+          outcome: "accepted",
+          generator_model: generated.model,
+          qa_model: config.qaModel,
+          qa_result: qa,
+          error: null,
+          duration_ms: Date.now() - startedAt,
+          width: validated.width,
+          height: validated.height,
+          checksum_sha256: validated.checksumSha256,
+          review_object_path: null,
+          review_status: null,
+        }, summary);
         summary.completed += 1;
         approved = true;
         break;
@@ -98,14 +239,13 @@ export async function processFoodArtQueue(
         throw new Error(`No generated candidate cleared Falcon Food Art QA after ${config.maxCandidatesPerJob} attempts: ${qaFailureSummary(lastQa)}`);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       summary.failed += 1;
       summary.failures.push({ canonicalId: job.canonical_id, error: message });
       try {
-        await repository.failJob(job, message, true);
+        await repository.failJob(job, message, true, config.maxJobAttempts);
       } catch (repositoryError) {
-        const repositoryMessage = repositoryError instanceof Error ? repositoryError.message : String(repositoryError);
-        summary.failures.push({ canonicalId: job.canonical_id, error: `Could not record failure: ${repositoryMessage}` });
+        summary.failures.push({ canonicalId: job.canonical_id, error: `Could not record failure: ${errorMessage(repositoryError)}` });
       }
     }
   }

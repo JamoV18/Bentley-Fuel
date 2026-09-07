@@ -27,10 +27,8 @@ export async function processFoodArtQueue(
     try {
       const item = await repository.getItem(job.canonical_id);
       if (!item || item.source_fingerprint !== job.source_fingerprint) {
-        // The SQL claimant only returns current-fingerprint jobs. This guard is
-        // retained for race safety if the menu changes after a job is claimed.
         summary.skipped += 1;
-        await repository.failJob(job, "Superseded by a newer DineOnCampus food fingerprint.", false);
+        await repository.supersedeJob(job);
         continue;
       }
 

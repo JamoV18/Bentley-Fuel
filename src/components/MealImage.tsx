@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import "./recommendation-completeness.css";
 import ServingAccurateFoodIllustration from "@/components/ServingAccurateFoodIllustration";
 import { foodIllustrationKind } from "@/lib/foodIllustrations";
-import { canonicalFoodArtId, splitComposedFoodArtName } from "@/lib/foodArtIdentity";
+import { canonicalFoodArtId, foodArtImageUrl, splitComposedFoodArtName } from "@/lib/foodArtIdentity";
 import { menuServingVesselForName } from "@/lib/menuIllustrationCatalog";
 
 type ServingVessel = "plate" | "bowl" | "drink" | "ingredient";
@@ -28,15 +28,29 @@ function servingVesselForName(name: string): ServingVessel {
   return menuServingVesselForName(name);
 }
 
-function MasterFoodArt({ name, fallback, eager = false }: { name: string; fallback: ReactNode; eager?: boolean }) {
+function approvedResolverUrl(imageUrl: string | undefined): string | undefined {
+  return imageUrl?.startsWith("/api/food-art/image/") ? imageUrl : undefined;
+}
+
+function MasterFoodArt({
+  name,
+  sourceUrl,
+  fallback,
+  eager = false,
+}: {
+  name: string;
+  sourceUrl?: string;
+  fallback: ReactNode;
+  eager?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
-  const canonicalId = canonicalFoodArtId(name);
-  useEffect(() => setFailed(false), [canonicalId]);
+  const src = approvedResolverUrl(sourceUrl) ?? foodArtImageUrl(name);
+  useEffect(() => setFailed(false), [src]);
 
   if (failed) return <>{fallback}</>;
   return (
     <img
-      src={`/api/food-art/image/${encodeURIComponent(canonicalId)}`}
+      src={src}
       alt=""
       aria-hidden="true"
       className="ff-food-master"
@@ -54,6 +68,7 @@ function LegacyFallback({ name }: { name: string }) {
 
 export default function MealImage({
   name,
+  imageUrl,
   className = "",
   aspect = "square",
 }: {
@@ -96,7 +111,12 @@ export default function MealImage({
       className={`meal-image meal-image-${aspect} meal-image-illustrated meal-image-vessel-${vessel} meal-image-master-first ${className}`}
       data-plate-reference={vessel === "plate" ? "10.5in" : undefined}
     >
-      <MasterFoodArt name={name} eager={aspect === "hero"} fallback={<LegacyFallback name={name} />} />
+      <MasterFoodArt
+        name={name}
+        sourceUrl={imageUrl}
+        eager={aspect === "hero"}
+        fallback={<LegacyFallback name={name} />}
+      />
     </div>
   );
 }

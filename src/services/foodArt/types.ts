@@ -102,6 +102,7 @@ export interface FoodArtJobRecord {
 export interface FoodArtAttemptRecord {
   id: string;
   job_id: string;
+  job_attempt: number;
   canonical_id: string;
   source_fingerprint: string;
   candidate_number: number;

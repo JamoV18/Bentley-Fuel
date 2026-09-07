@@ -16,7 +16,9 @@ Falcon Food Art treats a finished generated PNG as the artwork source of truth. 
 
 ## Quality contract
 
-The default master request is `gpt-image-2`, high quality, transparent PNG, `2880x2880`. The worker rejects a response instead of publishing it if it is undersized, not PNG, or lacks an alpha channel. Storage paths include the source fingerprint and checksum. Masters use a one-year immutable cache. CSS uses `object-fit: contain`, no blur filter, no pixelated/crisp-edge mode, and no browser recreation of food details.
+The production default is the snapshot-locked `gpt-image-2-2026-04-21`, `high` quality, transparent PNG, `2880x2880`. GPT Image 2 permits flexible sizes up to 8,294,400 total pixels with edges in multiples of 16; 2880×2880 uses that full pixel budget in a square master. The fixed snapshot prevents a moving model alias from silently changing Falcon Fuel's illustration language between menu cycles.
+
+The worker rejects a response instead of publishing it if it is undersized, not PNG, or lacks an alpha channel. Storage paths include the source fingerprint and checksum. Masters use a one-year immutable cache. CSS uses `object-fit: contain`, no blur filter, no pixelated/crisp-edge mode, and no browser recreation of food details. `MealImage` intentionally uses a plain `<img>` for master delivery so Next.js cannot silently resize, recompress, or transcode the approved source image.
 
 Fixed/prepared dishes are prompted as one finished dish (for example, a Chicken Philly Cheesesteak is one assembled cheesesteak drawing). The prompt forbids unsupported garnish/ingredients and forbids generated logos, branded packaging, and trade dress. Brand identification stays in normal app text unless Bentley/Chartwells supplies approved brand assets separately.
 

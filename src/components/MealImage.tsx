@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import "./recommendation-completeness.css";
 import ServingAccurateFoodIllustration from "@/components/ServingAccurateFoodIllustration";
 import { foodIllustrationKind } from "@/lib/foodIllustrations";
@@ -43,12 +43,15 @@ function MasterFoodArt({
   fallback: ReactNode;
   eager?: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const src = approvedResolverUrl(sourceUrl) ?? foodArtImageUrl(name);
-  useEffect(() => setFailed(false), [src]);
 
-  if (failed) return <>{fallback}</>;
+  if (failedSrc === src) return <>{fallback}</>;
   return (
+    // A plain img is intentional here: the resolver redirects to the exact
+    // immutable PNG master. We do not want a framework optimizer to resize,
+    // recompress, or transcode the approved artwork behind the user's back.
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt=""
@@ -57,7 +60,7 @@ function MasterFoodArt({
       loading={eager ? "eager" : "lazy"}
       decoding="async"
       draggable={false}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
     />
   );
 }

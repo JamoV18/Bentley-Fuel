@@ -102,18 +102,25 @@ export async function syncFoodArtRegistry(
   let unchangedFoods = 0;
 
   for (const [canonicalId, entries] of grouped) {
-    const sorted = [...entries].sort((a, b) => richness(b.item) - richness(a.item));
+    // When the same named food has different recipes on different menu dates,
+    // the registry's current pointer follows the latest published date. Within
+    // that date we prefer the richest DineOnCampus record. Older fingerprints
+    // remain preserved in observations/assets for versioned delivery.
+    const latestMenuDate = latestDate(entries.map((entry) => entry.source.menuDate));
+    const latestEntries = entries.filter((entry) => entry.source.menuDate === latestMenuDate);
+    const sorted = [...latestEntries].sort((a, b) => richness(b.item) - richness(a.item));
     const representative = sorted[0].source;
     const previous = existing.get(canonicalId);
     const fingerprintChanged = Boolean(previous && previous.source_fingerprint !== representative.sourceFingerprint);
     const isNew = !previous;
-    const needsJob = isNew || fingerprintChanged || !previous.current_asset_id;
+    const missingAsset = Boolean(previous && !previous.current_asset_id);
+    const needsJob = isNew || fingerprintChanged || missingAsset;
 
     if (isNew) newFoods += 1;
     else if (fingerprintChanged) changedFoods += 1;
     else unchangedFoods += 1;
 
-    const nextStatus = isNew
+    const nextStatus = isNew || missingAsset
       ? "queued"
       : fingerprintChanged
         ? "stale"
@@ -127,15 +134,9 @@ export async function syncFoodArtRegistry(
       ingredients: representative.ingredients ?? null,
       serving_description: representative.servingDescription ?? null,
       source_fingerprint: representative.sourceFingerprint,
-      location_ids: unique([
-        ...(previous?.location_ids ?? []),
-        ...entries.map((entry) => entry.source.locationId),
-      ]),
-      station_names: unique([
-        ...(previous?.station_names ?? []),
-        ...entries.map((entry) => entry.source.stationName),
-      ]),
-      last_menu_date: latestDate(entries.map((entry) => entry.source.menuDate)),
+      location_ids: unique([...(previous?.location_ids ?? []), ...entries.map((entry) => entry.source.locationId)]),
+      station_names: unique([...(previous?.station_names ?? []), ...entries.map((entry) => entry.source.stationName)]),
+      last_menu_date: latestMenuDate,
       last_seen_at: observedAt,
       status: nextStatus,
       current_asset_id: fingerprintChanged ? null : previous?.current_asset_id ?? null,
@@ -143,9 +144,7 @@ export async function syncFoodArtRegistry(
       updated_at: observedAt,
     });
 
-    if (needsJob) {
-      jobs.push({ canonical_id: canonicalId, source_fingerprint: representative.sourceFingerprint });
-    }
+    if (needsJob) jobs.push({ canonical_id: canonicalId, source_fingerprint: representative.sourceFingerprint });
   }
 
   await repository.upsertItems(itemRows);

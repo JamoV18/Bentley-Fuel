@@ -125,6 +125,13 @@ export class FoodArtRepository {
     return rows[0];
   }
 
+  async getAssetForFingerprint(canonicalId: string, sourceFingerprint: string): Promise<FoodArtAssetRecord | undefined> {
+    const rows = await this.request<FoodArtAssetRecord[]>(
+      `/rest/v1/food_art_assets?canonical_id=eq.${encodeURIComponent(canonicalId)}&source_fingerprint=eq.${encodeURIComponent(sourceFingerprint)}&limit=1`,
+    );
+    return rows[0];
+  }
+
   async getReadyAsset(canonicalId: string): Promise<FoodArtAssetRecord | undefined> {
     const item = await this.getItem(canonicalId);
     if (!item || item.status !== "ready" || !item.current_asset_id) return undefined;
@@ -134,9 +141,7 @@ export class FoodArtRepository {
     return rows[0];
   }
 
-  async insertAsset(
-    row: Omit<FoodArtAssetRecord, "id" | "created_at">,
-  ): Promise<FoodArtAssetRecord> {
+  async insertAsset(row: Omit<FoodArtAssetRecord, "id" | "created_at">): Promise<FoodArtAssetRecord> {
     const rows = await this.request<FoodArtAssetRecord[]>("/rest/v1/food_art_assets", {
       method: "POST",
       headers: { Prefer: "return=representation" },
@@ -154,6 +159,20 @@ export class FoodArtRepository {
         p_asset_id: asset.id,
         p_canonical_id: job.canonical_id,
         p_source_fingerprint: job.source_fingerprint,
+      }),
+    });
+  }
+
+  async supersedeJob(job: FoodArtJobRecord): Promise<void> {
+    await this.request<void>(`/rest/v1/food_art_jobs?id=eq.${encodeURIComponent(job.id)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        status: "completed",
+        locked_at: null,
+        worker_id: null,
+        last_error: "Superseded by a newer DineOnCampus source fingerprint.",
+        updated_at: new Date().toISOString(),
       }),
     });
   }

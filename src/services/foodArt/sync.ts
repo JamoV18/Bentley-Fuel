@@ -6,6 +6,7 @@ import { FoodArtRepository } from "./repository";
 import type {
   FoodArtItemRecord,
   FoodArtObservationRecord,
+  FoodArtSourceRecord,
   FoodArtSourceSnapshot,
   FoodArtSyncSummary,
 } from "./types";
@@ -22,6 +23,10 @@ function unique(values: Array<string | undefined>): string[] {
 
 function latestDate(values: string[]): string {
   return [...values].sort().at(-1) ?? values[0];
+}
+
+function sourceKey(canonicalId: string, sourceFingerprint: string): string {
+  return `${canonicalId}::${sourceFingerprint}`;
 }
 
 function snapshot(
@@ -75,15 +80,25 @@ export async function syncFoodArtRegistry(
   }
 
   const grouped = new Map<string, Array<{ source: FoodArtSourceSnapshot; item: MenuItem }>>();
+  const sourceVariants = new Map<string, Array<{ source: FoodArtSourceSnapshot; item: MenuItem }>>();
   for (const entry of snapshots) {
-    const group = grouped.get(entry.source.canonicalId) ?? [];
-    group.push(entry);
-    grouped.set(entry.source.canonicalId, group);
+    const canonicalGroup = grouped.get(entry.source.canonicalId) ?? [];
+    canonicalGroup.push(entry);
+    grouped.set(entry.source.canonicalId, canonicalGroup);
+
+    const key = sourceKey(entry.source.canonicalId, entry.source.sourceFingerprint);
+    const variantGroup = sourceVariants.get(key) ?? [];
+    variantGroup.push(entry);
+    sourceVariants.set(key, variantGroup);
   }
 
   const canonicalIds = [...grouped.keys()];
-  const existing = await repository.getItems(canonicalIds);
+  const [existing, existingAssets] = await Promise.all([
+    repository.getItems(canonicalIds),
+    repository.getAssets(canonicalIds),
+  ]);
   const itemRows: FoodArtItemRecord[] = [];
+  const sourceRows: FoodArtSourceRecord[] = [];
   const jobs: Array<{ canonical_id: string; source_fingerprint: string }> = [];
   const observations: FoodArtObservationRecord[] = snapshots.map(({ source }) => ({
     canonical_id: source.canonicalId,
@@ -97,34 +112,57 @@ export async function syncFoodArtRegistry(
     observed_at: source.observedAt,
   }));
 
+  for (const [key, entries] of sourceVariants) {
+    const latestMenuDate = latestDate(entries.map((entry) => entry.source.menuDate));
+    const latestEntries = entries.filter((entry) => entry.source.menuDate === latestMenuDate);
+    const representative = [...latestEntries].sort((a, b) => richness(b.item) - richness(a.item))[0].source;
+    sourceRows.push({
+      canonical_id: representative.canonicalId,
+      source_fingerprint: representative.sourceFingerprint,
+      normalized_name: representative.normalizedName,
+      display_name: representative.displayName,
+      description: representative.description ?? null,
+      ingredients: representative.ingredients ?? null,
+      serving_description: representative.servingDescription ?? null,
+      last_menu_date: latestMenuDate,
+      last_seen_at: observedAt,
+      updated_at: observedAt,
+    });
+    if (!existingAssets.has(key)) {
+      jobs.push({
+        canonical_id: representative.canonicalId,
+        source_fingerprint: representative.sourceFingerprint,
+      });
+    }
+  }
+
   let newFoods = 0;
   let changedFoods = 0;
   let unchangedFoods = 0;
 
   for (const [canonicalId, entries] of grouped) {
-    // When the same named food has different recipes on different menu dates,
-    // the registry's current pointer follows the latest published date. Within
-    // that date we prefer the richest DineOnCampus record. Older fingerprints
-    // remain preserved in observations/assets for versioned delivery.
+    // The name-level pointer follows the newest DineOnCampus publication, but
+    // every distinct recipe fingerprint above remains independently preserved
+    // and generation-eligible. This prevents same-name recipes from collapsing.
     const latestMenuDate = latestDate(entries.map((entry) => entry.source.menuDate));
     const latestEntries = entries.filter((entry) => entry.source.menuDate === latestMenuDate);
-    const sorted = [...latestEntries].sort((a, b) => richness(b.item) - richness(a.item));
-    const representative = sorted[0].source;
+    const representative = [...latestEntries].sort((a, b) => richness(b.item) - richness(a.item))[0].source;
     const previous = existing.get(canonicalId);
     const fingerprintChanged = Boolean(previous && previous.source_fingerprint !== representative.sourceFingerprint);
     const isNew = !previous;
-    const missingAsset = Boolean(previous && !previous.current_asset_id);
-    const needsJob = isNew || fingerprintChanged || missingAsset;
+    const currentAsset = existingAssets.get(sourceKey(canonicalId, representative.sourceFingerprint));
 
     if (isNew) newFoods += 1;
     else if (fingerprintChanged) changedFoods += 1;
     else unchangedFoods += 1;
 
-    const nextStatus = isNew || missingAsset
-      ? "queued"
+    const nextStatus = currentAsset
+      ? "ready"
       : fingerprintChanged
         ? "stale"
-        : previous.status;
+        : previous?.status === "generating"
+          ? "generating"
+          : "queued";
 
     itemRows.push({
       canonical_id: canonicalId,
@@ -139,15 +177,16 @@ export async function syncFoodArtRegistry(
       last_menu_date: latestMenuDate,
       last_seen_at: observedAt,
       status: nextStatus,
-      current_asset_id: fingerprintChanged ? null : previous?.current_asset_id ?? null,
+      current_asset_id: currentAsset?.id ?? (fingerprintChanged ? null : previous?.current_asset_id ?? null),
       created_at: previous?.created_at,
       updated_at: observedAt,
     });
-
-    if (needsJob) jobs.push({ canonical_id: canonicalId, source_fingerprint: representative.sourceFingerprint });
   }
 
+  // FK order matters: sources reference canonical items; observations/jobs and
+  // assets reference exact sources.
   await repository.upsertItems(itemRows);
+  await repository.upsertSources(sourceRows);
   await repository.upsertObservations(observations);
   const queuedJobs = await repository.enqueueJobs(jobs);
 
@@ -155,6 +194,7 @@ export async function syncFoodArtRegistry(
     dates,
     rowsSeen: snapshots.length,
     uniqueFoods: grouped.size,
+    uniqueSourceVariants: sourceVariants.size,
     newFoods,
     changedFoods,
     unchangedFoods,

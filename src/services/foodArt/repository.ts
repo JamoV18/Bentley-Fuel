@@ -4,6 +4,7 @@ import type {
   FoodArtItemRecord,
   FoodArtJobRecord,
   FoodArtObservationRecord,
+  FoodArtSourceRecord,
 } from "./types";
 
 const CHUNK_SIZE = 80;
@@ -18,6 +19,10 @@ function requireStorageConfig(config: FoodArtConfig): void {
   if (!config.supabaseUrl || !config.supabaseServiceRoleKey) {
     throw new Error("Falcon Food Art storage is not configured. Set the Supabase URL and service-role key.");
   }
+}
+
+function sourceKey(canonicalId: string, sourceFingerprint: string): string {
+  return `${canonicalId}::${sourceFingerprint}`;
 }
 
 export class FoodArtRepository {
@@ -80,6 +85,24 @@ export class FoodArtRepository {
     }
   }
 
+  async getSource(canonicalId: string, sourceFingerprint: string): Promise<FoodArtSourceRecord | undefined> {
+    const rows = await this.request<FoodArtSourceRecord[]>(
+      `/rest/v1/food_art_sources?canonical_id=eq.${encodeURIComponent(canonicalId)}&source_fingerprint=eq.${encodeURIComponent(sourceFingerprint)}&limit=1`,
+    );
+    return rows[0];
+  }
+
+  async upsertSources(rows: FoodArtSourceRecord[]): Promise<void> {
+    for (const group of chunks(rows)) {
+      if (group.length === 0) continue;
+      await this.request<void>("/rest/v1/food_art_sources?on_conflict=canonical_id,source_fingerprint", {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify(group),
+      });
+    }
+  }
+
   async upsertObservations(rows: FoodArtObservationRecord[]): Promise<void> {
     for (const group of chunks(rows)) {
       if (group.length === 0) continue;
@@ -123,6 +146,19 @@ export class FoodArtRepository {
       `/rest/v1/food_art_assets?canonical_id=eq.${encodeURIComponent(canonicalId)}&order=version.desc&limit=1`,
     );
     return rows[0];
+  }
+
+  async getAssets(canonicalIds: string[]): Promise<Map<string, FoodArtAssetRecord>> {
+    const result = new Map<string, FoodArtAssetRecord>();
+    for (const group of chunks([...new Set(canonicalIds)])) {
+      if (group.length === 0) continue;
+      const values = group.map((id) => `"${id.replace(/"/g, "")}"`).join(",");
+      const rows = await this.request<FoodArtAssetRecord[]>(
+        `/rest/v1/food_art_assets?canonical_id=in.(${encodeURIComponent(values)})`,
+      );
+      rows.forEach((row) => result.set(sourceKey(row.canonical_id, row.source_fingerprint), row));
+    }
+    return result;
   }
 
   async getAssetForFingerprint(canonicalId: string, sourceFingerprint: string): Promise<FoodArtAssetRecord | undefined> {
@@ -171,7 +207,7 @@ export class FoodArtRepository {
         status: "completed",
         locked_at: null,
         worker_id: null,
-        last_error: "Superseded by a newer DineOnCampus source fingerprint.",
+        last_error: "Source variant no longer exists in the art registry.",
         updated_at: new Date().toISOString(),
       }),
     });
@@ -189,12 +225,15 @@ export class FoodArtRepository {
     });
   }
 
-  async markItemGenerating(canonicalId: string): Promise<void> {
-    await this.request<void>(`/rest/v1/food_art_items?canonical_id=eq.${encodeURIComponent(canonicalId)}`, {
-      method: "PATCH",
-      headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({ status: "generating", updated_at: new Date().toISOString() }),
-    });
+  async markItemGenerating(canonicalId: string, sourceFingerprint: string): Promise<void> {
+    await this.request<void>(
+      `/rest/v1/food_art_items?canonical_id=eq.${encodeURIComponent(canonicalId)}&source_fingerprint=eq.${encodeURIComponent(sourceFingerprint)}`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ status: "generating", updated_at: new Date().toISOString() }),
+      },
+    );
   }
 
   async uploadMaster(objectPath: string, bytes: Uint8Array): Promise<string> {

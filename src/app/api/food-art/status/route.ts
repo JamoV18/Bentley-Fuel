@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { isAuthorizedFoodArtRequest } from "@/services/foodArt/auth";
-import { foodArtConfigurationIssues, isFoodArtStorageConfigured, readFoodArtConfig } from "@/services/foodArt/config";
+import {
+  foodArtConfigurationIssues,
+  isFoodArtGenerationConfigured,
+  isFoodArtStorageConfigured,
+  readFoodArtConfig,
+} from "@/services/foodArt/config";
 import { FoodArtRepository } from "@/services/foodArt/repository";
 
 export const runtime = "nodejs";
@@ -17,7 +22,9 @@ export async function GET(request: Request) {
     const operations = await repository.operationalSnapshot(config.staleJobMinutes);
     return NextResponse.json({
       configured: true,
-      generationConfigured: Boolean(config.openAiApiKey),
+      generationConfigured: isFoodArtGenerationConfigured(config),
+      paidGenerationEnabled: config.paidGenerationEnabled,
+      localArtMode: !config.paidGenerationEnabled,
       imageModel: config.imageModel,
       imageSize: config.imageSize,
       qaModel: config.qaModel,

@@ -1,0 +1,365 @@
+/* Falcon Fuel Global Design System v1
+   MyFitnessPal atmosphere + Lifesum restraint + Uber card discipline,
+   grounded in Bentley University's palette.
+*/
+
+:root {
+  color-scheme: dark;
+
+  /* Bentley anchors */
+  --ff-brand-blue: #0075be;
+  --ff-brand-dark: #294567;
+  --ff-brand-gray: #7b858f;
+  --ff-brand-bluegray: #b3c4cc;
+  --ff-brand-yellow: #ffcc33;
+  --ff-brand-lightblue: #82bce5;
+  --ff-brand-teal: #42b7b0;
+  --ff-brand-orange: #f79e31;
+  --ff-brand-coral: #fd6f50;
+
+  /* Default dark theme */
+  --ff-canvas: #0d1620;
+  --ff-surface: #142230;
+  --ff-surface-elevated: #1b2d3d;
+  --ff-surface-strong: #22384a;
+  --ff-text-primary: #f7fafc;
+  --ff-text-secondary: #b3c4cc;
+  --ff-text-tertiary: #7b858f;
+  --ff-divider: rgba(179, 196, 204, 0.14);
+
+  /* Compatibility aliases: existing screens inherit the new system now. */
+  --background: var(--ff-canvas);
+  --foreground: var(--ff-text-primary);
+  --brand-950: #10283a;
+  --brand-900: var(--ff-brand-dark);
+  --brand-800: #0b639b;
+  --brand-700: var(--ff-brand-blue);
+  --brand-600: #168bd0;
+  --brand-100: rgba(130, 188, 229, 0.18);
+  --brand-50: rgba(130, 188, 229, 0.10);
+  --cream: var(--ff-canvas);
+  --surface: rgba(20, 34, 48, 0.94);
+  --surface-solid: var(--ff-surface);
+  --line: var(--ff-divider);
+  --muted: var(--ff-text-secondary);
+  --shadow: 0 18px 44px rgba(2, 10, 18, 0.30), 0 2px 8px rgba(2, 10, 18, 0.18);
+  --shadow-soft: 0 10px 28px rgba(2, 10, 18, 0.20);
+
+  /* Spacing */
+  --ff-space-1: 4px;
+  --ff-space-2: 8px;
+  --ff-space-3: 12px;
+  --ff-space-4: 16px;
+  --ff-space-5: 20px;
+  --ff-space-6: 24px;
+  --ff-space-8: 32px;
+  --ff-space-10: 40px;
+  --ff-space-12: 48px;
+  --ff-space-16: 64px;
+
+  /* Radius */
+  --ff-radius-sm: 10px;
+  --ff-radius-control: 14px;
+  --ff-radius-button: 16px;
+  --ff-radius-card: 20px;
+  --ff-radius-hero: 24px;
+  --ff-radius-sheet: 24px;
+  --ff-radius-nav: 26px;
+  --ff-radius-pill: 999px;
+
+  /* Typography */
+  --ff-font-sans: "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --ff-text-hero: 34px;
+  --ff-text-screen: 28px;
+  --ff-text-metric: 32px;
+  --ff-text-section: 20px;
+  --ff-text-card: 18px;
+  --ff-text-body: 16px;
+  --ff-text-meta: 13px;
+  --ff-text-nav: 12px;
+  --ff-text-micro: 11px;
+
+  /* Motion */
+  --ff-motion-fast: 160ms;
+  --ff-motion-standard: 220ms;
+  --ff-motion-sheet: 280ms;
+  --ff-motion-hero: 340ms;
+  --ff-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Layout */
+  --ff-screen-pad: 20px;
+  --ff-section-gap: 32px;
+  --ff-card-pad: 18px;
+  --ff-hero-pad: 24px;
+  --ff-touch-min: 44px;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --ff-canvas: #f4f8fb;
+  --ff-surface: #ffffff;
+  --ff-surface-elevated: #eaf1f5;
+  --ff-surface-strong: #dde8ef;
+  --ff-text-primary: #203247;
+  --ff-text-secondary: #5e7080;
+  --ff-text-tertiary: #7b858f;
+  --ff-divider: rgba(41, 69, 103, 0.12);
+
+  --background: var(--ff-canvas);
+  --foreground: var(--ff-text-primary);
+  --brand-950: #203247;
+  --brand-900: var(--ff-brand-dark);
+  --brand-800: #0b639b;
+  --brand-700: var(--ff-brand-blue);
+  --brand-600: #168bd0;
+  --brand-100: #dceef9;
+  --brand-50: #edf6fc;
+  --cream: #f8fbfd;
+  --surface: rgba(255, 255, 255, 0.94);
+  --surface-solid: #ffffff;
+  --line: var(--ff-divider);
+  --muted: var(--ff-text-secondary);
+  --shadow: 0 14px 38px rgba(32, 50, 71, 0.10), 0 2px 8px rgba(32, 50, 71, 0.05);
+  --shadow-soft: 0 8px 24px rgba(32, 50, 71, 0.07);
+}
+
+html,
+body {
+  background: var(--ff-canvas);
+  color: var(--ff-text-primary);
+  font-family: var(--ff-font-sans);
+}
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(115% 62% at 50% -8%, rgba(0, 117, 190, 0.38) 0%, rgba(41, 69, 103, 0.23) 42%, transparent 72%),
+    linear-gradient(180deg, rgba(41, 69, 103, 0.10) 0%, transparent 34rem),
+    var(--ff-canvas);
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(115% 58% at 50% -8%, rgba(130, 188, 229, 0.34) 0%, rgba(0, 117, 190, 0.10) 44%, transparent 72%),
+    var(--ff-canvas);
+}
+
+/* Remove the old decorative grid. The environment should feel atmospheric, not technical. */
+body::before { display: none; }
+
+::selection {
+  background: rgba(130, 188, 229, 0.40);
+  color: var(--ff-text-primary);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-color: var(--ff-brand-lightblue);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--ff-text-primary);
+  letter-spacing: -0.025em;
+}
+
+h1 { font-weight: 700; }
+h2,
+h3 { font-weight: 600; }
+
+/* Important numbers should feel prominent without becoming technical. */
+.ff-metric,
+.progress-ring,
+.nutrition-hero [data-metric] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buttons: blue primary, calm neutral secondary. */
+.primary {
+  min-height: 50px;
+  border-radius: var(--ff-radius-button);
+  background: var(--ff-brand-blue);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 117, 190, 0.24);
+  transition: transform var(--ff-motion-fast) var(--ff-ease-out), box-shadow var(--ff-motion-fast) var(--ff-ease-out), filter var(--ff-motion-fast) ease;
+}
+.primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(0, 117, 190, 0.28);
+}
+.primary:active { transform: translateY(0) scale(0.99); }
+
+.secondary,
+.choice,
+.chip,
+.field input,
+.field select {
+  color: var(--ff-text-primary);
+  border-color: var(--ff-divider);
+  background: var(--ff-surface-elevated);
+  box-shadow: none;
+}
+
+.secondary:hover,
+.choice:hover,
+.chip:hover {
+  border-color: rgba(130, 188, 229, 0.42);
+  background: var(--ff-surface-strong);
+}
+
+.choice[data-selected="true"],
+.chip[data-selected="true"] {
+  border-color: rgba(130, 188, 229, 0.70);
+  background: rgba(0, 117, 190, 0.18);
+  color: var(--ff-text-primary);
+  box-shadow: inset 0 0 0 1px rgba(130, 188, 229, 0.20);
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--ff-brand-blue);
+  box-shadow: 0 0 0 4px rgba(0, 117, 190, 0.14);
+}
+
+/* Cards: ordinary surfaces are quiet; emphasis is earned. */
+.surface {
+  border: 1px solid var(--ff-divider);
+  border-radius: var(--ff-radius-card);
+  background: rgba(20, 34, 48, 0.92);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: none;
+}
+
+[data-theme="light"] .surface { background: rgba(255, 255, 255, 0.94); }
+
+.surface-soft {
+  border: 1px solid var(--ff-divider);
+  border-radius: var(--ff-radius-card);
+  background: var(--ff-surface-elevated);
+}
+
+.eyebrow,
+.brand-kicker {
+  color: var(--ff-brand-lightblue);
+}
+
+.subtle { color: var(--ff-text-secondary); }
+
+/* Keep Bentley identity clean and sans-serif; no faux seal/serif badge in the app shell. */
+.brand-kicker::before {
+  background: var(--ff-brand-blue);
+  color: white;
+  font-family: var(--ff-font-sans);
+  box-shadow: none;
+}
+.display-brand { font-family: var(--ff-font-sans); letter-spacing: -0.025em; }
+
+/* Meal imagery stays natural and visually richer than the chrome around it. */
+.meal-image {
+  border-color: var(--ff-divider);
+  background-color: var(--ff-surface-elevated);
+  box-shadow: none;
+}
+.meal-row {
+  border-color: var(--ff-divider);
+  background: var(--ff-surface);
+  box-shadow: none;
+}
+
+/* Hybrid floating navigation: stable, obvious, selected item gets a real capsule. */
+.app-nav {
+  border: 1px solid var(--ff-divider);
+  border-radius: var(--ff-radius-nav);
+  background: rgba(13, 22, 32, 0.78);
+  padding: 6px;
+  box-shadow: 0 16px 36px rgba(2, 10, 18, 0.26);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+[data-theme="light"] .app-nav {
+  background: rgba(255, 255, 255, 0.80);
+  box-shadow: 0 14px 32px rgba(32, 50, 71, 0.12);
+}
+
+.app-nav-item {
+  min-height: 44px;
+  border-radius: var(--ff-radius-pill);
+  color: var(--ff-text-secondary);
+  font-size: var(--ff-text-nav);
+  font-weight: 600;
+  transition: color var(--ff-motion-fast) var(--ff-ease-out), background var(--ff-motion-fast) var(--ff-ease-out), transform var(--ff-motion-fast) var(--ff-ease-out);
+}
+.app-nav-item:hover {
+  color: var(--ff-text-primary);
+  background: rgba(130, 188, 229, 0.09);
+}
+.app-nav-item[data-active="true"] {
+  color: #fff;
+  background: rgba(0, 117, 190, 0.92);
+}
+[data-theme="light"] .app-nav-item[data-active="true"] { color: #fff; }
+.app-nav-item:active { transform: scale(0.98); }
+.app-nav-icon svg { stroke-width: 1.9; }
+.app-nav-item[data-active="true"] .app-nav-icon svg { stroke-width: 2.25; }
+
+/* Nutrition hero: MyFitnessPal-like atmosphere, Bentley palette, Lifesum restraint inside. */
+.nutrition-hero {
+  border: 1px solid rgba(130, 188, 229, 0.15);
+  border-radius: var(--ff-radius-hero);
+  background:
+    radial-gradient(circle at 82% 4%, rgba(130, 188, 229, 0.30), transparent 15rem),
+    linear-gradient(145deg, #294567 0%, #0b639b 48%, #10283a 100%);
+  color: white;
+  box-shadow: 0 18px 44px rgba(2, 10, 18, 0.28);
+}
+.nutrition-hero::after { border-color: rgba(255,255,255,0.07); }
+.progress-ring {
+  background: conic-gradient(var(--ff-brand-lightblue) var(--value), rgba(255,255,255,.13) 0);
+}
+.progress-ring::before { background: #173147; }
+.macro-tile {
+  border-color: rgba(255,255,255,.09);
+  background: rgba(13, 22, 32, 0.22);
+}
+
+details.surface-soft > summary::after { color: var(--ff-brand-lightblue); }
+
+@media (max-width: 639px) {
+  body {
+    background:
+      radial-gradient(145% 54% at 50% -4%, rgba(0, 117, 190, 0.42) 0%, rgba(41, 69, 103, 0.20) 43%, transparent 72%),
+      var(--ff-canvas);
+  }
+  [data-theme="light"] body {
+    background:
+      radial-gradient(145% 50% at 50% -4%, rgba(130, 188, 229, 0.38) 0%, rgba(0, 117, 190, 0.08) 43%, transparent 72%),
+      var(--ff-canvas);
+  }
+  .app-nav {
+    left: max(16px, env(safe-area-inset-left));
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    min-height: 70px;
+    border-radius: var(--ff-radius-nav);
+  }
+  .app-nav-item {
+    gap: 3px;
+    padding: 8px 5px 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

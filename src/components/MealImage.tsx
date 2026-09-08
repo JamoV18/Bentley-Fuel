@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import "./recommendation-completeness.css";
+import "./artwork-first.css";
 import ServingAccurateFoodIllustration from "@/components/ServingAccurateFoodIllustration";
 import { foodIllustrationKind } from "@/lib/foodIllustrations";
 import { canonicalFoodArtId, splitComposedFoodArtName } from "@/lib/foodArtIdentity";
@@ -21,6 +22,11 @@ const BOWL_KINDS = new Set([
 const DRINK_KINDS = new Set(["raspberry-peach-smoothie", "avocado-spinach-smoothie"]);
 
 function servingVesselForName(name: string): ServingVessel {
+  const normalized = name.trim().toLowerCase();
+  // The dining feed contains rotating smoothie names that are not all present
+  // in the historical exact-name catalog. The serving form is still certain.
+  if (/\b(smoothie|milkshake|shake)\b/.test(normalized)) return "drink";
+
   const kind = foodIllustrationKind(name);
   if (kind && PLATE_KINDS.has(kind)) return "plate";
   if (kind && BOWL_KINDS.has(kind)) return "bowl";
@@ -93,7 +99,7 @@ export default function MealImage({
         data-plate-reference="10.5in"
         data-art-source="local"
       >
-        {parts.slice(0, 4).map((part) => {
+        {parts.slice(0, 4).map((part, index) => {
           const vessel = servingVesselForName(part);
           const visual = menuVisualForName(part);
           return (
@@ -102,6 +108,7 @@ export default function MealImage({
               data-serving-vessel={vessel}
               data-visual-kind={visual.kind}
               data-visual-variant={visual.variant}
+              data-part-index={index}
               key={`${canonicalFoodArtId(part)}-${part}`}
             >
               <ResolvedFoodArt localArt={<LocalFoodArt name={part} />} eager={aspect === "hero"} />

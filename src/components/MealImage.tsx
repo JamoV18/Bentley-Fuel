@@ -3,31 +3,16 @@
 import { useState } from "react";
 import "./recommendation-completeness.css";
 import "./artwork-first.css";
-import AutoFoodPhoto from "@/components/AutoFoodPhoto";
 
-function approvedResolverUrl(imageUrl: string | undefined): string | undefined {
-  return imageUrl?.startsWith("/api/food-art/image/") ? imageUrl : undefined;
-}
-
-function officialDiningPhotoUrl(imageUrl: string | undefined): string | undefined {
-  if (!imageUrl || imageUrl.startsWith("/api/food-art/image/")) return undefined;
+function trustedMealImageUrl(imageUrl: string | undefined): string | undefined {
+  if (!imageUrl) return undefined;
+  if (imageUrl.startsWith("/api/food-art/image/")) return imageUrl;
   try {
     const url = new URL(imageUrl);
-    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined;
+    return url.protocol === "https:" ? url.toString() : undefined;
   } catch {
     return undefined;
   }
-}
-
-function ApprovedMaster({ name, src, className = "", aspect = "square" }: { name: string; src: string; className?: string; aspect?: "square" | "wide" | "hero" }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return <AutoFoodPhoto name={name} aspect={aspect} className={className} />;
-  return (
-    <div role="img" aria-label={`${name} food artwork`} className={`meal-image meal-image-${aspect} meal-image-master-first ${className}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" aria-hidden="true" className="ff-food-master" loading={aspect === "hero" ? "eager" : "lazy"} decoding="async" draggable={false} onError={() => setFailed(true)} />
-    </div>
-  );
 }
 
 export default function MealImage({
@@ -41,12 +26,43 @@ export default function MealImage({
   className?: string;
   aspect?: "square" | "wide" | "hero";
 }) {
-  const approvedMaster = approvedResolverUrl(imageUrl);
-  if (approvedMaster) return <ApprovedMaster name={name} src={approvedMaster} aspect={aspect} className={className} />;
+  const source = trustedMealImageUrl(imageUrl);
+  const [failedSource, setFailedSource] = useState<string>();
+  const visibleSource = source && failedSource !== source ? source : undefined;
+
+  if (!visibleSource) {
+    return (
+      <div
+        role="img"
+        aria-label={`${name}; no verified food image available`}
+        className={`meal-image meal-image-${aspect} meal-image-data-only ${className}`}
+        data-image-status="not-required"
+      >
+        <span className="meal-image-data-only-line" aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
-    <div role="img" aria-label={`${name} food photo`} className={`meal-image meal-image-${aspect} meal-image-photo-first ${className}`}>
-      <AutoFoodPhoto name={name} sourceUrl={officialDiningPhotoUrl(imageUrl)} aspect={aspect} />
+    <div
+      role="img"
+      aria-label={`${name} verified food image`}
+      className={`meal-image meal-image-${aspect} meal-image-verified ${className}`}
+      data-image-status="verified"
+    >
+      {/* DineOnCampus/approved Falcon images are source assets. Rendering them
+          directly avoids turning imagery into a requirement for the UI. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={visibleSource}
+        alt=""
+        aria-hidden="true"
+        className="ff-food-verified"
+        loading={aspect === "hero" ? "eager" : "lazy"}
+        decoding="async"
+        draggable={false}
+        onError={() => setFailedSource(visibleSource)}
+      />
     </div>
   );
 }

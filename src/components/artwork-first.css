@@ -1,0 +1,231 @@
+/*
+ * Zero-cost artwork-first presentation.
+ *
+ * This layer deliberately leaves the meal data/recommendation system alone and
+ * changes only presentation: local SVG food families get the same visual
+ * prominence that approved premium masters will receive later.
+ */
+
+/* A composed meal should read as one intentional place setting, not several
+ * tiny icons floating across an oversized canvas. */
+.meal-image-composed {
+  align-items: center;
+  justify-content: center;
+  padding: clamp(.35rem, 1vw, .75rem) clamp(.5rem, 1.4vw, 1rem) !important;
+}
+
+.meal-image-composed::before {
+  width: 58% !important;
+  max-width: 34rem;
+  border: 0 !important;
+  background: radial-gradient(circle, rgba(255,255,255,.72) 0%, rgba(255,255,255,.26) 56%, transparent 76%) !important;
+  box-shadow: none !important;
+}
+
+.meal-image-composed::after {
+  width: 62% !important;
+  height: 7% !important;
+  bottom: 10% !important;
+  opacity: .42 !important;
+  filter: blur(16px) !important;
+}
+
+.meal-image-composed-part {
+  height: 98% !important;
+  overflow: visible;
+}
+
+.meal-image-composed-part + .meal-image-composed-part {
+  margin-left: -8% !important;
+}
+
+.meal-image-composed[data-food-count="2"] .meal-image-composed-part-plate { width: 64% !important; }
+.meal-image-composed[data-food-count="2"] .meal-image-composed-part-bowl { width: 48% !important; }
+.meal-image-composed[data-food-count="2"] .meal-image-composed-part-ingredient { width: 46% !important; }
+.meal-image-composed[data-food-count="2"] .meal-image-composed-part-drink { width: 31% !important; }
+
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-plate { width: 56% !important; }
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-bowl { width: 42% !important; }
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-ingredient { width: 39% !important; }
+.meal-image-composed[data-food-count="3"] .meal-image-composed-part-drink { width: 27% !important; margin-left: -9% !important; }
+
+.meal-image-composed .meal-image-composed-part .ff-food-art,
+.meal-image-composed .meal-image-composed-part .ff-food-master {
+  width: 116% !important;
+  height: 116% !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.meal-image-composed .meal-image-composed-part-drink .ff-food-art,
+.meal-image-composed .meal-image-composed-part-drink .ff-food-master {
+  width: 108% !important;
+  height: 108% !important;
+}
+
+.meal-image-composed .meal-image-composed-part[data-part-index="0"] {
+  z-index: 4;
+  transform: translateX(3%) scale(1.08);
+}
+
+.meal-image-composed .meal-image-composed-part[data-part-index="1"] {
+  z-index: 3;
+  transform: translateY(3%) scale(1.02);
+}
+
+.meal-image-composed .meal-image-composed-part[data-part-index="2"] {
+  z-index: 5;
+  transform: translateY(5%) scale(1.03);
+}
+
+/* Smoothies and other drink-class local art should occupy enough visual space
+ * to read as a real part of the meal instead of a tiny plate-sized glyph. */
+.meal-image-vessel-drink {
+  --ff-art-width: 70%;
+  --ff-art-height: 88%;
+  --ff-art-paper: #fffaf1;
+  --ff-art-paper-2: #f6efe3;
+  --ff-art-glow: rgba(242, 181, 68, .2);
+}
+
+.meal-image-hero.meal-image-vessel-drink .ff-food-art {
+  width: min(70%, 29rem) !important;
+  height: 87% !important;
+}
+
+/* Recommendation cards follow the product hierarchy: artwork first, then the
+ * meal identity and essential nutrition. Deeper explanation remains available
+ * without competing with the first glance. */
+.ff-rec-hero {
+  grid-template-columns: 1fr !important;
+  min-height: 0 !important;
+  overflow: hidden;
+  border-radius: 1.55rem !important;
+  box-shadow: 0 24px 64px rgba(16,38,61,.13) !important;
+}
+
+.ff-rec-photo {
+  min-height: 23.5rem !important;
+  background: #f5f8fb;
+}
+
+.ff-rec-photo > *:first-child {
+  width: 100%;
+  height: 23.5rem !important;
+  min-height: 23.5rem !important;
+}
+
+.ff-rec-photo-shade {
+  background: linear-gradient(180deg, transparent 62%, rgba(8,22,34,.18) 100%) !important;
+}
+
+.ff-rec-photo-caption {
+  left: 1.25rem !important;
+  right: auto !important;
+  bottom: 1.05rem !important;
+  margin: 0;
+  padding: .48rem .7rem;
+  border: 1px solid rgba(255,255,255,.62);
+  border-radius: 999px;
+  background: rgba(255,255,255,.84);
+  color: #10263d !important;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(16,38,61,.09);
+  font-size: .64rem !important;
+  font-weight: 900 !important;
+  letter-spacing: .04em;
+}
+
+.ff-rec-hero-copy {
+  justify-content: flex-start !important;
+  padding: clamp(1.55rem, 3vw, 2.25rem) clamp(1.4rem, 4vw, 2.6rem) clamp(1.8rem, 4vw, 2.6rem) !important;
+}
+
+.ff-rec-meal-title {
+  max-width: 24ch !important;
+  margin-top: .5rem !important;
+  font-size: clamp(2rem, 4vw, 3.25rem) !important;
+  line-height: .98 !important;
+  letter-spacing: -.045em !important;
+}
+
+.ff-rec-reason {
+  max-width: 48rem;
+  margin-top: .72rem !important;
+  font-size: .84rem !important;
+  line-height: 1.55 !important;
+}
+
+/* The first-glance nutrition contract is calories + protein. Carbs/fat remain
+ * available elsewhere in the recommendation and progress views. */
+.ff-rec-macros {
+  grid-template-columns: repeat(2, minmax(0, 10rem)) !important;
+  width: fit-content;
+  min-width: min(100%, 20rem);
+  margin-top: 1rem !important;
+  padding: .8rem 0 !important;
+}
+
+.ff-rec-macro:nth-child(n+3) {
+  display: none;
+}
+
+.ff-rec-macro:nth-child(2) {
+  border-right: 0 !important;
+}
+
+.ff-rec-macro dd {
+  font-size: clamp(1.12rem, 2vw, 1.45rem) !important;
+}
+
+/* Components stay obvious, but become a compact supporting row rather than
+ * vertically overpowering the meal decision. */
+.ff-rec-components {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: .8rem 1.2rem !important;
+  margin-top: 1rem !important;
+}
+
+.ff-rec-component {
+  min-width: 0;
+  padding: .68rem 0;
+  border-top: 1px solid rgba(16,38,61,.08);
+}
+
+.ff-rec-actions {
+  max-width: 34rem;
+  margin-top: 1rem !important;
+}
+
+@media (max-width: 760px) {
+  .ff-rec-photo,
+  .ff-rec-photo > *:first-child {
+    height: 18.5rem !important;
+    min-height: 18.5rem !important;
+  }
+
+  .ff-rec-meal-title {
+    max-width: 18ch !important;
+    font-size: clamp(1.9rem, 8.5vw, 2.65rem) !important;
+  }
+
+  .ff-rec-components {
+    grid-template-columns: 1fr !important;
+    gap: .15rem !important;
+  }
+
+  .meal-image-composed-part + .meal-image-composed-part {
+    margin-left: -10% !important;
+  }
+
+  .meal-image-composed[data-food-count="3"] .meal-image-composed-part-plate { width: 62% !important; }
+  .meal-image-composed[data-food-count="3"] .meal-image-composed-part-bowl { width: 44% !important; }
+  .meal-image-composed[data-food-count="3"] .meal-image-composed-part-ingredient { width: 42% !important; }
+  .meal-image-composed[data-food-count="3"] .meal-image-composed-part-drink { width: 29% !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meal-image-composed-part {
+    transition: none !important;
+  }
+}

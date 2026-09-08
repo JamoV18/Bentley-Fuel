@@ -4,8 +4,8 @@ import { useState, type ReactNode } from "react";
 import "./recommendation-completeness.css";
 import ServingAccurateFoodIllustration from "@/components/ServingAccurateFoodIllustration";
 import { foodIllustrationKind } from "@/lib/foodIllustrations";
-import { canonicalFoodArtId, foodArtImageUrl, splitComposedFoodArtName } from "@/lib/foodArtIdentity";
-import { menuServingVesselForName } from "@/lib/menuIllustrationCatalog";
+import { canonicalFoodArtId, splitComposedFoodArtName } from "@/lib/foodArtIdentity";
+import { menuServingVesselForName, menuVisualForName } from "@/lib/menuIllustrationCatalog";
 
 type ServingVessel = "plate" | "bowl" | "drink" | "ingredient";
 
@@ -32,25 +32,27 @@ function approvedResolverUrl(imageUrl: string | undefined): string | undefined {
   return imageUrl?.startsWith("/api/food-art/image/") ? imageUrl : undefined;
 }
 
-function MasterFoodArt({
-  name,
+function ResolvedFoodArt({
   sourceUrl,
-  fallback,
+  localArt,
   eager = false,
 }: {
-  name: string;
   sourceUrl?: string;
-  fallback: ReactNode;
+  localArt: ReactNode;
   eager?: boolean;
 }) {
+  const src = approvedResolverUrl(sourceUrl);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const src = approvedResolverUrl(sourceUrl) ?? foodArtImageUrl(name);
 
-  if (failedSrc === src) return <>{fallback}</>;
+  // Zero-cost is the default production path. We only touch the remote resolver
+  // when the dining record already points at an approved Falcon master asset.
+  // Missing artwork never triggers generation and never blocks the local art.
+  if (!src || failedSrc === src) return <>{localArt}</>;
+
   return (
     // A plain img is intentional here: the resolver redirects to the exact
     // immutable PNG master. We do not want a framework optimizer to resize,
-    // recompress, or transcode the approved artwork behind the user's back.
+    // recompress, or transcode approved artwork behind the user's back.
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
@@ -65,7 +67,7 @@ function MasterFoodArt({
   );
 }
 
-function LegacyFallback({ name }: { name: string }) {
+function LocalFoodArt({ name }: { name: string }) {
   return <ServingAccurateFoodIllustration name={name} />;
 }
 
@@ -86,19 +88,23 @@ export default function MealImage({
       <div
         role="img"
         aria-label={`${name} complete meal illustration`}
-        className={`meal-image meal-image-${aspect} meal-image-illustrated meal-image-composed meal-image-master-composed ${className}`}
+        className={`meal-image meal-image-${aspect} meal-image-illustrated meal-image-composed meal-image-local-first ${className}`}
         data-food-count={Math.min(parts.length, 4)}
         data-plate-reference="10.5in"
+        data-art-source="local"
       >
         {parts.slice(0, 4).map((part) => {
           const vessel = servingVesselForName(part);
+          const visual = menuVisualForName(part);
           return (
             <span
               className={`meal-image-composed-part meal-image-composed-part-${vessel}`}
               data-serving-vessel={vessel}
+              data-visual-kind={visual.kind}
+              data-visual-variant={visual.variant}
               key={`${canonicalFoodArtId(part)}-${part}`}
             >
-              <MasterFoodArt name={part} eager={aspect === "hero"} fallback={<LegacyFallback name={part} />} />
+              <ResolvedFoodArt localArt={<LocalFoodArt name={part} />} eager={aspect === "hero"} />
             </span>
           );
         })}
@@ -107,18 +113,23 @@ export default function MealImage({
   }
 
   const vessel = servingVesselForName(name);
+  const visual = menuVisualForName(name);
+  const resolvedSource = approvedResolverUrl(imageUrl);
+
   return (
     <div
       role="img"
       aria-label={`${name} food illustration`}
-      className={`meal-image meal-image-${aspect} meal-image-illustrated meal-image-vessel-${vessel} meal-image-master-first ${className}`}
+      className={`meal-image meal-image-${aspect} meal-image-illustrated meal-image-vessel-${vessel} meal-image-local-first ${className}`}
       data-plate-reference={vessel === "plate" ? "10.5in" : undefined}
+      data-visual-kind={visual.kind}
+      data-visual-variant={visual.variant}
+      data-art-source={resolvedSource ? "approved-master" : "local"}
     >
-      <MasterFoodArt
-        name={name}
-        sourceUrl={imageUrl}
+      <ResolvedFoodArt
+        sourceUrl={resolvedSource}
         eager={aspect === "hero"}
-        fallback={<LegacyFallback name={name} />}
+        localArt={<LocalFoodArt name={name} />}
       />
     </div>
   );

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
-import MealImage from "@/components/MealImage";
+import LocationImage from "@/components/LocationImage";
 
 export default function LocationChoiceCard({
   id,
@@ -66,7 +66,7 @@ export default function LocationChoiceCard({
           animate={departing && !reduceMotion ? { scale: 1.018 } : { scale: 1 }}
           transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
-          <MealImage name={`${name} healthy food`} aspect="hero" className="h-40" />
+          <LocationImage id={id} name={name} aspect="hero" className="h-40" />
         </motion.div>
         <div className="p-3.5">
           <div className="flex items-start justify-between gap-3">

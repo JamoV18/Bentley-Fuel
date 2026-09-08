@@ -33,17 +33,21 @@ export interface MealHistoryScore {
   interactionPreferenceBoost?: number;
   /** Explicit user-confirmed progressive-profile preference boost. Optional for legacy score fixtures. */
   progressivePreferenceBoost?: number;
+  /** Explicit user-confirmed progressive-profile show-fewer penalty. Optional for legacy score fixtures. */
+  progressiveAversionPenalty?: number;
   /** Human-readable learned signals that materially supported the candidate. */
   learnedSignals: string[];
   /** Human-readable user-confirmed progressive-profile signals. Optional for legacy score fixtures. */
   progressiveSignals?: string[];
+  /** Human-readable user-confirmed show-fewer signals. Optional for legacy score fixtures. */
+  progressiveNegativeSignals?: string[];
   /** Human-readable editor/replacement signals. */
   interactionSignals?: string[];
   /** Distinct historical meals supporting the broad learned preference. */
   learnedEvidenceCount: number;
   /** Deliberate interaction events that materially affected this candidate. */
   interactionEvidenceCount?: number;
-  /** Explicit dislikes plus repeated item-removal evidence. */
+  /** Explicit dislikes plus repeated item-removal and confirmed show-fewer evidence. */
   aversionPenalty: number;
   /** Portion of aversionPenalty attributable to repeated item removals. */
   interactionAversionPenalty?: number;
@@ -59,14 +63,8 @@ const round1 = (value: number) => Math.round(value * 10) / 10;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const normalizedDisplayName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-/**
- * DineOnCampus menu IDs can embed the menu date. Strip that date segment so the
- * same upstream item can still match itself tomorrow without collapsing IDs
- * from different dining locations into one identity.
- */
 const stableMenuItemId = (id: string) => id.replace(/-\d{4}-\d{2}-\d{2}-item-/, "-item-");
 
-/** Approximate consumed nutrition when the student supplies the lightweight finish prompt. */
 export function estimateConsumedNutrition(
   nutrition: NutritionFacts,
   completionFraction: MealCompletionFraction,
@@ -83,11 +81,9 @@ const itemTokens = (build: MealBuild): Set<string> =>
   }));
 
 const componentTokens = (build: MealBuild): Set<string> =>
-  new Set(
-    build.items.flatMap((line) =>
-      (line.componentSelections ?? []).map((selection) => `component:${selection.componentId}`),
-    ),
-  );
+  new Set(build.items.flatMap((line) =>
+    (line.componentSelections ?? []).map((selection) => `component:${selection.componentId}`),
+  ));
 
 const jaccard = (a: ReadonlySet<string>, b: ReadonlySet<string>): number => {
   if (a.size === 0 && b.size === 0) return 1;
@@ -98,11 +94,6 @@ const jaccard = (a: ReadonlySet<string>, b: ReadonlySet<string>): number => {
   return intersection / union.size;
 };
 
-/**
- * Similarity is driven primarily by menu-item identity, with custom components
- * refining whether two builds of the same configurable item are actually alike.
- * Captured display names provide a second stable signal across menu dates.
- */
 export function mealBuildSimilarity(a: MealBuild, b: MealBuild): number {
   const items = jaccard(itemTokens(a), itemTokens(b));
   const aComponents = componentTokens(a);
@@ -115,15 +106,9 @@ export function mealBuildSimilarity(a: MealBuild, b: MealBuild): number {
 const locationEvidenceMultiplier = (candidate: MealCandidate, entry: MealHistoryEntry): number =>
   entry.locationId === candidate.build.locationId ? 1.15 : 0.75;
 
-/**
- * A self-built meal is slightly stronger intent evidence than accepting a
- * recommendation. Both count only after the student actually saves/chooses the
- * meal; simply displaying a recommendation never creates MealHistoryEntry data.
- */
 const unconfirmedSelectionWeight = (entry: MealHistoryEntry): number =>
   entry.source === "self-built" ? 0.65 : 0.35;
 
-/** Rebuild learned signals after a student says not to assume a protein/cuisine family. */
 function visibleLearnedSignals(
   learned: ReturnType<typeof scoreLearnedMealPreferences>,
   suppressProtein: boolean,
@@ -155,24 +140,9 @@ function visibleLearnedSignals(
 }
 
 /**
- * History influences ranking modestly; nutrition remains authoritative.
- *
- * Evidence hierarchy:
- * - recommendation exposure/view: zero ranking effect
- * - one item removal: zero (an edit is not automatically a dislike)
- * - repeated item removal: small bounded negative evidence
- * - accepted replacement: small bounded positive evidence
- * - saved selection without a finish response: weak positive evidence
- * - reported zero consumption: no positive taste evidence
- * - partial/full consumption: progressively stronger evidence
- * - explicit like/dislike: strongest direct signal
- *
- * Exact affinity and repetition remain separate so repeated successful choices
- * can teach preference without trapping the student in the same meal every day.
- * Broad protein/cuisine/station/size/time learning requires repeated evidence and
- * is separately capped before joining the same overall +10 behavior ceiling.
- * Progressive-profile answers can confirm a soft boost or suppress a broad
- * protein/cuisine assumption; they never become hard dietary restrictions.
+ * History influences ranking modestly; nutrition remains authoritative. Explicit
+ * "show fewer" answers join the aversion side as a bounded soft penalty and can
+ * never become an eligibility rule.
  */
 export function scoreMealHistory(
   candidate: MealCandidate,
@@ -201,15 +171,12 @@ export function scoreMealHistory(
     if (entry.completionFraction === undefined) {
       unconfirmedPreference += weightedSimilarity * unconfirmedSelectionWeight(entry);
     } else if (entry.completionFraction > 0) {
-      // Finishing more of a meal is stronger evidence than merely selecting it.
       confirmedPreference += weightedSimilarity * (0.75 + entry.completionFraction * 2.5);
     }
 
     if (entry.explicitFeedback === "like") explicitPreference += weightedSimilarity * 4.5;
     if (entry.explicitFeedback === "dislike") aversion += weightedSimilarity * 15;
 
-    // Recent repetition is independent of preference. A meal can be liked and
-    // still be temporarily deprioritized to preserve useful variety.
     const repeatWeight = [10, 7, 4, 2, 1][index] ?? 0;
     repetition += similarity * repeatWeight * (entry.locationId === candidate.build.locationId ? 1 : 0.8);
   });
@@ -231,14 +198,12 @@ export function scoreMealHistory(
     learned.stationBoost + learned.mealSizeBoost + learned.timingBoost,
   ));
 
-  // Interaction evidence shares the same overall ceiling rather than creating a
-  // second path that could overwhelm nutrition fit.
   const preferenceBoost = round1(clamp(
     Math.min(1.5, unconfirmedPreference) + confirmedPreference + explicitPreference + automaticLearnedBoost + progressive.totalBoost + interaction.preferenceBoost,
     0,
     10,
   ));
-  const aversionPenalty = round1(clamp(aversion + interaction.aversionPenalty, 0, 25));
+  const aversionPenalty = round1(clamp(aversion + interaction.aversionPenalty + progressive.totalPenalty, 0, 25));
   const repetitionPenalty = round1(clamp(repetition, 0, 18));
   const totalAdjustment = round1(clamp(preferenceBoost - aversionPenalty - repetitionPenalty, -30, 10));
   const progressiveEvidenceCount = resolvedProgressivePreferences
@@ -250,8 +215,10 @@ export function scoreMealHistory(
     learnedPreferenceBoost: automaticLearnedBoost,
     interactionPreferenceBoost: interaction.preferenceBoost,
     progressivePreferenceBoost: progressive.totalBoost,
+    progressiveAversionPenalty: progressive.totalPenalty,
     learnedSignals: visibleLearnedSignals(learned, suppressProtein, suppressCuisine),
     progressiveSignals: progressive.signals,
+    progressiveNegativeSignals: progressive.negativeSignals,
     interactionSignals: interaction.signals,
     learnedEvidenceCount: Math.max(learned.evidenceCount, progressiveEvidenceCount),
     interactionEvidenceCount: interaction.evidenceCount,

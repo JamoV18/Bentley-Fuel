@@ -1,0 +1,29 @@
+/* Falcon Fuel site canvas
+ * A pale Bentley-blue field gives the whole product one recognizable atmosphere.
+ * Keep it quiet: surfaces, food objects, and data should carry the contrast.
+ */
+:root {
+  --ff-canvas: #edf6fb;
+  --ff-canvas-deep: #e8f2f8;
+}
+
+html,
+body {
+  background-color: var(--ff-canvas) !important;
+}
+
+body {
+  background-image: linear-gradient(180deg, rgba(255,255,255,.28) 0, rgba(255,255,255,0) 24rem) !important;
+  background-repeat: no-repeat !important;
+}
+
+body::before {
+  opacity: .09 !important;
+}
+
+@media (max-width: 639px) {
+  body {
+    background-color: var(--ff-canvas) !important;
+    background-image: linear-gradient(180deg, rgba(255,255,255,.2) 0, rgba(255,255,255,0) 18rem) !important;
+  }
+}

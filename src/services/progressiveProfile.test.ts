@@ -54,11 +54,12 @@ test("three successful chicken choices can trigger one narrow preference questio
   assert.ok(prompt);
   assert.equal(prompt.key, "protein:chicken");
   assert.equal(prompt.kind, "protein");
+  assert.equal(prompt.direction, "favor");
   assert.equal(prompt.evidenceCount, 3);
   assert.match(prompt.question, /favor/i);
 });
 
-test("zero-consumption and disliked meals do not manufacture a preference prompt", () => {
+test("one explicit dislike plus zero-consumption does not manufacture a negative preference", () => {
   const history = [
     meal("3", "Chicken Caesar Salad", { completionFraction: 0 }),
     meal("2", "Chicken Burrito", { explicitFeedback: "dislike" }),
@@ -67,9 +68,33 @@ test("zero-consumption and disliked meals do not manufacture a preference prompt
   assert.equal(deriveProgressivePreferencePrompt(history, [], new Date("2026-09-01T12:00:00.000Z")), undefined);
 });
 
+test("three explicit seafood dislikes can trigger a show-fewer question", () => {
+  const history = [
+    meal("3", "Grilled Salmon", { explicitFeedback: "dislike" }),
+    meal("2", "Tuna Poke Bowl", { explicitFeedback: "dislike" }),
+    meal("1", "Fish Tacos", { explicitFeedback: "dislike" }),
+  ];
+  const prompt = deriveProgressivePreferencePrompt(history, [], new Date("2026-09-01T12:00:00.000Z"));
+  assert.ok(prompt);
+  assert.equal(prompt.key, "protein:seafood");
+  assert.equal(prompt.direction, "avoid");
+  assert.equal(prompt.evidenceCount, 3);
+  assert.match(prompt.question, /fewer/i);
+});
+
 test("confirmed neutral answer prevents Falcon Fuel from repeatedly assuming the same preference", () => {
   const history = [meal("3", "Chicken Caesar Salad"), meal("2", "Chicken Burrito"), meal("1", "Grilled Chicken")];
   assert.equal(deriveProgressivePreferencePrompt(history, [answer({ response: "neutral" })], new Date("2026-10-01T12:00:00.000Z")), undefined);
+});
+
+test("confirmed show-fewer answer prevents the same family from being asked again", () => {
+  const history = [
+    meal("3", "Grilled Salmon", { explicitFeedback: "dislike" }),
+    meal("2", "Tuna Poke Bowl", { explicitFeedback: "dislike" }),
+    meal("1", "Fish Tacos", { explicitFeedback: "dislike" }),
+  ];
+  const avoided = answer({ key: "protein:seafood", value: "seafood", label: "seafood meals", response: "avoid" });
+  assert.equal(deriveProgressivePreferencePrompt(history, [avoided], new Date("2026-10-01T12:00:00.000Z")), undefined);
 });
 
 test("ask later snoozes a question for two weeks, then allows the evidence to be reconsidered", () => {
@@ -79,10 +104,11 @@ test("ask later snoozes a question for two weeks, then allows the evidence to be
   assert.equal(deriveProgressivePreferencePrompt(history, [later], new Date("2026-09-15T12:00:00.000Z"))?.key, "protein:chicken");
 });
 
-test("progressive profile repository sorts answers newest first and rejects malformed rows", () => {
+test("progressive profile repository sorts answers newest first and accepts bounded show-fewer responses", () => {
   const repository = createLocalProgressiveProfileRepository(new MemoryStorage());
   repository.upsert(answer({ id: "older", answeredAt: "2026-08-01T12:00:00.000Z" }));
-  repository.upsert(answer({ id: "newer", answeredAt: "2026-08-31T12:00:00.000Z", response: "neutral" }));
+  repository.upsert(answer({ id: "newer", answeredAt: "2026-08-31T12:00:00.000Z", response: "avoid" }));
   assert.deepEqual(repository.getRecent().map((entry) => entry.id), ["newer", "older"]);
+  assert.equal(repository.getRecent()[0].response, "avoid");
   assert.throws(() => repository.upsert(answer({ id: "bad", evidenceCount: 0 })));
 });

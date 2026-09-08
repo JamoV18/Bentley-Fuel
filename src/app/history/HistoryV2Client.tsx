@@ -109,12 +109,17 @@ export default function HistoryV2Client({ locationNames, stationNames, itemNames
     <AppNav />
 
     <motion.section className="ff-history-story" initial={reduceMotion ? false : {opacity:0,y:8}} animate={{opacity:1,y:0}} transition={reduceMotion ? {duration:0}:{duration:.35,ease:[.22,1,.36,1]}}>
-      <p className="eyebrow">Last completed week</p><h2>{story.title}</h2><p>{story.copy}</p><span className="ff-history-confidence">{confidenceText(report)}</span>
-      <div className="ff-history-facts">
-        <div className="ff-history-fact"><strong>{checkIn}</strong><span>of saved meals were confirmed</span></div>
-        <div className="ff-history-fact"><strong>{proteinDays}</strong><span>complete days supported your protein target</span></div>
-        <div className="ff-history-fact"><strong>{dining}</strong><span>{report.dining ? `of confirmed meals were at ${locationNames[report.dining.topLocationId] ?? "your top location"}` : "location pattern needs more meals"}</span></div>
+      <div className="ff-history-story-main">
+        <div className="ff-history-story-topline"><p className="eyebrow">Last completed week</p><span>Weekly read</span></div>
+        <h2>{story.title}</h2>
+        <p className="ff-history-story-copy">{story.copy}</p>
+        <p className="ff-history-confidence"><span aria-hidden="true" />{confidenceText(report)}</p>
       </div>
+      <aside className="ff-history-evidence-rail" aria-label="Weekly evidence">
+        <div className="ff-history-fact"><span>Check-ins</span><strong>{checkIn}</strong><p>of saved meals were confirmed</p></div>
+        <div className="ff-history-fact"><span>Protein support</span><strong>{proteinDays}</strong><p>complete days supported your protein target</p></div>
+        <div className="ff-history-fact"><span>Dining pattern</span><strong>{dining}</strong><p>{report.dining ? `of confirmed meals were at ${locationNames[report.dining.topLocationId] ?? "your top location"}` : "needs a few more confirmed meals"}</p></div>
+      </aside>
     </motion.section>
 
     <WeeklyFocusPanel focus={focus} />

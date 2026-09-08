@@ -1,0 +1,120 @@
+/*
+ * Today composition polish
+ * Keep identity/navigation present, but get the actual dining decision above the fold.
+ */
+
+.ff-v2-shell {
+  --ff-page-top-local: clamp(1.05rem, 1.8vw, 1.55rem);
+  padding-top: var(--ff-page-top-local) !important;
+}
+
+.ff-v2-header {
+  align-items: center;
+  margin-bottom: .72rem;
+}
+
+.ff-v2-header-copy {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: .9rem;
+  row-gap: .18rem;
+}
+
+.ff-v2-header-copy .ff-v2-kicker {
+  grid-column: 1 / -1;
+  font-size: .6rem;
+  letter-spacing: .18em;
+}
+
+.ff-v2-header h1 {
+  margin: 0;
+  font-size: clamp(1.85rem, 3.2vw, 2.7rem);
+  line-height: .98;
+  letter-spacing: -.048em;
+}
+
+.ff-v2-header-copy > p:last-child {
+  margin: 0;
+  font-size: .76rem;
+  font-weight: 720;
+}
+
+.ff-v2-shell > .app-nav {
+  margin-top: .68rem;
+}
+
+@media (min-width: 640px) {
+  .ff-v2-shell > .app-nav .app-nav-item {
+    padding-top: .66rem;
+    padding-bottom: .62rem;
+  }
+}
+
+.ff-v2-daybar {
+  gap: .5rem;
+  margin: .58rem 0 .92rem;
+  padding: .18rem 0 .38rem;
+}
+
+.ff-v2-daybar button {
+  min-height: 2.18rem;
+}
+
+.ff-v2-daybar-current {
+  gap: 0;
+  padding: .16rem .65rem;
+}
+
+.ff-v2-daybar-current span {
+  font-size: .56rem;
+  letter-spacing: .14em;
+}
+
+.ff-v2-daybar-current strong {
+  font-size: .76rem;
+}
+
+.ff-v2-daybar small {
+  font-size: .67rem;
+}
+
+.ff-v2-data-note {
+  margin-bottom: .85rem;
+  padding: .62rem .82rem;
+  font-size: .68rem;
+}
+
+/* The decision is the visual anchor. */
+.ff-v2-hero {
+  min-height: min(31rem, calc(100vh - 15rem));
+}
+
+.ff-v2-hero-visual,
+.ff-v2-hero-image {
+  min-height: min(29rem, calc(100vh - 17rem)) !important;
+}
+
+@media (max-width: 639px) {
+  .ff-v2-header {
+    margin-bottom: .45rem;
+  }
+  .ff-v2-header-copy {
+    grid-template-columns: 1fr;
+    gap: .14rem;
+  }
+  .ff-v2-header-copy .ff-v2-kicker { grid-column: auto; }
+  .ff-v2-header h1 { font-size: 2rem; }
+  .ff-v2-header-copy > p:last-child { font-size: .7rem; }
+  .ff-v2-daybar {
+    margin-top: .4rem;
+    margin-bottom: .72rem;
+  }
+  .ff-v2-daybar small { display: none; }
+  .ff-v2-data-note { font-size: .65rem; }
+  .ff-v2-hero,
+  .ff-v2-hero-visual,
+  .ff-v2-hero-image {
+    min-height: unset !important;
+  }
+}

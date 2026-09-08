@@ -12,6 +12,7 @@ import ManualMealBuilderClient from "./ManualMealBuilderClient";
 import MealBuilderClient from "./MealBuilderClient";
 
 const PERIOD_ORDER: MealPeriod[] = ["breakfast", "brunch", "lunch", "dinner", "late-night"];
+const CORE_PERIODS: MealPeriod[] = ["breakfast", "lunch", "dinner"];
 const readablePeriod = (period: MealPeriod) => period.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const periodMatches = (periods: readonly MealPeriod[] | undefined, period: MealPeriod) => !periods || periods.length === 0 || periods.includes("all-day") || periods.includes(period);
 const asMealPeriod = (value: string | undefined): MealPeriod | undefined => PERIOD_ORDER.includes(value as MealPeriod) ? value as MealPeriod : undefined;
@@ -155,25 +156,48 @@ export default async function MealBuilderPage({
   return (
     <>
       {isLiveMenuLocation && menuDate && availablePeriods.length > 0 && (
-        <div className="mx-auto w-full max-w-6xl px-6 pt-6">
-          <section className="surface-soft flex flex-wrap items-center justify-between gap-3 p-3.5" aria-label={`Choose ${location.shortName ?? location.name} meal period`}>
-            <div>
-              <p className="eyebrow">{location.shortName ?? location.name} · {formatMenuDate(menuDate)}</p>
-              <p className="mt-1 text-sm font-bold text-emerald-950">Choose the menu Falcon Fuel should use</p>
+        <div className="mx-auto w-full max-w-6xl px-6 pt-5">
+          <nav
+            className="overflow-hidden rounded-[1.65rem] border border-slate-900/10 bg-white/85 shadow-[0_18px_48px_rgba(16,38,61,0.07)] backdrop-blur-xl"
+            aria-label={`Choose ${location.shortName ?? location.name} meal period`}
+          >
+            <div className="grid grid-cols-3">
+              {CORE_PERIODS.map((period, index) => {
+                const available = availablePeriods.includes(period);
+                const active = selectedPeriod === period;
+                const directionalMark = index === 0 ? "←" : index === CORE_PERIODS.length - 1 ? "→" : "";
+                const sharedClass = [
+                  "relative flex min-h-[5.25rem] flex-col justify-center px-4 py-3 text-center transition sm:min-h-[5.7rem] sm:px-6",
+                  index > 0 ? "border-l border-slate-900/8" : "",
+                  active ? "bg-[#10263d] text-white" : available ? "text-[#10263d] hover:bg-[#eef8ff]" : "cursor-not-allowed bg-slate-50/70 text-slate-400",
+                ].filter(Boolean).join(" ");
+                const inner = (
+                  <>
+                    <span className={`text-[.58rem] font-black uppercase tracking-[.18em] ${active ? "text-[#82bce5]" : "text-[#0075be]"}`}>
+                      {active ? "Viewing" : available ? (index === 0 ? "Earlier" : index === 2 ? "Later" : "Midday") : "Not published"}
+                    </span>
+                    <strong className={`mt-1 flex items-center justify-center gap-2 tracking-[-.03em] ${active ? "text-xl sm:text-2xl" : "text-base sm:text-lg"}`}>
+                      {index === 0 && directionalMark && <span aria-hidden="true" className="text-sm opacity-55">{directionalMark}</span>}
+                      {readablePeriod(period)}
+                      {index === 2 && directionalMark && <span aria-hidden="true" className="text-sm opacity-55">{directionalMark}</span>}
+                    </strong>
+                    {active && <span className="mt-1 text-[.64rem] font-bold text-white/62">{formatMenuDate(menuDate)}</span>}
+                    {active && <span className="absolute inset-x-[18%] bottom-0 h-[3px] rounded-t-full bg-[#42b7b0]" />}
+                  </>
+                );
+
+                return available ? (
+                  <Link key={period} href={periodHref(period)} className={sharedClass} aria-current={active ? "page" : undefined}>
+                    {inner}
+                  </Link>
+                ) : (
+                  <span key={period} className={sharedClass} aria-disabled="true">
+                    {inner}
+                  </span>
+                );
+              })}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {availablePeriods.map((period) => (
-                <Link
-                  key={period}
-                  href={periodHref(period)}
-                  className={selectedPeriod === period ? "rounded-full bg-emerald-900 px-4 py-2 text-sm font-bold text-white shadow-sm" : "rounded-full border border-emerald-900/15 bg-white px-4 py-2 text-sm font-bold text-emerald-950 transition hover:border-emerald-800/30"}
-                  aria-current={selectedPeriod === period ? "page" : undefined}
-                >
-                  {readablePeriod(period)}
-                </Link>
-              ))}
-            </div>
-          </section>
+          </nav>
         </div>
       )}
       {content}

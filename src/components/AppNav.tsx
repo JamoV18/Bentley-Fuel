@@ -44,27 +44,32 @@ export default function AppNav({
             <Link
               key={item.href}
               href={item.href}
-              className="app-nav-item relative isolate overflow-hidden"
+              className="app-nav-item"
               data-active={active}
-              style={active ? { background: "transparent" } : undefined}
             >
+              <motion.span
+                className="app-nav-motion-label"
+                whileHover={reduceMotion ? undefined : { y: -1 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.965, y: 0 }}
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 34, mass: 0.42 }}
+              >
+                <motion.span
+                  className="app-nav-icon"
+                  animate={active && !reduceMotion ? { scale: [1, 1.08, 1], y: [0, -1, 0] } : { scale: 1, y: 0 }}
+                  transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <Icon name={item.icon} />
+                </motion.span>
+                <span>{item.label}</span>
+              </motion.span>
               {active && (
                 <motion.span
                   aria-hidden="true"
-                  className="absolute inset-0 z-0 rounded-[.95rem] bg-emerald-50/95"
-                  layoutId="app-nav-active-pill"
-                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38, mass: 0.45 }}
-                  style={{ boxShadow: "inset 0 0 0 1px rgba(0,117,190,.11), 0 3px 10px rgba(41,69,103,.07)" }}
+                  className="app-nav-glider"
+                  layoutId="app-nav-active-line"
+                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 430, damping: 34, mass: 0.55 }}
                 />
               )}
-              <motion.span
-                className="relative z-10 inline-flex items-center justify-center gap-[.42rem]"
-                whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-                transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <span className="app-nav-icon"><Icon name={item.icon} /></span>
-                <span>{item.label}</span>
-              </motion.span>
             </Link>
           );
         })}

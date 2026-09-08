@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import * as motion from "motion/react-client";
 import FlowHeader from "@/components/FlowHeader";
+import LocationImage from "@/components/LocationImage";
 import MealImage from "@/components/MealImage";
 import { bentleyMenuDate, formatMenuDate, normalizeBentleyMenuDate, shiftMenuDate } from "@/lib/bentleyDiningDate";
 import { getLocationView } from "@/lib/locationBrowsing";
@@ -95,7 +96,7 @@ export default async function LocationPage({
       ) : null}
 
       <section className="surface mt-6 grid overflow-hidden p-2 lg:grid-cols-[.9fr_1.1fr]">
-        <MealImage name={`${view.location.name} healthy meal`} aspect="hero" className="h-full min-h-64 lg:min-h-80" />
+        <LocationImage id={view.location.id} name={view.location.name} aspect="hero" className="h-full min-h-64 lg:min-h-80" />
         <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-9">
           <p className="eyebrow">Personalized meal</p>
           <h2 className="mt-1 text-3xl font-bold tracking-[-0.03em]">What should I eat here?</h2>

@@ -37,7 +37,7 @@ export type MealLogSlot = "breakfast" | "lunch" | "dinner" | "snack";
  * about. These are deliberately soft ranking signals, never dietary rules.
  */
 export type ProgressivePreferenceKind = "protein" | "cuisine";
-export type ProgressivePreferenceResponse = "favor" | "neutral" | "later";
+export type ProgressivePreferenceResponse = "favor" | "avoid" | "neutral" | "later";
 
 export interface ProgressivePreferenceAnswer {
   id: string;
@@ -47,7 +47,7 @@ export interface ProgressivePreferenceAnswer {
   value: string;
   label: string;
   response: ProgressivePreferenceResponse;
-  /** Number of positive historical meals that justified asking. */
+  /** Number of historical meal responses that justified asking. */
   evidenceCount: number;
   answeredAt: string;
 }

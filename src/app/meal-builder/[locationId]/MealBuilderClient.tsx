@@ -11,6 +11,7 @@ import SuccessMorphLabel from "@/components/SuccessMorphLabel";
 import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { getMealOrderReference } from "@/lib/mealOrderReference";
+import { findUsualRecommendation, personalizationCue, recommendationLabels } from "@/lib/recommendationPresentation";
 import { browserProfileRepository } from "@/services/profileRepository";
 import {
   adjustMealItemQuantity,
@@ -47,6 +48,7 @@ const portionSummary = (
   const guidance = portionGuidanceFor(item, selection);
   return [guidance.servingText, guidance.utensilText].filter(Boolean).join(" · ");
 };
+const rankingName = (ranking: RankedMealCandidate | undefined) => ranking?.computed.lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || "Complete meal";
 
 function reasonsFor(ranked: RankedMealCandidate | undefined, context: RecommendationContext | undefined): string[] {
   if (!ranked?.computed.nutrition || !context) return [];
@@ -123,7 +125,7 @@ export default function MealBuilderClient({
     const now = new Date();
     const planningDate = menuDate ? new Date(`${menuDate}T12:00:00`) : now;
     const historyRepository = browserMealHistoryRepository();
-    const recentHistory = historyRepository.getRecent(12);
+    const recentHistory = historyRepository.getRecent(40);
     const start = new Date(planningDate.getFullYear(), planningDate.getMonth(), planningDate.getDate());
     const end = new Date(planningDate.getFullYear(), planningDate.getMonth(), planningDate.getDate() + 1, 0, 0, 0, -1);
     const dayEntries = futureMenu ? [] : historyRepository.getByDateRange(start, end);
@@ -224,7 +226,12 @@ export default function MealBuilderClient({
   const heroName = computed.lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || "Complete meal";
   const locationLabel = resources.location?.shortName ?? resources.location?.name ?? "This location";
   const stationNames = [...new Set(computed.lines.map((line) => line.station?.name).filter(Boolean))];
-  const rankLabel = edited ? "Adjusted by you" : recommendationIndex === 0 ? "Best match" : `Alternative #${recommendationIndex + 1}`;
+  const usualRecommendation = findUsualRecommendation(rankings, recommendationContext?.recentHistory ?? [], mealPeriod);
+  const activeIsUsual = usualRecommendation?.index === recommendationIndex;
+  const heroLabels = edited ? ["ADJUSTED BY YOU"] : activeRanking ? recommendationLabels(activeRanking, recommendationIndex, rankings, activeIsUsual) : [];
+  const learnedCue = !edited ? personalizationCue(activeRanking) : undefined;
+  const usualRanking = usualRecommendation ? rankings[usualRecommendation.index] : undefined;
+  const usualName = rankingName(usualRanking);
   const topRecommendations = rankings.slice(0, 4).map((ranking, index) => ({ ranking, index }));
   const alternatives = topRecommendations.filter(({ index }) => index !== recommendationIndex).slice(0, 3);
   const stationCount = new Set(orderReference.lines.map((line) => line.stationName)).size;
@@ -285,7 +292,7 @@ export default function MealBuilderClient({
               <div className="ff-rec-photo">
                 <MealImage name={heroName} imageUrl={imageFor(computed.lines[0]?.selection.menuItemId)} aspect="hero" />
                 <div className="ff-rec-photo-shade" />
-                <span className="ff-rec-photo-badge">{rankLabel}</span>
+                <div className="ff-rec-photo-badges">{heroLabels.map((label) => <span className="ff-rec-photo-badge" key={label}>{label}</span>)}</div>
                 <p className="ff-rec-photo-caption">{locationLabel}{stationNames.length > 0 ? ` · ${stationNames.join(" + ")}` : ""}</p>
               </div>
 
@@ -296,6 +303,20 @@ export default function MealBuilderClient({
                 </div>
                 <h2 id="candidate-heading" className="ff-rec-meal-title">{heroName}</h2>
                 <p className="ff-rec-reason">{primaryReason}</p>
+
+                {learnedCue && (
+                  <div className="ff-rec-personalization">
+                    <span>Learned from you</span>
+                    <p>{learnedCue}</p>
+                  </div>
+                )}
+
+                {usualRecommendation && usualRecommendation.index !== recommendationIndex && !edited && (
+                  <div className="ff-rec-usual">
+                    <div><span>Your usual</span><strong>{usualName}</strong><small>Matched {usualRecommendation.evidenceCount} prior {readable(mealPeriod).toLowerCase()} choices that are available in today’s ranked menu.</small></div>
+                    <button type="button" onClick={() => selectRecommendation(usualRecommendation.index)}>Get my usual →</button>
+                  </div>
+                )}
 
                 {computed.nutrition && (
                   <dl className="ff-rec-macros">
@@ -409,6 +430,7 @@ export default function MealBuilderClient({
                   const name = lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || `Meal option ${index + 1}`;
                   const nutrition = ranking.computed.nutrition;
                   const stations = [...new Set(lines.map((line) => line.station?.name).filter(Boolean))].join(" · ");
+                  const labels = recommendationLabels(ranking, index, rankings, usualRecommendation?.index === index);
                   return (
                     <motion.button
                       key={`${ranking.candidate.build.locationId}-${index}-${lines.map((line) => line.selection.menuItemId).join("-")}`}
@@ -419,10 +441,11 @@ export default function MealBuilderClient({
                     >
                       <div>
                         <MealImage name={name} imageUrl={imageFor(lines[0]?.selection.menuItemId)} aspect="wide" />
-                        <span className="ff-rec-alt-rank">#{index + 1}</span>
+                        <span className="ff-rec-alt-rank">{labels[0] ?? `#${index + 1}`}</span>
                       </div>
                       <div className="ff-rec-alt-copy">
                         <h3>{name}</h3>
+                        {labels.length > 1 && <span className="ff-rec-alt-label">{labels.slice(1).join(" · ")}</span>}
                         {stations && <p>{stations}</p>}
                         {nutrition && <div className="ff-rec-alt-macros"><span>{Math.round(nutrition.calories)} cal</span><span>{compactMacro(nutrition.protein)}g protein</span></div>}
                       </div>

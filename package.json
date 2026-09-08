@@ -10,7 +10,8 @@
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "validate:data": "tsx scripts/validate-mock-data.ts",
-    "audit:recommendations": "tsx scripts/audit-recommendations.ts"
+    "audit:recommendations": "tsx scripts/audit-recommendations.ts",
+    "art:backfill": "tsx scripts/backfill-food-art.ts"
   },
   "dependencies": {
     "motion": "^13.1.1",

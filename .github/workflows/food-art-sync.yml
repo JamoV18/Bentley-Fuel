@@ -39,8 +39,25 @@ jobs:
             -H "Content-Type: application/json" \
             --data '{"daysBack":0,"daysForward":7}'
 
-      - name: Drain a bounded generation batch
+      - name: Read Food Art generation mode
         if: steps.config.outputs.configured == 'true'
+        id: generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --fail-with-body --retry 2 --retry-all-errors \
+            "${FALCON_APP_URL%/}/api/food-art/status" \
+            -H "Authorization: Bearer $FALCON_ART_CRON_SECRET")
+          enabled=$(echo "$response" | jq -r '.generationConfigured // false')
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+          if [[ "$enabled" == "true" ]]; then
+            echo "Paid Food Art generation is explicitly enabled."
+          else
+            echo "Zero-cost local art mode is active; paid generation will not run."
+          fi
+
+      - name: Drain a bounded generation batch
+        if: steps.config.outputs.configured == 'true' && steps.generation.outputs.enabled == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -71,7 +88,7 @@ jobs:
             exit 0
           fi
 
-          echo "$response" | jq '{items, operations}'
+          echo "$response" | jq '{localArtMode, paidGenerationEnabled, generationConfigured, items, operations}'
           failed=$(echo "$response" | jq -r '.operations.jobCounts.failed // 0')
           open_reviews=$(echo "$response" | jq -r '.operations.reviewCounts.open // 0')
           stale=$(echo "$response" | jq -r '.operations.staleRunningJobs // 0')
@@ -87,5 +104,5 @@ jobs:
             echo "::warning::$stale Falcon Food Art job(s) still hold stale worker locks."
           fi
           if [[ "$oldest" -gt 21600 ]]; then
-            echo "::warning::The oldest queued Falcon Food Art job has waited more than six hours."
+            echo "::notice::The paid-generation queue is waiting, but zero-cost local artwork continues to cover the app."
           fi

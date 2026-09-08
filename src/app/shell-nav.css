@@ -1,0 +1,126 @@
+/* Falcon Fuel global shell + navigation layer.
+   Keeps the app chrome persistent and app-like across viewport sizes.
+*/
+
+.app-nav {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: min(calc(100% - 32px), 46rem);
+  margin: 0;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 70px;
+  padding: 6px;
+  border: 1px solid var(--ff-divider);
+  border-radius: 28px;
+  background: rgba(13, 22, 32, 0.86);
+  box-shadow: 0 18px 44px rgba(2, 10, 18, 0.34), inset 0 1px 0 rgba(255,255,255,.035);
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+}
+
+[data-theme="light"] .app-nav {
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 16px 36px rgba(32, 50, 71, 0.14), inset 0 1px 0 rgba(255,255,255,.75);
+}
+
+.app-nav-item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 22px;
+  color: var(--ff-text-secondary);
+  text-decoration: none;
+  background: transparent !important;
+}
+
+.app-nav-item:hover {
+  color: var(--ff-text-primary);
+  background: rgba(130, 188, 229, 0.07) !important;
+}
+
+.app-nav-item[data-active="true"],
+.app-nav-item[data-active="true"]:hover {
+  color: white;
+  background: transparent !important;
+}
+
+.app-nav-active-pill {
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(0,117,190,.98), rgba(11,99,155,.96));
+  box-shadow: inset 0 0 0 1px rgba(130,188,229,.22), 0 7px 18px rgba(0,117,190,.22);
+}
+
+.app-nav-content {
+  width: 100%;
+  min-width: 0;
+  gap: 7px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.app-nav-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.app-nav-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.app-nav-item[data-active="true"] .app-nav-icon svg {
+  stroke-width: 2.25;
+}
+
+@media (max-width: 639px) {
+  .app-nav {
+    width: calc(100% - 24px);
+    min-height: 72px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    border-radius: 26px;
+  }
+
+  .app-nav-item {
+    min-height: 58px;
+    border-radius: 20px;
+  }
+
+  .app-nav-active-pill {
+    border-radius: 20px;
+  }
+
+  .app-nav-content {
+    flex-direction: column;
+    gap: 4px;
+    padding: 5px 2px 4px;
+    font-size: 10.5px;
+  }
+
+  .app-nav-icon {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+@media (max-width: 390px) {
+  .app-nav-content { font-size: 10px; }
+  .app-nav-icon { width: 20px; height: 20px; }
+}

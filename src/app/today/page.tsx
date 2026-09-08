@@ -1,3 +1,4 @@
+import "./today-research-v1.css";
 import DiningHabitCue from "@/components/DiningHabitCue";
 import MealReflectionDock from "@/components/MealReflectionDock";
 import { getDiningProvider } from "@/services";

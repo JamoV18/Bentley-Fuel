@@ -5,6 +5,7 @@ import "./globals.css";
 import "./react-bits.css";
 import "./onboarding-waves.css";
 import "./bentley-theme.css";
+import "./design-system.css";
 
 export const metadata: Metadata = {
   title: "Falcon Fuel",
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#294567",
+  themeColor: "#0D1620",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

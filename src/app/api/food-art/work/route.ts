@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthorizedFoodArtRequest } from "@/services/foodArt/auth";
-import { foodArtConfigurationIssues, isFoodArtGenerationConfigured } from "@/services/foodArt/config";
+import { foodArtConfigurationIssues, isFoodArtGenerationConfigured, readFoodArtConfig } from "@/services/foodArt/config";
 import { processFoodArtQueue } from "@/services/foodArt/worker";
 
 export const runtime = "nodejs";
@@ -10,8 +10,15 @@ export async function POST(request: Request) {
   if (!isAuthorizedFoodArtRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!isFoodArtGenerationConfigured()) {
-    return NextResponse.json({ error: "Food Art generation is not configured", missing: foodArtConfigurationIssues() }, { status: 503 });
+  const config = readFoodArtConfig();
+  if (!isFoodArtGenerationConfigured(config)) {
+    return NextResponse.json({
+      error: config.paidGenerationEnabled
+        ? "Food Art generation is not configured"
+        : "Paid Food Art generation is disabled; Falcon Fuel is using zero-cost local artwork.",
+      paidGenerationEnabled: config.paidGenerationEnabled,
+      missing: foodArtConfigurationIssues(config),
+    }, { status: 503 });
   }
 
   const body = await request.json().catch(() => ({})) as { limit?: unknown };

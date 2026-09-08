@@ -1,6 +1,6 @@
 /* Falcon Fuel Global Design System v1
-   MyFitnessPal atmosphere + Lifesum restraint + Uber card discipline,
-   grounded in Bentley University's palette.
+   Bentley identity with a matte, low-chroma product environment.
+   Color should behave like ink on paper, not as the paper itself.
 */
 
 :root {
@@ -17,33 +17,33 @@
   --ff-brand-orange: #f79e31;
   --ff-brand-coral: #fd6f50;
 
-  /* Default dark theme */
-  --ff-canvas: #0d1620;
-  --ff-surface: #142230;
-  --ff-surface-elevated: #1b2d3d;
-  --ff-surface-strong: #22384a;
-  --ff-text-primary: #f7fafc;
-  --ff-text-secondary: #b3c4cc;
-  --ff-text-tertiary: #7b858f;
-  --ff-divider: rgba(179, 196, 204, 0.14);
+  /* Default dark theme: matte paper, intentionally low-chroma. */
+  --ff-canvas: #111418;
+  --ff-surface: #171b20;
+  --ff-surface-elevated: #1c2228;
+  --ff-surface-strong: #242b32;
+  --ff-text-primary: #f4f5f6;
+  --ff-text-secondary: #a9b0b7;
+  --ff-text-tertiary: #747e87;
+  --ff-divider: rgba(244, 245, 246, 0.10);
 
   /* Compatibility aliases: existing screens inherit the new system now. */
   --background: var(--ff-canvas);
   --foreground: var(--ff-text-primary);
-  --brand-950: #10283a;
+  --brand-950: #141a20;
   --brand-900: var(--ff-brand-dark);
   --brand-800: #0b639b;
   --brand-700: var(--ff-brand-blue);
   --brand-600: #168bd0;
-  --brand-100: rgba(130, 188, 229, 0.18);
-  --brand-50: rgba(130, 188, 229, 0.10);
+  --brand-100: rgba(130, 188, 229, 0.16);
+  --brand-50: rgba(130, 188, 229, 0.08);
   --cream: var(--ff-canvas);
-  --surface: rgba(20, 34, 48, 0.94);
+  --surface: rgba(23, 27, 32, 0.97);
   --surface-solid: var(--ff-surface);
   --line: var(--ff-divider);
   --muted: var(--ff-text-secondary);
-  --shadow: 0 18px 44px rgba(2, 10, 18, 0.30), 0 2px 8px rgba(2, 10, 18, 0.18);
-  --shadow-soft: 0 10px 28px rgba(2, 10, 18, 0.20);
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.14);
 
   /* Spacing */
   --ff-space-1: 4px;
@@ -96,14 +96,14 @@
 
 [data-theme="light"] {
   color-scheme: light;
-  --ff-canvas: #f4f8fb;
+  --ff-canvas: #f6f6f4;
   --ff-surface: #ffffff;
-  --ff-surface-elevated: #eaf1f5;
-  --ff-surface-strong: #dde8ef;
-  --ff-text-primary: #203247;
-  --ff-text-secondary: #5e7080;
+  --ff-surface-elevated: #eff1f2;
+  --ff-surface-strong: #e7e9eb;
+  --ff-text-primary: #171b20;
+  --ff-text-secondary: #626b73;
   --ff-text-tertiary: #7b858f;
-  --ff-divider: rgba(41, 69, 103, 0.12);
+  --ff-divider: rgba(23, 27, 32, 0.11);
 
   --background: var(--ff-canvas);
   --foreground: var(--ff-text-primary);
@@ -114,13 +114,13 @@
   --brand-600: #168bd0;
   --brand-100: #dceef9;
   --brand-50: #edf6fc;
-  --cream: #f8fbfd;
-  --surface: rgba(255, 255, 255, 0.94);
+  --cream: #f8f8f6;
+  --surface: rgba(255, 255, 255, 0.97);
   --surface-solid: #ffffff;
   --line: var(--ff-divider);
   --muted: var(--ff-text-secondary);
-  --shadow: 0 14px 38px rgba(32, 50, 71, 0.10), 0 2px 8px rgba(32, 50, 71, 0.05);
-  --shadow-soft: 0 8px 24px rgba(32, 50, 71, 0.07);
+  --shadow: 0 10px 26px rgba(23, 27, 32, 0.08);
+  --shadow-soft: 0 5px 16px rgba(23, 27, 32, 0.06);
 }
 
 html,
@@ -130,25 +130,20 @@ body {
   font-family: var(--ff-font-sans);
 }
 
+/* The canvas is matte. Brand color appears in content and interaction, not as a chromatic wash. */
 body {
   min-height: 100dvh;
-  background:
-    radial-gradient(115% 62% at 50% -8%, rgba(0, 117, 190, 0.38) 0%, rgba(41, 69, 103, 0.23) 42%, transparent 72%),
-    linear-gradient(180deg, rgba(41, 69, 103, 0.10) 0%, transparent 34rem),
-    var(--ff-canvas);
+  background: var(--ff-canvas);
 }
 
 [data-theme="light"] body {
-  background:
-    radial-gradient(115% 58% at 50% -8%, rgba(130, 188, 229, 0.34) 0%, rgba(0, 117, 190, 0.10) 44%, transparent 72%),
-    var(--ff-canvas);
+  background: var(--ff-canvas);
 }
 
-/* Remove the old decorative grid. The environment should feel atmospheric, not technical. */
 body::before { display: none; }
 
 ::selection {
-  background: rgba(130, 188, 229, 0.40);
+  background: rgba(130, 188, 229, 0.34);
   color: var(--ff-text-primary);
 }
 
@@ -173,7 +168,6 @@ h1 { font-weight: 700; }
 h2,
 h3 { font-weight: 600; }
 
-/* Important numbers should feel prominent without becoming technical. */
 .ff-metric,
 .progress-ring,
 .nutrition-hero [data-metric] {
@@ -186,13 +180,12 @@ h3 { font-weight: 600; }
   border-radius: var(--ff-radius-button);
   background: var(--ff-brand-blue);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(0, 117, 190, 0.24);
-  transition: transform var(--ff-motion-fast) var(--ff-ease-out), box-shadow var(--ff-motion-fast) var(--ff-ease-out), filter var(--ff-motion-fast) ease;
+  box-shadow: none;
+  transition: transform var(--ff-motion-fast) var(--ff-ease-out), background var(--ff-motion-fast) var(--ff-ease-out), filter var(--ff-motion-fast) ease;
 }
 .primary:hover {
   filter: brightness(1.06);
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px rgba(0, 117, 190, 0.28);
 }
 .primary:active { transform: translateY(0) scale(0.99); }
 
@@ -210,34 +203,34 @@ h3 { font-weight: 600; }
 .secondary:hover,
 .choice:hover,
 .chip:hover {
-  border-color: rgba(130, 188, 229, 0.42);
+  border-color: rgba(130, 188, 229, 0.32);
   background: var(--ff-surface-strong);
 }
 
 .choice[data-selected="true"],
 .chip[data-selected="true"] {
-  border-color: rgba(130, 188, 229, 0.70);
-  background: rgba(0, 117, 190, 0.18);
+  border-color: rgba(0, 117, 190, 0.62);
+  background: rgba(0, 117, 190, 0.14);
   color: var(--ff-text-primary);
-  box-shadow: inset 0 0 0 1px rgba(130, 188, 229, 0.20);
+  box-shadow: none;
 }
 
 .field input:focus,
 .field select:focus {
   border-color: var(--ff-brand-blue);
-  box-shadow: 0 0 0 4px rgba(0, 117, 190, 0.14);
+  box-shadow: 0 0 0 3px rgba(0, 117, 190, 0.12);
 }
 
-/* Cards: ordinary surfaces are quiet; emphasis is earned. */
+/* Cards: solid matte surfaces; emphasis comes from hierarchy, not glow. */
 .surface {
   border: 1px solid var(--ff-divider);
   border-radius: var(--ff-radius-card);
-  background: rgba(20, 34, 48, 0.92);
-  box-shadow: var(--shadow-soft);
+  background: var(--ff-surface);
+  box-shadow: none;
   backdrop-filter: none;
 }
 
-[data-theme="light"] .surface { background: rgba(255, 255, 255, 0.94); }
+[data-theme="light"] .surface { background: var(--ff-surface); }
 
 .surface-soft {
   border: 1px solid var(--ff-divider);
@@ -252,7 +245,6 @@ h3 { font-weight: 600; }
 
 .subtle { color: var(--ff-text-secondary); }
 
-/* Keep Bentley identity clean and sans-serif; no faux seal/serif badge in the app shell. */
 .brand-kicker::before {
   background: var(--ff-brand-blue);
   color: white;
@@ -261,7 +253,6 @@ h3 { font-weight: 600; }
 }
 .display-brand { font-family: var(--ff-font-sans); letter-spacing: -0.025em; }
 
-/* Meal imagery stays natural and visually richer than the chrome around it. */
 .meal-image {
   border-color: var(--ff-divider);
   background-color: var(--ff-surface-elevated);
@@ -273,19 +264,19 @@ h3 { font-weight: 600; }
   box-shadow: none;
 }
 
-/* Hybrid floating navigation: stable, obvious, selected item gets a real capsule. */
+/* Hybrid floating navigation: matte shell, Bentley-blue selection. */
 .app-nav {
   border: 1px solid var(--ff-divider);
   border-radius: var(--ff-radius-nav);
-  background: rgba(13, 22, 32, 0.78);
+  background: #191d22;
   padding: 6px;
-  box-shadow: 0 16px 36px rgba(2, 10, 18, 0.26);
-  backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  backdrop-filter: none;
 }
 
 [data-theme="light"] .app-nav {
-  background: rgba(255, 255, 255, 0.80);
-  box-shadow: 0 14px 32px rgba(32, 50, 71, 0.12);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 8px 24px rgba(23, 27, 32, 0.08);
 }
 
 .app-nav-item {
@@ -298,49 +289,64 @@ h3 { font-weight: 600; }
 }
 .app-nav-item:hover {
   color: var(--ff-text-primary);
-  background: rgba(130, 188, 229, 0.09);
+  background: rgba(255, 255, 255, 0.04);
 }
-.app-nav-item[data-active="true"] {
-  color: #fff;
-  background: rgba(0, 117, 190, 0.92);
+.app-nav-item[data-active="true"] { color: #fff; }
+.app-nav-active-pill {
+  border-radius: var(--ff-radius-pill);
+  background: var(--ff-brand-blue);
+  box-shadow: none;
 }
-[data-theme="light"] .app-nav-item[data-active="true"] { color: #fff; }
+.app-nav-content { gap: 0.42rem; }
 .app-nav-item:active { transform: scale(0.98); }
 .app-nav-icon svg { stroke-width: 1.9; }
 .app-nav-item[data-active="true"] .app-nav-icon svg { stroke-width: 2.25; }
 
-/* Nutrition hero: MyFitnessPal-like atmosphere, Bentley palette, Lifesum restraint inside. */
+/* Nutrition emphasis remains Bentley-connected without becoming a gradient card. */
 .nutrition-hero {
-  border: 1px solid rgba(130, 188, 229, 0.15);
+  border: 1px solid rgba(130, 188, 229, 0.13);
   border-radius: var(--ff-radius-hero);
-  background:
-    radial-gradient(circle at 82% 4%, rgba(130, 188, 229, 0.30), transparent 15rem),
-    linear-gradient(145deg, #294567 0%, #0b639b 48%, #10283a 100%);
+  background: #1a2026;
   color: white;
-  box-shadow: 0 18px 44px rgba(2, 10, 18, 0.28);
+  box-shadow: none;
 }
-.nutrition-hero::after { border-color: rgba(255,255,255,0.07); }
+.nutrition-hero::after { border-color: rgba(255,255,255,0.06); }
 .progress-ring {
-  background: conic-gradient(var(--ff-brand-lightblue) var(--value), rgba(255,255,255,.13) 0);
+  background: conic-gradient(var(--ff-brand-blue) var(--value), rgba(255,255,255,.10) 0);
 }
-.progress-ring::before { background: #173147; }
+.progress-ring::before { background: #171b20; }
 .macro-tile {
-  border-color: rgba(255,255,255,.09);
-  background: rgba(13, 22, 32, 0.22);
+  border-color: rgba(255,255,255,.08);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 details.surface-soft > summary::after { color: var(--ff-brand-lightblue); }
 
+/* Today v2 compatibility: preserve its hierarchy, remove the chromatic concept-art treatment. */
+body .ff-v2-hero {
+  background: #1a2026 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16) !important;
+}
+body .ff-v2-hero-copy {
+  background: #1a2026 !important;
+}
+body .ff-v2-photo-label {
+  background: rgba(17, 20, 24, 0.78) !important;
+  backdrop-filter: none !important;
+}
+body .ff-v2-data-note {
+  border-left-color: rgba(255, 204, 51, 0.72) !important;
+  background: #20211f !important;
+  color: #c8c1a6 !important;
+}
+body .ff-v2-primary-cta {
+  box-shadow: none !important;
+}
+
 @media (max-width: 639px) {
-  body {
-    background:
-      radial-gradient(145% 54% at 50% -4%, rgba(0, 117, 190, 0.42) 0%, rgba(41, 69, 103, 0.20) 43%, transparent 72%),
-      var(--ff-canvas);
-  }
+  body,
   [data-theme="light"] body {
-    background:
-      radial-gradient(145% 50% at 50% -4%, rgba(130, 188, 229, 0.38) 0%, rgba(0, 117, 190, 0.08) 43%, transparent 72%),
-      var(--ff-canvas);
+    background: var(--ff-canvas);
   }
   .app-nav {
     left: max(16px, env(safe-area-inset-left));

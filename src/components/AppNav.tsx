@@ -8,7 +8,7 @@ import DailyMealCheckinStrip from "./DailyMealCheckinStrip";
 import ProgressiveProfilePrompt from "./ProgressiveProfilePrompt";
 
 const items = [
-  { href: "/today", label: "Home", icon: "home" },
+  { href: "/today", label: "Today", icon: "home" },
   { href: "/dashboard", label: "Eat", icon: "fork" },
   { href: "/log-meal", label: "Log", icon: "log" },
   { href: "/history", label: "History", icon: "chart" },
@@ -46,19 +46,17 @@ export default function AppNav({
               href={item.href}
               className="app-nav-item relative isolate overflow-hidden"
               data-active={active}
-              style={active ? { background: "transparent" } : undefined}
             >
               {active && (
                 <motion.span
                   aria-hidden="true"
-                  className="absolute inset-0 z-0 rounded-[.95rem] bg-emerald-50/95"
+                  className="app-nav-active-pill absolute inset-0 z-0"
                   layoutId="app-nav-active-pill"
-                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38, mass: 0.45 }}
-                  style={{ boxShadow: "inset 0 0 0 1px rgba(0,117,190,.11), 0 3px 10px rgba(41,69,103,.07)" }}
+                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40, mass: 0.48 }}
                 />
               )}
               <motion.span
-                className="relative z-10 inline-flex items-center justify-center gap-[.42rem]"
+                className="app-nav-content relative z-10 inline-flex items-center justify-center"
                 whileTap={reduceMotion ? undefined : { scale: 0.97 }}
                 transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
               >

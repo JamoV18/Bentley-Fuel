@@ -1,231 +1,404 @@
 /*
- * Zero-cost artwork-first presentation.
+ * Falcon Fuel decision-first meal presentation.
  *
- * This layer deliberately leaves the meal data/recommendation system alone and
- * changes only presentation: local SVG food families get the same visual
- * prominence that approved premium masters will receive later.
+ * A meal must look complete even when Bentley publishes no image. Verified
+ * dining imagery may enhance a surface, but recommendation layout never relies
+ * on generic web photos, procedural food drawings, or generated artwork.
  */
 
-/* A composed meal should read as one intentional place setting, not several
- * tiny icons floating across an oversized canvas. */
-.meal-image-composed {
-  align-items: center;
-  justify-content: center;
-  padding: clamp(.35rem, 1vw, .75rem) clamp(.5rem, 1.4vw, 1rem) !important;
+/* -------------------------------------------------------------------------- */
+/* Shared optional-image primitive                                             */
+/* -------------------------------------------------------------------------- */
+
+.meal-image-data-only,
+.meal-image-verified {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
-.meal-image-composed::before {
-  width: 58% !important;
-  max-width: 34rem;
-  border: 0 !important;
-  background: radial-gradient(circle, rgba(255,255,255,.72) 0%, rgba(255,255,255,.26) 56%, transparent 76%) !important;
-  box-shadow: none !important;
+.meal-image-data-only {
+  background:
+    radial-gradient(80% 95% at 88% 8%, rgba(130,188,229,.17), transparent 62%),
+    linear-gradient(145deg, #f3f7fa, #fbfcfd 58%, #edf3f7);
 }
 
-.meal-image-composed::after {
-  width: 62% !important;
-  height: 7% !important;
-  bottom: 10% !important;
-  opacity: .42 !important;
-  filter: blur(16px) !important;
+.meal-image-data-only-line {
+  width: 28%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,117,190,.3), transparent);
 }
 
-.meal-image-composed-part {
-  height: 98% !important;
-  overflow: visible;
+.meal-image-verified .ff-food-verified {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
-.meal-image-composed-part + .meal-image-composed-part {
-  margin-left: -8% !important;
-}
+/* -------------------------------------------------------------------------- */
+/* Meal Builder: recommendation is the visual, not a mandatory food picture   */
+/* -------------------------------------------------------------------------- */
 
-.meal-image-composed[data-food-count="2"] .meal-image-composed-part-plate { width: 64% !important; }
-.meal-image-composed[data-food-count="2"] .meal-image-composed-part-bowl { width: 48% !important; }
-.meal-image-composed[data-food-count="2"] .meal-image-composed-part-ingredient { width: 46% !important; }
-.meal-image-composed[data-food-count="2"] .meal-image-composed-part-drink { width: 31% !important; }
-
-.meal-image-composed[data-food-count="3"] .meal-image-composed-part-plate { width: 56% !important; }
-.meal-image-composed[data-food-count="3"] .meal-image-composed-part-bowl { width: 42% !important; }
-.meal-image-composed[data-food-count="3"] .meal-image-composed-part-ingredient { width: 39% !important; }
-.meal-image-composed[data-food-count="3"] .meal-image-composed-part-drink { width: 27% !important; margin-left: -9% !important; }
-
-.meal-image-composed .meal-image-composed-part .ff-food-art,
-.meal-image-composed .meal-image-composed-part .ff-food-master {
-  width: 116% !important;
-  height: 116% !important;
-  max-width: none !important;
-  max-height: none !important;
-}
-
-.meal-image-composed .meal-image-composed-part-drink .ff-food-art,
-.meal-image-composed .meal-image-composed-part-drink .ff-food-master {
-  width: 108% !important;
-  height: 108% !important;
-}
-
-.meal-image-composed .meal-image-composed-part[data-part-index="0"] {
-  z-index: 4;
-  transform: translateX(3%) scale(1.08);
-}
-
-.meal-image-composed .meal-image-composed-part[data-part-index="1"] {
-  z-index: 3;
-  transform: translateY(3%) scale(1.02);
-}
-
-.meal-image-composed .meal-image-composed-part[data-part-index="2"] {
-  z-index: 5;
-  transform: translateY(5%) scale(1.03);
-}
-
-/* Smoothies and other drink-class local art should occupy enough visual space
- * to read as a real part of the meal instead of a tiny plate-sized glyph. */
-.meal-image-vessel-drink {
-  --ff-art-width: 70%;
-  --ff-art-height: 88%;
-  --ff-art-paper: #fffaf1;
-  --ff-art-paper-2: #f6efe3;
-  --ff-art-glow: rgba(242, 181, 68, .2);
-}
-
-.meal-image-hero.meal-image-vessel-drink .ff-food-art {
-  width: min(70%, 29rem) !important;
-  height: 87% !important;
-}
-
-/* Recommendation cards follow the product hierarchy: artwork first, then the
- * meal identity and essential nutrition. Deeper explanation remains available
- * without competing with the first glance. */
 .ff-rec-hero {
   grid-template-columns: 1fr !important;
   min-height: 0 !important;
   overflow: hidden;
-  border-radius: 1.55rem !important;
-  box-shadow: 0 24px 64px rgba(16,38,61,.13) !important;
+  border: 1px solid rgba(16,38,61,.09) !important;
+  border-radius: 1.35rem !important;
+  background: #fff !important;
+  box-shadow: 0 22px 58px rgba(16,38,61,.12) !important;
 }
 
 .ff-rec-photo {
-  min-height: 23.5rem !important;
-  background: #f5f8fb;
+  min-height: 7.25rem !important;
+  border-bottom: 1px solid rgba(16,38,61,.08);
+  background:
+    radial-gradient(70% 150% at 92% 12%, rgba(66,183,176,.15), transparent 62%),
+    linear-gradient(135deg, #eef6fb 0%, #f8fbfd 55%, #edf7f5 100%) !important;
 }
 
-.ff-rec-photo > *:first-child {
-  width: 100%;
-  height: 23.5rem !important;
-  min-height: 23.5rem !important;
+/* Food imagery is deliberately not the structural hero. If a verified image
+ * exists it can still appear on supporting surfaces; the recommendation hero
+ * remains stable with or without it. */
+.ff-rec-photo > .meal-image {
+  display: none !important;
 }
 
 .ff-rec-photo-shade {
-  background: linear-gradient(180deg, transparent 62%, rgba(8,22,34,.18) 100%) !important;
+  display: none !important;
+}
+
+.ff-rec-photo-badges {
+  left: 1.15rem !important;
+  top: 1.05rem !important;
+  gap: .38rem !important;
+}
+
+.ff-rec-photo-badge {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  border: 1px solid rgba(0,117,190,.14) !important;
+  border-radius: .45rem !important;
+  background: rgba(255,255,255,.86) !important;
+  color: #10263d !important;
+  box-shadow: 0 6px 20px rgba(16,38,61,.06);
+  backdrop-filter: blur(12px);
+}
+
+.ff-rec-photo-badge::before {
+  background: #42b7b0 !important;
 }
 
 .ff-rec-photo-caption {
-  left: 1.25rem !important;
-  right: auto !important;
-  bottom: 1.05rem !important;
+  left: 1.15rem !important;
+  right: 1.15rem !important;
+  bottom: 1rem !important;
   margin: 0;
-  padding: .48rem .7rem;
-  border: 1px solid rgba(255,255,255,.62);
-  border-radius: 999px;
-  background: rgba(255,255,255,.84);
-  color: #10263d !important;
-  backdrop-filter: blur(14px);
-  box-shadow: 0 8px 24px rgba(16,38,61,.09);
-  font-size: .64rem !important;
+  color: #0075be !important;
+  font-size: .68rem !important;
+  line-height: 1.4 !important;
   font-weight: 900 !important;
-  letter-spacing: .04em;
+  letter-spacing: .1em;
+  text-transform: uppercase;
 }
 
 .ff-rec-hero-copy {
   justify-content: flex-start !important;
-  padding: clamp(1.55rem, 3vw, 2.25rem) clamp(1.4rem, 4vw, 2.6rem) clamp(1.8rem, 4vw, 2.6rem) !important;
+  padding: clamp(1.55rem, 4vw, 2.8rem) !important;
+}
+
+.ff-rec-rankline {
+  padding-bottom: .2rem;
 }
 
 .ff-rec-meal-title {
-  max-width: 24ch !important;
-  margin-top: .5rem !important;
-  font-size: clamp(2rem, 4vw, 3.25rem) !important;
-  line-height: .98 !important;
-  letter-spacing: -.045em !important;
+  max-width: 22ch !important;
+  margin-top: .55rem !important;
+  font-size: clamp(2.2rem, 5vw, 4.25rem) !important;
+  line-height: .96 !important;
+  letter-spacing: -.052em !important;
 }
 
 .ff-rec-reason {
-  max-width: 48rem;
-  margin-top: .72rem !important;
-  font-size: .84rem !important;
-  line-height: 1.55 !important;
+  max-width: 46rem;
+  margin-top: .85rem !important;
+  font-size: .88rem !important;
+  line-height: 1.6 !important;
 }
 
-/* The first-glance nutrition contract is calories + protein. Carbs/fat remain
- * available elsewhere in the recommendation and progress views. */
+.ff-rec-personalization,
+.ff-rec-usual {
+  max-width: 48rem;
+}
+
+/* First glance = calories + protein. The detailed nutrition system still owns
+ * carbs/fat elsewhere in the recommendation and Today views. */
 .ff-rec-macros {
-  grid-template-columns: repeat(2, minmax(0, 10rem)) !important;
+  grid-template-columns: repeat(2, minmax(8rem, 11rem)) !important;
   width: fit-content;
-  min-width: min(100%, 20rem);
-  margin-top: 1rem !important;
-  padding: .8rem 0 !important;
+  min-width: min(100%, 22rem);
+  margin-top: 1.2rem !important;
+  padding: .95rem 0 !important;
 }
 
 .ff-rec-macro:nth-child(n+3) {
-  display: none;
+  display: none !important;
 }
 
 .ff-rec-macro:nth-child(2) {
   border-right: 0 !important;
 }
 
-.ff-rec-macro dd {
-  font-size: clamp(1.12rem, 2vw, 1.45rem) !important;
+.ff-rec-macro dt {
+  font-size: .61rem !important;
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
 
-/* Components stay obvious, but become a compact supporting row rather than
- * vertically overpowering the meal decision. */
+.ff-rec-macro dd {
+  margin-top: .22rem !important;
+  font-size: clamp(1.35rem, 2.8vw, 1.8rem) !important;
+}
+
+/* Supporting meal components become an order-oriented list. A missing image
+ * never leaves a blank square in front of the text. */
 .ff-rec-components {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: .8rem 1.2rem !important;
-  margin-top: 1rem !important;
+  gap: .7rem 1.15rem !important;
+  margin-top: 1.15rem !important;
 }
 
 .ff-rec-component {
   min-width: 0;
-  padding: .68rem 0;
+  padding: .7rem 0;
   border-top: 1px solid rgba(16,38,61,.08);
 }
 
-.ff-rec-actions {
-  max-width: 34rem;
-  margin-top: 1rem !important;
+.ff-rec-component:has(.meal-image-data-only) {
+  grid-template-columns: minmax(0,1fr) auto !important;
 }
+
+.ff-rec-component:has(.meal-image-data-only) > .meal-image-data-only {
+  display: none !important;
+}
+
+.ff-rec-actions {
+  max-width: 36rem;
+  margin-top: 1.05rem !important;
+}
+
+.ff-rec-primary {
+  border-radius: .65rem !important;
+  box-shadow: 0 10px 24px rgba(0,117,190,.18) !important;
+}
+
+/* Alternatives should never reserve a giant empty photo area. */
+.ff-rec-alt:has(.meal-image-data-only) > div:first-child {
+  display: none !important;
+}
+
+.ff-rec-alt:has(.meal-image-data-only) .ff-rec-alt-copy {
+  padding-top: 1.1rem !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Today: when a meal is being recommended/selected, use a decision card.      */
+/* Real location photography remains available when the hero is about place.   */
+/* -------------------------------------------------------------------------- */
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) {
+  grid-template-columns: 1fr !important;
+  min-height: 0 !important;
+  overflow: hidden;
+  border: 1px solid rgba(16,38,61,.09) !important;
+  border-radius: 1.35rem !important;
+  background: #fff !important;
+  color: #10263d !important;
+  box-shadow: 0 22px 58px rgba(16,38,61,.12) !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-visual {
+  min-height: 7.25rem !important;
+  border-bottom: 1px solid rgba(16,38,61,.08);
+  background:
+    radial-gradient(75% 150% at 92% 8%, rgba(66,183,176,.15), transparent 62%),
+    linear-gradient(135deg, #eef6fb 0%, #f8fbfd 55%, #edf7f5 100%) !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .meal-image {
+  display: none !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-photo-shade {
+  display: none !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-photo-label {
+  left: 1.1rem !important;
+  bottom: 1rem !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  color: #0075be !important;
+  font-size: .66rem !important;
+  letter-spacing: .11em !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-badges {
+  left: 1.1rem !important;
+  top: 1rem !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-badge {
+  border: 1px solid rgba(0,117,190,.14) !important;
+  background: rgba(255,255,255,.88) !important;
+  color: #10263d !important;
+  box-shadow: 0 6px 20px rgba(16,38,61,.06);
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-copy {
+  justify-content: flex-start !important;
+  padding: clamp(1.55rem, 4vw, 2.8rem) !important;
+  background:
+    radial-gradient(70% 90% at 100% 0%, rgba(0,117,190,.04), transparent 68%),
+    #fff !important;
+  color: #10263d !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v3-hero-state {
+  color: #294567 !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-eyebrow {
+  color: #0075be !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) h2 {
+  max-width: 18ch !important;
+  color: #10263d !important;
+  font-size: clamp(2.25rem, 5vw, 4.2rem) !important;
+  line-height: .96 !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-reason,
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-nutrition-cue p,
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-selected-note {
+  color: rgba(16,38,61,.62) !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-macros {
+  width: fit-content;
+  min-width: min(100%, 21rem);
+  margin-top: .95rem !important;
+  border-top: 1px solid rgba(16,38,61,.1) !important;
+  border-bottom: 1px solid rgba(16,38,61,.1) !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-macros span {
+  color: #294567 !important;
+  border-right-color: rgba(16,38,61,.1) !important;
+  font-size: .72rem !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-macros span:nth-child(n+3) {
+  display: none !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-learning {
+  max-width: 42rem;
+  background: #f0f9f8 !important;
+  color: #10263d !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-learning strong {
+  color: #0075be !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-nutrition-cue {
+  max-width: 42rem;
+  border-top-color: rgba(16,38,61,.1) !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-primary-cta {
+  background: #0075be !important;
+  color: #fff !important;
+  box-shadow: 0 10px 24px rgba(0,117,190,.18) !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-primary-cta span {
+  color: #dff7f5 !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-detail,
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-secondary-link,
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-selected-actions a {
+  color: #0075be !important;
+}
+
+.ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-selected-lock {
+  border-color: rgba(16,38,61,.1) !important;
+  background: #f7fafc !important;
+  color: #10263d !important;
+}
+
+.ff-v2-confirm:has(.meal-image-data-only) {
+  grid-template-columns: 1fr !important;
+}
+
+.ff-v2-confirm:has(.meal-image-data-only) .ff-v2-confirm-media {
+  display: none !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive                                                                 */
+/* -------------------------------------------------------------------------- */
 
 @media (max-width: 760px) {
   .ff-rec-photo,
-  .ff-rec-photo > *:first-child {
-    height: 18.5rem !important;
-    min-height: 18.5rem !important;
+  .ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-visual {
+    min-height: 6.8rem !important;
   }
 
-  .ff-rec-meal-title {
-    max-width: 18ch !important;
-    font-size: clamp(1.9rem, 8.5vw, 2.65rem) !important;
+  .ff-rec-hero-copy,
+  .ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-copy {
+    padding: 1.3rem 1.05rem 1.2rem !important;
+  }
+
+  .ff-rec-meal-title,
+  .ff-v2-hero:has(.ff-v2-hero-visual .meal-image) h2 {
+    max-width: none !important;
+    font-size: clamp(1.9rem, 8.4vw, 2.8rem) !important;
+    line-height: .98 !important;
   }
 
   .ff-rec-components {
     grid-template-columns: 1fr !important;
-    gap: .15rem !important;
+    gap: .1rem !important;
   }
 
-  .meal-image-composed-part + .meal-image-composed-part {
-    margin-left: -10% !important;
+  .ff-rec-macros,
+  .ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-macros {
+    min-width: min(100%, 18rem);
   }
 
-  .meal-image-composed[data-food-count="3"] .meal-image-composed-part-plate { width: 62% !important; }
-  .meal-image-composed[data-food-count="3"] .meal-image-composed-part-bowl { width: 44% !important; }
-  .meal-image-composed[data-food-count="3"] .meal-image-composed-part-ingredient { width: 42% !important; }
-  .meal-image-composed[data-food-count="3"] .meal-image-composed-part-drink { width: 29% !important; }
+  .ff-v2-hero:has(.ff-v2-hero-visual .meal-image) .ff-v2-hero-actions {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .meal-image-composed-part {
+  .meal-image-verified .ff-food-verified {
     transition: none !important;
   }
 }

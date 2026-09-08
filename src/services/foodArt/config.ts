@@ -5,6 +5,7 @@ export interface FoodArtConfig {
   reviewBucket: string;
   openAiApiKey: string;
   cronSecret: string;
+  paidGenerationEnabled: boolean;
   imageModel: string;
   imageSize: string;
   qaModel: string;
@@ -15,6 +16,10 @@ export interface FoodArtConfig {
 
 function env(name: string, fallbackName?: string): string {
   return process.env[name]?.trim() || (fallbackName ? process.env[fallbackName]?.trim() : "") || "";
+}
+
+function enabled(value: string): boolean {
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
 function boundedInt(value: string, fallback: number, min: number, max: number): number {
@@ -31,11 +36,15 @@ export function readFoodArtConfig(): FoodArtConfig {
     reviewBucket: env("FALCON_ART_REVIEW_BUCKET") || "falcon-food-art-review",
     openAiApiKey: env("OPENAI_API_KEY"),
     cronSecret: env("FALCON_ART_CRON_SECRET"),
+    // Paid generation is deliberately opt-in. Falcon Fuel's production UI uses
+    // the zero-cost local illustration engine unless funding explicitly enables
+    // the premium generation worker.
+    paidGenerationEnabled: enabled(env("FALCON_ART_ENABLE_PAID_GENERATION")),
     // Snapshot-lock the illustrator so a moving model alias cannot silently
     // change Falcon Fuel's visual language between menu cycles.
     imageModel: env("FALCON_ART_IMAGE_MODEL") || "gpt-image-2-2026-04-21",
-    // 2880² is the largest square allowed by GPT Image 2's 8,294,400-pixel
-    // output ceiling, while both edges remain valid multiples of 16.
+    // Keep the premium pipeline ready for a funded future backfill, but it stays
+    // dormant while paidGenerationEnabled is false.
     imageSize: env("FALCON_ART_IMAGE_SIZE") || "2880x2880",
     // Semantic QA uses a vision-capable reasoning model before an image is
     // allowed to become a production master.
@@ -55,6 +64,7 @@ export function foodArtConfigurationIssues(config = readFoodArtConfig()): string
   if (!config.supabaseServiceRoleKey) issues.push("FALCON_ART_SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_ROLE_KEY)");
   if (!config.openAiApiKey) issues.push("OPENAI_API_KEY");
   if (!config.cronSecret) issues.push("FALCON_ART_CRON_SECRET");
+  if (!config.paidGenerationEnabled) issues.push("FALCON_ART_ENABLE_PAID_GENERATION=1 (paid generation is intentionally off)");
   return issues;
 }
 
@@ -63,5 +73,5 @@ export function isFoodArtStorageConfigured(config = readFoodArtConfig()): boolea
 }
 
 export function isFoodArtGenerationConfigured(config = readFoodArtConfig()): boolean {
-  return isFoodArtStorageConfigured(config) && Boolean(config.openAiApiKey);
+  return isFoodArtStorageConfigured(config) && config.paidGenerationEnabled && Boolean(config.openAiApiKey);
 }

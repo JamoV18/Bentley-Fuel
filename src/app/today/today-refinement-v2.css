@@ -1,0 +1,181 @@
+/* Today refinement v2
+   Finalized direction from visual review:
+   - nutrition + recommendation side-by-side on wider screens
+   - stacked on phones
+   - one integrated macro surface, no nested macro cards
+   - calorie ring remains a primary visual without overpowering the page
+   - recommendation imagery is deliberately secondary
+*/
+
+/* Greeting is context, not the hero. */
+.ff-v2-header h1 {
+  font-size: clamp(1.85rem, 2.8vw, 2.65rem);
+  font-weight: 700;
+}
+
+/* One composed nutrition surface: ring + summary, then integrated macros. */
+.ff-today-nutrition-grid {
+  grid-template-columns: 1fr;
+  gap: 1.15rem;
+}
+
+.ff-today-calories {
+  gap: 1.35rem;
+}
+
+.ff-today-nutrition .ff-v2-ring {
+  width: 9.85rem;
+  flex-basis: 9.85rem;
+}
+
+.ff-today-macros {
+  gap: 0;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(244,245,246,.075);
+}
+
+.ff-today-macro {
+  min-width: 0;
+  padding: 0.15rem 0.85rem 0.1rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ff-today-macro + .ff-today-macro {
+  padding-left: 0.85rem;
+  border-left: 1px solid rgba(244,245,246,.075);
+}
+
+.ff-today-macro-line {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ff-today-macro-line strong {
+  font-size: 1.08rem;
+}
+
+.ff-today-macro-track {
+  margin-top: 0.58rem;
+  background: rgba(255,255,255,.065);
+}
+
+/* Recommendation should feel important, not billboard-sized. */
+.ff-v2-hero {
+  min-height: 0;
+}
+
+.ff-v2-hero-visual,
+.ff-v2-hero-image {
+  min-height: 8.5rem;
+  height: 8.5rem !important;
+}
+
+body .ff-v2-hero-copy {
+  padding: 1.25rem 1.3rem 1.2rem;
+}
+
+.ff-v2-hero h2 {
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+}
+
+/* Wide screens: Falcon Fuel's core value proposition is visible at once.
+   Where you stand + what to eat next. */
+@media (min-width: 900px) {
+  .ff-v2-shell:has(> .ff-v2-hero) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(21rem, .88fr);
+    column-gap: 1.15rem;
+    align-items: stretch;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > :not(.ff-today-nutrition):not(.ff-v2-hero) {
+    grid-column: 1 / -1;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-today-nutrition {
+    grid-column: 1;
+    margin-top: 0.85rem;
+    height: 100%;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero {
+    grid-column: 2;
+    grid-template-columns: 1fr;
+    margin-top: 0.85rem;
+    height: 100%;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero .ff-v2-hero-visual,
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero .ff-v2-hero-image {
+    min-height: 7.5rem;
+    height: 7.5rem !important;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero .ff-v2-hero-copy {
+    justify-content: flex-start;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v3-day-path {
+    margin-top: 0.75rem;
+  }
+}
+
+/* Phone: same hierarchy, composed vertically rather than compressed desktop. */
+@media (max-width: 760px) {
+  .ff-v2-header h1 {
+    font-size: clamp(1.65rem, 7vw, 2rem);
+  }
+
+  .ff-today-nutrition-grid {
+    gap: 0.95rem;
+  }
+
+  .ff-today-nutrition .ff-v2-ring {
+    width: 8rem;
+    flex-basis: 8rem;
+  }
+
+  .ff-today-macros {
+    padding-top: 0.85rem;
+  }
+
+  .ff-today-macro {
+    padding-right: 0.55rem;
+  }
+
+  .ff-today-macro + .ff-today-macro {
+    padding-left: 0.55rem;
+  }
+
+  .ff-today-macro-line strong {
+    font-size: 0.98rem;
+  }
+
+  .ff-v2-hero-visual,
+  .ff-v2-hero-image {
+    min-height: 7.75rem;
+    height: 7.75rem !important;
+  }
+
+  body .ff-v2-hero-copy {
+    padding: 1.05rem 1.05rem 1rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .ff-today-calories {
+    gap: 0.85rem;
+  }
+
+  .ff-today-nutrition .ff-v2-ring {
+    width: 7.4rem;
+    flex-basis: 7.4rem;
+  }
+
+  .ff-today-macro-line span,
+  .ff-today-macro small {
+    font-size: 0.61rem;
+  }
+}

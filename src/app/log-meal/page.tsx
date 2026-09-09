@@ -131,7 +131,10 @@ export default function LogMealPage() {
     if (quickOpenHandled.current) return;
     quickOpenHandled.current = true;
     const requestedSlot = new URLSearchParams(window.location.search).get("slot");
-    if (requestedSlot && LOG_SLOTS.includes(requestedSlot as MealLogSlot)) openForm(requestedSlot as MealLogSlot);
+    if (requestedSlot && LOG_SLOTS.includes(requestedSlot as MealLogSlot)) {
+      const slot = requestedSlot as MealLogSlot;
+      queueMicrotask(() => openForm(slot));
+    }
   }, [openForm]);
 
   const closeForm = () => {

@@ -339,21 +339,61 @@ export default function TodayV2Client({
             </div>
           </motion.section>
 
-          {recommendationPeriod !== "late-night" && (
-            <div className="ff-v3-day-path" aria-label="Today’s meal progression">
-              {CORE_MEALS.map((slot) => {
+          <div className="ff-v3-day-path-wrap">
+            <div className="ff-v3-day-path" aria-label="Today’s meal progression and quick logging">
+              {CORE_MEALS.map((slot, index) => {
                 const done = livingDay.completedSlots[slot];
                 const next = recommendationPeriod === slot;
                 const status = done ? "Confirmed" : next ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : "Later";
                 return (
-                  <div key={slot} className={`ff-v3-day-step${done ? " is-done" : ""}${next ? " is-next" : ""}`}>
-                    <span className="ff-v3-day-dot" aria-hidden="true">{done ? "✓" : next ? "→" : "·"}</span>
-                    <div><strong>{readable(slot)}</strong><small>{status}</small></div>
-                  </div>
+                  <motion.div
+                    key={slot}
+                    className="ff-v3-day-step-shell"
+                    whileHover={reduceMotion ? undefined : { y: -2 }}
+                    whileTap={reduceMotion ? undefined : { scale: 0.985 }}
+                    transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 26 }}
+                  >
+                    <Link
+                      href={`/log-meal?slot=${slot}`}
+                      className={`ff-v3-day-step${done ? " is-done" : ""}${next ? " is-next" : ""}`}
+                      aria-label={`Log ${readable(slot)}. ${status}.`}
+                    >
+                      {next && (
+                        <motion.span
+                          aria-hidden="true"
+                          className="ff-v3-day-active"
+                          layoutId="ff-day-active"
+                          transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 30, mass: .55 }}
+                        />
+                      )}
+                      <motion.span
+                        className="ff-v3-day-dot"
+                        aria-hidden="true"
+                        initial={reduceMotion ? false : { scale: .82, opacity: .72 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={reduceMotion ? { duration: 0 } : { delay: index * .04, type: "spring", stiffness: 360, damping: 22 }}
+                      >
+                        {done ? "✓" : next ? "→" : "·"}
+                      </motion.span>
+                      <div className="ff-v3-day-copy"><strong>{readable(slot)}</strong><small>{status}</small></div>
+                      <span className="ff-v3-day-log" aria-hidden="true">+</span>
+                    </Link>
+                  </motion.div>
                 );
               })}
             </div>
-          )}
+            <motion.div
+              className="ff-v3-snack-log-shell"
+              whileHover={reduceMotion ? undefined : { y: -2 }}
+              whileTap={reduceMotion ? undefined : { scale: .985 }}
+              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 26 }}
+            >
+              <Link href="/log-meal?slot=snack" className="ff-v3-snack-log" aria-label="Log an optional snack">
+                <span aria-hidden="true">+</span>
+                <div><strong>Snack</strong><small>Optional · log if needed</small></div>
+              </Link>
+            </motion.div>
+          </div>
         </>
       ) : (
         <section className="ff-v2-history-hero">

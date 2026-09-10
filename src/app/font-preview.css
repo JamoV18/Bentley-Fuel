@@ -1,0 +1,10 @@
+/* Typography prototype only: Onest. Remove when comparison is finished. */
+@import url("https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap");
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Onest", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}

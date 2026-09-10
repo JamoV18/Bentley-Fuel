@@ -1,0 +1,10 @@
+/* Typography prototype only: Figtree. Remove when comparison is finished. */
+@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap");
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Figtree", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}

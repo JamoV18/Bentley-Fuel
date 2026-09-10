@@ -1,0 +1,80 @@
+.ff-font-preview-manrope {
+  font-family: var(--font-manrope), ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ff-font-preview-jakarta {
+  font-family: var(--font-plus-jakarta), ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ff-font-preview-switcher {
+  position: sticky;
+  top: .75rem;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  pointer-events: none;
+}
+
+.ff-font-preview-switcher-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .3rem;
+  border: 1px solid rgb(179 196 204 / .18);
+  border-radius: 999px;
+  background: rgb(17 20 24 / .92);
+  box-shadow: 0 12px 30px rgb(0 0 0 / .24);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.ff-font-preview-switcher span {
+  padding: 0 .55rem;
+  color: rgb(179 196 204 / .72);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.ff-font-preview-switcher button {
+  border: 0;
+  border-radius: 999px;
+  padding: .58rem .86rem;
+  background: transparent;
+  color: rgb(247 250 252 / .72);
+  font-size: .82rem;
+  font-weight: 750;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.ff-font-preview-switcher button:hover {
+  color: #fff;
+}
+
+.ff-font-preview-switcher button:active {
+  transform: scale(.98);
+}
+
+.ff-font-preview-switcher button[aria-pressed="true"] {
+  background: linear-gradient(135deg, rgb(0 117 190 / .96), rgb(72 145 198 / .94));
+  color: #fff;
+  box-shadow: 0 6px 18px rgb(0 117 190 / .22);
+}
+
+@media (max-width: 639px) {
+  .ff-font-preview-switcher {
+    top: .5rem;
+    margin-bottom: .65rem;
+  }
+
+  .ff-font-preview-switcher span {
+    display: none;
+  }
+
+  .ff-font-preview-switcher button {
+    padding: .52rem .72rem;
+    font-size: .76rem;
+  }
+}

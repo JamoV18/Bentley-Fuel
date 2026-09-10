@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import ActivityReviewDueBanner from "./ActivityReviewDueBanner";
@@ -33,8 +34,13 @@ export default function AppNav({
 }) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
+  const [portalReady, setPortalReady] = useState(false);
   const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
   const showProgressivePrompt = pathname === "/today" || pathname === "/dashboard";
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   const navigation = (
     <nav className="app-nav" aria-label="Falcon Fuel app navigation">
@@ -69,11 +75,9 @@ export default function AppNav({
     </nav>
   );
 
-  const portalTarget = typeof document === "undefined" ? null : document.body;
-
   return (
     <>
-      {portalTarget ? createPortal(navigation, portalTarget) : null}
+      {portalReady ? createPortal(navigation, document.body) : null}
       {pathname === "/today" && showDailyMealCheckin && <DailyMealCheckinStrip />}
       {showContextPrompts && pathname !== "/profile-summary" && <ActivityReviewDueBanner />}
       {showContextPrompts && showProgressivePrompt && <ProgressiveProfilePrompt />}

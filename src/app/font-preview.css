@@ -1,0 +1,10 @@
+/* Typography prototype only: General Sans. Remove when comparison is finished. */
+@import url("https://api.fontshare.com/v2/css?f[]=general-sans@1,2&display=swap");
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "General Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}

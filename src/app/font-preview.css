@@ -1,0 +1,16 @@
+/* Typography prototype only: Geist Sans. Remove when comparison is finished. */
+@font-face {
+  font-family: "Geist Preview";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/geist:vf@5.3.0/latin-wght-normal.woff2") format("woff2-variations");
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Geist Preview", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}

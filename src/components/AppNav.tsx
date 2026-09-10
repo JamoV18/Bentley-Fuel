@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import ActivityReviewDueBanner from "./ActivityReviewDueBanner";
@@ -24,59 +25,13 @@ function Icon({ name }: { name: (typeof items)[number]["icon"] }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2" /></svg>;
 }
 
-export default function AppNav({
-  showDailyMealCheckin = true,
-  showContextPrompts = true,
-}: {
-  showDailyMealCheckin?: boolean;
-  showContextPrompts?: boolean;
-}) {
+export default function AppNav({ showDailyMealCheckin = true, showContextPrompts = true }: { showDailyMealCheckin?: boolean; showContextPrompts?: boolean }) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
+  const [portalReady, setPortalReady] = useState(false);
   const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
   const showProgressivePrompt = pathname === "/today" || pathname === "/dashboard";
-
-  const navigation = (
-    <nav className="app-nav" aria-label="Falcon Fuel app navigation">
-      {items.map((item) => {
-        const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="app-nav-item relative isolate overflow-hidden"
-            data-active={active}
-          >
-            {active && (
-              <motion.span
-                aria-hidden="true"
-                className="app-nav-active-pill absolute inset-0 z-0"
-                layoutId="app-nav-active-pill"
-                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40, mass: 0.48 }}
-              />
-            )}
-            <motion.span
-              className="app-nav-content relative z-10 inline-flex items-center justify-center"
-              whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <span className="app-nav-icon"><Icon name={item.icon} /></span>
-              <span>{item.label}</span>
-            </motion.span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-
-  const portalTarget = typeof document === "undefined" ? null : document.body;
-
-  return (
-    <>
-      {portalTarget ? createPortal(navigation, portalTarget) : null}
-      {pathname === "/today" && showDailyMealCheckin && <DailyMealCheckinStrip />}
-      {showContextPrompts && pathname !== "/profile-summary" && <ActivityReviewDueBanner />}
-      {showContextPrompts && showProgressivePrompt && <ProgressiveProfilePrompt />}
-    </>
-  );
+  useEffect(() => { setPortalReady(true); }, []);
+  const navigation = <nav className="app-nav" aria-label="Falcon Fuel app navigation">{items.map((item) => { const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`); return <Link key={item.href} href={item.href} className="app-nav-item relative isolate overflow-hidden" data-active={active}>{active && <motion.span aria-hidden="true" className="app-nav-active-pill absolute inset-0 z-0" layoutId="app-nav-active-pill" transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40, mass: 0.48 }} />}<motion.span className="app-nav-content relative z-10 inline-flex items-center justify-center" whileTap={reduceMotion ? undefined : { scale: 0.97 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}><span className="app-nav-icon"><Icon name={item.icon} /></span><span>{item.label}</span></motion.span></Link>; })}</nav>;
+  return <>{portalReady ? createPortal(navigation, document.body) : null}{pathname === "/today" && showDailyMealCheckin && <DailyMealCheckinStrip />}{showContextPrompts && pathname !== "/profile-summary" && <ActivityReviewDueBanner />}{showContextPrompts && showProgressivePrompt && <ProgressiveProfilePrompt />}</>;
 }

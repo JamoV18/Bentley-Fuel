@@ -1,0 +1,10 @@
+/* Typography prototype only: Switzer. Remove when comparison is finished. */
+@import url("https://api.fontshare.com/v2/css?f[]=switzer@1,2&display=swap");
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Switzer", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}

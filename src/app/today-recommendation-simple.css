@@ -1,0 +1,81 @@
+/* Today recommendation: intentionally quiet and action-first.
+   Keep only the next-meal decision and its primary action visible. */
+
+.ff-v2-hero {
+  display: block !important;
+  min-height: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--ff-divider) !important;
+  border-radius: 1.25rem !important;
+  background: var(--ff-surface) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+}
+
+.ff-v2-hero-visual,
+.ff-v3-hero-state,
+.ff-v2-hero-copy > .ff-v2-eyebrow,
+.ff-v2-hero-reason,
+.ff-v2-nutrition-cue,
+.ff-v2-secondary-link,
+.ff-v3-late-note {
+  display: none !important;
+}
+
+.ff-v2-hero-copy {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  padding: 1.2rem 1.25rem !important;
+  background: transparent !important;
+}
+
+.ff-v2-hero h2 {
+  margin: 0 !important;
+  max-width: none !important;
+  color: var(--ff-text-primary) !important;
+  font-size: clamp(1.45rem, 2.5vw, 2rem) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.035em !important;
+  font-weight: 700 !important;
+}
+
+.ff-v2-hero-copy > div:not(.ff-v2-nutrition-cue) {
+  margin: 0 !important;
+}
+
+.ff-v2-primary-cta {
+  min-height: 2.9rem;
+  margin: 0 !important;
+  padding: 0.78rem 0.95rem !important;
+  border: 1px solid var(--ff-divider) !important;
+  border-radius: 0.9rem !important;
+  background: var(--ff-surface-elevated) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+  font-size: 0.82rem !important;
+  font-weight: 650 !important;
+  white-space: nowrap;
+}
+
+.ff-v2-primary-cta:hover {
+  border-color: rgba(130, 188, 229, 0.28) !important;
+  background: var(--ff-surface-strong) !important;
+}
+
+.ff-v2-primary-cta span {
+  color: var(--ff-brand-lightblue) !important;
+}
+
+@media (max-width: 700px) {
+  .ff-v2-hero-copy {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+    padding: 1.1rem !important;
+  }
+
+  .ff-v2-primary-cta {
+    width: 100%;
+  }
+}

@@ -1,0 +1,426 @@
+/* Today refinement v2
+   Finalized direction from visual review:
+   - nutrition + recommendation side-by-side on wider screens
+   - stacked on phones
+   - one integrated macro surface, no nested macro cards
+   - calorie ring remains a primary visual without overpowering the page
+   - recommendation imagery is deliberately secondary
+*/
+
+/* Greeting is context, not the hero. */
+.ff-v2-header h1 {
+  font-size: clamp(1.85rem, 2.8vw, 2.65rem);
+  font-weight: 700;
+}
+
+/* One composed nutrition surface: ring + summary, then integrated macros. */
+.ff-today-nutrition {
+  isolation: isolate;
+  background:
+    radial-gradient(72% 64% at 12% -8%, rgba(130,188,229,.15), transparent 58%),
+    radial-gradient(50% 60% at 100% 0%, rgba(0,117,190,.075), transparent 62%),
+    linear-gradient(160deg, #1d242c 0%, #191e24 58%, #161a1f 100%);
+  box-shadow:
+    0 22px 54px rgba(0,0,0,.24),
+    0 2px 0 rgba(130,188,229,.035) inset;
+}
+
+.ff-today-nutrition::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 13rem;
+  height: 13rem;
+  left: -5rem;
+  top: -6rem;
+  border-radius: 50%;
+  background: rgba(130,188,229,.045);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.ff-today-nutrition-grid {
+  grid-template-columns: 1fr;
+  gap: 1.45rem;
+}
+
+.ff-today-calories {
+  gap: 1.6rem;
+  min-height: 14.2rem;
+}
+
+.ff-today-nutrition .ff-v2-ring {
+  width: 12.35rem;
+  flex-basis: 12.35rem;
+  filter: drop-shadow(0 14px 26px rgba(0,0,0,.18));
+}
+
+.ff-today-nutrition .ff-v2-ring::after {
+  inset: .7rem;
+  background:
+    radial-gradient(circle at 36% 24%, rgba(130,188,229,.045), transparent 48%),
+    #171b20;
+}
+
+.ff-today-nutrition .ff-v2-ring-inner strong {
+  font-size: clamp(2.15rem, 3.25vw, 2.8rem);
+}
+
+.ff-today-calorie-copy strong {
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+}
+
+.ff-today-macros {
+  gap: 0;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(244,245,246,.075);
+}
+
+.ff-today-macro {
+  min-width: 0;
+  padding: 0.15rem 0.95rem 0.1rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ff-today-macro + .ff-today-macro {
+  padding-left: 0.95rem;
+  border-left: 1px solid rgba(244,245,246,.075);
+}
+
+.ff-today-macro-line {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ff-today-macro-line strong {
+  font-size: 1.12rem;
+}
+
+.ff-today-macro-track {
+  margin-top: 0.58rem;
+  background: rgba(255,255,255,.065);
+}
+
+.ff-today-macro-track span {
+  background: linear-gradient(90deg, var(--ff-brand-blue), #82bce5);
+  box-shadow: 0 0 12px rgba(0,117,190,.14);
+}
+
+/* Recommendation should feel important, not billboard-sized. */
+.ff-v2-hero {
+  min-height: 0;
+  box-shadow:
+    0 22px 54px rgba(0,0,0,.22),
+    0 1px 0 rgba(130,188,229,.04) inset !important;
+}
+
+.ff-v2-hero-visual,
+.ff-v2-hero-image {
+  min-height: 8.5rem;
+  height: 8.5rem !important;
+}
+
+body .ff-v2-hero-copy {
+  padding: 1.25rem 1.3rem 1.2rem;
+  background:
+    radial-gradient(75% 72% at 100% 0%, rgba(130,188,229,.105), transparent 62%),
+    linear-gradient(160deg, #1e252d, #181d22 72%) !important;
+}
+
+.ff-v2-hero h2 {
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+}
+
+.ff-v2-primary-cta {
+  box-shadow: 0 10px 28px rgba(0,0,0,.14) !important;
+}
+
+/* The meal progression is a separate floating control, not a border attached to the cards above. */
+.ff-v3-day-path-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .7rem;
+  align-items: stretch;
+  margin-top: 1.05rem;
+}
+
+.ff-v3-day-path {
+  gap: .42rem;
+  margin: 0;
+  padding: .38rem;
+  border: 1px solid rgba(244,245,246,.075);
+  border-radius: 1.15rem;
+  background: rgba(23,27,32,.72);
+  box-shadow: 0 12px 30px rgba(0,0,0,.16);
+}
+
+.ff-v3-day-step-shell {
+  min-width: 0;
+}
+
+.ff-v3-day-step {
+  isolation: isolate;
+  min-height: 3.55rem;
+  height: 100%;
+  padding: .68rem .78rem;
+  border: 0 !important;
+  border-radius: .86rem;
+  text-decoration: none;
+  overflow: hidden;
+  transition: color .2s ease, background-color .2s ease;
+}
+
+.ff-v3-day-step:first-child {
+  padding-left: .78rem;
+}
+
+.ff-v3-day-step.is-next {
+  background: transparent;
+}
+
+.ff-v3-day-active {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: .86rem;
+  background:
+    radial-gradient(80% 120% at 18% -10%, rgba(130,188,229,.2), transparent 58%),
+    linear-gradient(135deg, rgba(0,117,190,.19), rgba(0,117,190,.07));
+  box-shadow:
+    inset 0 0 0 1px rgba(130,188,229,.16),
+    0 8px 18px rgba(0,70,118,.14);
+}
+
+.ff-v3-day-dot {
+  position: relative;
+  z-index: 1;
+  background: rgba(255,255,255,.035);
+}
+
+.ff-v3-day-copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  flex: 1;
+}
+
+.ff-v3-day-log {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-left: auto;
+  border-radius: 999px;
+  background: rgba(255,255,255,.055);
+  color: var(--ff-text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.ff-v3-day-step:hover .ff-v3-day-log {
+  background: rgba(130,188,229,.12);
+  color: var(--ff-brand-lightblue);
+}
+
+.ff-v3-snack-log-shell {
+  min-width: 8.8rem;
+}
+
+.ff-v3-snack-log {
+  display: flex;
+  height: 100%;
+  min-height: 4.3rem;
+  align-items: center;
+  gap: .65rem;
+  padding: .7rem .85rem;
+  border: 1px solid rgba(244,245,246,.075);
+  border-radius: 1.15rem;
+  background: rgba(23,27,32,.72);
+  color: var(--ff-text-secondary);
+  text-decoration: none;
+  box-shadow: 0 12px 30px rgba(0,0,0,.13);
+}
+
+.ff-v3-snack-log > span {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(130,188,229,.09);
+  color: var(--ff-brand-lightblue);
+  font-size: 1rem;
+}
+
+.ff-v3-snack-log strong,
+.ff-v3-snack-log small {
+  display: block;
+}
+
+.ff-v3-snack-log strong {
+  color: var(--ff-text-primary);
+  font-size: .72rem;
+}
+
+.ff-v3-snack-log small {
+  margin-top: .12rem;
+  font-size: .6rem;
+  line-height: 1.25;
+}
+
+/* Wide screens: Falcon Fuel's core value proposition is visible at once.
+   Where you stand + what to eat next. */
+@media (min-width: 900px) {
+  .ff-v2-shell:has(> .ff-v2-hero) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(21rem, .88fr);
+    column-gap: 1.15rem;
+    align-items: stretch;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > :not(.ff-today-nutrition):not(.ff-v2-hero) {
+    grid-column: 1 / -1;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-today-nutrition {
+    grid-column: 1;
+    margin-top: 0.85rem;
+    height: 100%;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero {
+    grid-column: 2;
+    grid-template-columns: 1fr;
+    margin-top: 0.85rem;
+    height: 100%;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero .ff-v2-hero-visual,
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero .ff-v2-hero-image {
+    min-height: 7.5rem;
+    height: 7.5rem !important;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero .ff-v2-hero-copy {
+    justify-content: flex-start;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v3-day-path-wrap {
+    margin-top: 1.05rem;
+  }
+}
+
+/* Phone: same hierarchy, composed vertically rather than compressed desktop. */
+@media (max-width: 760px) {
+  .ff-v2-header h1 {
+    font-size: clamp(1.65rem, 7vw, 2rem);
+  }
+
+  .ff-today-nutrition-grid {
+    gap: 1.05rem;
+  }
+
+  .ff-today-calories {
+    min-height: 0;
+  }
+
+  .ff-today-nutrition .ff-v2-ring {
+    width: 9.35rem;
+    flex-basis: 9.35rem;
+  }
+
+  .ff-today-macros {
+    padding-top: 0.85rem;
+  }
+
+  .ff-today-macro {
+    padding-right: 0.55rem;
+  }
+
+  .ff-today-macro + .ff-today-macro {
+    padding-left: 0.55rem;
+  }
+
+  .ff-today-macro-line strong {
+    font-size: 0.98rem;
+  }
+
+  .ff-v2-hero-visual,
+  .ff-v2-hero-image {
+    min-height: 7.75rem;
+    height: 7.75rem !important;
+  }
+
+  body .ff-v2-hero-copy {
+    padding: 1.05rem 1.05rem 1rem;
+  }
+
+  .ff-v3-day-path-wrap {
+    grid-template-columns: 1fr;
+    gap: .55rem;
+  }
+
+  .ff-v3-day-path {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ff-v3-day-step,
+  .ff-v3-day-step:first-child {
+    min-height: 4.3rem;
+    padding: .6rem .45rem;
+    border-bottom: 0;
+    gap: .42rem;
+  }
+
+  .ff-v3-day-log {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+
+  .ff-v3-snack-log-shell {
+    min-width: 0;
+  }
+
+  .ff-v3-snack-log {
+    min-height: 3.6rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .ff-today-calories {
+    gap: 0.95rem;
+  }
+
+  .ff-today-nutrition .ff-v2-ring {
+    width: 8.55rem;
+    flex-basis: 8.55rem;
+  }
+
+  .ff-today-macro-line span,
+  .ff-today-macro small {
+    font-size: 0.61rem;
+  }
+
+  .ff-v3-day-path {
+    padding: .3rem;
+    gap: .28rem;
+  }
+
+  .ff-v3-day-step,
+  .ff-v3-day-step:first-child {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    min-height: 4.6rem;
+    align-content: center;
+  }
+
+  .ff-v3-day-log {
+    display: none;
+  }
+}

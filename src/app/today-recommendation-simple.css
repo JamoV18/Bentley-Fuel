@@ -1,0 +1,270 @@
+/* Today recommendation: concise, clear, and action-first.
+   Keep enough context to explain the recommendation without turning it into a billboard. */
+
+.ff-v2-hero {
+  display: block !important;
+  min-height: 10.75rem !important;
+  overflow: hidden;
+  border: 1px solid var(--ff-divider) !important;
+  border-radius: 1.25rem !important;
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(0, 117, 190, 0.055), transparent 62%),
+    var(--ff-surface) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+}
+
+.ff-v2-hero-visual,
+.ff-v3-hero-state {
+  display: none !important;
+}
+
+.ff-v2-hero-copy {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(2rem, 1fr) auto auto;
+  grid-template-areas:
+    "eyebrow action"
+    "title action"
+    "reason action"
+    ". ."
+    "cue cue"
+    "secondary secondary";
+  align-content: stretch;
+  align-items: start;
+  gap: 0.3rem 1.35rem;
+  min-height: 10.75rem;
+  height: 100%;
+  padding: 1.35rem 1.4rem !important;
+  background: transparent !important;
+}
+
+.ff-v2-hero-copy > .ff-v2-eyebrow {
+  display: block !important;
+  grid-area: eyebrow;
+  margin: 0 !important;
+  color: var(--ff-brand-lightblue) !important;
+  font-size: 0.64rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+}
+
+.ff-v2-hero h2 {
+  grid-area: title;
+  margin: 0 !important;
+  max-width: none !important;
+  color: var(--ff-text-primary) !important;
+  font-size: clamp(1.65rem, 2.55vw, 2.05rem) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.035em !important;
+  font-weight: 700 !important;
+}
+
+.ff-v2-hero-reason {
+  display: block !important;
+  grid-area: reason;
+  max-width: 34rem !important;
+  margin: 0.18rem 0 0 !important;
+  color: var(--ff-text-secondary) !important;
+  font-size: 0.8rem !important;
+  line-height: 1.5 !important;
+  font-weight: 450 !important;
+}
+
+/* Useful context lives at the bottom of the card so the space is structured, not dead. */
+.ff-v2-nutrition-cue {
+  display: block !important;
+  grid-area: cue;
+  max-width: none;
+  margin: 0 !important;
+  padding: 0.8rem 0 0 !important;
+  border-top: 1px solid rgba(244, 245, 246, 0.07) !important;
+}
+
+.ff-v2-nutrition-cue > span {
+  display: none !important;
+}
+
+.ff-v2-nutrition-cue p {
+  margin: 0 !important;
+  max-width: 35rem;
+  color: color-mix(in srgb, var(--ff-text-secondary) 88%, transparent) !important;
+  font-size: 0.72rem !important;
+  line-height: 1.45 !important;
+  font-weight: 500 !important;
+}
+
+.ff-v2-hero-copy > div:not(.ff-v2-nutrition-cue) {
+  grid-area: action;
+  align-self: center;
+  margin: 0 !important;
+}
+
+.ff-v2-primary-cta {
+  min-height: 2.75rem;
+  margin: 0 !important;
+  padding: 0.72rem 0.9rem !important;
+  border: 1px solid var(--ff-divider) !important;
+  border-radius: 0.85rem !important;
+  background: var(--ff-surface-elevated) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+  font-size: 0.8rem !important;
+  font-weight: 650 !important;
+  white-space: nowrap;
+}
+
+.ff-v2-primary-cta:hover {
+  border-color: rgba(130, 188, 229, 0.3) !important;
+  background: var(--ff-surface-strong) !important;
+}
+
+.ff-v2-primary-cta span {
+  color: var(--ff-brand-lightblue) !important;
+}
+
+.ff-v2-secondary-link,
+.ff-v3-late-note {
+  grid-area: secondary;
+  align-self: end;
+  margin: 0.55rem 0 0 !important;
+  color: color-mix(in srgb, var(--ff-text-secondary) 72%, transparent) !important;
+  font-size: 0.68rem !important;
+  line-height: 1.4 !important;
+  font-weight: 550 !important;
+}
+
+.ff-v2-secondary-link {
+  display: inline-block !important;
+  width: fit-content;
+  text-decoration: none;
+}
+
+.ff-v2-secondary-link:hover {
+  color: var(--ff-text-primary) !important;
+}
+
+.ff-v3-late-note {
+  display: block !important;
+  max-width: 34rem;
+}
+
+/* Late night already has its own calm note; do not show a redundant location link too. */
+.ff-v2-hero-copy:has(.ff-v3-late-note) .ff-v2-secondary-link {
+  display: none !important;
+}
+
+/* Meal rail polish.
+   Core meals and Snack use the exact same tab height. Snack stays separate so it remains optional. */
+.ff-v3-day-path-wrap {
+  --ff-meal-tab-height: 3.15rem;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 13.5rem) !important;
+  align-items: center !important;
+  gap: 0.7rem !important;
+}
+
+.ff-v3-day-path {
+  margin: 0 !important;
+  min-height: calc(var(--ff-meal-tab-height) + 0.76rem);
+  height: auto !important;
+  padding: 0.38rem !important;
+  gap: 0.42rem !important;
+  border: 1px solid rgba(244, 245, 246, 0.075) !important;
+  border-radius: 1.15rem !important;
+}
+
+.ff-v3-day-step-shell {
+  height: var(--ff-meal-tab-height) !important;
+}
+
+.ff-v3-day-step,
+.ff-v3-day-step:first-child {
+  min-height: var(--ff-meal-tab-height) !important;
+  height: var(--ff-meal-tab-height) !important;
+  padding: 0.56rem 0.92rem !important;
+  border: 0 !important;
+  border-radius: 0.86rem !important;
+}
+
+.ff-v3-day-step.is-next {
+  padding-left: 1.15rem !important;
+}
+
+.ff-v3-day-step.is-next .ff-v3-day-dot {
+  margin-left: 0 !important;
+  box-shadow: inset 0 0 0 1px rgba(130, 188, 229, 0.18) !important;
+}
+
+.ff-v3-snack-log-shell {
+  display: flex !important;
+  min-width: 0 !important;
+  height: var(--ff-meal-tab-height) !important;
+  align-self: center !important;
+}
+
+.ff-v3-snack-log {
+  flex: 1 1 auto;
+  width: 100%;
+  height: var(--ff-meal-tab-height) !important;
+  min-height: var(--ff-meal-tab-height) !important;
+  box-sizing: border-box;
+  align-self: center;
+  padding: 0.5rem 0.82rem !important;
+  border-radius: 0.9rem !important;
+}
+
+@media (min-width: 900px) {
+  /* Desktop balance: the recommendation shares the nutrition row height,
+     but its content is distributed into decision + context instead of leaving a void. */
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero {
+    height: 100% !important;
+    align-self: stretch !important;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero .ff-v2-hero-copy {
+    min-height: 100% !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .ff-v3-day-path-wrap {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ff-v3-snack-log-shell,
+  .ff-v3-snack-log {
+    height: var(--ff-meal-tab-height) !important;
+    min-height: var(--ff-meal-tab-height) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .ff-v2-hero {
+    min-height: 0 !important;
+  }
+
+  .ff-v2-hero-copy {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    grid-template-areas:
+      "eyebrow"
+      "title"
+      "reason"
+      "action"
+      "cue"
+      "secondary";
+    gap: 0.32rem;
+    min-height: 0;
+    padding: 1.1rem !important;
+  }
+
+  .ff-v2-primary-cta {
+    width: 100%;
+    margin-top: 0.55rem !important;
+  }
+
+  .ff-v2-nutrition-cue {
+    margin-top: 0.45rem !important;
+  }
+}

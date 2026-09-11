@@ -1,0 +1,479 @@
+/* Research-backed Today v1
+   Primary hierarchy: current nutrition -> next meal -> meal history.
+   Matte paper base with restrained Bentley-blue atmosphere.
+*/
+
+.ff-v2-shell {
+  width: min(100%, 68rem);
+  padding: 1.5rem 1.25rem 8.5rem;
+}
+
+.ff-v2-header {
+  margin-bottom: 0.65rem;
+}
+
+.ff-v2-header h1 {
+  margin-top: 0.2rem;
+  font-size: clamp(2rem, 3.5vw, 3.15rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+  font-weight: 720;
+}
+
+.ff-v2-header-copy > p:last-child {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 620;
+}
+
+.ff-v2-daybar {
+  margin: 0.55rem 0 1rem;
+  padding: 0.2rem 0;
+  border-top: 1px solid var(--ff-line);
+  border-bottom: 1px solid var(--ff-line);
+}
+
+.ff-v2-daybar button {
+  min-height: 2.55rem;
+}
+
+.ff-v2-data-note {
+  margin-bottom: 1rem;
+  padding: 0.68rem 0.85rem;
+  border-left-width: 2px;
+  border-radius: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 620;
+}
+
+/* Nutrition is the first working surface on Today. */
+.ff-today-nutrition {
+  position: relative;
+  overflow: hidden;
+  margin-top: 0.85rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(244,245,246,.09);
+  border-radius: 1.55rem;
+  background:
+    radial-gradient(60% 90% at 94% -10%, rgba(0,117,190,.085), transparent 62%),
+    linear-gradient(160deg, #1b2026 0%, #171b20 68%, #15191e 100%);
+}
+
+.ff-today-nutrition-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ff-today-nutrition-head h2 {
+  margin: 0.28rem 0 0;
+  font-size: clamp(1.35rem, 2.3vw, 1.85rem);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  font-weight: 680;
+}
+
+.ff-today-mode-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(244,245,246,.09);
+  border-radius: 999px;
+  background: #12161a;
+}
+
+.ff-today-mode-toggle button {
+  min-height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ff-text-secondary);
+  padding: 0.42rem 0.72rem;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 680;
+  transition: background .16s ease, color .16s ease;
+}
+
+.ff-today-mode-toggle button[aria-pressed="true"] {
+  background: #f4f5f6;
+  color: #171b20;
+}
+
+.ff-today-mode-toggle button:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.ff-today-nutrition-grid {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.35fr);
+  gap: clamp(1.4rem, 4vw, 3rem);
+  align-items: center;
+  margin-top: 1.15rem;
+}
+
+.ff-today-calories {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.ff-today-nutrition .ff-v2-ring {
+  width: 9.4rem;
+  flex: 0 0 9.4rem;
+  background: conic-gradient(var(--ff-brand-blue) var(--ff-ring), rgba(255,255,255,.075) 0);
+}
+
+.ff-today-nutrition .ff-v2-ring::after {
+  inset: 0.58rem;
+  background: #171b20;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.035);
+}
+
+.ff-today-nutrition .ff-v2-ring-inner strong {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  font-weight: 680;
+  letter-spacing: -0.045em;
+}
+
+.ff-today-nutrition .ff-v2-ring-inner span,
+.ff-today-nutrition .ff-v2-ring-inner small {
+  color: var(--ff-text-secondary);
+  font-weight: 620;
+}
+
+.ff-today-calorie-copy {
+  min-width: 0;
+}
+
+.ff-today-calorie-copy strong {
+  display: block;
+  color: var(--ff-text-primary);
+  font-size: clamp(1.45rem, 2.8vw, 2.1rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+}
+
+.ff-today-calorie-copy span {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--ff-text-secondary);
+  font-size: 0.73rem;
+  line-height: 1.45;
+  font-weight: 560;
+}
+
+.ff-today-macros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ff-today-macro {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid rgba(244,245,246,.075);
+  border-radius: 1rem;
+  background: rgba(255,255,255,.025);
+}
+
+.ff-today-macro-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.ff-today-macro-line span {
+  color: var(--ff-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 620;
+}
+
+.ff-today-macro-line strong {
+  color: var(--ff-text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ff-today-macro-track {
+  height: 4px;
+  overflow: hidden;
+  margin-top: 0.7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.075);
+}
+
+.ff-today-macro-track span {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  border-radius: inherit;
+  background: var(--ff-brand-blue);
+  transition: width .28s cubic-bezier(.22,1,.36,1);
+}
+
+.ff-today-macro small {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--ff-text-tertiary);
+  font-size: 0.64rem;
+  font-weight: 600;
+}
+
+/* Recommendation is important, but deliberately not a full-screen billboard. */
+.ff-v2-hero {
+  grid-template-columns: minmax(0, .9fr) minmax(20rem, 1.1fr);
+  min-height: 21.5rem;
+  margin-top: 1.15rem;
+  border: 1px solid rgba(244,245,246,.08);
+  border-radius: 1.55rem;
+  box-shadow: none !important;
+}
+
+.ff-v2-hero-visual {
+  min-height: 21.5rem;
+}
+
+.ff-v2-hero-image {
+  min-height: 21.5rem;
+}
+
+body .ff-v2-hero-copy {
+  justify-content: center;
+  padding: clamp(1.4rem, 3.5vw, 2.6rem);
+  background:
+    radial-gradient(65% 90% at 100% 0%, rgba(0,117,190,.07), transparent 66%),
+    linear-gradient(160deg, #1c2127, #181c21 72%) !important;
+}
+
+.ff-v2-hero h2,
+.ff-v2-history-hero h2 {
+  margin-top: 0.45rem;
+  max-width: 14ch;
+  font-size: clamp(2rem, 3.6vw, 3rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  font-weight: 720;
+}
+
+.ff-v2-hero-reason {
+  margin-top: 0.8rem;
+  max-width: 31rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.ff-v2-nutrition-cue {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+}
+
+.ff-v2-nutrition-cue > span {
+  width: 1.45rem;
+  height: 1.45rem;
+  background: rgba(66,183,176,.92);
+  font-size: .72rem;
+}
+
+.ff-v2-nutrition-cue p {
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.ff-v2-primary-cta {
+  margin-top: 1rem;
+  padding: 0.82rem 0.95rem;
+  border-radius: 0.85rem;
+  background: #f4f5f6 !important;
+  color: #171b20 !important;
+  box-shadow: none !important;
+  font-size: 0.79rem;
+}
+
+.ff-v2-primary-cta span {
+  color: var(--ff-brand-blue) !important;
+}
+
+.ff-v2-secondary-link {
+  margin-top: 0.65rem;
+  font-size: 0.68rem;
+}
+
+.ff-v3-day-path {
+  margin-top: 0.7rem;
+}
+
+.ff-v2-confirm {
+  margin-top: 1rem;
+}
+
+.ff-v2-meals {
+  margin-top: 2.4rem;
+}
+
+.ff-v2-section-title h2 {
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
+  font-weight: 680;
+}
+
+.ff-v2-plan-strip {
+  margin-top: 2.4rem;
+}
+
+@media (max-width: 760px) {
+  .ff-v2-shell {
+    padding: 1rem 1rem 8.5rem;
+  }
+
+  .ff-v2-header {
+    margin-bottom: 0.35rem;
+  }
+
+  .ff-v2-header h1 {
+    font-size: clamp(1.8rem, 8vw, 2.35rem);
+  }
+
+  .ff-v2-kicker {
+    font-size: 0.6rem;
+  }
+
+  .ff-v2-daybar {
+    margin: 0.35rem 0 0.85rem;
+  }
+
+  .ff-v2-daybar small {
+    font-size: 0.64rem;
+  }
+
+  .ff-today-nutrition {
+    margin-top: 0.6rem;
+    padding: 1rem;
+    border-radius: 1.3rem;
+  }
+
+  .ff-today-nutrition-head {
+    align-items: flex-start;
+  }
+
+  .ff-today-nutrition-head h2 {
+    font-size: 1.35rem;
+  }
+
+  .ff-today-mode-toggle button {
+    padding: 0.38rem 0.58rem;
+    font-size: 0.65rem;
+  }
+
+  .ff-today-nutrition-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .ff-today-calories {
+    justify-content: flex-start;
+  }
+
+  .ff-today-nutrition .ff-v2-ring {
+    width: 8.3rem;
+    flex-basis: 8.3rem;
+  }
+
+  .ff-today-nutrition .ff-v2-ring-inner strong {
+    font-size: 1.9rem;
+  }
+
+  .ff-today-calorie-copy strong {
+    font-size: 1.55rem;
+  }
+
+  .ff-today-macros {
+    gap: 0.5rem;
+  }
+
+  .ff-today-macro {
+    padding: 0.72rem 0.65rem;
+  }
+
+  .ff-today-macro-line {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .ff-today-macro-line strong {
+    font-size: 0.95rem;
+  }
+
+  .ff-v2-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    margin-top: 0.9rem;
+    border-radius: 1.3rem;
+  }
+
+  .ff-v2-hero-visual {
+    min-height: 10.75rem;
+  }
+
+  .ff-v2-hero-image {
+    min-height: 10.75rem;
+    height: 10.75rem !important;
+  }
+
+  body .ff-v2-hero-copy {
+    padding: 1.15rem;
+  }
+
+  .ff-v2-hero h2 {
+    max-width: none;
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+  }
+
+  .ff-v2-hero-reason {
+    font-size: 0.78rem;
+  }
+
+  .ff-v2-photo-label {
+    left: 0.85rem;
+    bottom: 0.75rem;
+  }
+
+  .ff-v3-day-path {
+    margin-top: 0.55rem;
+  }
+
+  .ff-v2-meals {
+    margin-top: 2rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .ff-today-nutrition-head {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .ff-today-mode-toggle {
+    width: 100%;
+  }
+
+  .ff-today-calories {
+    gap: 0.9rem;
+  }
+
+  .ff-today-nutrition .ff-v2-ring {
+    width: 7.5rem;
+    flex-basis: 7.5rem;
+  }
+
+  .ff-today-macros {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

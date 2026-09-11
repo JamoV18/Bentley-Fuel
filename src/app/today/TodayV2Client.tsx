@@ -72,17 +72,47 @@ function AnimatedCalorieRing({ progress, children }: { progress: number; childre
   return <motion.div className="ff-v2-ring" style={{ "--ff-ring": cssProgress } as unknown as CSSProperties}>{children}</motion.div>;
 }
 
-function preferredLocation(recent: MealHistoryEntry[], locationNames: Record<string, string>) {
+function inferredCoreMealSlot(entry: MealHistoryEntry): CoreMealSlot | undefined {
+  if (entry.mealSlot === "breakfast" || entry.mealSlot === "lunch" || entry.mealSlot === "dinner") return entry.mealSlot;
+  const date = new Date(entry.eatenAt ?? entry.selectedAt);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const hour = date.getHours();
+  if (hour < 11) return "breakfast";
+  if (hour < 16) return "lunch";
+  return "dinner";
+}
+
+function preferredLocation(
+  recent: MealHistoryEntry[],
+  locationNames: Record<string, string>,
+  mealSlot?: CoreMealSlot,
+) {
+  const fallback = locationNames["loc-921"] ? "loc-921" : Object.keys(locationNames)[0];
+  if (!mealSlot) return { id: fallback, learned: false, evidenceCount: 0 };
+
+  const comparable = recent.filter((entry) => {
+    if (!locationNames[entry.locationId]) return false;
+    const confirmed = entry.eatenAt !== undefined || (entry.completionFraction ?? 0) > 0;
+    return confirmed && inferredCoreMealSlot(entry) === mealSlot;
+  });
+
   const counts = new Map<string, number>();
-  for (const entry of recent) {
-    if (!locationNames[entry.locationId]) continue;
+  for (const entry of comparable) {
     counts.set(entry.locationId, (counts.get(entry.locationId) ?? 0) + 1);
   }
-  const learned = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-  if (learned) return { id: learned[0], learned: learned[1] >= 2 };
-  if (locationNames["loc-921"]) return { id: "loc-921", learned: false };
-  const fallback = Object.keys(locationNames)[0];
-  return { id: fallback, learned: false };
+
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const top = ranked[0];
+  const evidenceCount = comparable.length;
+  const topShare = top && evidenceCount > 0 ? top[1] / evidenceCount : 0;
+
+  // Three confirmed meals is enough to begin learning without overreacting to one visit.
+  // Require a clear 60%+ pattern and at least two visits to the same location.
+  if (top && evidenceCount >= 3 && top[1] >= 2 && topShare >= 0.6) {
+    return { id: top[0], learned: true, evidenceCount };
+  }
+
+  return { id: fallback, learned: false, evidenceCount };
 }
 
 export default function TodayV2Client({
@@ -135,7 +165,6 @@ export default function TodayV2Client({
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);
   const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets, selectedDate), [entries, plan?.activeTargets, profile?.dailyTargets, selectedDate]);
-  const locationPreference = useMemo(() => preferredLocation(recentEntries, locationNames), [recentEntries, locationNames]);
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;
@@ -168,6 +197,8 @@ export default function TodayV2Client({
   const hour = now.getHours();
   const livingDay = resolveLivingDayState(snapshot.meals, hour);
   const recommendationPeriod = livingDay.recommendationPeriod;
+  const preferenceMealSlot = recommendationPeriod === "breakfast" || recommendationPeriod === "lunch" || recommendationPeriod === "dinner" ? recommendationPeriod : undefined;
+  const locationPreference = preferredLocation(recentEntries, locationNames, preferenceMealSlot);
   const mealPeriodLabel = recommendationPeriod ? readable(recommendationPeriod) : undefined;
   const preferredLocationName = locationNames[locationPreference.id] ?? "campus dining";
   const target = snapshot.targets;
@@ -196,23 +227,20 @@ export default function TodayV2Client({
           ? `You have room to eat normally. About ${round(remainingCalories)} calories remain today.`
           : "I’ll rank the menu around your goal and dietary needs.";
 
-  const previousMealLabel = recommendationPeriod === "lunch" ? "Breakfast" : recommendationPeriod === "dinner" ? "Lunch" : undefined;
-  const heroEyebrow = livingDay.mode === "anticipate" ? "Up next" : livingDay.mode === "late-night" ? "Optional tonight" : "Recommended next";
+  const heroEyebrow = livingDay.mode === "late-night" ? "Optional tonight" : "Next best meal";
   const heroTitle = livingDay.mode === "late-night"
-    ? "Still need something tonight?"
+    ? "Still hungry?"
     : `${mealPeriodLabel ?? "Meal"} at ${preferredLocationName}`;
-  const heroReason = livingDay.mode === "anticipate" && mealPeriodLabel
-    ? `${previousMealLabel ?? "Your last meal"} is locked in. When you’re ready, I’ll rank ${mealPeriodLabel.toLowerCase()} at ${preferredLocationName} around what remains in your day.`
-    : livingDay.mode === "late-night"
-      ? "Falcon Fuel won’t push another meal just to finish a target. If you’re still hungry, I can rank the late-night options that fit best."
-      : locationPreference.learned
-        ? `You choose ${preferredLocationName} most often. I’ll rank today’s ${mealPeriodLabel?.toLowerCase() ?? "meal"} there around what remains in your day.`
-        : `I’ll rank today’s ${mealPeriodLabel?.toLowerCase() ?? "meal"} at ${preferredLocationName} against your plan and what you’ve already eaten.`;
+  const heroReason = livingDay.mode === "late-night"
+    ? "Only if you want something else — I’ll rank the late-night options that fit."
+    : locationPreference.learned
+      ? `You usually choose ${preferredLocationName} for ${mealPeriodLabel?.toLowerCase() ?? "this meal"}, so I’ll start there.`
+      : `I’ll rank ${preferredLocationName} options around what you have left today.`;
   const heroCta = livingDay.mode === "anticipate" && mealPeriodLabel
     ? `Plan ${mealPeriodLabel.toLowerCase()}`
     : livingDay.mode === "late-night"
-      ? "See late-night options"
-      : `See my best ${mealPeriodLabel?.toLowerCase() ?? "meal"}`;
+      ? "See options"
+      : `See ${mealPeriodLabel?.toLowerCase() ?? "meal"} picks`;
 
   const completionCopy = livingDay.completedSlots.dinner
     ? remainingProtein !== undefined && remainingProtein > 0

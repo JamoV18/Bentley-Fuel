@@ -3,7 +3,7 @@
 
 .ff-v2-hero {
   display: block !important;
-  min-height: 0 !important;
+  min-height: 10.75rem !important;
   overflow: hidden;
   border: 1px solid var(--ff-divider) !important;
   border-radius: 1.25rem !important;
@@ -16,7 +16,6 @@
 
 .ff-v2-hero-visual,
 .ff-v3-hero-state,
-.ff-v2-nutrition-cue,
 .ff-v2-secondary-link,
 .ff-v3-late-note {
   display: none !important;
@@ -28,9 +27,12 @@
   grid-template-areas:
     "eyebrow action"
     "title action"
-    "reason action";
+    "reason action"
+    "cue action";
+  align-content: center;
   align-items: center;
   gap: 0.3rem 1.35rem;
+  min-height: 10.75rem;
   padding: 1.2rem 1.3rem !important;
   background: transparent !important;
 }
@@ -68,6 +70,28 @@
   font-weight: 450 !important;
 }
 
+/* One quiet supporting sentence fills the card with useful context instead of decoration. */
+.ff-v2-nutrition-cue {
+  display: block !important;
+  grid-area: cue;
+  max-width: 34rem;
+  margin: 0.55rem 0 0 !important;
+  padding: 0.55rem 0 0 !important;
+  border-top: 1px solid rgba(244, 245, 246, 0.07) !important;
+}
+
+.ff-v2-nutrition-cue > span {
+  display: none !important;
+}
+
+.ff-v2-nutrition-cue p {
+  margin: 0 !important;
+  color: color-mix(in srgb, var(--ff-text-secondary) 86%, transparent) !important;
+  font-size: 0.69rem !important;
+  line-height: 1.4 !important;
+  font-weight: 500 !important;
+}
+
 .ff-v2-hero-copy > div:not(.ff-v2-nutrition-cue) {
   grid-area: action;
   align-self: center;
@@ -98,7 +122,7 @@
 }
 
 /* Meal rail polish.
-   Force the late-loading Today CSS to win over the older living-day rules. */
+   The three core meals share one rail; Snack stays separate and deliberately smaller. */
 .ff-v3-day-path-wrap {
   grid-template-columns: minmax(0, 1fr) minmax(12rem, 13.5rem) !important;
   align-items: stretch !important;
@@ -136,17 +160,27 @@
 .ff-v3-snack-log-shell {
   display: flex !important;
   min-width: 0 !important;
-  align-self: stretch !important;
+  height: 3.55rem !important;
+  align-self: center !important;
 }
 
 .ff-v3-snack-log {
   flex: 1 1 auto;
   width: 100%;
-  height: 100% !important;
-  min-height: 4.35rem !important;
+  height: 3.55rem !important;
+  min-height: 3.55rem !important;
   box-sizing: border-box;
-  align-self: stretch;
-  padding: 0.68rem 0.92rem !important;
+  align-self: center;
+  padding: 0.58rem 0.82rem !important;
+  border-radius: 0.98rem !important;
+}
+
+@media (min-width: 900px) {
+  /* The nutrition card can be taller; the recommendation should not be forced to match it. */
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero {
+    height: auto !important;
+    align-self: start !important;
+  }
 }
 
 @media (max-width: 760px) {
@@ -154,20 +188,28 @@
     grid-template-columns: 1fr !important;
   }
 
+  .ff-v3-snack-log-shell,
   .ff-v3-snack-log {
-    min-height: 3.8rem !important;
+    height: 3.55rem !important;
+    min-height: 3.55rem !important;
   }
 }
 
 @media (max-width: 700px) {
+  .ff-v2-hero {
+    min-height: 0 !important;
+  }
+
   .ff-v2-hero-copy {
     grid-template-columns: 1fr;
     grid-template-areas:
       "eyebrow"
       "title"
       "reason"
+      "cue"
       "action";
     gap: 0.32rem;
+    min-height: 0;
     padding: 1.1rem !important;
   }
 

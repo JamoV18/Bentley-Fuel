@@ -1,0 +1,10 @@
+/* Typography prototype only: Hanken Grotesk. */
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&display=swap');
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Hanken Grotesk", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}

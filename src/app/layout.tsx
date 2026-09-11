@@ -7,6 +7,7 @@ import "./onboarding-waves.css";
 import "./bentley-theme.css";
 import "./design-system.css";
 import "./shell-nav.css";
+import "./font-preview.css";
 
 export const metadata: Metadata = {
   title: "Falcon Fuel",

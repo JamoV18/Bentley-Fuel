@@ -48,6 +48,13 @@ export interface Location {
   provenance: Provenance;
 }
 
+export type AvailabilityVerificationStatus =
+  | "live-verified"
+  | "verified-snapshot"
+  | "stale"
+  | "unavailable"
+  | "unverified";
+
 export interface Station {
   id: StationId;
   name: string;
@@ -56,6 +63,11 @@ export interface Station {
   cuisineType?: string;
   mealPeriods?: MealPeriod[];
   provenance: Provenance;
+  /** Date-scoped status of this station's published availability. */
+  availabilityStatus?: AvailabilityVerificationStatus;
+  menuDate?: string;
+  /** Source that established that this station/menu was offered. */
+  availabilityProvenance?: Provenance;
 }
 
 export type ComponentCategory =
@@ -121,7 +133,14 @@ export interface MenuItem {
   availability?: MealPeriod[];
   imageUrl?: string;
   popular?: boolean;
+  /** Backwards-compatible overall provenance. New live data also records field-level provenance below. */
   provenance: Provenance;
+  /** Date-scoped truth that this item is actually offered by the campus source. */
+  availabilityStatus?: AvailabilityVerificationStatus;
+  menuDate?: string;
+  availabilityProvenance?: Provenance;
+  /** Independent source for nutrition; may differ from the source that proves campus availability. */
+  nutritionProvenance?: Provenance;
 }
 
 export interface DiningDataset {

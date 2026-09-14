@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - phase8-tracking-plan-foundation
+      - dining-data-reliability-v1
 
 jobs:
   validate:
@@ -38,3 +39,6 @@ jobs:
 
       - name: Validate dining data
         run: npm run validate:data
+
+      - name: Audit recommendations
+        run: npm run audit:recommendations

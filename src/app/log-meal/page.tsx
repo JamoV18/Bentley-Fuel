@@ -19,6 +19,8 @@ const CORE_SLOTS: Array<{ slot: Exclude<MealLogSlot, "snack">; label: string; hi
   { slot: "dinner", label: "Dinner", hint: "Close the loop on your main meals" },
 ];
 
+const LOG_SLOTS: MealLogSlot[] = ["breakfast", "lunch", "dinner", "snack"];
+
 const LOCATIONS = [
   { value: LOCATION_IDS.nineTwentyOne, label: "The 921" },
   { value: LOCATION_IDS.laCava, label: "LaCava" },
@@ -92,6 +94,7 @@ export default function LogMealPage() {
   const [error, setError] = useState("");
   const [savedSlot, setSavedSlot] = useState<MealLogSlot | null>(null);
   const successTimer = useRef<number | null>(null);
+  const quickOpenHandled = useRef(false);
 
   const refresh = useCallback(() => {
     const [year, month, day] = selectedDate.split("-").map(Number);
@@ -115,14 +118,24 @@ export default function LogMealPage() {
     return result;
   }, [entries]);
 
-  const openForm = (slot: MealLogSlot) => {
+  const openForm = useCallback((slot: MealLogSlot) => {
     setActiveSlot(slot);
     setDescription("");
     setLocationId(LOCATION_IDS.nineTwentyOne);
     setTime(defaultTime(slot, selectedDate));
     setNutrition({ calories: "", protein: "", carbs: "", fat: "" });
     setError("");
-  };
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (quickOpenHandled.current) return;
+    quickOpenHandled.current = true;
+    const requestedSlot = new URLSearchParams(window.location.search).get("slot");
+    if (requestedSlot && LOG_SLOTS.includes(requestedSlot as MealLogSlot)) {
+      const slot = requestedSlot as MealLogSlot;
+      queueMicrotask(() => openForm(slot));
+    }
+  }, [openForm]);
 
   const closeForm = () => {
     setActiveSlot(null);

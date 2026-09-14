@@ -1,0 +1,15 @@
+/* Falcon Fuel production typeface: Satoshi. */
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap");
+
+:root {
+  --ff-font-sans: "Satoshi", "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--ff-font-sans);
+}

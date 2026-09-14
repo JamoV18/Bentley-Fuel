@@ -162,6 +162,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(12rem, 13.5rem) !important;
   align-items: center !important;
   gap: 0.7rem !important;
+  margin-top: 1.75rem !important;
 }
 
 .ff-v3-day-path {
@@ -230,6 +231,7 @@
 @media (max-width: 760px) {
   .ff-v3-day-path-wrap {
     grid-template-columns: 1fr !important;
+    margin-top: 1.35rem !important;
   }
 
   .ff-v3-snack-log-shell,

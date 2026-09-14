@@ -1,34 +1,11 @@
-name: Bootstrap Vercel runtime cache dependency
+name: Retired Vercel dependency bootstrap
 
 on:
-  push:
-    branches:
-      - dining-data-reliability-v1
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  install:
-    if: ${{ !contains(github.event.head_commit.message, '[runtime-cache-deps]') }}
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: dining-data-reliability-v1
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - name: Install official Vercel runtime cache package
-        run: npm install @vercel/functions@3.9.7 --save
-      - name: Commit lockfile update
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Add Vercel runtime cache dependency [runtime-cache-deps]"
-          git push origin HEAD:dining-data-reliability-v1
+      - name: Dependency already committed
+        run: echo "@vercel/functions is already pinned in package.json and package-lock.json; this bootstrap workflow is intentionally retired."

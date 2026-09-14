@@ -36,7 +36,6 @@ const outlets: Outlet[] = [
 ];
 
 const normalize = (value: unknown) => String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const record = (value: unknown): JsonRecord => value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {};
 
 function browserHeaders(): HeadersInit {
   return {
@@ -49,15 +48,17 @@ function browserHeaders(): HeadersInit {
   };
 }
 
-async function doFetch(url: string, useBrowserHeaders: boolean): Promise<FetchObservation> {
+async function doFetch(url: string, useBrowserHeaders: boolean, cookie?: string): Promise<FetchObservation> {
   const started = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
+    const headers = new Headers(useBrowserHeaders ? browserHeaders() : { Accept: "application/json", "User-Agent": "Bentley-Fuel/1.0" });
+    if (cookie) headers.set("Cookie", cookie);
     const response = await fetch(url, {
       cache: "no-store",
       signal: controller.signal,
-      headers: useBrowserHeaders ? browserHeaders() : { Accept: "application/json", "User-Agent": "Bentley-Fuel/1.0" },
+      headers,
     });
     let payload: unknown;
     let jsonParsed = false;
@@ -103,6 +104,47 @@ async function appLikeFetch(url: string): Promise<FetchObservation> {
     return doFetch(url, true);
   }
   return primary;
+}
+
+async function bootstrapWebsite(): Promise<{ status?: number; ok: boolean; cookie?: string; cookieNames: string[]; contentType?: string; server?: string; preview?: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetch("https://dineoncampus.com/bentley/whats-on-the-menu", {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0 Safari/537.36",
+      },
+      redirect: "follow",
+    });
+    const rawCookie = response.headers.get("set-cookie") ?? "";
+    const cookies = rawCookie
+      .split(/,(?=[^;,]+=)/)
+      .map((entry) => entry.trim().split(";")[0])
+      .filter(Boolean);
+    const cookieNames = cookies.map((entry) => entry.split("=")[0]);
+    const body = await response.text();
+    return {
+      status: response.status,
+      ok: response.ok,
+      cookie: cookies.length > 0 ? cookies.join("; ") : undefined,
+      cookieNames,
+      contentType: response.headers.get("content-type") ?? undefined,
+      server: response.headers.get("server") ?? undefined,
+      preview: body.slice(0, 160).replace(/\s+/g, " "),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      cookieNames: [],
+      preview: error instanceof Error ? `${error.name}:${error.message}` : "NETWORK_ERROR",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function walkObjects(value: unknown, out: JsonRecord[] = [], seen = new Set<unknown>()): JsonRecord[] {
@@ -171,6 +213,21 @@ function publicObservation(obs: FetchObservation) {
 
 async function main() {
   console.log(JSON.stringify({ event: "dining-live-smoke-start", now: new Date().toISOString(), bentleyDate: DATE }, null, 2));
+
+  const bootstrap = await bootstrapWebsite();
+  console.log(JSON.stringify({
+    event: "website-bootstrap",
+    status: bootstrap.status,
+    ok: bootstrap.ok,
+    cookieNames: bootstrap.cookieNames,
+    contentType: bootstrap.contentType,
+    server: bootstrap.server,
+    preview: bootstrap.preview,
+  }, null, 2));
+  if (bootstrap.cookie) {
+    const cookieApi = await doFetch("https://apiv4.dineoncampus.com/sites/public", true, bootstrap.cookie);
+    console.log(JSON.stringify({ event: "site-discovery-after-cookie-bootstrap", ...publicObservation(cookieApi) }, null, 2));
+  }
 
   const siteObs = await appLikeFetch("https://apiv4.dineoncampus.com/sites/public");
   const siteObjects = siteObs.ok ? walkObjects(siteObs.payload) : [];

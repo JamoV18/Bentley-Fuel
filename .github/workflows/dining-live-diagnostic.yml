@@ -1,9 +1,6 @@
 name: Dining live diagnostic
 
 on:
-  push:
-    branches:
-      - dining-data-reliability-v1
   workflow_dispatch:
 
 jobs:

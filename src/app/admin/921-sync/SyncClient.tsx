@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CAPTURE_921_BOOKMARKLET } from "./captureBookmarklet";
 
 type SyncIssue = {
@@ -32,18 +32,12 @@ type ApiResponse = {
   published?: { menuDate: string; verifiedAt: string; contentHash: string; itemCount: number; stationCount: number };
 };
 
-const SECRET_KEY = "falcon-fuel-921-sync-secret";
-
 export default function SyncClient() {
   const [secret, setSecret] = useState("");
   const [captureText, setCaptureText] = useState("");
   const [preview, setPreview] = useState<SyncPreview>();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setSecret(sessionStorage.getItem(SECRET_KEY) ?? "");
-  }, []);
 
   const parsedCapture = useMemo(() => {
     if (!captureText.trim()) return undefined;
@@ -71,7 +65,6 @@ export default function SyncClient() {
       setMessage("Paste a valid capture JSON payload or choose the downloaded JSON file first.");
       return;
     }
-    sessionStorage.setItem(SECRET_KEY, secret);
     setBusy(true);
     setMessage(mode === "preview" ? "Checking capture…" : "Publishing verified 921 menu…");
     try {

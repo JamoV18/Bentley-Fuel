@@ -24,27 +24,29 @@ export interface DiningSnapshotRepository {
 const SNAPSHOT_TTL_SECONDS = 60 * 60 * 48;
 const MAX_CACHE_BYTES = 1_800_000;
 
-type SnapshotScope = typeof globalThis & {
-  __falconFuelDiningSnapshots?: Map<string, DiningMenuSnapshot>;
-};
-
-function memoryStore(): Map<string, DiningMenuSnapshot> {
-  const scope = globalThis as SnapshotScope;
-  if (!scope.__falconFuelDiningSnapshots) scope.__falconFuelDiningSnapshots = new Map();
-  return scope.__falconFuelDiningSnapshots;
-}
-
 function key(outletKey: string, menuDate: string): string {
   return `dining-snapshot:v1:${outletKey}:${menuDate}`;
 }
 
+/**
+ * Process-local snapshot storage. Each repository owns its own map so tests and
+ * explicitly isolated providers cannot leak verified menus into one another.
+ * The application still gets process-level reuse because its repository is a
+ * module singleton below.
+ */
 export class MemoryDiningSnapshotRepository implements DiningSnapshotRepository {
+  private readonly store = new Map<string, DiningMenuSnapshot>();
+
   async get(outletKey: string, menuDate: string): Promise<DiningMenuSnapshot | undefined> {
-    return memoryStore().get(key(outletKey, menuDate));
+    return this.store.get(key(outletKey, menuDate));
   }
 
   async set(snapshot: DiningMenuSnapshot): Promise<void> {
-    memoryStore().set(key(snapshot.outletKey, snapshot.menuDate), snapshot);
+    this.store.set(key(snapshot.outletKey, snapshot.menuDate), snapshot);
+  }
+
+  clear(): void {
+    this.store.clear();
   }
 }
 
@@ -98,7 +100,6 @@ export function setDiningSnapshotRepository(next: DiningSnapshotRepository): voi
 }
 
 export function resetDiningSnapshotsForTests(): void {
-  memoryStore().clear();
   repository = new MemoryDiningSnapshotRepository();
 }
 

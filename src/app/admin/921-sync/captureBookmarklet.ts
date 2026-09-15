@@ -2,14 +2,203 @@ const FALLBACK_921_ID = "6a63fc9b4b5736c5a8d6332b";
 
 /**
  * One-time bookmark setup: copy this string into a browser bookmark's URL.
- * Run it only while viewing Bentley's public DineOnCampus site. The code uses
- * the user's ordinary interactive browser session; it does not attempt to
- * bypass Cloudflare or emulate a browser from Falcon Fuel's server.
+ * Run it only while viewing Bentley's public 921 DineOnCampus menu.
  *
- * If DineOnCampus blocks cross-origin API access from a bookmarklet, the helper
- * downloads a privacy-conscious diagnostic capture containing only the current
- * public page DOM/text plus resource URLs. It deliberately excludes cookies,
- * local/session storage values, request headers, and credentials. That capture
- * lets us identify the same-origin/public data path the website itself uses.
+ * The helper deliberately avoids direct API calls. Instead it reads the menu
+ * already rendered by DineOnCampus, opens each public nutrition dialog, records
+ * the published values, and switches through Breakfast/Lunch/Dinner. No cookies,
+ * storage values, credentials, or request headers are collected.
  */
-export const CAPTURE_921_BOOKMARKLET = `javascript:(async()=>{try{const fallback="${FALLBACK_921_ID}";const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());const norm=v=>String(v??"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const rec=v=>v&&typeof v==="object"&&!Array.isArray(v)?v:{};const rows=v=>Array.isArray(v)?v.filter(x=>x&&typeof x==="object"):[];const txt=v=>typeof v==="string"?v.trim():typeof v==="number"?String(v):"";const rowName=r=>txt(r.name??r.label??r.displayName??r.buildingName??r.locationName);const rowId=r=>txt(r.id??r.locationId??r.location_id??r._id);const nested=(payload,keys)=>{const q=[payload],seen=new Set();while(q.length){const v=q.shift();if(!v||seen.has(v))continue;if(typeof v==="object")seen.add(v);if(Array.isArray(v)){const direct=rows(v);if(direct.length)return direct;continue}const o=rec(v);for(const k of keys){const a=rows(o[k]);if(a.length)return a}for(const k of ["data","result","results","site","school","campus","location"])if(o[k]!==undefined)q.push(o[k])}return[]};const periodsFrom=p=>{const o=rec(p),d=rec(o.data),l=rec(o.location),m=rec(o.menu),r=rec(o.result),all=[...rows(o.periods),...rows(o.data),...rows(d.periods),...rows(l.periods),...rows(m.periods),...rows(r.periods)],seen=new Set();return all.filter(x=>{const k=txt(x.id??x.periodId??x.period_id??x._id)+"::"+norm(txt(x.name??x.label??x.displayName??x.period_name));if(!k||k==="::"||seen.has(k))return false;seen.add(k);return true})};const download=(name,value)=>{const blob=new Blob([JSON.stringify(value,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};const diagnostic=(reason)=>{const resources=[...new Set(performance.getEntriesByType("resource").map(entry=>entry.name).filter(name=>/^https?:/i.test(name)))];const capture={schemaVersion:1,kind:"dineoncampus-page-diagnostic",capturedAt:new Date().toISOString(),menuDate:date,pageUrl:location.href,pageTitle:document.title,reason,visibleText:(document.body?.innerText??"").slice(0,250000),html:(document.documentElement?.outerHTML??"").slice(0,1500000),resourceUrls:resources.slice(0,1000),scriptUrls:[...document.scripts].map(script=>script.src).filter(Boolean),linkUrls:[...document.querySelectorAll("a[href]")].map(a=>a.href).filter(Boolean).slice(0,500)};download("falcon-fuel-921-diagnostic-"+date+".json",capture);alert("Falcon Fuel could not call the DineOnCampus API directly from this page, so it downloaded a diagnostic capture instead. Upload that JSON to ChatGPT so we can identify the data path the page itself is using. No cookies, storage values, credentials, or request headers are included.")};const request=async url=>{const response=await fetch(url,{credentials:"include",cache:"no-store",headers:{Accept:"application/json, text/plain, */*"}});const raw=await response.text();if(!response.ok)throw new Error(response.status+" "+response.statusText+" — "+url);try{return JSON.parse(raw)}catch{throw new Error("Non-JSON response — "+url)}};const safe=async url=>{try{return{ok:true,data:await request(url)}}catch(error){return{ok:false,error:String(error)}}};let locationId=fallback;const sites=await safe("https://apiv4.dineoncampus.com/sites/public");if(sites.ok){const site=nested(sites.data,["sites","schools","campuses"]).find(x=>norm(rowName(x)).includes("bentley"));const siteId=rowId(site??{});if(siteId){const locations=await safe("https://apiv4.dineoncampus.com/locations/status_by_site?siteId="+encodeURIComponent(siteId));if(locations.ok){const match=nested(locations.data,["locations","venues","outlets"]).map(x=>({x,score:norm(rowName(x)).includes("921")?1:0})).sort((a,b)=>b.score-a.score)[0];if(match?.score)locationId=rowId(match.x)||fallback}}}const v4Periods=await safe("https://apiv4.dineoncampus.com/locations/"+encodeURIComponent(locationId)+"/periods/?date="+encodeURIComponent(date));const v1Periods=await safe("https://api.dineoncampus.com/v1/location/"+encodeURIComponent(locationId)+"/periods?platform=0&date="+encodeURIComponent(date));if(!v4Periods.ok&&!v1Periods.ok){diagnostic("v4: "+v4Periods.error+" | v1: "+v1Periods.error);return}const byName=new Map();const add=(p,version)=>{const name=txt(p.name??p.label??p.displayName??p.period_name);if(!name)return;const key=norm(name),id=txt(p.id??p.periodId??p.period_id??p._id),cur=byName.get(key)??{name};cur[version]=id;byName.set(key,cur)};(v4Periods.ok?periodsFrom(v4Periods.data):[]).forEach(p=>add(p,"v4"));(v1Periods.ok?periodsFrom(v1Periods.data):[]).forEach(p=>add(p,"v1"));const periods=[];for(const p of byName.values()){const out={name:p.name};if(p.v4){const r=await safe("https://apiv4.dineoncampus.com/locations/"+encodeURIComponent(locationId)+"/menu?date="+encodeURIComponent(date)+"&period="+encodeURIComponent(p.v4));if(r.ok)out.v4={id:p.v4,payload:r.data}}if(p.v1){const r=await safe("https://api.dineoncampus.com/v1/location/"+encodeURIComponent(locationId)+"/periods/"+encodeURIComponent(p.v1)+"?platform=0&date="+encodeURIComponent(date));if(r.ok)out.v1={id:p.v1,payload:r.data}}periods.push(out)}const capture={schemaVersion:1,source:"dineoncampus-browser",menuDate:date,capturedAt:new Date().toISOString(),upstreamLocationId:locationId,periods};const json=JSON.stringify(capture);let copied=false;try{await navigator.clipboard.writeText(json);copied=true}catch{}if(!copied)download("falcon-fuel-921-"+date+".json",capture);alert("Falcon Fuel captured "+periods.length+" meal periods for "+date+(copied?" and copied the payload to your clipboard.":" and downloaded the JSON file."))}catch(error){alert("Falcon Fuel 921 capture failed: "+(error instanceof Error?error.message:String(error)))}})()`;
+const CAPTURE_921_SCRIPT = String.raw`(async()=>{
+  try {
+    const fallback=${JSON.stringify(FALLBACK_921_ID)};
+    const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+    const clean=value=>String(value??"").replace(/\s+/g," ").trim();
+    const slug=value=>clean(value).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+    const dateMatch=location.pathname.match(/\/(\d{4}-\d{2}-\d{2})\//);
+    const menuDate=dateMatch?dateMatch[1]:new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    const activeLocation=document.querySelector('[data-location-id][aria-selected="true"]');
+    const upstreamLocationId=activeLocation?.getAttribute("data-location-id")||fallback;
+
+    const waitFor=async(fn,timeout=12000,interval=100)=>{
+      const started=Date.now();
+      while(Date.now()-started<timeout){
+        const value=fn();
+        if(value)return value;
+        await sleep(interval);
+      }
+      throw new Error("Timed out waiting for DineOnCampus.");
+    };
+
+    const getPeriodName=()=>clean(document.querySelector('button[aria-controls="period-listbox"] span.text-xs')?.textContent);
+    const getItemButtons=()=>[...document.querySelectorAll('#menu-content button[aria-label^="View nutritional information for "]')].filter(button=>{
+      const label=button.getAttribute("aria-label")||"";
+      return !/,\s*portion\s/i.test(label)&&!/,\s*[\d,.]+\s+calories$/i.test(label);
+    });
+    const menuSignature=()=>getItemButtons().map(button=>clean(button.textContent)).join("|");
+
+    const stationFor=button=>{
+      const wrapper=button.closest(".p-4");
+      const toggle=wrapper?.querySelector('[aria-label^="Toggle "][aria-label$=" category"]');
+      const label=toggle?.getAttribute("aria-label")||"";
+      return clean(label.replace(/^Toggle /,"").replace(/ category$/, ""))||"921 Dining";
+    };
+
+    const basicsFor=button=>{
+      const row=button.closest("tr");
+      const cells=row?[...row.querySelectorAll(":scope > td")]:[];
+      const name=clean(button.textContent);
+      const labels=row?[...row.querySelectorAll("button[aria-label]")].map(node=>node.getAttribute("aria-label")||""):[];
+      const portionLabel=labels.find(label=>label.includes(", portion "));
+      const calorieLabel=labels.find(label=>/,\s*[\d,.]+\s+calories$/i.test(label));
+      const portion=portionLabel?clean(portionLabel.split(", portion ").pop()):clean(cells[1]?.textContent);
+      const calorieMatch=calorieLabel?.match(/,\s*([\d,.]+)\s+calories$/i);
+      const calories=calorieMatch?Number(calorieMatch[1].replace(/,/g,"")):null;
+      const dietary=row?[...row.querySelectorAll("img[alt]")].map(img=>clean(img.alt)).filter(Boolean):[];
+      let description="";
+      const descriptionNode=cells[0]?.querySelector(".mt-1.pl-2");
+      if(descriptionNode)description=clean(descriptionNode.textContent);
+      return {name,description,portion,calories:Number.isFinite(calories)?calories:null,dietary};
+    };
+
+    const parseNumber=value=>{
+      const raw=clean(value).toLowerCase();
+      if(!raw||raw.startsWith("-"))return null;
+      if(raw.includes("less than 1"))return 0.5;
+      const match=raw.match(/-?\d+(?:\.\d+)?/);
+      return match?Number(match[0]):null;
+    };
+
+    const readNutrition=()=>{
+      const modal=document.querySelector('div[role="dialog"][aria-modal="true"][aria-labelledby="nutrition-modal-title"]');
+      if(!modal)return null;
+      const title=clean(modal.querySelector("#nutrition-modal-title")?.textContent);
+      const servingLine=[...modal.querySelectorAll("p")].map(node=>clean(node.textContent)).find(value=>/^Serving size:/i.test(value));
+      const caloriesRow=[...modal.querySelectorAll("div")].find(node=>{
+        const spans=node.querySelectorAll(":scope > span");
+        return spans.length===2&&clean(spans[0].textContent)==="Calories";
+      });
+      let calories=null;
+      if(caloriesRow){
+        const spans=caloriesRow.querySelectorAll(":scope > span");
+        calories=parseNumber(spans[1]?.textContent);
+      }
+      const nutrients={};
+      [...modal.querySelectorAll(".flex.justify-between.py-1")].forEach(row=>{
+        const spans=row.querySelectorAll(":scope > span");
+        if(spans.length<2)return;
+        const key=clean(spans[0].textContent);
+        const raw=clean(spans[1].textContent);
+        if(key)nutrients[key]={raw,value:parseNumber(raw)};
+      });
+      let ingredients="";
+      [...modal.querySelectorAll("p")].forEach(node=>{
+        const value=clean(node.textContent);
+        if(/^Ingredients:/i.test(value))ingredients=value.replace(/^Ingredients:\s*/i,"");
+      });
+      return {title,servingSize:servingLine?servingLine.replace(/^Serving size:\s*/i,""):"",calories,nutrients,ingredients};
+    };
+
+    const closeNutrition=async()=>{
+      const close=document.querySelector('button[aria-label="Close nutrition information modal"]');
+      if(close)close.click();
+      await waitFor(()=>!document.querySelector('div[role="dialog"][aria-modal="true"][aria-labelledby="nutrition-modal-title"]'),4000,50).catch(()=>{});
+      await sleep(70);
+    };
+
+    const waitForStableMenu=async periodName=>{
+      const started=Date.now();
+      let previous="";
+      let stablePasses=0;
+      while(Date.now()-started<15000){
+        const active=getPeriodName().toLowerCase()===periodName.toLowerCase();
+        const pathReady=location.pathname.toLowerCase().endsWith("/"+slug(periodName));
+        const signature=menuSignature();
+        if(active&&pathReady&&signature){
+          if(signature===previous)stablePasses+=1;
+          else { previous=signature; stablePasses=1; }
+          if(stablePasses>=4)return;
+        } else {
+          stablePasses=0;
+          previous="";
+        }
+        await sleep(250);
+      }
+      throw new Error(periodName+" never finished loading. Nothing was published; rerun the capture.");
+    };
+
+    const choosePeriod=async periodName=>{
+      if(getPeriodName().toLowerCase()===periodName.toLowerCase()){
+        await waitForStableMenu(periodName);
+        return;
+      }
+      const trigger=document.querySelector('button[aria-controls="period-listbox"]');
+      if(!trigger)throw new Error("Could not find the DineOnCampus Menu selector.");
+      trigger.click();
+      await waitFor(()=>{
+        const list=document.querySelector("#period-listbox");
+        return list&&list.offsetParent!==null?list:null;
+      });
+      const option=[...document.querySelectorAll("#period-listbox li[data-period-id]")].find(node=>clean(node.textContent).toLowerCase()===periodName.toLowerCase());
+      if(!option)throw new Error("Could not find "+periodName+" in the DineOnCampus Menu selector.");
+      option.click();
+      await sleep(900);
+      await waitForStableMenu(periodName);
+    };
+
+    const captureCurrentPeriod=async periodName=>{
+      const buttons=getItemButtons();
+      if(buttons.length===0)throw new Error(periodName+" contains zero rendered menu items. Capture stopped so Falcon Fuel cannot publish an incomplete day.");
+      const categories=new Map();
+      for(let index=0;index<buttons.length;index+=1){
+        const button=buttons[index];
+        const basic=basicsFor(button);
+        const station=stationFor(button);
+        let nutrition=null;
+        try{
+          button.scrollIntoView({block:"center"});
+          button.click();
+          await waitFor(()=>document.querySelector('div[role="dialog"][aria-modal="true"][aria-labelledby="nutrition-modal-title"]'),5000,50);
+          nutrition=readNutrition();
+        } finally {
+          await closeNutrition();
+        }
+        if(!categories.has(station))categories.set(station,[]);
+        categories.get(station).push({...basic,nutrition});
+      }
+      return {name:periodName,categories:[...categories.entries()].map(([name,items])=>({name,items}))};
+    };
+
+    const available=[...document.querySelectorAll("#period-listbox li[data-period-id]")].map(node=>clean(node.textContent)).filter(Boolean);
+    const periodsToCapture=["Breakfast","Lunch","Dinner"].filter(period=>available.some(value=>value.toLowerCase()===period.toLowerCase()));
+    if(periodsToCapture.length===0){
+      const current=getPeriodName();
+      if(!current)throw new Error("Could not determine the current 921 meal period.");
+      periodsToCapture.push(current);
+    }
+
+    if(!confirm("Falcon Fuel will capture "+periodsToCapture.join(", ")+" by opening each published nutrition panel. Leave this tab open until it finishes. Continue?"))return;
+
+    const periods=[];
+    for(const periodName of periodsToCapture){
+      await choosePeriod(periodName);
+      periods.push(await captureCurrentPeriod(periodName));
+    }
+
+    const capture={schemaVersion:1,source:"dineoncampus-browser-dom",outletKey:"921",outletName:"The 921",menuDate,capturedAt:new Date().toISOString(),pageUrl:location.href,upstreamLocationId,periods};
+    const blob=new Blob([JSON.stringify(capture,null,2)],{type:"application/json"});
+    const link=document.createElement("a");
+    link.href=URL.createObjectURL(blob);
+    link.download="falcon-fuel-921-"+menuDate+".json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+    alert("Falcon Fuel captured "+periods.reduce((sum,period)=>sum+period.categories.reduce((count,category)=>count+category.items.length,0),0)+" published 921 items for "+menuDate+". Return to 921 Daily Sync to preview the file before publishing.");
+  } catch(error) {
+    console.error(error);
+    alert("Falcon Fuel capture stopped: "+(error instanceof Error?error.message:String(error)));
+  }
+})()`;
+
+export const CAPTURE_921_BOOKMARKLET = `javascript:${CAPTURE_921_SCRIPT.replace(/\s+/g, " ").trim()}`;

@@ -196,8 +196,8 @@ test("rendered-page capture maps published macros, ingredients and dietary tags"
 });
 
 test("an empty captured meal period blocks publication instead of silently serving an incomplete day", async () => {
-  const broken = domCapture();
-  broken.periods[1] = { name: "Lunch", categories: [] } as typeof broken.periods[1];
+  const broken = JSON.parse(JSON.stringify(domCapture()));
+  broken.periods[1] = { name: "Lunch", categories: [] };
   const { preview } = build921BrowserSnapshot(broken);
   assert.equal(preview.periodItemCounts.lunch, 0);
   assert.equal(preview.issues.some((issue) => issue.severity === "error" && issue.code === "EMPTY_PERIOD" && issue.mealPeriod === "Lunch"), true);

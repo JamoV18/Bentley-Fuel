@@ -46,7 +46,7 @@ export default function SyncClient() {
 
   async function copyBookmarklet() {
     await navigator.clipboard.writeText(CAPTURE_921_BOOKMARKLET);
-    setMessage("Bookmarklet copied. Create a bookmark named “Falcon Fuel: Capture 921” and paste this into its URL field once.");
+    setMessage("Bookmarklet copied. Edit your “Falcon Fuel: Capture 921” bookmark and replace its URL with the copied text.");
   }
 
   async function readFile(file?: File) {
@@ -78,7 +78,7 @@ export default function SyncClient() {
       if (data.preview) setPreview(data.preview);
       setMessage(mode === "publish" && data.published
         ? `Published ${data.published.itemCount} items for ${data.published.menuDate}. Falcon Fuel can now serve this verified same-day menu when DineOnCampus blocks the server.`
-        : "Preview ready. Review the counts and warnings, then publish.");
+        : "Preview ready. Review all three meal-period counts and warnings, then publish.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Sync failed.");
     } finally {
@@ -98,24 +98,24 @@ export default function SyncClient() {
       </header>
 
       <section className="ff921-card">
-        <div className="ff921-step"><span>1</span><div><strong>Install the capture bookmark once</strong><p>Copy the bookmarklet, create a Chrome bookmark named “Falcon Fuel: Capture 921,” and paste the copied text into the bookmark’s URL field.</p></div></div>
+        <div className="ff921-step"><span>1</span><div><strong>Install the capture bookmark once</strong><p>Copy the bookmarklet, create a Chrome bookmark named “Falcon Fuel: Capture 921,” and paste the copied text into the bookmark’s URL field. When Falcon Fuel improves the capture logic, replace that URL with the newly copied version.</p></div></div>
         <button className="ff921-secondary" type="button" onClick={copyBookmarklet}>Copy capture bookmarklet</button>
       </section>
 
       <section className="ff921-card">
-        <div className="ff921-step"><span>2</span><div><strong>Capture today’s 921 publication</strong><p>Open the normal Bentley DineOnCampus 921 page in Chrome, then click your Falcon Fuel bookmark. The helper uses your ordinary browser session and copies the menu payload; if clipboard access fails, it downloads a JSON file instead.</p></div></div>
+        <div className="ff921-step"><span>2</span><div><strong>Capture today’s 921 publication</strong><p>Open today’s normal Bentley DineOnCampus 921 menu and click your Falcon Fuel bookmark. The helper reads the menu already rendered in your browser, opens each published nutrition panel, switches through Breakfast, Lunch and Dinner, and downloads one JSON file. Leave the tab open until it says the capture finished.</p></div></div>
         <a className="ff921-link" href="https://dineoncampus.com/bentley/whats-on-the-menu" target="_blank" rel="noreferrer">Open Bentley DineOnCampus ↗</a>
       </section>
 
       <section className="ff921-card">
-        <div className="ff921-step"><span>3</span><div><strong>Review and publish</strong><p>Paste the capture below or choose the downloaded JSON. Falcon Fuel extracts stations, meal periods, nutrition and allergens using the same normalization logic as the live provider.</p></div></div>
+        <div className="ff921-step"><span>3</span><div><strong>Review and publish</strong><p>Choose the downloaded JSON. Falcon Fuel validates meal-period completeness and normalizes stations, item names, portions, calories, macros, ingredients and published dietary indicators. Missing or incomplete data is surfaced instead of invented.</p></div></div>
 
         <label className="ff921-label">Sync secret
           <input className="ff921-input" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="DINING_SYNC_SECRET or CRON_SECRET" autoComplete="off" />
         </label>
 
         <label className="ff921-label">Capture payload
-          <textarea className="ff921-textarea" value={captureText} onChange={(event) => { setCaptureText(event.target.value); setPreview(undefined); }} placeholder="Paste the JSON copied by the 921 capture bookmark…" spellCheck={false} />
+          <textarea className="ff921-textarea" value={captureText} onChange={(event) => { setCaptureText(event.target.value); setPreview(undefined); }} placeholder="Paste a 921 capture JSON here, or choose the downloaded file below." spellCheck={false} />
         </label>
 
         <div className="ff921-actions">
@@ -136,7 +136,7 @@ export default function SyncClient() {
             {Object.entries(preview.periodItemCounts).map(([period, count]) => <div key={period}><span>{period.replace("-", " ")}</span><strong>{count}</strong></div>)}
           </div>
           {warnings.length > 0 ? <div className="ff921-issues"><strong>{warnings.length} item{warnings.length === 1 ? "" : "s"} to review</strong>{warnings.slice(0, 12).map((issue, index) => <p key={`${issue.code}-${index}`}>{issue.message}</p>)}{warnings.length > 12 ? <p>+ {warnings.length - 12} more warnings</p> : null}</div> : null}
-          {blockingIssues.length > 0 ? <div className="ff921-errors">{blockingIssues.map((issue, index) => <p key={`${issue.code}-${index}`}>{issue.message}</p>)}</div> : null}
+          {blockingIssues.length > 0 ? <div className="ff921-errors"><strong>Publish blocked</strong>{blockingIssues.map((issue, index) => <p key={`${issue.code}-${index}`}>{issue.message}</p>)}</div> : null}
           <button className="ff921-primary" type="button" disabled={busy || blockingIssues.length > 0} onClick={() => void submit("publish")}>Publish {preview.menuDate} 921 menu</button>
         </section>
       ) : null}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CAPTURE_921_BOOKMARKLET } from "./captureBookmarklet";
+import { CAPTURE_921_BOOKMARKLET, CAPTURE_921_VERSION } from "./captureBookmarklet";
 
 type SyncIssue = {
   severity: "warning" | "error";
@@ -46,7 +46,7 @@ export default function SyncClient() {
 
   async function copyBookmarklet() {
     await navigator.clipboard.writeText(CAPTURE_921_BOOKMARKLET);
-    setMessage("Bookmarklet copied. Edit your “Falcon Fuel: Capture 921” bookmark and replace its URL with the copied text.");
+    setMessage(`Capture logic ${CAPTURE_921_VERSION} copied. Edit your “Falcon Fuel: Capture 921” bookmark and replace its entire URL with the copied text.`);
   }
 
   async function readFile(file?: File) {
@@ -98,7 +98,7 @@ export default function SyncClient() {
       </header>
 
       <section className="ff921-card">
-        <div className="ff921-step"><span>1</span><div><strong>Install the capture bookmark once</strong><p>Copy the bookmarklet, create a Chrome bookmark named “Falcon Fuel: Capture 921,” and paste the copied text into the bookmark’s URL field. When Falcon Fuel improves the capture logic, replace that URL with the newly copied version.</p></div></div>
+        <div className="ff921-step"><span>1</span><div><strong>Install the capture bookmark once</strong><p>Copy the bookmarklet, create a Chrome bookmark named “Falcon Fuel: Capture 921,” and paste the copied text into the bookmark’s URL field. When Falcon Fuel improves the capture logic, replace that URL with the newly copied version.</p><p>Current capture logic: <strong>{CAPTURE_921_VERSION}</strong></p></div></div>
         <button className="ff921-secondary" type="button" onClick={copyBookmarklet}>Copy capture bookmarklet</button>
       </section>
 

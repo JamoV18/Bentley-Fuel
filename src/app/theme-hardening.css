@@ -308,6 +308,105 @@ body [class*="from-emerald-50"][class*="via-white"][class*="to-white"] svg {
   border-color: var(--ff-border) !important;
 }
 
+/* Recommendation screens carried a separate light-only token system. */
+.ff-rec-shell {
+  --rec-ink: var(--ff-text-primary) !important;
+  --rec-ink-soft: var(--ff-text-secondary) !important;
+  --rec-blue: var(--ff-accent-light) !important;
+  --rec-blue-soft: var(--ff-accent-light) !important;
+  --rec-teal: #42b7b0;
+  --rec-paper: var(--ff-surface-elevated) !important;
+  --rec-line: var(--ff-border) !important;
+  --rec-muted: var(--ff-text-secondary) !important;
+  color: var(--ff-text-primary) !important;
+}
+
+.ff-rec-manual-link,
+.ff-rec-hero,
+.ff-rec-alt,
+.ff-rec-customize,
+.ff-rec-close,
+.ff-rec-edit-card,
+.ff-rec-qty button,
+.ff-rec-stepper button {
+  background: var(--ff-surface-elevated) !important;
+  border-color: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+}
+
+.ff-rec-photo { background: var(--ff-surface-strong) !important; }
+.ff-rec-note {
+  background: var(--ff-accent-muted) !important;
+  color: var(--ff-text-secondary) !important;
+}
+.ff-rec-note.is-warning,
+.ff-rec-allergen {
+  background: rgba(255, 204, 51, 0.10) !important;
+  color: #e5d59b !important;
+  border-color: rgba(255, 204, 51, 0.48) !important;
+}
+.ff-rec-reason-number {
+  background: var(--ff-accent-muted) !important;
+  color: var(--ff-accent-light) !important;
+}
+.ff-rec-alt-macros span,
+.ff-rec-customize,
+.ff-rec-edit-card {
+  background-color: var(--ff-surface-strong) !important;
+}
+.ff-rec-alt-macros span { color: var(--ff-text-secondary) !important; }
+.ff-rec-reason-item p,
+.ff-rec-component p,
+.ff-rec-order-item p,
+.ff-rec-alt-copy p,
+.ff-rec-customize-head p:last-child,
+.ff-rec-edit-top p,
+.ff-rec-choice-name small,
+.ff-rec-replacement-item p {
+  color: var(--ff-text-secondary) !important;
+}
+.ff-rec-remove { color: var(--ff-danger) !important; }
+
+/* The old #1 recommendation treatment painted a bright white card over dark mode. */
+body [data-recommendation-index="0"] {
+  background: var(--ff-surface-elevated) !important;
+  box-shadow: none !important;
+}
+body [data-recommendation-index="0"]::after {
+  background: var(--ff-surface-elevated) !important;
+  box-shadow: inset 0 0 0 1px var(--ff-border) !important;
+}
+
+/* Meal reflection was another complete light-only floating panel. */
+.ff-reflection-dock {
+  background: rgba(23, 27, 32, 0.985) !important;
+  border-color: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28) !important;
+}
+.ff-reflection-top button,
+.ff-reflection-meal,
+.ff-reflection-bigger p,
+.ff-reflection-success p {
+  color: var(--ff-text-secondary) !important;
+}
+.ff-reflection-actions button,
+.ff-reflection-bigger {
+  background: var(--ff-surface-strong) !important;
+  border-color: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+}
+.ff-reflection-actions button:hover {
+  background: #2a333b !important;
+  border-color: rgba(130, 188, 229, 0.35) !important;
+}
+.ff-reflection-actions button.is-selected,
+.ff-reflection-save {
+  background: var(--ff-accent) !important;
+  color: #fff !important;
+}
+
 /* Keep danger copy readable without neon-red glare. */
 .text-red-600,
 .text-red-700,

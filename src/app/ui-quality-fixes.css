@@ -83,20 +83,30 @@
   border-radius: 1.15rem !important;
 }
 
-/* Transparent date controls intentionally live inside their own pill. Do not let
-   the global native-control fallback paint a second black rectangle inside it. */
-body input[type="date"].bg-transparent {
+/* Explicitly transparent form controls intentionally inherit their enclosing
+   pill/card surface. Honor that intent app-wide instead of painting a second box. */
+body input.bg-transparent,
+body textarea.bg-transparent,
+body select.bg-transparent {
   background: transparent !important;
-  border-color: transparent !important;
   box-shadow: none !important;
+}
+
+body input.bg-transparent:focus,
+body textarea.bg-transparent:focus,
+body select.bg-transparent:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body input[type="date"].bg-transparent {
+  border-color: transparent !important;
   color: #fff !important;
   padding: 0 !important;
 }
 
 body input[type="date"].bg-transparent:focus {
-  background: transparent !important;
   border-color: transparent !important;
-  box-shadow: none !important;
 }
 
 body input[type="date"].bg-transparent::-webkit-calendar-picker-indicator {

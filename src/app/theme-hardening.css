@@ -169,7 +169,7 @@ body .text-black\/70 {
   color: var(--ff-text-secondary) !important;
 }
 
-/* Only dark-surface contexts get light emerald copy. Light badges keep their dark ink. */
+/* Only dark-surface contexts get light emerald copy. */
 body .surface .text-emerald-950,
 body .surface-soft .text-emerald-950,
 body [class~="bg-white/70"] .text-emerald-950,
@@ -183,6 +183,13 @@ body .surface .text-emerald-700,
 body .surface-soft .text-emerald-800,
 body .surface-soft .text-emerald-700 {
   color: var(--ff-accent-light) !important;
+}
+
+/* Status badges that intentionally stay light need dark ink, even inside .surface. */
+body .bg-emerald-50.text-emerald-800,
+body .bg-emerald-50.text-emerald-900,
+body .bg-emerald-50.text-emerald-950 {
+  color: #17324a !important;
 }
 
 body [class*="border-emerald-900"],

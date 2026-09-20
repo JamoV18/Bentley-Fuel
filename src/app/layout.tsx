@@ -10,6 +10,7 @@ import "./shell-nav.css";
 import "./satoshi.css";
 import "./today-recommendation-simple.css";
 import "./theme-hardening.css";
+import "./ui-quality-fixes.css";
 
 export const metadata: Metadata = {
   title: "Falcon Fuel",

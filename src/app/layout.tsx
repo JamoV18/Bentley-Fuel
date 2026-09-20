@@ -9,6 +9,7 @@ import "./design-system.css";
 import "./shell-nav.css";
 import "./satoshi.css";
 import "./today-recommendation-simple.css";
+import "./theme-hardening.css";
 
 export const metadata: Metadata = {
   title: "Falcon Fuel",
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0D1620",
+  themeColor: "#111418",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

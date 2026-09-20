@@ -121,27 +121,67 @@ body select:-webkit-autofill {
 .eyebrow,
 .brand-kicker { color: var(--ff-accent-light) !important; }
 
+/*
+ * Contrast floor for legacy Tailwind opacity utilities.
+ * In the canonical dark theme, any text-black/* utility is a light-theme relic.
+ * Promote it to readable secondary copy instead of trying to preserve its old
+ * black alpha value against a dark surface.
+ */
+body [class*="text-black/"] {
+  color: var(--ff-text-secondary) !important;
+}
+
 /* Legacy utility compatibility. */
 body .bg-white,
 body .bg-white\/90,
 body .bg-white\/95,
 body .bg-white\/80,
 body .bg-white\/70,
+body [class~="bg-white/95"],
+body [class~="bg-white/90"],
+body [class~="bg-white/80"],
+body [class~="bg-white/75"],
+body [class~="bg-white/70"],
+body [class~="bg-white/60"],
 body [class*="via-white"][class*="from-emerald-50"] {
-  background-color: var(--ff-surface) !important;
+  background-color: var(--ff-surface-elevated) !important;
   background-image: none !important;
+}
+
+body [class~="bg-emerald-50/75"] {
+  background-color: var(--ff-surface-strong) !important;
+}
+body [class~="bg-emerald-50/75"] .text-emerald-950 {
+  color: var(--ff-text-primary) !important;
+}
+body [class~="bg-emerald-50/75"] .text-emerald-800 {
+  color: var(--ff-accent-light) !important;
+}
+
+body [class~="bg-black/[.035]"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 body .text-black,
 body .text-black\/50,
 body .text-black\/60,
-body .text-black\/70,
-body .text-emerald-950 {
+body .text-black\/70 {
+  color: var(--ff-text-secondary) !important;
+}
+
+/* Only dark-surface contexts get light emerald copy. Light badges keep their dark ink. */
+body .surface .text-emerald-950,
+body .surface-soft .text-emerald-950,
+body [class~="bg-white/70"] .text-emerald-950,
+body [class~="bg-white/75"] .text-emerald-950,
+body [class~="bg-white/80"] .text-emerald-950 {
   color: var(--ff-text-primary) !important;
 }
 
-body .text-emerald-800,
-body .text-emerald-700 {
+body .surface .text-emerald-800,
+body .surface .text-emerald-700,
+body .surface-soft .text-emerald-800,
+body .surface-soft .text-emerald-700 {
   color: var(--ff-accent-light) !important;
 }
 
@@ -160,6 +200,7 @@ body .text-\[\#111820\] { color: var(--ff-text-primary) !important; }
 body .text-\[\#294567\] { color: var(--ff-accent-light) !important; }
 body [class*="text-[#202b36]"] { color: var(--ff-text-secondary) !important; }
 body [class*="text-[#111820]"] { color: var(--ff-text-secondary) !important; }
+body [class*="text-[#10263d]"] { color: var(--ff-text-primary) !important; }
 
 /* Universal surfaces/navigation remain matte and dark. */
 .surface,
@@ -207,6 +248,57 @@ body [class*="from-emerald-50"][class*="via-white"][class*="to-white"] {
 }
 body [class*="from-emerald-50"][class*="via-white"][class*="to-white"] svg {
   color: var(--ff-accent-light) !important;
+}
+
+/*
+ * History v2 predates dark mode and declares its own dark-blue ink variables.
+ * Those variables were being reused as text on #111418, producing almost-black
+ * copy on an almost-black canvas. Rebind the whole route to semantic dark tokens.
+ */
+.ff-history-v2 {
+  --ink: var(--ff-text-primary) !important;
+  --muted: var(--ff-text-secondary) !important;
+  --blue: var(--ff-accent-light) !important;
+  --line: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+}
+
+.ff-history-v2 header > p:last-child,
+.ff-history-v2 .ff-history-panel p,
+.ff-history-v2 .ff-history-empty {
+  color: var(--ff-text-secondary) !important;
+}
+
+.ff-history-v2 .ff-history-panel {
+  background: var(--ff-surface) !important;
+  border-color: var(--ff-border) !important;
+}
+
+.ff-history-v2 .ff-history-kpi,
+.ff-history-v2 .ff-history-range button {
+  background: var(--ff-surface-elevated) !important;
+  border-color: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+}
+
+.ff-history-v2 .ff-history-kpi span {
+  color: var(--ff-text-secondary) !important;
+}
+
+.ff-history-v2 .ff-history-range button.is-active {
+  background: var(--ff-accent) !important;
+  border-color: var(--ff-accent) !important;
+  color: #fff !important;
+}
+
+.ff-history-v2 [class~="bg-black/[.045]"] {
+  background: #263039 !important;
+  border-color: var(--ff-border) !important;
+}
+
+.ff-history-v2 [class~="bg-white/70"] {
+  background: var(--ff-surface-elevated) !important;
+  border-color: var(--ff-border) !important;
 }
 
 /* Keep danger copy readable without neon-red glare. */

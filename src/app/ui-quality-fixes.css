@@ -1,0 +1,144 @@
+/*
+ * Falcon Fuel UI quality guardrails.
+ *
+ * Loaded after the theme hardening layer. These rules protect small but recurring
+ * presentation failures that are easy to reintroduce when older screens and newer
+ * components share the same app: collapsed metric typography, incomplete control
+ * geometry, nested form-control fills, and sibling controls with mismatched heights.
+ */
+
+/* AnimatedCounter renders a span inside the calorie-ring <strong>. The legacy
+   ring selector styled every descendant span as tiny helper text, which collapsed
+   the calorie value. Only the direct label span should use helper typography. */
+.ff-v2-ring-inner > span,
+.ff-v2-ring-inner > small {
+  color: var(--ff-text-secondary) !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  line-height: 1.25;
+}
+
+.ff-v2-ring-inner > strong {
+  display: block;
+  min-width: 5.5ch;
+  margin: 0.45rem 0 0.4rem !important;
+  color: var(--ff-text-primary) !important;
+  font-size: clamp(2rem, 5vw, 3.25rem) !important;
+  line-height: 0.95 !important;
+  letter-spacing: -0.055em !important;
+  font-weight: 900 !important;
+  white-space: nowrap;
+}
+
+.ff-v2-ring-inner > strong > span {
+  color: inherit !important;
+  font: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+}
+
+/* ProfileMenu is shared outside the older Today screen that originally supplied
+   its geometry. Keep the control complete wherever the component is mounted. */
+.profile-orb {
+  display: grid !important;
+  width: 3rem !important;
+  height: 3rem !important;
+  min-width: 3rem !important;
+  min-height: 3rem !important;
+  flex: 0 0 3rem !important;
+  place-items: center !important;
+  overflow: hidden;
+  border: 1px solid rgba(130, 188, 229, 0.22) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(145deg, #294567, #0075be) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  font-family: var(--ff-font-sans) !important;
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+}
+
+/* Breakfast/Lunch/Dinner live inside a padded rail. Match Snack to the full rail
+   height rather than only the inner tab height so the four choices read as peers. */
+.ff-v3-day-path-wrap {
+  --ff-meal-rail-height: calc(var(--ff-meal-tab-height, 3.15rem) + 0.76rem);
+  align-items: stretch !important;
+}
+
+.ff-v3-day-path {
+  min-height: var(--ff-meal-rail-height) !important;
+}
+
+.ff-v3-snack-log-shell {
+  height: var(--ff-meal-rail-height) !important;
+  min-height: var(--ff-meal-rail-height) !important;
+  align-self: stretch !important;
+}
+
+.ff-v3-snack-log {
+  height: 100% !important;
+  min-height: var(--ff-meal-rail-height) !important;
+  align-self: stretch !important;
+  border-radius: 1.15rem !important;
+}
+
+/* Transparent date controls intentionally live inside their own pill. Do not let
+   the global native-control fallback paint a second black rectangle inside it. */
+body input[type="date"].bg-transparent {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  padding: 0 !important;
+}
+
+body input[type="date"].bg-transparent:focus {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+body input[type="date"].bg-transparent::-webkit-calendar-picker-indicator {
+  opacity: 0.88;
+  filter: invert(1);
+  cursor: pointer;
+}
+
+/* Compact profile facts are deliberately dense so the Plan screen uses the left
+   column for the onboarding inputs that actually drive the nutrition plan. */
+.ff-profile-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.ff-profile-fact {
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--ff-border);
+  border-radius: 0.9rem;
+  background: var(--ff-surface-elevated);
+}
+
+.ff-profile-fact dt {
+  color: var(--ff-text-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ff-profile-fact dd {
+  margin: 0.28rem 0 0;
+  overflow: hidden;
+  color: var(--ff-text-primary);
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 560px) {
+  .ff-profile-fact-grid { grid-template-columns: 1fr; }
+}

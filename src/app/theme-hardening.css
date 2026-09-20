@@ -1,0 +1,177 @@
+/*
+ * Falcon Fuel dark-theme hardening layer.
+ *
+ * This file is intentionally loaded last. It provides one canonical semantic
+ * palette and catches legacy light-theme utilities/components that otherwise
+ * bypass the shared design system.
+ */
+
+:root {
+  color-scheme: dark;
+
+  --ff-app-bg: #111418;
+  --ff-surface: #171b20;
+  --ff-surface-elevated: #1c2228;
+  --ff-surface-strong: #242b32;
+  --ff-input-bg: #1c2228;
+  --ff-border: rgba(244, 245, 246, 0.13);
+  --ff-text-primary: #f4f5f6;
+  --ff-text-secondary: #b4bbc2;
+  --ff-text-muted: #8b949d;
+  --ff-accent: #0075be;
+  --ff-accent-strong: #168bd0;
+  --ff-accent-muted: rgba(0, 117, 190, 0.16);
+  --ff-danger: #ff6b6b;
+
+  /* Existing screens consume these aliases. */
+  --background: var(--ff-app-bg);
+  --foreground: var(--ff-text-primary);
+  --surface: var(--ff-surface);
+  --surface-solid: var(--ff-surface);
+  --line: var(--ff-border);
+  --muted: var(--ff-text-secondary);
+  --brand-700: var(--ff-accent);
+  --brand-600: var(--ff-accent-strong);
+  --brand-100: rgba(130, 188, 229, 0.16);
+  --brand-50: rgba(130, 188, 229, 0.08);
+}
+
+html,
+body {
+  color-scheme: dark;
+  background: var(--ff-app-bg) !important;
+  color: var(--ff-text-primary);
+}
+
+body {
+  background:
+    radial-gradient(105% 40rem at 50% -14rem, rgba(41, 69, 103, 0.18) 0%, rgba(27, 35, 43, 0.10) 42%, transparent 72%),
+    linear-gradient(180deg, #14181d 0%, var(--ff-app-bg) 34rem, var(--ff-app-bg) 100%) !important;
+}
+
+/* Dark is canonical. A stale data-theme value must not silently flip a route. */
+[data-theme="light"] {
+  color-scheme: dark;
+  --ff-canvas: var(--ff-app-bg);
+  --ff-surface: #171b20;
+  --ff-surface-elevated: #1c2228;
+  --ff-surface-strong: #242b32;
+  --ff-text-primary: #f4f5f6;
+  --ff-text-secondary: #b4bbc2;
+  --ff-text-tertiary: #8b949d;
+  --ff-divider: rgba(244, 245, 246, 0.13);
+  --background: var(--ff-app-bg);
+  --foreground: var(--ff-text-primary);
+  --surface: var(--ff-surface);
+  --surface-solid: var(--ff-surface);
+  --line: var(--ff-border);
+  --muted: var(--ff-text-secondary);
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(105% 40rem at 50% -14rem, rgba(41, 69, 103, 0.18) 0%, rgba(27, 35, 43, 0.10) 42%, transparent 72%),
+    linear-gradient(180deg, #14181d 0%, var(--ff-app-bg) 34rem, var(--ff-app-bg) 100%) !important;
+}
+
+/* Native controls must never fall back to browser-white styling. */
+body input,
+body textarea,
+body select {
+  color-scheme: dark;
+  background: var(--ff-input-bg) !important;
+  color: var(--ff-text-primary) !important;
+  border-color: var(--ff-border) !important;
+  box-shadow: none !important;
+  caret-color: var(--ff-text-primary);
+}
+
+body input::placeholder,
+body textarea::placeholder {
+  color: var(--ff-text-muted) !important;
+  opacity: 1;
+}
+
+body input:focus,
+body textarea:focus,
+body select:focus {
+  border-color: var(--ff-accent) !important;
+  box-shadow: 0 0 0 3px rgba(0, 117, 190, 0.14) !important;
+}
+
+body input:disabled,
+body textarea:disabled,
+body select:disabled {
+  background: #181d22 !important;
+  color: #747e87 !important;
+  opacity: 1;
+}
+
+body input:-webkit-autofill,
+body input:-webkit-autofill:hover,
+body input:-webkit-autofill:focus,
+body textarea:-webkit-autofill,
+body select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ff-text-primary) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--ff-input-bg) inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Shared readable text hierarchy. */
+.subtle { color: var(--ff-text-secondary) !important; }
+.eyebrow,
+.brand-kicker { color: #82bce5 !important; }
+
+/* Legacy utility compatibility. Keep old screens dark until they migrate to tokens. */
+body .bg-white,
+body .bg-white\/90,
+body .bg-white\/95,
+body .bg-white\/80,
+body .bg-white\/70 {
+  background-color: var(--ff-surface) !important;
+}
+
+body .text-black,
+body .text-black\/50,
+body .text-black\/60,
+body .text-black\/70 {
+  color: var(--ff-text-secondary) !important;
+}
+
+body .border-black\/[\.05],
+body .border-black\/[\.06],
+body .border-black\/[\.07] {
+  border-color: var(--ff-border) !important;
+}
+
+/* Universal surfaces/navigation remain matte and dark. */
+.surface,
+.surface-soft,
+.meal-row {
+  color: var(--ff-text-primary);
+}
+
+.app-nav,
+[data-theme="light"] .app-nav {
+  border-color: var(--ff-border) !important;
+  background: linear-gradient(180deg, #1b2025 0%, #181c21 100%) !important;
+  color: var(--ff-text-primary);
+}
+
+.app-nav-item { color: var(--ff-text-secondary) !important; }
+.app-nav-item:hover { color: var(--ff-text-primary) !important; }
+.app-nav-item[data-active="true"] { color: #fff !important; }
+
+/* Keep danger copy readable without neon-red glare. */
+.text-red-600,
+.text-red-700,
+.text-red-500 { color: var(--ff-danger) !important; }
+
+@media (max-width: 639px) {
+  body,
+  [data-theme="light"] body {
+    background:
+      radial-gradient(145% 31rem at 50% -12rem, rgba(41, 69, 103, 0.19) 0%, rgba(27, 35, 43, 0.09) 46%, transparent 74%),
+      linear-gradient(180deg, #14181d 0%, var(--ff-app-bg) 28rem, var(--ff-app-bg) 100%) !important;
+  }
+}

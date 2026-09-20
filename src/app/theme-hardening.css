@@ -1,9 +1,8 @@
 /*
  * Falcon Fuel dark-theme hardening layer.
  *
- * This file is intentionally loaded last. It provides one canonical semantic
- * palette and catches legacy light-theme utilities/components that otherwise
- * bypass the shared design system.
+ * Loaded last on purpose. It defines the canonical semantic palette and catches
+ * legacy light-theme utilities/components that bypassed the shared design system.
  */
 
 :root {
@@ -20,10 +19,10 @@
   --ff-text-muted: #8b949d;
   --ff-accent: #0075be;
   --ff-accent-strong: #168bd0;
+  --ff-accent-light: #82bce5;
   --ff-accent-muted: rgba(0, 117, 190, 0.16);
   --ff-danger: #ff6b6b;
 
-  /* Existing screens consume these aliases. */
   --background: var(--ff-app-bg);
   --foreground: var(--ff-text-primary);
   --surface: var(--ff-surface);
@@ -49,7 +48,7 @@ body {
     linear-gradient(180deg, #14181d 0%, var(--ff-app-bg) 34rem, var(--ff-app-bg) 100%) !important;
 }
 
-/* Dark is canonical. A stale data-theme value must not silently flip a route. */
+/* Dark is canonical. A stale theme attribute must not silently flip a route. */
 [data-theme="light"] {
   color-scheme: dark;
   --ff-canvas: var(--ff-app-bg);
@@ -74,7 +73,7 @@ body {
     linear-gradient(180deg, #14181d 0%, var(--ff-app-bg) 34rem, var(--ff-app-bg) 100%) !important;
 }
 
-/* Native controls must never fall back to browser-white styling. */
+/* Native controls never fall back to browser-white styling. */
 body input,
 body textarea,
 body select {
@@ -120,29 +119,47 @@ body select:-webkit-autofill {
 /* Shared readable text hierarchy. */
 .subtle { color: var(--ff-text-secondary) !important; }
 .eyebrow,
-.brand-kicker { color: #82bce5 !important; }
+.brand-kicker { color: var(--ff-accent-light) !important; }
 
-/* Legacy utility compatibility. Keep old screens dark until they migrate to tokens. */
+/* Legacy utility compatibility. */
 body .bg-white,
 body .bg-white\/90,
 body .bg-white\/95,
 body .bg-white\/80,
-body .bg-white\/70 {
+body .bg-white\/70,
+body [class*="via-white"][class*="from-emerald-50"] {
   background-color: var(--ff-surface) !important;
+  background-image: none !important;
 }
 
 body .text-black,
 body .text-black\/50,
 body .text-black\/60,
-body .text-black\/70 {
-  color: var(--ff-text-secondary) !important;
+body .text-black\/70,
+body .text-emerald-950 {
+  color: var(--ff-text-primary) !important;
 }
 
+body .text-emerald-800,
+body .text-emerald-700 {
+  color: var(--ff-accent-light) !important;
+}
+
+body [class*="border-emerald-900"],
 body .border-black\/[\.05],
 body .border-black\/[\.06],
 body .border-black\/[\.07] {
   border-color: var(--ff-border) !important;
 }
+
+/* The intro previously hard-coded a light canvas and dark-on-light copy. */
+body .bg-\[\#f7f9fb\] {
+  background: var(--ff-app-bg) !important;
+}
+body .text-\[\#111820\] { color: var(--ff-text-primary) !important; }
+body .text-\[\#294567\] { color: var(--ff-accent-light) !important; }
+body [class*="text-[#202b36]"] { color: var(--ff-text-secondary) !important; }
+body [class*="text-[#111820]"] { color: var(--ff-text-secondary) !important; }
 
 /* Universal surfaces/navigation remain matte and dark. */
 .surface,
@@ -161,6 +178,36 @@ body .border-black\/[\.07] {
 .app-nav-item { color: var(--ff-text-secondary) !important; }
 .app-nav-item:hover { color: var(--ff-text-primary) !important; }
 .app-nav-item[data-active="true"] { color: #fff !important; }
+
+/* First-run dining chooser used a complete light-theme island. */
+.ff-first-run {
+  background: rgba(17, 20, 24, 0.985) !important;
+  color: var(--ff-text-primary) !important;
+}
+.ff-first-run-lede,
+.ff-first-run-foot p { color: var(--ff-text-secondary) !important; }
+.ff-first-run-card {
+  border-color: var(--ff-border) !important;
+  background: var(--ff-surface-elevated) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+}
+.ff-first-run-card:hover {
+  border-color: rgba(130, 188, 229, 0.38) !important;
+  background: var(--ff-surface-strong) !important;
+  box-shadow: none !important;
+}
+.ff-first-run-copy small { color: var(--ff-text-secondary) !important; }
+
+/* Weight chart: one dark surface, readable axes/labels, no white graph island. */
+body [class*="from-emerald-50"][class*="via-white"][class*="to-white"] {
+  background: var(--ff-surface-elevated) !important;
+  border-color: var(--ff-border) !important;
+  box-shadow: none !important;
+}
+body [class*="from-emerald-50"][class*="via-white"][class*="to-white"] svg {
+  color: var(--ff-accent-light) !important;
+}
 
 /* Keep danger copy readable without neon-red glare. */
 .text-red-600,

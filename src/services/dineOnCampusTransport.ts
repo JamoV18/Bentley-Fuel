@@ -143,7 +143,8 @@ export class DineOnCampusTransport {
     let lastStatus: number | undefined;
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
-      const primary = await this.request<T>(url, attempt, false);
+      const activeSession = this.currentSession();
+      const primary = await this.request<T>(url, attempt, Boolean(activeSession), activeSession?.cookie);
       attempts.push(primary.attempt);
       if (primary.ok) return this.finish({
         ok: true,
@@ -159,12 +160,10 @@ export class DineOnCampusTransport {
       lastStatus = primary.attempt.status;
 
       if (primary.attempt.status && BROWSER_RETRY.has(primary.attempt.status)) {
-        // DineOnCampus intermittently rejects direct server API traffic even when
-        // browser-like headers are present. Bootstrap the public Bentley menu page
-        // first, retain any edge/session cookies, then replay the API request using
-        // the same browser identity. The smoke diagnostic already proved this path
-        // is materially different from a header-only retry; keep it in production too.
-        const cookie = await this.bootstrapSession();
+        // If an already-bootstrapped browser session was rejected, throw it away
+        // and acquire a fresh one. Otherwise bootstrap once and share it across
+        // concurrent period/menu requests.
+        const cookie = await this.bootstrapSession(Boolean(activeSession));
         const browser = await this.request<T>(url, attempt, true, cookie);
         attempts.push(browser.attempt);
         if (browser.ok) return this.finish({
@@ -197,9 +196,19 @@ export class DineOnCampusTransport {
     });
   }
 
-  private async bootstrapSession(): Promise<string | undefined> {
-    const now = Date.now();
-    if (this.session && this.session.expiresAt > now) return this.session.cookie;
+  private currentSession(): { cookie?: string; expiresAt: number } | undefined {
+    if (!this.session) return undefined;
+    if (this.session.expiresAt <= Date.now()) {
+      this.session = undefined;
+      return undefined;
+    }
+    return this.session;
+  }
+
+  private async bootstrapSession(force = false): Promise<string | undefined> {
+    const active = this.currentSession();
+    if (!force && active) return active.cookie;
+    if (force) this.session = undefined;
     if (this.sessionPromise) return this.sessionPromise;
 
     this.sessionPromise = this.fetchSessionCookie().then((cookie) => {
@@ -222,8 +231,8 @@ export class DineOnCampusTransport {
         headers: browserPageHeaders(),
       });
       if (!response.ok) return undefined;
-      // Consume a small response body so runtimes can finalize the response and
-      // expose edge-set cookies consistently; we do not need the page contents.
+      // Consume the body so runtimes can finalize the response and expose
+      // edge-set cookies consistently; the page contents themselves are unused.
       await response.text();
       return cookieHeader(response.headers.get("set-cookie"));
     } catch {

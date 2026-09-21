@@ -66,6 +66,8 @@ export interface DineOnCampusTransportOptions {
 
 const RETRYABLE = new Set([408, 425, 429]);
 const BROWSER_RETRY = new Set([401, 403, 429]);
+const BENTLEY_MENU_URL = "https://dineoncampus.com/bentley/whats-on-the-menu";
+const SESSION_TTL_MS = 15 * 60 * 1000;
 
 function failureForStatus(status: number): DineOnCampusFailureReason {
   if (status === 401) return "http-401";
@@ -78,14 +80,24 @@ function failureForStatus(status: number): DineOnCampusFailureReason {
   return "http-other";
 }
 
-function browserHeaders(): HeadersInit {
-  return {
+function browserHeaders(cookie?: string): HeadersInit {
+  const headers = new Headers({
     Accept: "application/json, text/plain, */*",
     "Accept-Language": "en-US,en;q=0.9",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0 Safari/537.36",
     Origin: "https://dineoncampus.com",
-    Referer: "https://dineoncampus.com/bentley/whats-on-the-menu",
+    Referer: BENTLEY_MENU_URL,
     "X-Requested-With": "XMLHttpRequest",
+  });
+  if (cookie) headers.set("Cookie", cookie);
+  return headers;
+}
+
+function browserPageHeaders(): HeadersInit {
+  return {
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0 Safari/537.36",
   };
 }
 
@@ -96,6 +108,15 @@ function serverHeaders(): HeadersInit {
   };
 }
 
+function cookieHeader(raw: string | null): string | undefined {
+  if (!raw) return undefined;
+  const cookies = raw
+    .split(/,(?=[^;,]+=)/)
+    .map((entry) => entry.trim().split(";")[0])
+    .filter(Boolean);
+  return cookies.length > 0 ? cookies.join("; ") : undefined;
+}
+
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class DineOnCampusTransport {
@@ -104,6 +125,8 @@ export class DineOnCampusTransport {
   private readonly maxAttempts: number;
   private readonly retryDelayMs: number;
   private readonly onResult?: DineOnCampusTransportOptions["onResult"];
+  private session?: { cookie?: string; expiresAt: number };
+  private sessionPromise?: Promise<string | undefined>;
 
   constructor(options: DineOnCampusTransportOptions = {}) {
     this.fetchImpl = options.fetchImpl ?? fetch;
@@ -136,7 +159,13 @@ export class DineOnCampusTransport {
       lastStatus = primary.attempt.status;
 
       if (primary.attempt.status && BROWSER_RETRY.has(primary.attempt.status)) {
-        const browser = await this.request<T>(url, attempt, true);
+        // DineOnCampus intermittently rejects direct server API traffic even when
+        // browser-like headers are present. Bootstrap the public Bentley menu page
+        // first, retain any edge/session cookies, then replay the API request using
+        // the same browser identity. The smoke diagnostic already proved this path
+        // is materially different from a header-only retry; keep it in production too.
+        const cookie = await this.bootstrapSession();
+        const browser = await this.request<T>(url, attempt, true, cookie);
         attempts.push(browser.attempt);
         if (browser.ok) return this.finish({
           ok: true,
@@ -168,7 +197,43 @@ export class DineOnCampusTransport {
     });
   }
 
-  private async request<T>(url: string, attempt: number, browserHeaderFallback: boolean): Promise<
+  private async bootstrapSession(): Promise<string | undefined> {
+    const now = Date.now();
+    if (this.session && this.session.expiresAt > now) return this.session.cookie;
+    if (this.sessionPromise) return this.sessionPromise;
+
+    this.sessionPromise = this.fetchSessionCookie().then((cookie) => {
+      this.session = { cookie, expiresAt: Date.now() + SESSION_TTL_MS };
+      return cookie;
+    }).finally(() => {
+      this.sessionPromise = undefined;
+    });
+    return this.sessionPromise;
+  }
+
+  private async fetchSessionCookie(): Promise<string | undefined> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchImpl(BENTLEY_MENU_URL, {
+        cache: "no-store",
+        redirect: "follow",
+        signal: controller.signal,
+        headers: browserPageHeaders(),
+      });
+      if (!response.ok) return undefined;
+      // Consume a small response body so runtimes can finalize the response and
+      // expose edge-set cookies consistently; we do not need the page contents.
+      await response.text();
+      return cookieHeader(response.headers.get("set-cookie"));
+    } catch {
+      return undefined;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async request<T>(url: string, attempt: number, browserHeaderFallback: boolean, cookie?: string): Promise<
     | { ok: true; data: T; attempt: DineOnCampusAttempt }
     | { ok: false; attempt: DineOnCampusAttempt }
   > {
@@ -179,7 +244,7 @@ export class DineOnCampusTransport {
       const response = await this.fetchImpl(url, {
         cache: "no-store",
         signal: controller.signal,
-        headers: browserHeaderFallback ? browserHeaders() : serverHeaders(),
+        headers: browserHeaderFallback ? browserHeaders(cookie) : serverHeaders(),
       });
       const base = {
         attempt,

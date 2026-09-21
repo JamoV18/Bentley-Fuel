@@ -20,6 +20,9 @@
 # production
 /build
 
+# local Falcon Fuel runtime cache
+/.falcon-fuel-cache/
+
 # misc
 .DS_Store
 *.pem

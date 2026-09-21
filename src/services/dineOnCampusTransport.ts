@@ -179,7 +179,9 @@ export class DineOnCampusTransport {
         lastStatus = browser.attempt.status ?? lastStatus;
       }
 
-      const retryable = lastStatus ? RETRYABLE.has(lastStatus) || lastStatus >= 500 : lastFailure === "timeout" || lastFailure === "network";
+      const retryable = lastStatus
+        ? RETRYABLE.has(lastStatus) || BROWSER_RETRY.has(lastStatus) || lastStatus >= 500
+        : lastFailure === "timeout" || lastFailure === "network";
       if (!retryable || attempt === this.maxAttempts) break;
       await wait(this.retryDelayMs * attempt);
     }

@@ -29,12 +29,23 @@ const SNAPSHOT_TTL_SECONDS = 60 * 60 * 48;
 const MAX_CACHE_BYTES = 1_800_000;
 const LOCAL_SNAPSHOT_DIR = join(process.cwd(), ".falcon-fuel-cache", "dining-snapshots");
 
+type DevelopmentSnapshotGlobal = typeof globalThis & {
+  __falconFuelDiningSnapshots?: Map<string, DiningMenuSnapshot>;
+};
+
 function key(outletKey: string, menuDate: string): string {
   return `dining-snapshot:v1:${outletKey}:${menuDate}`;
 }
 
 function localPersistenceEnabled(): boolean {
   return process.env.NODE_ENV === "development";
+}
+
+function developmentSharedSnapshots(): Map<string, DiningMenuSnapshot> | undefined {
+  if (!localPersistenceEnabled()) return undefined;
+  const scope = globalThis as DevelopmentSnapshotGlobal;
+  scope.__falconFuelDiningSnapshots ??= new Map<string, DiningMenuSnapshot>();
+  return scope.__falconFuelDiningSnapshots;
 }
 
 function localSnapshotPath(outletKey: string, menuDate: string): string {
@@ -107,10 +118,17 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
       const cached = await getCache().get(cacheKey) as DiningMenuSnapshot | null | undefined;
       if (cached?.menuDate === menuDate && cached.outletKey === outletKey) {
         await this.memory.set(cached);
+        developmentSharedSnapshots()?.set(cacheKey, cached);
         return cached;
       }
     } catch {
       // Local development and non-Vercel CI do not provide the Runtime Cache context.
+    }
+
+    const shared = developmentSharedSnapshots()?.get(cacheKey);
+    if (shared) {
+      await this.memory.set(shared);
+      return shared;
     }
 
     const inMemory = await this.memory.get(outletKey, menuDate);
@@ -119,13 +137,22 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
     const local = await readLocalSnapshot(outletKey, menuDate);
     if (local) {
       await this.memory.set(local);
+      developmentSharedSnapshots()?.set(cacheKey, local);
       return local;
     }
     return undefined;
   }
 
   async set(snapshot: DiningMenuSnapshot): Promise<void> {
+    const cacheKey = key(snapshot.outletKey, snapshot.menuDate);
     await this.memory.set(snapshot);
+    developmentSharedSnapshots()?.set(cacheKey, snapshot);
+
+    // Persist operator-approved captures locally before considering the Runtime
+    // Cache size limit. That limit protects Vercel storage; it must never cause a
+    // successful localhost publish to disappear between route bundles or restarts.
+    await writeLocalSnapshot(snapshot);
+
     const serialized = JSON.stringify(snapshot);
     const bytes = Buffer.byteLength(serialized, "utf8");
     if (bytes > MAX_CACHE_BYTES) {
@@ -133,22 +160,17 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
       return;
     }
 
-    // Local development does not have Vercel Runtime Cache. Keep operator-approved
-    // browser captures on disk so an npm dev restart does not silently erase the
-    // exact-date snapshot that was just published through /admin/921-sync.
-    await writeLocalSnapshot(snapshot);
-
     try {
       const cache = getCache();
-      const existing = await cache.get(key(snapshot.outletKey, snapshot.menuDate)) as DiningMenuSnapshot | null | undefined;
+      const existing = await cache.get(cacheKey) as DiningMenuSnapshot | null | undefined;
       if (existing?.contentHash === snapshot.contentHash && existing?.publicationSource === snapshot.publicationSource) return;
-      await cache.set(key(snapshot.outletKey, snapshot.menuDate), snapshot, {
+      await cache.set(cacheKey, snapshot, {
         ttl: SNAPSHOT_TTL_SECONDS,
         tags: [`dining:${snapshot.outletKey}`, `dining-date:${snapshot.menuDate}`],
         name: `Falcon Fuel ${snapshot.outletName} ${snapshot.menuDate}`,
       });
     } catch {
-      // Development uses the local-file layer above; tests use explicit memory repositories.
+      // Development uses the shared-global + local-file layers above; tests use explicit memory repositories.
     }
   }
 }

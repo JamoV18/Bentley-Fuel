@@ -1,5 +1,3 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { getCache } from "@vercel/functions";
 import type { LocationId, MenuItem, Station } from "@/types";
 
@@ -27,10 +25,19 @@ export interface DiningSnapshotRepository {
 
 const SNAPSHOT_TTL_SECONDS = 60 * 60 * 48;
 const MAX_CACHE_BYTES = 1_800_000;
-const LOCAL_SNAPSHOT_DIR = join(process.cwd(), ".falcon-fuel-cache", "dining-snapshots");
 
 type DevelopmentSnapshotGlobal = typeof globalThis & {
   __falconFuelDiningSnapshots?: Map<string, DiningMenuSnapshot>;
+};
+
+type NodeFsPromises = {
+  mkdir(path: string, options: { recursive: true }): Promise<unknown>;
+  readFile(path: string, encoding: "utf8"): Promise<string>;
+  writeFile(path: string, data: string, encoding: "utf8"): Promise<void>;
+};
+
+type ProcessWithBuiltinModule = typeof process & {
+  getBuiltinModule?: (id: string) => unknown;
 };
 
 function key(outletKey: string, menuDate: string): string {
@@ -38,7 +45,7 @@ function key(outletKey: string, menuDate: string): string {
 }
 
 function localPersistenceEnabled(): boolean {
-  return process.env.NODE_ENV === "development";
+  return typeof window === "undefined" && process.env.NODE_ENV === "development";
 }
 
 function developmentSharedSnapshots(): Map<string, DiningMenuSnapshot> | undefined {
@@ -48,10 +55,20 @@ function developmentSharedSnapshots(): Map<string, DiningMenuSnapshot> | undefin
   return scope.__falconFuelDiningSnapshots;
 }
 
+function nodeFsPromises(): NodeFsPromises | undefined {
+  if (!localPersistenceEnabled()) return undefined;
+  const loader = (process as ProcessWithBuiltinModule).getBuiltinModule;
+  return loader ? loader("fs/promises") as NodeFsPromises : undefined;
+}
+
+function localSnapshotDirectory(): string {
+  return `${process.cwd()}/.falcon-fuel-cache/dining-snapshots`;
+}
+
 function localSnapshotPath(outletKey: string, menuDate: string): string {
   const safeOutlet = outletKey.replace(/[^a-z0-9_-]+/gi, "-");
   const safeDate = menuDate.replace(/[^0-9-]+/g, "-");
-  return join(LOCAL_SNAPSHOT_DIR, `${safeOutlet}-${safeDate}.json`);
+  return `${localSnapshotDirectory()}/${safeOutlet}-${safeDate}.json`;
 }
 
 function validSnapshot(value: unknown, outletKey: string, menuDate: string): DiningMenuSnapshot | undefined {
@@ -63,9 +80,10 @@ function validSnapshot(value: unknown, outletKey: string, menuDate: string): Din
 }
 
 async function readLocalSnapshot(outletKey: string, menuDate: string): Promise<DiningMenuSnapshot | undefined> {
-  if (!localPersistenceEnabled()) return undefined;
+  const fs = nodeFsPromises();
+  if (!fs) return undefined;
   try {
-    const raw = await readFile(localSnapshotPath(outletKey, menuDate), "utf8");
+    const raw = await fs.readFile(localSnapshotPath(outletKey, menuDate), "utf8");
     return validSnapshot(JSON.parse(raw), outletKey, menuDate);
   } catch {
     return undefined;
@@ -73,10 +91,21 @@ async function readLocalSnapshot(outletKey: string, menuDate: string): Promise<D
 }
 
 async function writeLocalSnapshot(snapshot: DiningMenuSnapshot): Promise<void> {
-  if (!localPersistenceEnabled()) return;
+  const fs = nodeFsPromises();
+  if (!fs) {
+    if (localPersistenceEnabled()) {
+      console.warn(JSON.stringify({
+        event: "dining-local-snapshot-write-skipped",
+        outletKey: snapshot.outletKey,
+        menuDate: snapshot.menuDate,
+        reason: "node-getBuiltinModule-unavailable",
+      }));
+    }
+    return;
+  }
   try {
-    await mkdir(LOCAL_SNAPSHOT_DIR, { recursive: true });
-    await writeFile(localSnapshotPath(snapshot.outletKey, snapshot.menuDate), JSON.stringify(snapshot), "utf8");
+    await fs.mkdir(localSnapshotDirectory(), { recursive: true });
+    await fs.writeFile(localSnapshotPath(snapshot.outletKey, snapshot.menuDate), JSON.stringify(snapshot), "utf8");
   } catch (error) {
     console.warn(JSON.stringify({
       event: "dining-local-snapshot-write-failed",
@@ -154,7 +183,7 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
     await writeLocalSnapshot(snapshot);
 
     const serialized = JSON.stringify(snapshot);
-    const bytes = Buffer.byteLength(serialized, "utf8");
+    const bytes = new TextEncoder().encode(serialized).byteLength;
     if (bytes > MAX_CACHE_BYTES) {
       console.warn(JSON.stringify({ event: "dining-snapshot-too-large", outletKey: snapshot.outletKey, menuDate: snapshot.menuDate, bytes }));
       return;

@@ -14,6 +14,11 @@ import type { UserProfile, WeightObservation } from "@/types";
 
 const words = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const weight = (kg: number, unitSystem: UserProfile["unitSystem"]) => unitSystem === "metric" ? `${Math.round(kg * 10) / 10} kg` : `${Math.round(kg / 0.45359237)} lb`;
+const height = (cm: number, unitSystem: UserProfile["unitSystem"]) => {
+  if (unitSystem === "metric") return `${Math.round(cm)} cm`;
+  const totalInches = Math.round(cm / 2.54);
+  return `${Math.floor(totalInches / 12)} ft ${totalInches % 12} in`;
+};
 
 export default function ProfileSummary() {
   const [profile, setProfile] = useState<UserProfile | null>();
@@ -43,6 +48,15 @@ export default function ProfileSummary() {
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const targets = plan?.activeTargets ?? profile.dailyTargets;
   const maintenanceCalories = plan?.maintenanceTargets?.calories ?? profile.maintenanceEstimate?.calories;
+  const currentWeightKg = latestWeightKg ?? profile.metrics?.weightKg;
+  const bodyFacts = [
+    { name: "Age", value: profile.metrics?.age ? `${profile.metrics.age}` : "Not provided" },
+    { name: "Sex", value: profile.metrics?.sex ? words(profile.metrics.sex) : "Not provided" },
+    { name: "Height", value: profile.metrics?.heightCm ? height(profile.metrics.heightCm, profile.unitSystem) : "Not provided" },
+    { name: "Current weight", value: currentWeightKg ? weight(currentWeightKg, profile.unitSystem) : "Not provided" },
+    { name: "Activity", value: profile.metrics?.activityLevel ? words(profile.metrics.activityLevel) : "Not provided" },
+    { name: "Units", value: profile.unitSystem === "metric" ? "Metric" : "US" },
+  ];
 
   const saveProgress = () => {
     if (progressSaved) return;
@@ -80,7 +94,15 @@ export default function ProfileSummary() {
           <div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Nutrition identity</p><h2 className="mt-1 text-2xl font-bold">{words(profile.primaryGoal)}</h2></div><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">Primary</span></div>
           <div className="mt-4 flex flex-wrap gap-2">{goals.map((goal, index) => <span key={goal} className={`rounded-full px-3 py-1.5 text-xs font-bold ${index === 0 ? "bg-emerald-900 text-white" : "bg-black/[.04] text-black/65"}`}>{words(goal)}</span>)}</div>
           {plan?.weightLossIntensity && <div className="surface-soft mt-4 p-4"><p className="eyebrow">Weight-loss intensity</p><p className="mt-1 text-lg font-bold">{words(plan.weightLossIntensity)}{plan.weightLossIntensity === "extreme" ? " · not recommended" : ""}</p>{plan.weightLossIntensity === "extreme" && <p className="mt-2 text-sm font-semibold text-red-700">Aggressive weight loss can be inappropriate for some people; qualified medical or dietitian guidance is recommended.</p>}</div>}
-          <div className="mt-5 grid gap-4 border-t border-black/[.06] pt-5"><Row name="Units" value={profile.unitSystem === "metric" ? "Metric (kg / cm)" : "US (lb / ft-in)"} />{profile.behavioralGoals?.length ? <Row name="Also helping with" value={profile.behavioralGoals.map(words).join(", ")} /> : null}{profile.goalDescription && <Row name="What you told us" value={profile.goalDescription} />}<Row name="Dietary preferences" value={profile.dietaryPreferences.length ? profile.dietaryPreferences.map(words).join(", ") : "None selected"} /><Row name="Allergens to avoid" value={profile.allergensToAvoid.length ? profile.allergensToAvoid.map(words).join(", ") : "None selected"} /></div>
+
+          <div className="mt-5 border-t border-black/[.06] pt-5">
+            <p className="eyebrow">Body profile</p>
+            <dl className="ff-profile-fact-grid mt-3">
+              {bodyFacts.map((fact) => <div className="ff-profile-fact" key={fact.name}><dt>{fact.name}</dt><dd>{fact.value}</dd></div>)}
+            </dl>
+          </div>
+
+          <div className="mt-5 grid gap-4 border-t border-black/[.06] pt-5">{profile.behavioralGoals?.length ? <Row name="Also helping with" value={profile.behavioralGoals.map(words).join(", ")} /> : null}{profile.goalDescription && <Row name="What you told us" value={profile.goalDescription} />}<Row name="Dietary preferences" value={profile.dietaryPreferences.length ? profile.dietaryPreferences.map(words).join(", ") : "None selected"} /><Row name="Allergens to avoid" value={profile.allergensToAvoid.length ? profile.allergensToAvoid.map(words).join(", ") : "None selected"} /></div>
         </section>
 
         <section className="surface p-5">
@@ -98,7 +120,7 @@ export default function ProfileSummary() {
         </section>
       </div>
 
-      <ActivityCheckInCard profile={profile} currentWeightKg={latestWeightKg ?? profile.metrics?.weightKg} onProfileUpdated={setProfile} />
+      <ActivityCheckInCard profile={profile} currentWeightKg={currentWeightKg} onProfileUpdated={setProfile} />
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         {maintenanceCalories && <section className="surface p-5"><p className="eyebrow">Estimated maintenance</p><p className="mt-1 text-3xl font-bold tracking-tight">{maintenanceCalories.toLocaleString()} <span className="text-sm font-medium subtle">cal/day</span></p><p className="mt-2 text-sm subtle">Estimated energy needed to maintain the current recorded body weight using the supported inputs available.</p></section>}

@@ -1,0 +1,422 @@
+/*
+ * Falcon Fuel dark-theme hardening layer.
+ *
+ * Loaded last on purpose. It defines the canonical semantic palette and catches
+ * legacy light-theme utilities/components that bypassed the shared design system.
+ */
+
+:root {
+  color-scheme: dark;
+
+  --ff-app-bg: #111418;
+  --ff-surface: #171b20;
+  --ff-surface-elevated: #1c2228;
+  --ff-surface-strong: #242b32;
+  --ff-input-bg: #1c2228;
+  --ff-border: rgba(244, 245, 246, 0.13);
+  --ff-text-primary: #f4f5f6;
+  --ff-text-secondary: #b4bbc2;
+  --ff-text-muted: #8b949d;
+  --ff-accent: #0075be;
+  --ff-accent-strong: #168bd0;
+  --ff-accent-light: #82bce5;
+  --ff-accent-muted: rgba(0, 117, 190, 0.16);
+  --ff-danger: #ff6b6b;
+
+  --background: var(--ff-app-bg);
+  --foreground: var(--ff-text-primary);
+  --surface: var(--ff-surface);
+  --surface-solid: var(--ff-surface);
+  --line: var(--ff-border);
+  --muted: var(--ff-text-secondary);
+  --brand-700: var(--ff-accent);
+  --brand-600: var(--ff-accent-strong);
+  --brand-100: rgba(130, 188, 229, 0.16);
+  --brand-50: rgba(130, 188, 229, 0.08);
+}
+
+html,
+body {
+  color-scheme: dark;
+  background: var(--ff-app-bg) !important;
+  color: var(--ff-text-primary);
+}
+
+body {
+  background:
+    radial-gradient(105% 40rem at 50% -14rem, rgba(41, 69, 103, 0.18) 0%, rgba(27, 35, 43, 0.10) 42%, transparent 72%),
+    linear-gradient(180deg, #14181d 0%, var(--ff-app-bg) 34rem, var(--ff-app-bg) 100%) !important;
+}
+
+/* Dark is canonical. A stale theme attribute must not silently flip a route. */
+[data-theme="light"] {
+  color-scheme: dark;
+  --ff-canvas: var(--ff-app-bg);
+  --ff-surface: #171b20;
+  --ff-surface-elevated: #1c2228;
+  --ff-surface-strong: #242b32;
+  --ff-text-primary: #f4f5f6;
+  --ff-text-secondary: #b4bbc2;
+  --ff-text-tertiary: #8b949d;
+  --ff-divider: rgba(244, 245, 246, 0.13);
+  --background: var(--ff-app-bg);
+  --foreground: var(--ff-text-primary);
+  --surface: var(--ff-surface);
+  --surface-solid: var(--ff-surface);
+  --line: var(--ff-border);
+  --muted: var(--ff-text-secondary);
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(105% 40rem at 50% -14rem, rgba(41, 69, 103, 0.18) 0%, rgba(27, 35, 43, 0.10) 42%, transparent 72%),
+    linear-gradient(180deg, #14181d 0%, var(--ff-app-bg) 34rem, var(--ff-app-bg) 100%) !important;
+}
+
+/* Native controls never fall back to browser-white styling. */
+body input,
+body textarea,
+body select {
+  color-scheme: dark;
+  background: var(--ff-input-bg) !important;
+  color: var(--ff-text-primary) !important;
+  border-color: var(--ff-border) !important;
+  box-shadow: none !important;
+  caret-color: var(--ff-text-primary);
+}
+
+body input::placeholder,
+body textarea::placeholder {
+  color: var(--ff-text-muted) !important;
+  opacity: 1;
+}
+
+body input:focus,
+body textarea:focus,
+body select:focus {
+  border-color: var(--ff-accent) !important;
+  box-shadow: 0 0 0 3px rgba(0, 117, 190, 0.14) !important;
+}
+
+body input:disabled,
+body textarea:disabled,
+body select:disabled {
+  background: #181d22 !important;
+  color: #747e87 !important;
+  opacity: 1;
+}
+
+body input:-webkit-autofill,
+body input:-webkit-autofill:hover,
+body input:-webkit-autofill:focus,
+body textarea:-webkit-autofill,
+body select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ff-text-primary) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--ff-input-bg) inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Shared readable text hierarchy. */
+.subtle { color: var(--ff-text-secondary) !important; }
+.eyebrow,
+.brand-kicker { color: var(--ff-accent-light) !important; }
+
+/*
+ * Contrast floor for legacy Tailwind opacity utilities.
+ * In the canonical dark theme, any text-black/* utility is a light-theme relic.
+ * Promote it to readable secondary copy instead of trying to preserve its old
+ * black alpha value against a dark surface.
+ */
+body [class*="text-black/"] {
+  color: var(--ff-text-secondary) !important;
+}
+
+/* Legacy utility compatibility. */
+body .bg-white,
+body .bg-white\/90,
+body .bg-white\/95,
+body .bg-white\/80,
+body .bg-white\/70,
+body [class~="bg-white/95"],
+body [class~="bg-white/90"],
+body [class~="bg-white/80"],
+body [class~="bg-white/75"],
+body [class~="bg-white/70"],
+body [class~="bg-white/60"],
+body [class*="via-white"][class*="from-emerald-50"] {
+  background-color: var(--ff-surface-elevated) !important;
+  background-image: none !important;
+}
+
+body [class~="bg-emerald-50/75"] {
+  background-color: var(--ff-surface-strong) !important;
+}
+body [class~="bg-emerald-50/75"] .text-emerald-950 {
+  color: var(--ff-text-primary) !important;
+}
+body [class~="bg-emerald-50/75"] .text-emerald-800 {
+  color: var(--ff-accent-light) !important;
+}
+
+body [class~="bg-black/[.035]"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+body .text-black,
+body .text-black\/50,
+body .text-black\/60,
+body .text-black\/70 {
+  color: var(--ff-text-secondary) !important;
+}
+
+/* Only dark-surface contexts get light emerald copy. */
+body .surface .text-emerald-950,
+body .surface-soft .text-emerald-950,
+body [class~="bg-white/70"] .text-emerald-950,
+body [class~="bg-white/75"] .text-emerald-950,
+body [class~="bg-white/80"] .text-emerald-950 {
+  color: var(--ff-text-primary) !important;
+}
+
+body .surface .text-emerald-800,
+body .surface .text-emerald-700,
+body .surface-soft .text-emerald-800,
+body .surface-soft .text-emerald-700 {
+  color: var(--ff-accent-light) !important;
+}
+
+/* Status badges that intentionally stay light need dark ink, even inside .surface. */
+body .bg-emerald-50.text-emerald-800,
+body .bg-emerald-50.text-emerald-900,
+body .bg-emerald-50.text-emerald-950 {
+  color: #17324a !important;
+}
+
+body [class*="border-emerald-900"],
+body .border-black\/[\.05],
+body .border-black\/[\.06],
+body .border-black\/[\.07] {
+  border-color: var(--ff-border) !important;
+}
+
+/* The intro previously hard-coded a light canvas and dark-on-light copy. */
+body .bg-\[\#f7f9fb\] {
+  background: var(--ff-app-bg) !important;
+}
+body .text-\[\#111820\] { color: var(--ff-text-primary) !important; }
+body .text-\[\#294567\] { color: var(--ff-accent-light) !important; }
+body [class*="text-[#202b36]"] { color: var(--ff-text-secondary) !important; }
+body [class*="text-[#111820]"] { color: var(--ff-text-secondary) !important; }
+body [class*="text-[#10263d]"] { color: var(--ff-text-primary) !important; }
+
+/* Universal surfaces/navigation remain matte and dark. */
+.surface,
+.surface-soft,
+.meal-row {
+  color: var(--ff-text-primary);
+}
+
+.app-nav,
+[data-theme="light"] .app-nav {
+  border-color: var(--ff-border) !important;
+  background: linear-gradient(180deg, #1b2025 0%, #181c21 100%) !important;
+  color: var(--ff-text-primary);
+}
+
+.app-nav-item { color: var(--ff-text-secondary) !important; }
+.app-nav-item:hover { color: var(--ff-text-primary) !important; }
+.app-nav-item[data-active="true"] { color: #fff !important; }
+
+/* First-run dining chooser used a complete light-theme island. */
+.ff-first-run {
+  background: rgba(17, 20, 24, 0.985) !important;
+  color: var(--ff-text-primary) !important;
+}
+.ff-first-run-lede,
+.ff-first-run-foot p { color: var(--ff-text-secondary) !important; }
+.ff-first-run-card {
+  border-color: var(--ff-border) !important;
+  background: var(--ff-surface-elevated) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+}
+.ff-first-run-card:hover {
+  border-color: rgba(130, 188, 229, 0.38) !important;
+  background: var(--ff-surface-strong) !important;
+  box-shadow: none !important;
+}
+.ff-first-run-copy small { color: var(--ff-text-secondary) !important; }
+
+/* Weight chart: one dark surface, readable axes/labels, no white graph island. */
+body [class*="from-emerald-50"][class*="via-white"][class*="to-white"] {
+  background: var(--ff-surface-elevated) !important;
+  border-color: var(--ff-border) !important;
+  box-shadow: none !important;
+}
+body [class*="from-emerald-50"][class*="via-white"][class*="to-white"] svg {
+  color: var(--ff-accent-light) !important;
+}
+
+/*
+ * History v2 predates dark mode and declares its own dark-blue ink variables.
+ * Those variables were being reused as text on #111418, producing almost-black
+ * copy on an almost-black canvas. Rebind the whole route to semantic dark tokens.
+ */
+.ff-history-v2 {
+  --ink: var(--ff-text-primary) !important;
+  --muted: var(--ff-text-secondary) !important;
+  --blue: var(--ff-accent-light) !important;
+  --line: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+}
+
+.ff-history-v2 header > p:last-child,
+.ff-history-v2 .ff-history-panel p,
+.ff-history-v2 .ff-history-empty {
+  color: var(--ff-text-secondary) !important;
+}
+
+.ff-history-v2 .ff-history-panel {
+  background: var(--ff-surface) !important;
+  border-color: var(--ff-border) !important;
+}
+
+.ff-history-v2 .ff-history-kpi,
+.ff-history-v2 .ff-history-range button {
+  background: var(--ff-surface-elevated) !important;
+  border-color: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+}
+
+.ff-history-v2 .ff-history-kpi span {
+  color: var(--ff-text-secondary) !important;
+}
+
+.ff-history-v2 .ff-history-range button.is-active {
+  background: var(--ff-accent) !important;
+  border-color: var(--ff-accent) !important;
+  color: #fff !important;
+}
+
+.ff-history-v2 [class~="bg-black/[.045]"] {
+  background: #263039 !important;
+  border-color: var(--ff-border) !important;
+}
+
+.ff-history-v2 [class~="bg-white/70"] {
+  background: var(--ff-surface-elevated) !important;
+  border-color: var(--ff-border) !important;
+}
+
+/* Recommendation screens carried a separate light-only token system. */
+.ff-rec-shell {
+  --rec-ink: var(--ff-text-primary) !important;
+  --rec-ink-soft: var(--ff-text-secondary) !important;
+  --rec-blue: var(--ff-accent-light) !important;
+  --rec-blue-soft: var(--ff-accent-light) !important;
+  --rec-teal: #42b7b0;
+  --rec-paper: var(--ff-surface-elevated) !important;
+  --rec-line: var(--ff-border) !important;
+  --rec-muted: var(--ff-text-secondary) !important;
+  color: var(--ff-text-primary) !important;
+}
+
+.ff-rec-manual-link,
+.ff-rec-hero,
+.ff-rec-alt,
+.ff-rec-customize,
+.ff-rec-close,
+.ff-rec-edit-card,
+.ff-rec-qty button,
+.ff-rec-stepper button {
+  background: var(--ff-surface-elevated) !important;
+  border-color: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+}
+
+.ff-rec-photo { background: var(--ff-surface-strong) !important; }
+.ff-rec-note {
+  background: var(--ff-accent-muted) !important;
+  color: var(--ff-text-secondary) !important;
+}
+.ff-rec-note.is-warning,
+.ff-rec-allergen {
+  background: rgba(255, 204, 51, 0.10) !important;
+  color: #e5d59b !important;
+  border-color: rgba(255, 204, 51, 0.48) !important;
+}
+.ff-rec-reason-number {
+  background: var(--ff-accent-muted) !important;
+  color: var(--ff-accent-light) !important;
+}
+.ff-rec-alt-macros span,
+.ff-rec-customize,
+.ff-rec-edit-card {
+  background-color: var(--ff-surface-strong) !important;
+}
+.ff-rec-alt-macros span { color: var(--ff-text-secondary) !important; }
+.ff-rec-reason-item p,
+.ff-rec-component p,
+.ff-rec-order-item p,
+.ff-rec-alt-copy p,
+.ff-rec-customize-head p:last-child,
+.ff-rec-edit-top p,
+.ff-rec-choice-name small,
+.ff-rec-replacement-item p {
+  color: var(--ff-text-secondary) !important;
+}
+.ff-rec-remove { color: var(--ff-danger) !important; }
+
+/* The old #1 recommendation treatment painted a bright white card over dark mode. */
+body [data-recommendation-index="0"] {
+  background: var(--ff-surface-elevated) !important;
+  box-shadow: none !important;
+}
+body [data-recommendation-index="0"]::after {
+  background: var(--ff-surface-elevated) !important;
+  box-shadow: inset 0 0 0 1px var(--ff-border) !important;
+}
+
+/* Meal reflection was another complete light-only floating panel. */
+.ff-reflection-dock {
+  background: rgba(23, 27, 32, 0.985) !important;
+  border-color: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28) !important;
+}
+.ff-reflection-top button,
+.ff-reflection-meal,
+.ff-reflection-bigger p,
+.ff-reflection-success p {
+  color: var(--ff-text-secondary) !important;
+}
+.ff-reflection-actions button,
+.ff-reflection-bigger {
+  background: var(--ff-surface-strong) !important;
+  border-color: var(--ff-border) !important;
+  color: var(--ff-text-primary) !important;
+}
+.ff-reflection-actions button:hover {
+  background: #2a333b !important;
+  border-color: rgba(130, 188, 229, 0.35) !important;
+}
+.ff-reflection-actions button.is-selected,
+.ff-reflection-save {
+  background: var(--ff-accent) !important;
+  color: #fff !important;
+}
+
+/* Keep danger copy readable without neon-red glare. */
+.text-red-600,
+.text-red-700,
+.text-red-500 { color: var(--ff-danger) !important; }
+
+@media (max-width: 639px) {
+  body,
+  [data-theme="light"] body {
+    background:
+      radial-gradient(145% 31rem at 50% -12rem, rgba(41, 69, 103, 0.19) 0%, rgba(27, 35, 43, 0.09) 46%, transparent 74%),
+      linear-gradient(180deg, #14181d 0%, var(--ff-app-bg) 28rem, var(--ff-app-bg) 100%) !important;
+  }
+}

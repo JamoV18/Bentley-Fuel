@@ -1,78 +1,85 @@
 /* Falcon Fuel global shell + navigation layer.
-   Keeps the app chrome persistent and app-like across viewport sizes.
+   Desktop/web uses a compact left rail inspired by native social apps.
+   Phones retain the thumb-friendly bottom tab bar.
 */
 
 .app-nav {
   position: fixed;
   z-index: 80;
-  left: 50%;
-  bottom: max(12px, env(safe-area-inset-bottom));
-  width: min(calc(100% - 32px), 46rem);
-  margin: 0;
-  transform: translateX(-50%);
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 4px;
-  min-height: 70px;
-  padding: 6px;
-  border: 1px solid var(--ff-divider);
-  border-radius: 28px;
-  background: rgba(13, 22, 32, 0.86);
-  box-shadow: 0 18px 44px rgba(2, 10, 18, 0.34), inset 0 1px 0 rgba(255,255,255,.035);
-  backdrop-filter: blur(22px) saturate(135%);
-  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  margin: 0;
+  border: 0;
+  border-right: 1px solid var(--ff-divider);
+  border-radius: 0;
+  background: rgba(17, 20, 24, 0.96);
+  box-shadow: none;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
-[data-theme="light"] .app-nav {
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 16px 36px rgba(32, 50, 71, 0.14), inset 0 1px 0 rgba(255,255,255,.75);
+.app-nav::before {
+  content: "Falcon Fuel";
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  margin: 2px 8px 14px;
+  padding: 0 10px;
+  color: var(--ff-text-primary);
+  font-size: 16px;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
 }
 
 .app-nav-item {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 56px;
+  min-height: 48px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: 12px;
   color: var(--ff-text-secondary);
   text-decoration: none;
   background: transparent !important;
+  transition: color .16s ease, background-color .16s ease;
 }
 
 .app-nav-item:hover {
   color: var(--ff-text-primary);
-  background: rgba(130, 188, 229, 0.07) !important;
+  background: rgba(244, 245, 246, 0.055) !important;
 }
 
 .app-nav-item[data-active="true"],
 .app-nav-item[data-active="true"]:hover {
-  color: white;
+  color: var(--ff-text-primary);
   background: transparent !important;
 }
 
 .app-nav-active-pill {
-  border-radius: 22px;
-  background: linear-gradient(145deg, rgba(0,117,190,.98), rgba(11,99,155,.96));
-  box-shadow: inset 0 0 0 1px rgba(130,188,229,.22), 0 7px 18px rgba(0,117,190,.22);
+  border-radius: 12px;
+  background: var(--ff-accent-muted);
+  box-shadow: inset 3px 0 0 var(--ff-accent);
 }
 
 .app-nav-content {
   width: 100%;
   min-width: 0;
-  gap: 7px;
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 650;
+  justify-content: flex-start !important;
+  gap: 12px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 680;
   line-height: 1;
   white-space: nowrap;
 }
 
 .app-nav-icon {
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 21px;
   flex: 0 0 auto;
 }
 
@@ -87,40 +94,113 @@
 }
 
 .app-nav-item[data-active="true"] .app-nav-icon svg {
-  stroke-width: 2.25;
+  stroke-width: 2.2;
+}
+
+@media (min-width: 900px) {
+  .app-nav {
+    inset: 0 auto 0 0;
+    width: 212px;
+    padding: 16px 10px 18px;
+  }
+
+  body:has(.app-nav) {
+    padding-left: 212px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 899px) {
+  .app-nav {
+    inset: 0 auto 0 0;
+    width: 72px;
+    align-items: stretch;
+    padding: 16px 8px;
+  }
+
+  .app-nav::before {
+    content: "F";
+    justify-content: center;
+    width: 40px;
+    min-height: 40px;
+    margin: 6px auto 16px;
+    padding: 0;
+    border: 1px solid var(--ff-border);
+    border-radius: 12px;
+    color: var(--ff-accent-light);
+    font-size: 16px;
+  }
+
+  .app-nav-item {
+    min-height: 50px;
+    justify-content: center;
+  }
+
+  .app-nav-content {
+    justify-content: center !important;
+    padding: 0;
+  }
+
+  .app-nav-content > span:last-child {
+    display: none;
+  }
+
+  .app-nav-active-pill {
+    box-shadow: inset 2px 0 0 var(--ff-accent);
+  }
+
+  body:has(.app-nav) {
+    padding-left: 72px;
+  }
 }
 
 @media (max-width: 639px) {
   .app-nav {
-    width: calc(100% - 24px);
-    min-height: 72px;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
     bottom: max(10px, env(safe-area-inset-bottom));
-    border-radius: 26px;
+    width: auto;
+    min-height: 70px;
+    flex-direction: row;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid var(--ff-divider);
+    border-radius: 24px;
+    background: rgba(17, 20, 24, 0.92);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26);
+  }
+
+  .app-nav::before {
+    display: none;
   }
 
   .app-nav-item {
-    min-height: 58px;
-    border-radius: 20px;
+    flex: 1 1 0;
+    min-height: 56px;
+    justify-content: center;
+    border-radius: 18px;
   }
 
   .app-nav-active-pill {
-    border-radius: 20px;
+    border-radius: 18px;
+    background: var(--ff-accent-muted);
+    box-shadow: none;
   }
 
   .app-nav-content {
+    justify-content: center !important;
     flex-direction: column;
     gap: 4px;
-    padding: 5px 2px 4px;
-    font-size: 10.5px;
+    padding: 4px 2px 3px;
+    font-size: 10px;
   }
 
   .app-nav-icon {
-    width: 21px;
-    height: 21px;
+    width: 20px;
+    height: 20px;
   }
 }
 
 @media (max-width: 390px) {
-  .app-nav-content { font-size: 10px; }
-  .app-nav-icon { width: 20px; height: 20px; }
+  .app-nav-content { font-size: 9.5px; }
+  .app-nav-icon { width: 19px; height: 19px; }
 }

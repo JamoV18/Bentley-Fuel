@@ -1,0 +1,449 @@
+/* Final product-layout polish.
+   Desktop meal recommendations lead with three compact ranked choices instead of
+   one oversized hero. Mobile keeps the active choice full-width and the other
+   top picks in a horizontal swipe row.
+*/
+
+.ff-rec-shell {
+  --rec-ink: var(--ff-text-primary);
+  --rec-ink-soft: var(--ff-text-secondary);
+  --rec-blue: var(--ff-accent);
+  --rec-blue-soft: var(--ff-accent-light);
+  --rec-teal: var(--ff-accent-light);
+  --rec-paper: var(--ff-surface-elevated);
+  --rec-line: var(--ff-border);
+  --rec-muted: var(--ff-text-secondary);
+  width: min(100%, 70rem) !important;
+  padding: 1.45rem 1.25rem 5.25rem !important;
+}
+
+.ff-rec-shell > * {
+  min-width: 0;
+}
+
+.ff-rec-header {
+  margin-top: 1.15rem !important;
+  margin-bottom: 1.15rem !important;
+  align-items: flex-end !important;
+}
+
+.ff-rec-header h1 {
+  max-width: 18ch !important;
+  margin-top: .32rem !important;
+  font-size: clamp(2rem, 3.5vw, 3rem) !important;
+  line-height: 1 !important;
+  letter-spacing: -.045em !important;
+}
+
+.ff-rec-header p:last-child {
+  max-width: 38rem !important;
+  margin-top: .58rem !important;
+  color: var(--ff-text-secondary) !important;
+  font-size: .82rem !important;
+  line-height: 1.5 !important;
+}
+
+.ff-rec-manual-link {
+  border-color: var(--ff-border) !important;
+  background: var(--ff-surface-elevated) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+}
+
+.ff-rec-note,
+.ff-rec-note.is-warning {
+  border: 1px solid var(--ff-border) !important;
+  border-left: 3px solid var(--ff-accent) !important;
+  border-radius: 10px !important;
+  background: var(--ff-surface) !important;
+  color: var(--ff-text-secondary) !important;
+}
+
+@media (min-width: 760px) {
+  .ff-rec-shell {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 12px;
+    align-items: stretch;
+  }
+
+  .ff-rec-shell > * {
+    grid-column: 1 / -1;
+  }
+
+  .ff-rec-shell > .ff-rec-hero {
+    grid-column: 1;
+    order: 10;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] {
+    grid-column: 2 / 4;
+    order: 10;
+    margin-top: 0 !important;
+  }
+
+  .ff-rec-shell > .ff-rec-section:not([aria-labelledby="alternatives-heading"]),
+  .ff-rec-shell > .ff-rec-customize,
+  .ff-rec-shell > .ff-rec-allergen {
+    order: 20;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-section-heading {
+    display: none !important;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt-grid {
+    height: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt:nth-child(n + 3) {
+    display: none !important;
+  }
+}
+
+.ff-rec-hero {
+  min-height: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(0, 117, 190, .7) !important;
+  border-radius: 18px !important;
+  background: var(--ff-surface) !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 760px) {
+  .ff-rec-hero {
+    display: flex !important;
+    flex-direction: column;
+  }
+}
+
+.ff-rec-photo {
+  min-height: 0 !important;
+  height: 10.5rem !important;
+  background: var(--ff-surface-elevated) !important;
+}
+
+.ff-rec-photo > *:first-child {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.ff-rec-photo-shade {
+  background: rgba(6, 12, 18, .12) !important;
+}
+
+.ff-rec-photo-badge,
+.ff-rec-alt-rank {
+  border: 1px solid rgba(255,255,255,.16) !important;
+  background: rgba(17, 20, 24, .88) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(10px);
+}
+
+.ff-rec-photo-badge {
+  left: .75rem !important;
+  top: .75rem !important;
+  padding: .42rem .58rem !important;
+  font-size: .56rem !important;
+  letter-spacing: .1em !important;
+}
+
+.ff-rec-photo-badge::before {
+  width: .4rem !important;
+  height: .4rem !important;
+  background: var(--ff-accent-light) !important;
+  box-shadow: none !important;
+}
+
+.ff-rec-photo-caption {
+  left: .8rem !important;
+  right: .8rem !important;
+  bottom: .7rem !important;
+  margin: 0 !important;
+  font-size: .62rem !important;
+  line-height: 1.35 !important;
+}
+
+.ff-rec-hero-copy {
+  justify-content: flex-start !important;
+  padding: .95rem !important;
+}
+
+.ff-rec-rankline {
+  gap: .5rem !important;
+}
+
+.ff-rec-rankline > span {
+  color: var(--ff-text-muted) !important;
+  font-size: .58rem !important;
+}
+
+.ff-rec-meal-title {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: .42rem !important;
+  font-size: clamp(1.1rem, 1.75vw, 1.48rem) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.032em !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ff-rec-reason {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: .58rem !important;
+  color: var(--ff-text-secondary) !important;
+  font-size: .72rem !important;
+  line-height: 1.45 !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ff-rec-macros {
+  margin-top: .75rem !important;
+  padding: .72rem 0 !important;
+  border-color: var(--ff-border) !important;
+}
+
+.ff-rec-macro {
+  padding: 0 .38rem !important;
+  border-color: var(--ff-border) !important;
+}
+
+.ff-rec-macro dt {
+  color: var(--ff-text-muted) !important;
+  font-size: .52rem !important;
+}
+
+.ff-rec-macro dd {
+  margin-top: .12rem !important;
+  font-size: .88rem !important;
+}
+
+/* The ranked card itself should answer the first decision. Ingredient-level
+   details stay one tap away under Make a change / How to get it. */
+@media (min-width: 760px) {
+  .ff-rec-hero .ff-rec-components {
+    display: none !important;
+  }
+}
+
+.ff-rec-actions {
+  gap: .48rem !important;
+  margin-top: .78rem !important;
+}
+
+.ff-rec-primary {
+  min-height: 2.7rem !important;
+  padding: .72rem .82rem !important;
+  border-radius: 11px !important;
+  background: var(--ff-accent) !important;
+  box-shadow: none !important;
+  font-size: .73rem !important;
+}
+
+.ff-rec-secondary-row {
+  gap: .7rem !important;
+}
+
+.ff-rec-text-button,
+.ff-rec-secondary-row a {
+  color: var(--ff-accent-light) !important;
+  font-size: .63rem !important;
+}
+
+.ff-rec-section {
+  margin-top: 2.1rem !important;
+}
+
+.ff-rec-section-heading {
+  margin-bottom: .8rem !important;
+}
+
+.ff-rec-section-heading h2 {
+  font-size: clamp(1.45rem, 2.8vw, 2rem) !important;
+}
+
+.ff-rec-reasons,
+.ff-rec-order,
+.ff-rec-details {
+  border-color: var(--ff-border) !important;
+}
+
+.ff-rec-reason-item,
+.ff-rec-order-line {
+  border-color: var(--ff-border) !important;
+}
+
+.ff-rec-reason-number,
+.ff-rec-order-number {
+  background: var(--ff-surface-strong) !important;
+  color: var(--ff-accent-light) !important;
+}
+
+.ff-rec-alt {
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--ff-border) !important;
+  border-radius: 18px !important;
+  background: var(--ff-surface) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+  transition: border-color .16s ease, transform .16s ease !important;
+}
+
+.ff-rec-alt:hover {
+  transform: translateY(-1px) !important;
+  border-color: rgba(0, 117, 190, .65) !important;
+  box-shadow: none !important;
+}
+
+.ff-rec-alt > div:first-child > :first-child {
+  height: 10.5rem !important;
+}
+
+.ff-rec-alt-rank {
+  left: .75rem !important;
+  top: .75rem !important;
+  padding: .42rem .55rem !important;
+  border-radius: 999px !important;
+  font-size: .58rem !important;
+  font-weight: 850 !important;
+}
+
+.ff-rec-alt-copy {
+  padding: .95rem !important;
+}
+
+.ff-rec-alt-copy h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0 !important;
+  color: var(--ff-text-primary) !important;
+  font-size: 1rem !important;
+  line-height: 1.15 !important;
+  letter-spacing: -.024em !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ff-rec-alt-copy p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: .45rem !important;
+  color: var(--ff-text-muted) !important;
+  font-size: .64rem !important;
+  line-height: 1.35 !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ff-rec-alt-macros {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: .35rem !important;
+  margin-top: .72rem !important;
+}
+
+.ff-rec-alt-macros span {
+  padding: .32rem .46rem;
+  border: 1px solid var(--ff-border);
+  border-radius: 999px;
+  color: var(--ff-text-secondary) !important;
+  background: var(--ff-surface-elevated);
+  font-size: .6rem !important;
+  font-weight: 750;
+}
+
+.ff-rec-customize,
+.ff-rec-edit-card,
+.ff-rec-replacement,
+.ff-rec-allergen {
+  border-color: var(--ff-border) !important;
+  background: var(--ff-surface) !important;
+  color: var(--ff-text-primary) !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 759px) {
+  .ff-rec-shell {
+    display: flex !important;
+    flex-direction: column;
+    width: 100% !important;
+    padding: 1rem 1rem 7.5rem !important;
+  }
+
+  .ff-rec-header {
+    align-items: flex-start !important;
+    gap: .8rem !important;
+  }
+
+  .ff-rec-header h1 {
+    font-size: 2rem !important;
+  }
+
+  .ff-rec-hero {
+    order: 10;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] {
+    order: 11;
+    margin-top: .85rem !important;
+  }
+
+  .ff-rec-shell > .ff-rec-section:not([aria-labelledby="alternatives-heading"]),
+  .ff-rec-shell > .ff-rec-customize,
+  .ff-rec-shell > .ff-rec-allergen {
+    order: 20;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-section-heading {
+    margin-bottom: .55rem !important;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-section-heading .ff-rec-eyebrow {
+    display: none;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-section-heading h2 {
+    margin: 0 !important;
+    font-size: .82rem !important;
+    color: var(--ff-text-secondary) !important;
+    letter-spacing: 0 !important;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt-grid {
+    display: flex !important;
+    gap: .7rem !important;
+    overflow-x: auto;
+    padding: 0 0 .2rem;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt {
+    flex: 0 0 min(82vw, 19rem);
+    scroll-snap-align: start;
+  }
+
+  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt:nth-child(n + 3) {
+    display: none !important;
+  }
+
+  .ff-rec-photo,
+  .ff-rec-alt > div:first-child > :first-child {
+    height: 11rem !important;
+  }
+
+  .ff-rec-section {
+    margin-top: 1.7rem !important;
+  }
+}

@@ -193,6 +193,7 @@ export default function TodayV2Client({
   const preferenceMealSlot = recommendationPeriod === "breakfast" || recommendationPeriod === "lunch" || recommendationPeriod === "dinner" ? recommendationPeriod : undefined;
   const locationPreference = preferredLocation(recentEntries, locationNames, preferenceMealSlot);
 
+  /* eslint-disable react-hooks/preserve-manual-memoization -- ranking a live menu can generate and score dozens of meal combinations; keep this intentionally memoized so unrelated Today interactions do not recompute it. */
   const topMealPick = useMemo(() => {
     if (!profile || !recommendationPeriod || !locationPreference.id) return undefined;
 
@@ -247,6 +248,7 @@ export default function TodayV2Client({
       stationNames,
     };
   }, [entries, locationPreference.id, plan, profile, recentEntries, recommendationData, recommendationPeriod, snapshot.remaining]);
+  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;

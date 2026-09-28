@@ -1,0 +1,167 @@
+/* Final desktop density polish.
+   Loaded after route/component styles so the web shell stays compact and useful
+   above the fold without changing the phone hierarchy. */
+
+/* The sidebar should orient the user, not compete with the page. */
+.app-nav-active-pill {
+  background: rgba(0, 117, 190, 0.085) !important;
+  box-shadow: inset 2px 0 0 var(--ff-accent) !important;
+}
+
+@media (min-width: 900px) {
+  /* Greeting/date are context. Keep them clear, but don't let them become the
+     biggest object on the page. */
+  .ff-v2-shell {
+    width: min(100%, 72rem) !important;
+    padding-top: 1.15rem !important;
+    padding-bottom: 5rem !important;
+  }
+
+  .ff-v2-header {
+    margin-bottom: 0.45rem !important;
+  }
+
+  .ff-v2-header h1 {
+    margin-top: 0.16rem !important;
+    font-size: clamp(2rem, 2.55vw, 2.65rem) !important;
+    line-height: 1 !important;
+    letter-spacing: -0.045em !important;
+    font-weight: 720 !important;
+  }
+
+  .ff-v2-header-copy > p:last-child {
+    margin-top: 0.28rem !important;
+    font-size: 0.76rem !important;
+  }
+
+  .ff-v2-daybar {
+    margin: 0.4rem 0 0.75rem !important;
+    padding: 0.12rem 0 !important;
+  }
+
+  .ff-v2-daybar button {
+    min-height: 2.35rem !important;
+  }
+
+  .ff-v2-data-note {
+    margin: 0 0 0.8rem !important;
+    padding: 0.58rem 0.72rem !important;
+    font-size: 0.68rem !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Compress the nutrition surface into one horizontal decision surface:
+     calorie state on the left, three macro rows on the right. */
+  .ff-today-nutrition {
+    margin-top: 0.5rem !important;
+    padding: 1rem 1.1rem !important;
+    border-radius: 1.35rem !important;
+  }
+
+  .ff-today-nutrition-head h2 {
+    margin-top: 0.2rem !important;
+    font-size: clamp(1.35rem, 1.8vw, 1.65rem) !important;
+  }
+
+  .ff-today-mode-toggle button {
+    min-height: 1.85rem !important;
+    padding: 0.34rem 0.64rem !important;
+    font-size: 0.64rem !important;
+  }
+
+  .ff-today-nutrition-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(11.5rem, 0.48fr) !important;
+    gap: 1.15rem !important;
+    align-items: center !important;
+    margin-top: 0.78rem !important;
+  }
+
+  .ff-today-calories {
+    min-height: 0 !important;
+    gap: 1.05rem !important;
+  }
+
+  .ff-today-nutrition .ff-v2-ring {
+    width: 8.8rem !important;
+    flex: 0 0 8.8rem !important;
+  }
+
+  .ff-today-nutrition .ff-v2-ring::after {
+    inset: 0.55rem !important;
+  }
+
+  .ff-today-nutrition .ff-v2-ring-inner strong {
+    font-size: clamp(1.85rem, 2.65vw, 2.35rem) !important;
+  }
+
+  .ff-today-calorie-copy strong {
+    font-size: clamp(1.45rem, 2.4vw, 1.9rem) !important;
+  }
+
+  .ff-today-calorie-copy span {
+    margin-top: 0.34rem !important;
+    font-size: 0.68rem !important;
+  }
+
+  .ff-today-macros {
+    grid-template-columns: 1fr !important;
+    gap: 0.62rem !important;
+    padding: 0 0 0 1.05rem !important;
+    border-top: 0 !important;
+    border-left: 1px solid rgba(244, 245, 246, 0.075) !important;
+  }
+
+  .ff-today-macro,
+  .ff-today-macro + .ff-today-macro {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .ff-today-macro-line {
+    display: flex !important;
+    align-items: baseline !important;
+    justify-content: space-between !important;
+    gap: 0.6rem !important;
+  }
+
+  .ff-today-macro-line strong {
+    font-size: 0.98rem !important;
+  }
+
+  .ff-today-macro-track {
+    margin-top: 0.34rem !important;
+  }
+
+  .ff-today-macro small {
+    margin-top: 0.24rem !important;
+    font-size: 0.58rem !important;
+  }
+
+  /* Keep follow-on content close enough that the first screen feels like one
+     working dashboard rather than a series of oversized sections. */
+  .ff-v3-day-path-wrap,
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v3-day-path-wrap {
+    margin-top: 0.78rem !important;
+  }
+
+  .ff-v2-progress-section,
+  .ff-v2-meals {
+    margin-top: 2.35rem !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 899px) {
+  .app-nav-active-pill {
+    background: rgba(0, 117, 190, 0.07) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  /* Phone keeps the bottom tab bar and a clearer active tab because the labels
+     are smaller and the control sits over content. */
+  .app-nav-active-pill {
+    background: var(--ff-accent-muted) !important;
+    box-shadow: none !important;
+  }
+}

@@ -83,29 +83,29 @@ export default function MealReflectionDock({ locationNames, itemNames }: { locat
         transition={reduceMotion ? { duration: 0 } : { duration: .28, ease: [0.16, 1, 0.3, 1] }}
       >
         {saved ? (
-          <div className="ff-reflection-success"><motion.span initial={reduceMotion ? false : { scale: .7 }} animate={{ scale: 1 }}>✓</motion.span><div><strong>Got it.</strong><p>Next picks can learn from this.</p></div></div>
+          <div className="ff-reflection-success"><motion.span initial={reduceMotion ? false : { scale: .7 }} animate={{ scale: 1 }}>✓</motion.span><div><strong>Got it.</strong><p>Feedback saved.</p></div></div>
         ) : (
           <>
-            <div className="ff-reflection-top"><div><p>Teach Falcon Fuel</p><h2>How was that meal?</h2></div><button type="button" onClick={() => { setDismissedId(candidate.id); setCandidate(undefined); }}>Later</button></div>
+            <div className="ff-reflection-top"><div><h2>How was that meal?</h2></div><button type="button" onClick={() => { setDismissedId(candidate.id); setCandidate(undefined); }}>Later</button></div>
             <p className="ff-reflection-meal">{displayName} · {locationNames[candidate.locationId] ?? candidate.locationId}</p>
 
             <p className="ff-reflection-question">Would you want something like this again?</p>
             <div className="ff-reflection-actions">
-              <button type="button" className={taste === "like" ? "is-selected" : undefined} onClick={() => setTaste("like")}>😍 Loved it</button>
-              <button type="button" className={taste === "neutral" ? "is-selected" : undefined} onClick={() => setTaste("neutral")}>👍 Fine</button>
-              <button type="button" className={taste === "dislike" ? "is-selected" : undefined} onClick={() => setTaste("dislike")}>👎 Skip next time</button>
+              <button type="button" aria-pressed={taste === "like"} className={taste === "like" ? "is-selected" : undefined} onClick={() => setTaste("like")}>Liked it</button>
+              <button type="button" aria-pressed={taste === "neutral"} className={taste === "neutral" ? "is-selected" : undefined} onClick={() => setTaste("neutral")}>Fine</button>
+              <button type="button" aria-pressed={taste === "dislike"} className={taste === "dislike" ? "is-selected" : undefined} onClick={() => setTaste("dislike")}>Skip next time</button>
             </div>
 
             <p className="ff-reflection-question">Portion about right?</p>
             <div className="ff-reflection-actions">
-              <button type="button" className={portion === .75 ? "is-selected" : undefined} onClick={() => choosePortion(.75)}>Smaller</button>
-              <button type="button" className={portion === 1 ? "is-selected" : undefined} onClick={() => choosePortion(1)}>About right</button>
-              <button type="button" className={portion && portion > 1 ? "is-selected" : undefined} onClick={() => setBiggerOpen((value) => !value)}>Bigger</button>
+              <button type="button" aria-pressed={portion === .75} className={portion === .75 ? "is-selected" : undefined} onClick={() => choosePortion(.75)}>Smaller</button>
+              <button type="button" aria-pressed={portion === 1} className={portion === 1 ? "is-selected" : undefined} onClick={() => choosePortion(1)}>About right</button>
+              <button type="button" aria-expanded={biggerOpen} className={portion && portion > 1 ? "is-selected" : undefined} onClick={() => setBiggerOpen((value) => !value)}>Bigger</button>
             </div>
             <AnimatePresence initial={false}>
               {biggerOpen && <motion.div className="ff-reflection-bigger" initial={reduceMotion ? false : { opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}><p>Roughly how much bigger?</p><div className="ff-reflection-actions"><button type="button" onClick={() => choosePortion(1.5)}>~1.5×</button><button type="button" onClick={() => choosePortion(2)}>~2×</button></div></motion.div>}
             </AnimatePresence>
-            <button className="ff-reflection-save" type="button" disabled={!taste || !portion} onClick={save}>Save and keep learning</button>
+            <button className="ff-reflection-save" type="button" disabled={!taste || !portion} onClick={save}>Save feedback</button>
           </>
         )}
       </motion.aside>

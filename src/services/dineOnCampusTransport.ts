@@ -66,6 +66,8 @@ export interface DineOnCampusTransportOptions {
 
 const RETRYABLE = new Set([408, 425, 429]);
 const BROWSER_RETRY = new Set([401, 403, 429]);
+const BENTLEY_MENU_URL = "https://dineoncampus.com/bentley/whats-on-the-menu";
+const SESSION_TTL_MS = 15 * 60 * 1000;
 
 function failureForStatus(status: number): DineOnCampusFailureReason {
   if (status === 401) return "http-401";
@@ -78,14 +80,24 @@ function failureForStatus(status: number): DineOnCampusFailureReason {
   return "http-other";
 }
 
-function browserHeaders(): HeadersInit {
-  return {
+function browserHeaders(cookie?: string): HeadersInit {
+  const headers = new Headers({
     Accept: "application/json, text/plain, */*",
     "Accept-Language": "en-US,en;q=0.9",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0 Safari/537.36",
     Origin: "https://dineoncampus.com",
-    Referer: "https://dineoncampus.com/bentley/whats-on-the-menu",
+    Referer: BENTLEY_MENU_URL,
     "X-Requested-With": "XMLHttpRequest",
+  });
+  if (cookie) headers.set("Cookie", cookie);
+  return headers;
+}
+
+function browserPageHeaders(): HeadersInit {
+  return {
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0 Safari/537.36",
   };
 }
 
@@ -96,6 +108,15 @@ function serverHeaders(): HeadersInit {
   };
 }
 
+function cookieHeader(raw: string | null): string | undefined {
+  if (!raw) return undefined;
+  const cookies = raw
+    .split(/,(?=[^;,]+=)/)
+    .map((entry) => entry.trim().split(";")[0])
+    .filter(Boolean);
+  return cookies.length > 0 ? cookies.join("; ") : undefined;
+}
+
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class DineOnCampusTransport {
@@ -104,6 +125,8 @@ export class DineOnCampusTransport {
   private readonly maxAttempts: number;
   private readonly retryDelayMs: number;
   private readonly onResult?: DineOnCampusTransportOptions["onResult"];
+  private session?: { cookie?: string; expiresAt: number };
+  private sessionPromise?: Promise<string | undefined>;
 
   constructor(options: DineOnCampusTransportOptions = {}) {
     this.fetchImpl = options.fetchImpl ?? fetch;
@@ -120,7 +143,8 @@ export class DineOnCampusTransport {
     let lastStatus: number | undefined;
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
-      const primary = await this.request<T>(url, attempt, false);
+      const activeSession = this.currentSession();
+      const primary = await this.request<T>(url, attempt, Boolean(activeSession), activeSession?.cookie);
       attempts.push(primary.attempt);
       if (primary.ok) return this.finish({
         ok: true,
@@ -136,7 +160,11 @@ export class DineOnCampusTransport {
       lastStatus = primary.attempt.status;
 
       if (primary.attempt.status && BROWSER_RETRY.has(primary.attempt.status)) {
-        const browser = await this.request<T>(url, attempt, true);
+        // If an already-bootstrapped browser session was rejected, throw it away
+        // and acquire a fresh one. Otherwise bootstrap once and share it across
+        // concurrent period/menu requests.
+        const cookie = await this.bootstrapSession(Boolean(activeSession));
+        const browser = await this.request<T>(url, attempt, true, cookie);
         attempts.push(browser.attempt);
         if (browser.ok) return this.finish({
           ok: true,
@@ -151,7 +179,9 @@ export class DineOnCampusTransport {
         lastStatus = browser.attempt.status ?? lastStatus;
       }
 
-      const retryable = lastStatus ? RETRYABLE.has(lastStatus) || lastStatus >= 500 : lastFailure === "timeout" || lastFailure === "network";
+      const retryable = lastStatus
+        ? RETRYABLE.has(lastStatus) || BROWSER_RETRY.has(lastStatus) || lastStatus >= 500
+        : lastFailure === "timeout" || lastFailure === "network";
       if (!retryable || attempt === this.maxAttempts) break;
       await wait(this.retryDelayMs * attempt);
     }
@@ -168,7 +198,53 @@ export class DineOnCampusTransport {
     });
   }
 
-  private async request<T>(url: string, attempt: number, browserHeaderFallback: boolean): Promise<
+  private currentSession(): { cookie?: string; expiresAt: number } | undefined {
+    if (!this.session) return undefined;
+    if (this.session.expiresAt <= Date.now()) {
+      this.session = undefined;
+      return undefined;
+    }
+    return this.session;
+  }
+
+  private async bootstrapSession(force = false): Promise<string | undefined> {
+    const active = this.currentSession();
+    if (!force && active) return active.cookie;
+    if (force) this.session = undefined;
+    if (this.sessionPromise) return this.sessionPromise;
+
+    this.sessionPromise = this.fetchSessionCookie().then((cookie) => {
+      this.session = { cookie, expiresAt: Date.now() + SESSION_TTL_MS };
+      return cookie;
+    }).finally(() => {
+      this.sessionPromise = undefined;
+    });
+    return this.sessionPromise;
+  }
+
+  private async fetchSessionCookie(): Promise<string | undefined> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchImpl(BENTLEY_MENU_URL, {
+        cache: "no-store",
+        redirect: "follow",
+        signal: controller.signal,
+        headers: browserPageHeaders(),
+      });
+      if (!response.ok) return undefined;
+      // Consume the body so runtimes can finalize the response and expose
+      // edge-set cookies consistently; the page contents themselves are unused.
+      await response.text();
+      return cookieHeader(response.headers.get("set-cookie"));
+    } catch {
+      return undefined;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async request<T>(url: string, attempt: number, browserHeaderFallback: boolean, cookie?: string): Promise<
     | { ok: true; data: T; attempt: DineOnCampusAttempt }
     | { ok: false; attempt: DineOnCampusAttempt }
   > {
@@ -179,7 +255,7 @@ export class DineOnCampusTransport {
       const response = await this.fetchImpl(url, {
         cache: "no-store",
         signal: controller.signal,
-        headers: browserHeaderFallback ? browserHeaders() : serverHeaders(),
+        headers: browserHeaderFallback ? browserHeaders(cookie) : serverHeaders(),
       });
       const base = {
         attempt,

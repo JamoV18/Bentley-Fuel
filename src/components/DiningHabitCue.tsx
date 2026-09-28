@@ -54,7 +54,7 @@ export default function DiningHabitCue({ locationNames }: { locationNames: Recor
       aria-label="Dining routine suggestion"
     >
       <div className="ff-habit-top"><div><p>Your routine</p><h2>You’re usually at {location} around {formatHabitTime(cue.typicalMinutes)}.</h2></div><button type="button" onClick={() => setDismissed(true)}>Not now</button></div>
-      <p>{meal} tends to happen there. Start with the place you already use instead of sending you across campus for a marginally better score.</p>
+      <p>{meal} tends to happen there. </p>
       <Link className="ff-habit-link" href={`/meal-builder/${encodeURIComponent(cue.locationId)}?period=${encodeURIComponent(cue.mealPeriod)}`}>Show my {cue.mealPeriod} at {location} <span>→</span></Link>
       <span className="ff-habit-evidence">Learned from {cue.evidenceCount} recent {cue.mealPeriod} visits · {cue.sharePercent}% at this location</span>
     </motion.aside>

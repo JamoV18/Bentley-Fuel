@@ -68,7 +68,7 @@ export default function ActivityCheckInCard({
           <div><p className="eyebrow">Activity check-in</p><h2 className="mt-1 text-xl font-bold">{saved ? "Activity confirmed" : `${readable(currentLevel)} is current`}</h2></div>
           <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">Every 2 weeks</span>
         </div>
-        <p className="mt-2 text-sm subtle">Next review {dateLabel(status.nextDueAt)}. Falcon Fuel will ask before changing the activity input that can affect estimated maintenance and derived calorie targets.</p>
+        <p className="mt-2 text-sm subtle">Next review {dateLabel(status.nextDueAt)}. Changes require your confirmation.</p>
       </section>
     );
   }
@@ -114,7 +114,7 @@ export default function ActivityCheckInCard({
         </div>
         <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800">Review due</span>
       </div>
-      <p className="mt-2 max-w-3xl text-sm leading-relaxed subtle">Activity can materially change an estimated energy requirement. Falcon Fuel never changes this input or recalculates a derived calorie plan from it until you explicitly confirm the update.</p>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed subtle">Changing activity may change your calorie targets. Review the impact before confirming.</p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {ACTIVITY_CHOICES.map((choice) => {

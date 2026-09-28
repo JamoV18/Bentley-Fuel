@@ -31,7 +31,7 @@ export default function WeeklyNutritionReportPanel({
         <div>
           <p className="eyebrow">Last completed week</p>
           <h2 className="mt-1 text-2xl font-bold">{dateLabel(report.weekStart)} – {dateLabel(report.weekEnd)}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed subtle">A factual recap of what you recorded. Missing meals are never counted as zero, and later check-ins automatically update the report.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed subtle">Confirmed meals only. Missing meals are not counted as zero.</p>
         </div>
         <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${report.confidence === "strong" ? "bg-emerald-50 text-emerald-900" : report.status === "ready" ? "bg-sky-50 text-sky-900" : "bg-amber-50 text-amber-900"}`}>{confidenceLabel(report.confidence)}</span>
       </div>
@@ -39,14 +39,14 @@ export default function WeeklyNutritionReportPanel({
       {report.status === "empty" ? (
         <div className="mt-5 rounded-2xl border border-black/[.06] bg-white/75 p-5">
           <p className="text-lg font-bold">No completed-week report yet</p>
-          <p className="mt-2 text-sm leading-relaxed subtle">There were no Falcon Fuel meals saved in this completed week, so there is nothing trustworthy to summarize.</p>
+          <p className="mt-2 text-sm leading-relaxed subtle">No meals were saved last week.</p>
         </div>
       ) : (
         <>
           {report.status === "partial" && (
             <div className="mt-5 rounded-2xl border border-amber-900/10 bg-amber-50/55 p-4">
               <p className="text-sm font-bold text-amber-950">Still building a reliable week</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-950/70">Only {report.fullyConfirmedDays} fully confirmed day{report.fullyConfirmedDays === 1 ? "" : "s"} cleared the quality check. Falcon Fuel shows the facts it has without turning sparse records into a strong conclusion.</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-950/70">Only {report.fullyConfirmedDays} fully confirmed day{report.fullyConfirmedDays === 1 ? "" : "s"} cleared the quality check. More complete days are needed for a reliable trend.</p>
             </div>
           )}
 
@@ -57,17 +57,17 @@ export default function WeeklyNutritionReportPanel({
             viewport={{ once: true, amount: 0.2 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="rounded-2xl border border-black/[.06] bg-white/75 p-4">
+            <div className="border-t border-[var(--ff-border)] py-3">
               <p className="text-[10px] font-bold uppercase tracking-[.12em] subtle">Check-ins</p>
               <p className="mt-2 text-2xl font-bold">{report.mealCheckInRate ?? 0}%</p>
               <p className="mt-1 text-xs leading-relaxed subtle">{report.confirmedMeals} of {report.savedMeals} saved meals confirmed.</p>
             </div>
-            <div className="rounded-2xl border border-black/[.06] bg-white/75 p-4">
+            <div className="border-t border-[var(--ff-border)] py-3">
               <p className="text-[10px] font-bold uppercase tracking-[.12em] subtle">Avg recorded calories</p>
               <p className="mt-2 text-2xl font-bold">{average ? average.calories : "—"}</p>
               <p className="mt-1 text-xs leading-relaxed subtle">Across {report.fullyConfirmedDays} fully confirmed day{report.fullyConfirmedDays === 1 ? "" : "s"} only.</p>
             </div>
-            <div className="rounded-2xl border border-black/[.06] bg-white/75 p-4">
+            <div className="border-t border-[var(--ff-border)] py-3">
               <p className="text-[10px] font-bold uppercase tracking-[.12em] subtle">Avg recorded protein</p>
               <p className="mt-2 text-2xl font-bold">{average ? `${average.protein}g` : "—"}</p>
               <p className="mt-1 text-xs leading-relaxed subtle">Same confirmed-day set as calories.</p>

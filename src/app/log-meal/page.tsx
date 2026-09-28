@@ -1,7 +1,8 @@
 "use client";
 
+import PageHeader from "@/components/PageHeader";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import AppNav from "@/components/AppNav";
 import { LOCATION_IDS } from "@/data/mock/locations";
@@ -95,6 +96,24 @@ export default function LogMealPage() {
   const [savedSlot, setSavedSlot] = useState<MealLogSlot | null>(null);
   const successTimer = useRef<number | null>(null);
   const quickOpenHandled = useRef(false);
+  const dialogRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!activeSlot) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setActiveSlot(null); }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), summary, a[href]') ?? []).filter((element) => element.getClientRects().length > 0);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", onKeyDown); previousFocus?.focus(); };
+  }, [activeSlot]);
 
   const refresh = useCallback(() => {
     const [year, month, day] = selectedDate.split("-").map(Number);
@@ -173,75 +192,16 @@ export default function LogMealPage() {
     }
   };
 
-  const percent = Math.round((progress.completedCoreMeals / progress.coreMealsTotal) * 100);
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 pb-28 sm:px-6 sm:py-12">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="brand-kicker">Falcon Fuel</p>
-          <h1 className="mt-4 text-4xl font-black tracking-[-0.045em] sm:text-5xl">Daily log</h1>
-          <p className="mt-2 max-w-2xl subtle">Account for meals you already ate. Logging improves today’s totals and what Falcon Fuel recommends next.</p>
-        </div>
-        <Link href="/today" className="secondary text-sm">Back to Today</Link>
-      </div>
-
+      <PageHeader title="Log a meal" />
       <AppNav />
 
-      <section className="mt-6 overflow-hidden rounded-[1.55rem] border border-white/10 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-700 p-5 text-white shadow-[0_20px_44px_rgba(23,46,70,.20)] sm:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[.15em] text-white/55">Daily check-in</p>
-            <div className="mt-2 flex items-baseline gap-2">
-              <motion.strong
-                key={progress.completedCoreMeals}
-                initial={reduceMotion ? false : { opacity: 0.6, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-4xl font-black tracking-[-0.05em]"
-              >
-                {progress.completedCoreMeals}/3
-              </motion.strong>
-              <span className="text-sm font-semibold text-white/60">core meals logged</span>
-            </div>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/70">
-              {progress.coreComplete ? "Day logged. Your main meal check-ins are complete." : "Breakfast, lunch, and dinner are the three daily checkpoints. Snacks stay optional."}
-            </p>
-          </div>
-          <label className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white/75 backdrop-blur-sm">
-            <span className="sr-only">Choose log date</span>
-            <input
-              type="date"
-              value={selectedDate}
-              max={todayKey()}
-              onChange={(event) => {
-                setSelectedDate(event.target.value || todayKey());
-                setActiveSlot(null);
-              }}
-              className="bg-transparent font-bold text-white [color-scheme:dark] outline-none"
-            />
-          </label>
-        </div>
-
-        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/12">
-          <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-[#82BCE5] to-[#42B7B0]"
-            initial={false}
-            animate={{ width: `${percent}%` }}
-            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 120, damping: 20 }}
-          />
-        </div>
-        <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
-          {CORE_SLOTS.map(({ slot, label }) => {
-            const done = progress[slot];
-            return (
-              <div key={slot} className={`rounded-2xl border px-3 py-3 text-center transition ${done ? "border-white/22 bg-white/12" : "border-white/10 bg-black/5"}`}>
-                <span className={`mx-auto grid h-7 w-7 place-items-center rounded-full text-xs font-black ${done ? "bg-[#42B7B0] text-[#10263d]" : "border border-white/25 text-white/50"}`}>{done ? "✓" : "·"}</span>
-                <p className="mt-2 text-xs font-bold text-white/85 sm:text-sm">{label}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <div className="ff-log-toolbar">
+        <p>{progress.completedCoreMeals}/3 meals logged</p>
+        <label className="field">Date<input type="date" value={selectedDate} max={todayKey()} onChange={(event) => { setSelectedDate(event.target.value || todayKey()); setActiveSlot(null); }} /></label>
+      </div>
 
       <div className="mt-5 flex items-center justify-between gap-3">
         <div><p className="eyebrow">{prettyDate(selectedDate)}</p><h2 className="mt-1 text-2xl font-black tracking-[-0.035em]">What have you eaten?</h2></div>
@@ -287,7 +247,7 @@ export default function LogMealPage() {
                 <h3 className="text-lg font-black tracking-[-0.025em]">Snacks</h3>
                 <span className="rounded-full bg-black/[.035] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-black/45">Optional</span>
               </div>
-              <p className="mt-1 text-sm subtle">Add anything between meals. Snacks are optional and do not affect the 3/3 daily check-in.</p>
+              <p className="mt-1 text-sm subtle">Anything between meals.</p>
               {entriesBySlot.snack.length > 0 && <p className="mt-2 truncate text-xs font-semibold text-emerald-800">Latest: {mealTitle(entriesBySlot.snack[0])}</p>}
             </div>
           </div>
@@ -298,17 +258,18 @@ export default function LogMealPage() {
       <AnimatePresence>
         {activeSlot && (
           <motion.div
-            className="fixed inset-0 z-[70] flex items-end justify-center bg-[#10263d]/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-[#10263d]/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onMouseDown={(event) => { if (event.currentTarget === event.target) closeForm(); }}
           >
             <motion.section
+              ref={dialogRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="log-meal-heading"
-              className="w-full max-w-xl rounded-t-[1.65rem] border border-black/[.06] bg-[#f8fafc] p-5 shadow-[0_-18px_50px_rgba(17,35,52,.22)] sm:rounded-[1.65rem] sm:p-6"
+              className="max-h-[90dvh] overflow-y-auto w-full max-w-xl rounded-t-[1.65rem] border border-black/[.06] bg-[var(--ff-surface)] p-5 shadow-[0_-18px_50px_rgba(17,35,52,.22)] sm:rounded-[1.65rem] sm:p-6"
               initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.99 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.99 }}
@@ -333,13 +294,13 @@ export default function LogMealPage() {
 
               <details className="surface-soft mt-5 p-4">
                 <summary className="cursor-pointer text-sm font-black">Add nutrition <span className="font-normal subtle">Optional</span></summary>
-                <p className="mt-2 text-xs leading-relaxed subtle">Only enter nutrition when you know or can reasonably estimate all four values. Leaving this blank records the meal without pretending missing macros were zero.</p>
+                <p className="mt-2 text-xs leading-relaxed subtle">Enter all four values if known. Otherwise, leave blank; missing nutrition is not counted as zero.</p>
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {(["calories", "protein", "carbs", "fat"] as const).map((key) => <label className="field" key={key}><span className="capitalize">{key}{key === "calories" ? "" : " (g)"}</span><input type="number" min="0" inputMode="decimal" value={nutrition[key]} onChange={(event) => setNutrition((old) => ({ ...old, [key]: event.target.value }))} /></label>)}
                 </div>
               </details>
 
-              {error && <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">{error}</p>}
+              {error && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">{error}</p>}
 
               <div className="mt-5 grid grid-cols-[.75fr_1.25fr] gap-3">
                 <button type="button" className="secondary" onClick={closeForm}>Cancel</button>

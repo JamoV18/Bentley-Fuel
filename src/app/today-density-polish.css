@@ -215,3 +215,109 @@
     white-space: normal;
   }
 }
+
+/* Final Today desktop composition.
+   The previous two-column recommendation layout gave the CTA its own column.
+   Once Top Pick was added, both controls competed for that same grid area, which
+   squeezed "Breakfast at 921" into a narrow strip and made the pick overlap the
+   button. Keep the whole recommendation as one compact vertical decision card.
+   Both cards stay intentionally shallow so neither creates a large dead zone. */
+@media (min-width: 900px) {
+  .ff-v2-shell:has(> .ff-v2-hero) {
+    align-items: stretch !important;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-today-nutrition,
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero {
+    min-height: 17.25rem !important;
+    height: auto !important;
+    margin-top: 0.5rem !important;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero {
+    align-self: stretch !important;
+  }
+
+  .ff-v2-shell:has(> .ff-v2-hero) > .ff-v2-hero .ff-v2-hero-copy {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    grid-template-areas:
+      "eyebrow"
+      "title"
+      "pick"
+      "action"
+      "secondary" !important;
+    align-content: center !important;
+    align-items: stretch !important;
+    gap: 0.42rem !important;
+    min-height: 100% !important;
+    padding: 1rem 1.1rem !important;
+  }
+
+  .ff-v2-hero-copy > .ff-v2-eyebrow {
+    grid-area: eyebrow !important;
+  }
+
+  .ff-v2-hero h2 {
+    grid-area: title !important;
+    margin: 0 !important;
+    max-width: none !important;
+    font-size: clamp(1.65rem, 2.2vw, 2rem) !important;
+    line-height: 1.02 !important;
+  }
+
+  .ff-v2-hero-reason,
+  .ff-v2-nutrition-cue {
+    display: none !important;
+  }
+
+  .ff-v2-top-pick {
+    grid-area: pick !important;
+    min-width: 0 !important;
+    margin: 0.45rem 0 0 !important;
+    padding: 0.66rem 0.72rem !important;
+  }
+
+  .ff-v2-top-pick > strong {
+    font-size: 0.84rem !important;
+    -webkit-line-clamp: 2;
+  }
+
+  .ff-v2-top-pick > small {
+    white-space: normal !important;
+  }
+
+  .ff-v2-hero-copy > div:not(.ff-v2-nutrition-cue):not(.ff-v2-top-pick) {
+    grid-area: action !important;
+    align-self: stretch !important;
+    width: 100% !important;
+    margin: 0.42rem 0 0 !important;
+  }
+
+  .ff-v2-primary-cta {
+    width: 100% !important;
+    min-height: 2.55rem !important;
+    padding: 0.66rem 0.82rem !important;
+  }
+
+  .ff-v2-secondary-link {
+    grid-area: secondary !important;
+    margin-top: 0.24rem !important;
+  }
+
+  /* Give the nutrition card enough visual weight to match the recommendation,
+     rather than leaving a large unused lower half. */
+  .ff-today-nutrition-grid {
+    align-content: center !important;
+  }
+
+  .ff-today-nutrition .ff-v2-ring {
+    width: 9.35rem !important;
+    flex: 0 0 9.35rem !important;
+  }
+
+  .ff-today-macros {
+    gap: 0.72rem !important;
+  }
+}

@@ -1,8 +1,4 @@
-/* Final product-layout polish.
-   Desktop meal recommendations lead with three compact ranked choices instead of
-   one oversized hero. Mobile keeps the active choice full-width and the other
-   top picks in a horizontal swipe row.
-*/
+/* Shared product polish. The Top 3 layout lives in recommendation-v2.css. */
 
 .ff-rec-shell {
   --rec-ink: var(--ff-text-primary);
@@ -59,49 +55,6 @@
   color: var(--ff-text-secondary) !important;
 }
 
-@media (min-width: 760px) {
-  .ff-rec-shell {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 12px;
-    align-items: stretch;
-  }
-
-  .ff-rec-shell > * {
-    grid-column: 1 / -1;
-  }
-
-  .ff-rec-shell > .ff-rec-hero {
-    grid-column: 1;
-    order: 10;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] {
-    grid-column: 2 / 4;
-    order: 10;
-    margin-top: 0 !important;
-  }
-
-  .ff-rec-shell > .ff-rec-section:not([aria-labelledby="alternatives-heading"]),
-  .ff-rec-shell > .ff-rec-customize,
-  .ff-rec-shell > .ff-rec-allergen {
-    order: 20;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-section-heading {
-    display: none !important;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt-grid {
-    height: 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 12px !important;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt:nth-child(n + 3) {
-    display: none !important;
-  }
-}
 
 .ff-rec-hero {
   min-height: 0 !important;
@@ -384,58 +337,6 @@
 
   .ff-rec-header h1 {
     font-size: 2rem !important;
-  }
-
-  .ff-rec-hero {
-    order: 10;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] {
-    order: 11;
-    margin-top: .85rem !important;
-  }
-
-  .ff-rec-shell > .ff-rec-section:not([aria-labelledby="alternatives-heading"]),
-  .ff-rec-shell > .ff-rec-customize,
-  .ff-rec-shell > .ff-rec-allergen {
-    order: 20;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-section-heading {
-    margin-bottom: .55rem !important;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-section-heading .ff-rec-eyebrow {
-    display: none;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-section-heading h2 {
-    margin: 0 !important;
-    font-size: .82rem !important;
-    color: var(--ff-text-secondary) !important;
-    letter-spacing: 0 !important;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt-grid {
-    display: flex !important;
-    gap: .7rem !important;
-    overflow-x: auto;
-    padding: 0 0 .2rem;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt-grid::-webkit-scrollbar {
-    display: none;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt {
-    flex: 0 0 min(82vw, 19rem);
-    scroll-snap-align: start;
-  }
-
-  .ff-rec-shell > section[aria-labelledby="alternatives-heading"] .ff-rec-alt:nth-child(n + 3) {
-    display: none !important;
   }
 
   .ff-rec-photo,

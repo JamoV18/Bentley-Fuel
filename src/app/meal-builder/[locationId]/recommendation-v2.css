@@ -939,3 +939,73 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Text-first ranked decision surface; selection uses the existing meal state. */
+.ff-rec-ranked-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+  list-style: none;
+  margin: 0;
+  padding: .2rem;
+}
+
+.ff-rec-ranked-list > li { min-width: 0; display: flex; }
+
+.ff-rec-ranked-card {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--ff-border);
+  border-top: 3px solid var(--ff-border);
+  border-radius: 14px;
+  background: var(--ff-surface);
+  color: var(--ff-text-primary);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.ff-rec-ranked-card.is-best {
+  border-top-color: var(--ff-accent);
+  background: var(--ff-surface-elevated);
+}
+
+.ff-rec-ranked-card[aria-pressed="true"] { border-color: var(--ff-accent); }
+.ff-rec-ranked-card:hover { background: var(--ff-surface-elevated); }
+.ff-rec-ranked-card:focus-visible { outline: 2px solid var(--ff-accent-light); outline-offset: 2px; }
+.ff-rec-ranked-card:disabled { cursor: default; }
+.ff-rec-ranked-heading { display: flex; align-items: center; gap: .65rem; }
+.ff-rec-ranked-number { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+.ff-rec-ranked-card.is-best .ff-rec-ranked-number { font-size: 1.65rem; }
+.ff-rec-best-label { color: var(--ff-accent-light); font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.ff-rec-ranked-name { font-size: 1.05rem; font-weight: 750; line-height: 1.35; }
+.ff-rec-ranked-card.is-best .ff-rec-ranked-name { font-weight: 850; }
+.ff-rec-ranked-nutrition { display: grid; gap: .3rem; }
+.ff-rec-ranked-primary-macros { display: flex; flex-wrap: wrap; gap: .35rem 1rem; font-size: .8rem; }
+.ff-rec-ranked-primary-macros strong { font-size: 1.15rem; font-weight: 800; }
+.ff-rec-ranked-secondary-macros,
+.ff-rec-ranked-stations,
+.ff-rec-ranked-reason { color: var(--ff-text-secondary); font-size: .75rem; line-height: 1.5; }
+.ff-rec-ranked-status { margin-top: auto; padding-top: .6rem; border-top: 1px solid var(--ff-border); color: var(--ff-text-secondary); font-size: .75rem; font-weight: 750; }
+.ff-rec-ranked-card[aria-pressed="true"] .ff-rec-ranked-status { color: var(--ff-accent-light); }
+
+.ff-rec-selected { margin-top: 1.25rem; padding: 1rem 0; border-block: 1px solid var(--ff-border); color: var(--ff-text-primary); }
+.ff-rec-selected-copy { max-width: 48rem; }
+.ff-rec-selected-title { margin: .45rem 0 0; font-size: 1.1rem; font-weight: 750; line-height: 1.4; overflow-wrap: anywhere; }
+.ff-rec-selected .ff-rec-actions { max-width: 32rem; }
+
+@media (max-width: 759px) {
+  .ff-rec-ranked-list {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: .2rem;
+    padding-bottom: .65rem;
+  }
+  .ff-rec-ranked-list > li { flex: 0 0 88%; scroll-snap-align: start; }
+}

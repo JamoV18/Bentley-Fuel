@@ -9,7 +9,6 @@ import { getDiningProvider } from "@/services";
 import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
 
 const settle = { duration: 0.34, ease: [0.22, 1, 0.36, 1] } as const;
-const ctaMotion = { type: "spring", stiffness: 460, damping: 32, mass: 0.5 } as const;
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 
 export default async function LocationPage({
@@ -50,7 +49,7 @@ export default async function LocationPage({
           <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">{view.location.name}</h1>
           {view.location.building && <p className="mt-2 subtle">{view.location.building}</p>}
         </div>
-        <p className="max-w-md text-sm leading-relaxed subtle">Choose the fastest path: let Falcon Fuel rank a complete meal for you, or browse exactly what is available here.</p>
+
       </header>
 
       {isLiveMenuLocation && menuDate && (
@@ -58,7 +57,7 @@ export default async function LocationPage({
           <div>
             <p className="eyebrow">{view.location.shortName ?? view.location.name} menu date</p>
             <p className="mt-1 font-bold text-emerald-950">{formatMenuDate(menuDate)}</p>
-            <p className="mt-1 text-xs subtle">DineOnCampus publishes date-specific menus when available for this outlet.</p>
+
           </div>
           <div className="flex flex-wrap items-end gap-2">
             <form action={`/locations/${locationId}`} method="get" className="flex items-end gap-2">
@@ -82,11 +81,11 @@ export default async function LocationPage({
 
       {hasLiveMenu ? (
         <p className="mt-5 rounded-xl border border-emerald-200/80 bg-emerald-50/85 px-4 py-3 text-sm text-emerald-950">
-          Live {view.location.shortName ?? view.location.name} menu · sourced from Bentley Dining through DineOnCampus for {menuDate ? formatMenuDate(menuDate) : "this date"}. Nutrition, portions, ingredients, allergens, and dietary labels are shown when supplied by the published menu.
+          Source: Bentley Dining / DineOnCampus · {menuDate ? formatMenuDate(menuDate) : "this date"}. Details shown as published.
         </p>
       ) : isLiveMenuLocation ? (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-          The live DineOnCampus menu could not be verified for this date. Falcon Fuel is not substituting demo foods for this live location; retry the live menu before making a dining decision.
+          Live menu unavailable for this date. No demo foods are substituted. Try another date.
         </p>
       ) : provider.dataStatus === "mock" ? (
         <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
@@ -94,28 +93,14 @@ export default async function LocationPage({
         </p>
       ) : null}
 
-      <section className="surface mt-6 grid overflow-hidden p-2 lg:grid-cols-[.9fr_1.1fr]">
-        <MealImage name={`${view.location.name} healthy meal`} aspect="hero" className="h-full min-h-64 lg:min-h-80" />
-        <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-9">
-          <p className="eyebrow">Personalized meal</p>
-          <h2 className="mt-1 text-3xl font-bold tracking-[-0.03em]">What should I eat here?</h2>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed subtle">
-            Falcon Fuel compares eligible foods across {view.location.shortName ?? view.location.name} and ranks complete meals around your goals, restrictions, current nutrition, and recent variety.
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={ctaMotion}>
-              <Link href={recommendationHref} className="primary block text-center">Get my recommendation</Link>
-            </motion.div>
-            <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={ctaMotion}>
-              <Link href={manualHref} className="secondary block text-center">Build my own meal</Link>
-            </motion.div>
-          </div>
-        </div>
+      <section className="ff-location-actions" aria-label="Choose a meal">
+        <Link href={recommendationHref} className="primary">See top meals</Link>
+        <Link href={manualHref} className="secondary">Build my own</Link>
       </section>
 
       <div className="mt-9 flex items-end justify-between gap-4">
-        <div><p className="eyebrow">Available here</p><h2 className="mt-1 text-2xl font-bold">Browse by station</h2></div>
-        <p className="hidden text-xs subtle sm:block">Open a food for details or add it directly to a meal.</p>
+        <div><h2 className="mt-1 text-2xl font-bold">Browse by station</h2></div>
+
       </div>
 
       <div className="mt-5 grid items-start gap-6 lg:grid-cols-2">
@@ -163,17 +148,17 @@ export default async function LocationPage({
                               <Link href={detailHref} className="font-bold leading-tight hover:text-emerald-800">{item.name}</Link>
                               {item.description && <p className="mt-1 line-clamp-2 text-sm leading-relaxed subtle">{item.description}</p>}
                             </div>
-                            {item.provenance.dataStatus === "verified" && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800">DineOnCampus</span>}
+
                           </div>
                           {item.availability?.length ? <p className="mt-1.5 text-[11px] font-semibold text-emerald-800">{item.availability.map(readable).join(" · ")}</p> : null}
                           {item.nutrition
                             ? <p className="mt-2 text-xs font-semibold text-black/60">{item.nutrition.calories} cal · {item.nutrition.protein}g protein · {item.nutrition.carbs}g carbs</p>
                             : item.provenance.dataStatus === "verified"
-                              ? <p className="mt-2 text-xs subtle">Published menu item · complete macros were not returned for this item.</p>
+                              ? <p className="mt-2 text-xs subtle">Complete nutrition unavailable.</p>
                               : null}
                           <div className="mt-3 flex items-center gap-3">
                             <Link href={addHref} className="rounded-xl bg-emerald-800 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-900">Add to meal</Link>
-                            <Link href={detailHref} className="text-xs font-bold text-emerald-800">Details →</Link>
+
                           </div>
                         </div>
                       </article>

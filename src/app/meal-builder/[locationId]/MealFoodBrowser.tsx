@@ -26,9 +26,9 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
 
   return (
     <section className={embedded ? "" : "mt-8"} aria-labelledby="food-browser-heading">
-      <p className="eyebrow">Build it yourself</p>
+
       <h2 id="food-browser-heading" className="mt-1 text-2xl font-bold">Add food by station</h2>
-      <p className="mt-1 max-w-2xl text-sm leading-relaxed subtle">Already know what you are getting? Add it here and Falcon Fuel will total the meal for you.</p>
+
 
       <div className="mt-5 space-y-5">
         {availableStations.map((station) => {
@@ -48,7 +48,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                         className="meal-row"
                         initial={false}
                         animate={reduceMotion ? undefined : {
-                          backgroundColor: justAdded ? "rgba(223,245,236,0.95)" : "rgba(255,255,255,0.88)",
+                          backgroundColor: justAdded ? "var(--ff-accent-muted)" : "var(--ff-surface)",
                           scale: justAdded ? 1.006 : 1,
                         }}
                         transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}

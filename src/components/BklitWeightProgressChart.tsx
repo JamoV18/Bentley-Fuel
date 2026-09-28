@@ -97,7 +97,7 @@ export default function BklitWeightProgressChart({
   const tooltipLeft = active ? Math.min(88, Math.max(12, (active.x / width) * 100)) : 50;
 
   return (
-    <div className="mt-5 rounded-[1.35rem] border border-emerald-900/[.07] bg-gradient-to-b from-emerald-50/65 via-white to-white p-5 shadow-[0_10px_30px_rgba(20,45,34,.055)] sm:p-6">
+    <div className="mt-5 border-t border-[var(--ff-border)] pt-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Progress</p>
@@ -149,13 +149,13 @@ export default function BklitWeightProgressChart({
 
           {yTicks.map((value, index) => {
             const y = yAt(value);
-            return <g key={index}><line x1={padLeft} x2={width - padRight} y1={y} y2={y} stroke="currentColor" opacity="0.075" strokeWidth="1" /><text x={padLeft - 10} y={y + 4} textAnchor="end" fill="currentColor" opacity="0.48" fontSize="11" fontWeight="600">{round1(value)}</text></g>;
+            return <g key={index}><line x1={padLeft} x2={width - padRight} y1={y} y2={y} stroke="currentColor" opacity="0.075" strokeWidth="1" /><text x={padLeft - 10} y={y + 4} textAnchor="end" fill="var(--ff-text-secondary)" fontSize="11" fontWeight="600">{round1(value)}</text></g>;
           })}
 
           {targetValue !== undefined && (
             <g>
               <line x1={padLeft} x2={width - padRight} y1={yAt(targetValue)} y2={yAt(targetValue)} stroke="currentColor" opacity="0.34" strokeWidth="2" strokeDasharray="7 7" />
-              <text x={width - padRight} y={yAt(targetValue) - 8} textAnchor="end" fill="currentColor" opacity="0.72" fontSize="11" fontWeight="700">Target {round1(targetValue)} {unit}</text>
+              <text x={width - padRight} y={yAt(targetValue) - 8} textAnchor="end" fill="var(--ff-text-secondary)" fontSize="11" fontWeight="700">Target {round1(targetValue)} {unit}</text>
             </g>
           )}
 
@@ -177,18 +177,18 @@ export default function BklitWeightProgressChart({
           {active && (
             <g>
               <line x1={active.x} x2={active.x} y1={padTop} y2={padTop + plotHeight} stroke="currentColor" strokeWidth="1.5" opacity="0.28" strokeDasharray="3 4" />
-              <circle cx={active.x} cy={active.y} r="8" fill="white" stroke="currentColor" strokeWidth="3" />
+              <circle cx={active.x} cy={active.y} r="8" fill="var(--ff-surface)" stroke="currentColor" strokeWidth="3" />
               <circle cx={active.x} cy={active.y} r="3" fill="currentColor" />
             </g>
           )}
 
           {coordinates.map((point, index) => (
-            <circle key={point.point.id} cx={point.x} cy={point.y} r={index === coordinates.length - 1 ? 5.8 : 3.5} fill="white" stroke="currentColor" strokeWidth={index === coordinates.length - 1 ? 3.3 : 2.4} opacity={activeIndex === null || activeIndex === index ? 1 : 0.72} />
+            <circle key={point.point.id} cx={point.x} cy={point.y} r={index === coordinates.length - 1 ? 5.8 : 3.5} fill="var(--ff-surface)" stroke="currentColor" strokeWidth={index === coordinates.length - 1 ? 3.3 : 2.4} opacity={activeIndex === null || activeIndex === index ? 1 : 0.72} />
           ))}
 
           {xLabels.map((index) => {
             const point = coordinates[index];
-            return <text key={point.point.id} x={point.x} y={height - 10} textAnchor={index === 0 ? "start" : index === series.length - 1 ? "end" : "middle"} fill="currentColor" opacity="0.48" fontSize="11" fontWeight="600">{new Date(point.point.recordedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</text>;
+            return <text key={point.point.id} x={point.x} y={height - 10} textAnchor={index === 0 ? "start" : index === series.length - 1 ? "end" : "middle"} fill="var(--ff-text-secondary)" fontSize="11" fontWeight="600">{new Date(point.point.recordedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</text>;
           })}
         </svg>
       </div>

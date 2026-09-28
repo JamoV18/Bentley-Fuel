@@ -2,9 +2,8 @@
 
 import "./first-run-dining.css";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import MealImage from "@/components/MealImage";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { softSuccessHaptic } from "@/lib/haptics";
 import { browserMealHistoryRepository } from "@/services";
@@ -17,7 +16,6 @@ export default function FirstRunDiningChoice({ locations }: { locations: Locatio
   const reduceMotion = useReducedMotion();
   const [visible, setVisible] = useState(false);
   const [choosing, setChoosing] = useState<string>();
-  const fallback = useMemo(() => locations.find((location) => location.id.includes("921") || location.name.includes("921")) ?? locations[0], [locations]);
 
   useEffect(() => {
     const profile = browserProfileRepository().getStored();
@@ -66,8 +64,8 @@ export default function FirstRunDiningChoice({ locations }: { locations: Locatio
     >
       <div className="ff-first-run-inner">
         <p className="ff-first-run-kicker">Your plan is ready</p>
-        <h1>Where do you actually eat?</h1>
-        <p className="ff-first-run-lede">Pick the place you’re most likely to go. Falcon Fuel will start there instead of sending you across campus for a tiny nutrition advantage—and your first real meal recommendation opens next.</p>
+        <h1>Choose your usual location</h1>
+        <p className="ff-first-run-lede">Start with where you eat most often.</p>
         <div className="ff-first-run-grid">
           {locations.map((location) => (
             <motion.button
@@ -79,14 +77,13 @@ export default function FirstRunDiningChoice({ locations }: { locations: Locatio
               whileHover={reduceMotion || choosing ? undefined : { y: -3 }}
               whileTap={reduceMotion || choosing ? undefined : { scale: .985 }}
             >
-              <MealImage name={`${location.name} dining`} aspect="hero" className="ff-first-run-image" />
-              <div className="ff-first-run-copy"><span>Start here</span><strong>{location.shortName ?? location.name}</strong><small>{location.building ?? "Bentley dining"}</small></div>
+
+              <div className="ff-first-run-copy"><strong>{location.shortName ?? location.name}</strong><small>{location.building ?? "Bentley dining"}</small></div>
             </motion.button>
           ))}
         </div>
         <div className="ff-first-run-foot">
-          {fallback && <button type="button" disabled={Boolean(choosing)} onClick={() => choose(fallback.id)}>Not sure? Start me at {fallback.shortName ?? fallback.name} →</button>}
-          <p>You can choose a different location any time. This just removes one decision from the first run.</p>
+          <p>You can change locations any time.</p>
         </div>
       </div>
     </motion.section>

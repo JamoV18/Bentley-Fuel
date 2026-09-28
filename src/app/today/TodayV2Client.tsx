@@ -1,7 +1,6 @@
 "use client";
 
 import "./today-v2.css";
-import "./today-living-day.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
@@ -40,7 +39,6 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 const coverage = (value: number, target: number) => target > 0 ? clamp(Math.round((value / target) * 100), 0, 100) : 0;
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
-const formatWeight = (kg: number, units: UserProfile["unitSystem"]) => units === "metric" ? `${Math.round(kg * 10) / 10} kg` : `${Math.round(kg / 0.45359237)} lb`;
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
 const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => item.display?.name ?? itemNames[item.menuItemId] ?? "Meal item").join(" + ");
 const mealImageUrl = (entry: MealHistoryEntry, itemImageUrls: Record<string, string | undefined>) => entry.build.items[0]?.display?.imageUrl ?? itemImageUrls[primaryItemId(entry)];
@@ -56,11 +54,6 @@ function dayLabel(date: Date) {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(date);
 }
 
-function greetingForHour(hour: number) {
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
 
 function AnimatedCalorieRing({ progress, children }: { progress: number; children: ReactNode }) {
   const reduceMotion = useReducedMotion();
@@ -193,7 +186,6 @@ export default function TodayV2Client({
   const preferenceMealSlot = recommendationPeriod === "breakfast" || recommendationPeriod === "lunch" || recommendationPeriod === "dinner" ? recommendationPeriod : undefined;
   const locationPreference = preferredLocation(recentEntries, locationNames, preferenceMealSlot);
 
-  /* eslint-disable react-hooks/preserve-manual-memoization -- ranking a live menu can generate and score dozens of meal combinations; keep this intentionally memoized so unrelated Today interactions do not recompute it. */
   const topMealPick = useMemo(() => {
     if (!profile || !recommendationPeriod || !locationPreference.id) return undefined;
 
@@ -248,7 +240,6 @@ export default function TodayV2Client({
       stationNames,
     };
   }, [entries, locationPreference.id, plan, profile, recentEntries, recommendationData, recommendationPeriod, snapshot.remaining]);
-  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;
@@ -275,13 +266,11 @@ export default function TodayV2Client({
   };
 
   if (profile === undefined) return <main className="ff-v2-shell"><p className="ff-v2-loading">Loading your day…</p></main>;
-  if (!profile) return <main className="ff-v2-shell"><p className="brand-kicker">Falcon Fuel</p><h1 className="ff-v2-empty-title">Know what to eat before you get there.</h1><p className="ff-v2-empty-copy">Build your plan once. Falcon Fuel will turn it into campus meals you can actually get.</p><Link className="primary ff-v2-empty-cta" href="/onboarding">Build my plan</Link></main>;
+  if (!profile) return <main className="ff-v2-shell"><p className="brand-kicker">Falcon Fuel</p><h1 className="ff-v2-empty-title">Set up your profile</h1><p className="ff-v2-empty-copy">Get meals matched to your goals and dietary needs.</p><Link className="primary ff-v2-empty-cta" href="/onboarding">Build my plan</Link></main>;
 
   const mealPeriodLabel = recommendationPeriod ? readable(recommendationPeriod) : undefined;
   const preferredLocationName = locationNames[locationPreference.id ?? ""] ?? "campus dining";
   const target = snapshot.targets;
-  const remainingCalories = target ? Math.max(0, snapshot.remaining?.calories ?? target.calories - snapshot.consumed.calories) : undefined;
-  const remainingProtein = target ? Math.max(0, snapshot.remaining?.protein ?? target.protein - snapshot.consumed.protein) : undefined;
   const calorieCoverage = target ? coverage(snapshot.consumed.calories, target.calories) : 0;
   const proteinCoverage = target ? coverage(snapshot.consumed.protein, target.protein) : 0;
   const carbCoverage = target ? coverage(snapshot.consumed.carbs, target.carbs) : 0;
@@ -291,40 +280,19 @@ export default function TodayV2Client({
   const firstPending = pending[0];
   const savingFirstPending = firstPending ? savingCheckIn?.id === firstPending.id : false;
   const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0).length;
-  const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
-  const planLabel = plan?.phase === "maintenance" ? "Maintenance" : goals.map(readable).join(" · ");
   const recommendationHref = recommendationPeriod && locationPreference.id ? `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
-
-  const nutritionCue = livingDay.mode === "late-night"
-    ? "No need to close every number tonight. This is context only—use late-night options if you actually want another meal."
-    : remainingProtein !== undefined && remainingProtein >= 35
-      ? `Protein is the priority. You have about ${round(remainingProtein)}g left today.`
-      : remainingCalories !== undefined && remainingCalories <= 650
-        ? `Keep this one efficient. About ${round(remainingCalories)} calories remain today.`
-        : remainingCalories !== undefined
-          ? `You have room to eat normally. About ${round(remainingCalories)} calories remain today.`
-          : "I’ll rank the menu around your goal and dietary needs.";
 
   const heroEyebrow = livingDay.mode === "late-night" ? "Optional tonight" : "Next best meal";
   const heroTitle = livingDay.mode === "late-night"
     ? "Still hungry?"
     : `${mealPeriodLabel ?? "Meal"} at ${preferredLocationName}`;
-  const heroReason = livingDay.mode === "late-night"
-    ? "Only if you want something else — I’ll rank the late-night options that fit."
-    : locationPreference.learned
-      ? `You usually choose ${preferredLocationName} for ${mealPeriodLabel?.toLowerCase() ?? "this meal"}, so I’ll start there.`
-      : `I’ll rank ${preferredLocationName} options around what you have left today.`;
   const heroCta = livingDay.mode === "anticipate" && mealPeriodLabel
     ? `Plan ${mealPeriodLabel.toLowerCase()}`
     : livingDay.mode === "late-night"
       ? "See options"
       : `See ${mealPeriodLabel?.toLowerCase() ?? "meal"} picks`;
 
-  const completionCopy = livingDay.completedSlots.dinner
-    ? remainingProtein !== undefined && remainingProtein > 0
-      ? `Dinner is locked in and today is captured. Protein ended about ${round(remainingProtein)}g below plan; that’s useful context for tomorrow, not a reason to chase food tonight.`
-      : "Dinner is locked in and today is captured. Nothing else to solve tonight."
-    : "Today is captured. Falcon Fuel won’t push another meal just because a number is still open.";
+  const completionCopy = "Meals confirmed. You don’t need to eat more just to meet a target.";
 
   const yesterday = new Date(selectedDate); yesterday.setDate(selectedDate.getDate() - 1);
   const tomorrow = new Date(selectedDate); tomorrow.setDate(selectedDate.getDate() + 1);
@@ -333,9 +301,8 @@ export default function TodayV2Client({
     <main className="ff-v2-shell">
       <header className="ff-v2-header">
         <div className="ff-v2-header-copy">
-          <p className="ff-v2-kicker">Falcon Fuel</p>
-          <h1>{isToday ? greetingForHour(hour) : new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(selectedDate)}</h1>
-          <p>{dayLabel(selectedDate)}</p>
+
+          <h1>{isToday ? "Today" : new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(selectedDate)}</h1>
         </div>
         <ProfileMenu profile={profile} />
       </header>
@@ -353,8 +320,8 @@ export default function TodayV2Client({
       <section className="ff-today-nutrition" aria-labelledby="today-nutrition-title">
         <div className="ff-today-nutrition-head">
           <div>
-            <p className="ff-v2-eyebrow">{isToday ? "Today" : dayLabel(selectedDate)}</p>
-            <h2 id="today-nutrition-title">{isToday ? "Your Nutrition" : "Nutrition Recorded"}</h2>
+
+            <h2 id="today-nutrition-title">{isToday ? "Nutrition" : "Recorded nutrition"}</h2>
           </div>
           <div className="ff-today-mode-toggle" role="group" aria-label="Nutrition display">
             <button type="button" aria-pressed={effectiveNutritionMode === "consumed"} onClick={() => setNutritionMode("consumed")}>Consumed</button>
@@ -367,13 +334,9 @@ export default function TodayV2Client({
               <div className="ff-v2-ring-inner">
                 <span>{effectiveNutritionMode === "remaining" ? "Remaining" : "Consumed"}</span>
                 <strong><AnimatedCounter value={round(displayedNutrition.calories)} /></strong>
-                <small>{target ? `Goal ${round(target.calories).toLocaleString()}` : "Calories"}</small>
+                <small>{target ? `of ${round(target.calories).toLocaleString()} cal` : "Calories"}</small>
               </div>
             </AnimatedCalorieRing>
-            <div className="ff-today-calorie-copy">
-              <strong>{effectiveNutritionMode === "remaining" ? `${round(displayedNutrition.calories).toLocaleString()} cal left` : `${round(displayedNutrition.calories).toLocaleString()} cal`}</strong>
-              <span>{target ? `${round(snapshot.consumed.calories).toLocaleString()} consumed · ${round(target.calories).toLocaleString()} goal` : "Tracked today"}</span>
-            </div>
           </div>
           <div className="ff-today-macros">
             {[
@@ -405,17 +368,14 @@ export default function TodayV2Client({
             transition={reduceMotion ? { duration: 0 } : { delay: 0.08, type: "spring", stiffness: 190, damping: 16 }}
             aria-hidden="true"
           >✓</motion.div>
-          <p className="ff-v3-complete-kicker">Day wrapped</p>
-          <h2>You’re covered.</h2>
+
+          <h2>Day logged.</h2>
           <p className="ff-v3-complete-copy">{completionCopy}</p>
           <div className="ff-v3-complete-facts">
             <span>{completedMeals} meal{completedMeals === 1 ? "" : "s"} confirmed</span>
-            <span>{round(snapshot.consumed.protein)}g protein logged</span>
-            <span>{round(snapshot.consumed.calories).toLocaleString()} calories logged</span>
           </div>
           <div className="ff-v3-complete-actions">
-            <Link href="#today-nutrition-title">Review today</Link>
-            <Link href="/history">See the bigger picture →</Link>
+            <Link href="/history">View history →</Link>
           </div>
         </motion.section>
       ) : (
@@ -426,24 +386,11 @@ export default function TodayV2Client({
             animate={{ opacity: 1, y: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="ff-v2-hero-visual">
-              <MealImage
-                name={topMealPick?.name ?? `${preferredLocationName} ${mealPeriodLabel ?? "meal"}`}
-                imageUrl={topMealPick?.imageUrl}
-                aspect="hero"
-                className="ff-v2-hero-image"
-              />
-              <div className="ff-v2-photo-shade" />
-              <span className="ff-v2-photo-label">{livingDay.mode === "anticipate" ? `Up next · ${mealPeriodLabel}` : mealPeriodLabel}</span>
-            </div>
             <div className="ff-v2-hero-copy">
-              <span className="ff-v3-hero-state">{livingDay.mode === "anticipate" ? "Planning ahead" : livingDay.mode === "late-night" ? "No pressure" : "Right now"}</span>
               <p className="ff-v2-eyebrow">{heroEyebrow}</p>
               <h2>{heroTitle}</h2>
-              <p className="ff-v2-hero-reason">{heroReason}</p>
               {topMealPick && livingDay.mode !== "late-night" && (
                 <div className="ff-v2-top-pick" aria-label="Current top meal recommendation">
-                  <span>Top pick</span>
                   <strong>{topMealPick.name}</strong>
                   <small>
                     {topMealPick.calories.toLocaleString()} cal · {topMealPick.protein}g protein
@@ -451,12 +398,11 @@ export default function TodayV2Client({
                   </small>
                 </div>
               )}
-              <div className="ff-v2-nutrition-cue"><span aria-hidden="true">↗</span><p>{nutritionCue}</p></div>
               <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
                 <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>
               </motion.div>
-              <Link href="/dashboard" className="ff-v2-secondary-link">Eating somewhere else? Choose a location</Link>
-              {livingDay.mode === "late-night" && <p className="ff-v3-late-note">If you’re done eating, you’re done here too. No streak or score depends on adding more.</p>}
+              <Link href="/dashboard" className="ff-v2-secondary-link">Change location</Link>
+              {livingDay.mode === "late-night" && <p className="ff-v3-late-note">Only if you’re hungry.</p>}
             </div>
           </motion.section>
 
@@ -511,7 +457,7 @@ export default function TodayV2Client({
             >
               <Link href="/log-meal?slot=snack" className="ff-v3-snack-log" aria-label="Log an optional snack">
                 <span aria-hidden="true">+</span>
-                <div><strong>Snack</strong><small>Optional · log if needed</small></div>
+                <div><strong>Snack</strong><small>Optional</small></div>
               </Link>
             </motion.div>
           </div>
@@ -519,8 +465,8 @@ export default function TodayV2Client({
       ) : (
         <section className="ff-v2-history-hero">
           <p className="ff-v2-eyebrow">Recorded day</p>
-          <h2>{snapshot.meals.length ? `${snapshot.meals.length} meal${snapshot.meals.length === 1 ? "" : "s"} on the books.` : "Nothing recorded here."}</h2>
-          <p>{snapshot.meals.length ? "Use this view to understand the day, not to judge it." : "No meals were logged for this date."}</p>
+          <h2>{snapshot.meals.length ? `${snapshot.meals.length} meal${snapshot.meals.length === 1 ? "" : "s"} recorded.` : "Nothing recorded here."}</h2>
+
         </section>
       )}
 
@@ -536,7 +482,7 @@ export default function TodayV2Client({
           >
             <div className="ff-v2-confirm-media"><MealImage name={mealName(firstPending, itemNames)} imageUrl={mealImageUrl(firstPending, itemImageUrls)} aspect="wide" /></div>
             <div className="ff-v2-confirm-copy">
-              <div className="ff-v2-confirm-topline"><p>Quick check-in</p><span>{savingFirstPending ? "Locked in" : "1 tap"}</span></div>
+
               <h2>How much did you actually eat?</h2>
               <p className="ff-v2-confirm-meal">{mealName(firstPending, itemNames)} · {locationNames[firstPending.locationId] ?? firstPending.locationId}</p>
               {firstPending.nutrition && <p className="ff-v2-confirm-macros">{round(firstPending.nutrition.calories)} cal · {round(firstPending.nutrition.protein)}g protein if finished</p>}
@@ -557,7 +503,7 @@ export default function TodayV2Client({
                   );
                 })}
               </div>
-              <p className="ff-v2-confirm-note">This updates today’s numbers and improves the next recommendation.</p>
+
             </div>
           </motion.section>
         )}
@@ -565,11 +511,11 @@ export default function TodayV2Client({
 
       <motion.section className="ff-v2-meals" layout="position" transition={reduceMotion ? { duration: 0 } : { layout: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}>
         <div className="ff-v2-section-title">
-          <div><p className="ff-v2-eyebrow">Meals</p><h2>{isToday ? "What You’ve Eaten" : "What Was Recorded"}</h2></div>
+          <div><h2>{isToday ? "Meals" : "Recorded meals"}</h2></div>
           <Link href="/history">History →</Link>
         </div>
         {snapshot.meals.length === 0 ? (
-          <div className="ff-v2-empty-meals"><strong>Nothing here yet.</strong><p>{isToday ? "Your first confirmed meal will show up here." : "No meals were logged for this date."}</p>{isToday && livingDay.mode !== "complete" && <Link href={recommendationHref}>Find my next meal →</Link>}</div>
+          <div className="ff-v2-empty-meals"><strong>Nothing here yet.</strong><p>{isToday ? "Your first confirmed meal will show up here." : "No meals were logged for this date."}</p></div>
         ) : (
           <div className="ff-v2-meal-list">
             {snapshot.meals.map((entry) => (
@@ -589,14 +535,6 @@ export default function TodayV2Client({
         )}
       </motion.section>
 
-      <section className="ff-v2-plan-strip">
-        <div><p className="ff-v2-eyebrow">Your Plan</p><h2>{planLabel}</h2></div>
-        <div className="ff-v2-plan-meta">
-          {plan?.weightLossIntensity && <span>{readable(plan.weightLossIntensity)} pace</span>}
-          {plan?.currentWeightKg && plan?.targetWeightKg && <span>{formatWeight(plan.currentWeightKg, profile.unitSystem)} → {formatWeight(plan.targetWeightKg, profile.unitSystem)}</span>}
-        </div>
-        <Link href="/profile-summary">View plan →</Link>
-      </section>
     </main>
   );
 }

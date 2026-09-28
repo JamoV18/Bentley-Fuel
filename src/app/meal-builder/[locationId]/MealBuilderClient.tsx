@@ -240,11 +240,11 @@ export default function MealBuilderClient({
       <header className="ff-rec-header">
         <div>
           <p className="ff-rec-kicker">{locationLabel} · {readable(mealPeriod)}</p>
-          <h1>{personalized ? "Your top meals." : recommendationState === "loading" ? "Finding your best meal." : "Build a complete meal."}</h1>
-          {personalized && <p>Compare your best matches, then choose the meal you want.</p>}
+          <h1>{personalized ? "Your top meals." : recommendationState === "loading" ? "Finding meals…" : "Build a complete meal."}</h1>
+
           {recommendationState === "missing-profile" && <p>Complete your profile to turn the example meal into a recommendation based on your goals and dietary needs.</p>}
         </div>
-        <Link href={manualHref} className="ff-rec-manual-link">Build my own</Link>
+
       </header>
 
       {isDemo && <p className="ff-rec-note is-warning">Demo menu data · not current official Bentley Dining information.</p>}
@@ -253,14 +253,14 @@ export default function MealBuilderClient({
       {recommendationState === "loading" ? (
         <motion.section className="ff-rec-loading" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
           <p className="ff-rec-eyebrow">Ranking the menu</p>
-          <strong>Checking what fits the rest of your day.</strong>
-          <p>Falcon Fuel is applying your dietary constraints, current nutrition, meal structure, preferences, and recent variety.</p>
+          <strong>Checking the menu…</strong>
+          <p>Matching your goals and dietary restrictions.</p>
         </motion.section>
       ) : recommendationState === "no-candidates" ? (
         <section className="ff-rec-empty">
           <p className="ff-rec-eyebrow">No complete match</p>
-          <h2>Nothing eligible ranked cleanly for this window.</h2>
-          <p>Falcon Fuel will not force a recommendation when the available menu does not produce an eligible complete meal.</p>
+          <h2>No matching meals available.</h2>
+          <p>Try another meal period or build from the menu.</p>
           <Link href={manualHref} className="ff-rec-manual-link" style={{ display: "inline-flex", marginTop: "1rem" }}>Build from the menu</Link>
         </section>
       ) : build.items.length > 0 ? (
@@ -363,22 +363,14 @@ export default function MealBuilderClient({
             </motion.section>
           </AnimatePresence>
 
-          <section className="ff-rec-section" aria-labelledby="why-heading">
+          {personalized && !edited && <section className="ff-rec-section" aria-labelledby="why-heading">
             <div className="ff-rec-section-heading">
-              <div><p className="ff-rec-eyebrow">Decision context</p><h2 id="why-heading">Why this works</h2></div>
-            </div>
-            <div className="ff-rec-reasons">
-              {reasonCards.map((reason, index) => (
-                <article className="ff-rec-reason-item" key={reason}>
-                  <span className="ff-rec-reason-number">{index + 1}</span>
-                  <p>{reason}</p>
-                </article>
-              ))}
+              <div><h2 id="why-heading">Why this works</h2></div>
             </div>
             {personalized && activeRanking && recommendationContext && !edited && (
               <div className="ff-rec-details">
                 <button type="button" onClick={() => setWhyOpen((value) => !value)} aria-expanded={whyOpen}>
-                  <span>{whyOpen ? "Hide the full breakdown" : "See the full ranking breakdown"}</span>
+                  <span>{whyOpen ? "Hide breakdown" : "Ranking breakdown"}</span>
                   <motion.span animate={{ rotate: whyOpen ? 180 : 0 }} transition={reduceMotion ? { duration: 0 } : { duration: .2 }} aria-hidden="true">⌄</motion.span>
                 </button>
                 <AnimatePresence initial={false}>
@@ -390,13 +382,21 @@ export default function MealBuilderClient({
                       exit={reduceMotion ? { opacity: 1 } : { opacity: 0, height: 0, y: -3 }}
                       transition={reduceMotion ? { duration: 0 } : { duration: .24, ease: [0.22, 1, 0.36, 1] }}
                     >
+            <div className="ff-rec-reasons">
+              {reasonCards.map((reason, index) => (
+                <article className="ff-rec-reason-item" key={reason}>
+                  <span className="ff-rec-reason-number">{index + 1}</span>
+                  <p>{reason}</p>
+                </article>
+              ))}
+            </div>
                       <RecommendationWhyPanel ranked={activeRanking} context={recommendationContext} plan={recommendationPlan} resources={resources} summaryReasons={[]} />
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             )}
-          </section>
+          </section>}
 
           {orderReference.lines.length > 0 && (
             <section className="ff-rec-section" aria-labelledby="order-heading">
@@ -430,7 +430,7 @@ export default function MealBuilderClient({
                 aria-labelledby="customize-heading"
               >
                 <div className="ff-rec-customize-head">
-                  <div><p className="ff-rec-eyebrow">Fine tune</p><h2 id="customize-heading">Make it yours</h2><p>Change servings or ingredients, remove something, or add another eligible food. Your totals update immediately.</p></div>
+                  <div><p className="ff-rec-eyebrow">Fine tune</p><h2 id="customize-heading">Make it yours</h2><p>Adjust servings, ingredients, or foods.</p></div>
                   <button type="button" className="ff-rec-close" onClick={() => setCustomizing(false)}>Done</button>
                 </div>
 

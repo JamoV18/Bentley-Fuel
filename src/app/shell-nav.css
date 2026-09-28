@@ -13,7 +13,7 @@
   border: 0;
   border-right: 1px solid var(--ff-divider);
   border-radius: 0;
-  background: rgba(17, 20, 24, 0.96);
+  background: var(--ff-surface);
   box-shadow: none;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -50,7 +50,7 @@
 
 .app-nav-item:hover {
   color: var(--ff-text-primary);
-  background: rgba(244, 245, 246, 0.055) !important;
+  background: var(--ff-surface-elevated) !important;
 }
 
 .app-nav-item[data-active="true"],
@@ -165,7 +165,7 @@
     padding: 6px;
     border: 1px solid var(--ff-divider);
     border-radius: 24px;
-    background: rgba(17, 20, 24, 0.92);
+    background: var(--ff-surface);
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26);
   }
 

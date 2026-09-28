@@ -52,6 +52,8 @@ export default function AppNav({
             href={item.href}
             className="app-nav-item relative isolate overflow-hidden"
             data-active={active}
+            aria-current={active ? "page" : undefined}
+            aria-label={item.label}
           >
             {active && (
               <motion.span
@@ -79,7 +81,7 @@ export default function AppNav({
     <>
       {portalReady ? createPortal(navigation, document.body) : null}
       {pathname === "/today" && showDailyMealCheckin && <DailyMealCheckinStrip />}
-      {showContextPrompts && pathname !== "/profile-summary" && <ActivityReviewDueBanner />}
+      {showContextPrompts && pathname === "/today" && <ActivityReviewDueBanner />}
       {showContextPrompts && showProgressivePrompt && <ProgressiveProfilePrompt />}
     </>
   );

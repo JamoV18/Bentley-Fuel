@@ -59,9 +59,9 @@ export default function ProgressiveProfilePrompt() {
     <aside className="mt-3 rounded-2xl border border-emerald-900/10 bg-white/90 p-4 shadow-[0_8px_28px_rgba(9,63,47,.05)]" aria-label="Personalization question">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
-          <p className="text-[10px] font-bold uppercase tracking-[.12em] text-emerald-800">Help Falcon Fuel learn</p>
+          <p className="text-[10px] font-bold uppercase tracking-[.12em] text-emerald-800">Meal preference</p>
           <p className="mt-1 text-base font-bold text-emerald-950">{prompt.question}</p>
-          <p className="mt-1 text-xs leading-relaxed subtle">Based on {prompt.evidenceCount} positive meal choices. This only nudges close recommendation rankings; it does not change calorie targets, allergies, or dietary restrictions.</p>
+          <p className="mt-1 text-xs leading-relaxed subtle">Based on {prompt.evidenceCount} positive meal choices. Affects meal preferences only; targets and dietary restrictions stay unchanged.</p>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">

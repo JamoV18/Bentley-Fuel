@@ -89,12 +89,12 @@ export default function ProfileDataControls() {
       </p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-2xl bg-black/[.025] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Profile</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.profileStored ? "Stored" : "Not stored"}</p></div>
-        <div className="rounded-2xl bg-black/[.025] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Meal records</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.mealHistoryCount ?? "—"}</p></div>
-        <div className="rounded-2xl bg-black/[.025] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Recommendation edits</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.recommendationInteractionCount ?? "—"}</p></div>
-        <div className="rounded-2xl bg-black/[.025] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Weight check-ins</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.progressObservationCount ?? "—"}</p></div>
-        <div className="rounded-2xl bg-black/[.025] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Activity reviews</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.activityCheckInCount ?? "—"}</p></div>
-        <div className="rounded-2xl bg-black/[.025] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Preference answers</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.progressivePreferenceCount ?? "—"}</p></div>
+        <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Profile</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.profileStored ? "Stored" : "Not stored"}</p></div>
+        <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Meal records</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.mealHistoryCount ?? "—"}</p></div>
+        <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Recommendation edits</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.recommendationInteractionCount ?? "—"}</p></div>
+        <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Weight check-ins</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.progressObservationCount ?? "—"}</p></div>
+        <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Activity reviews</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.activityCheckInCount ?? "—"}</p></div>
+        <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-black/45">Preference answers</p><p className="mt-2 text-lg font-bold text-emerald-950">{summary?.progressivePreferenceCount ?? "—"}</p></div>
       </div>
 
       <p className="mt-4 text-xs leading-relaxed subtle">

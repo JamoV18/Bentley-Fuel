@@ -1,42 +1,3 @@
-/*
- * Falcon Fuel UI quality guardrails.
- *
- * Loaded after the theme hardening layer. These rules protect small but recurring
- * presentation failures that are easy to reintroduce when older screens and newer
- * components share the same app: collapsed metric typography, incomplete control
- * geometry, nested form-control fills, and sibling controls with mismatched heights.
- */
-
-/* AnimatedCounter renders a span inside the calorie-ring <strong>. The legacy
-   ring selector styled every descendant span as tiny helper text, which collapsed
-   the calorie value. Only the direct label span should use helper typography. */
-.ff-v2-ring-inner > span,
-.ff-v2-ring-inner > small {
-  color: var(--ff-text-secondary) !important;
-  font-size: 0.72rem !important;
-  font-weight: 700 !important;
-  line-height: 1.25;
-}
-
-.ff-v2-ring-inner > strong {
-  display: block;
-  min-width: 5.5ch;
-  margin: 0.45rem 0 0.4rem !important;
-  color: var(--ff-text-primary) !important;
-  font-size: clamp(2rem, 5vw, 3.25rem) !important;
-  line-height: 0.95 !important;
-  letter-spacing: -0.055em !important;
-  font-weight: 900 !important;
-  white-space: nowrap;
-}
-
-.ff-v2-ring-inner > strong > span {
-  color: inherit !important;
-  font: inherit !important;
-  line-height: inherit !important;
-  letter-spacing: inherit !important;
-}
-
 /* ProfileMenu is shared outside the older Today screen that originally supplied
    its geometry. Keep the control complete wherever the component is mounted. */
 .profile-orb {
@@ -50,37 +11,13 @@
   overflow: hidden;
   border: 1px solid rgba(130, 188, 229, 0.22) !important;
   border-radius: 999px !important;
-  background: linear-gradient(145deg, #294567, #0075be) !important;
+  background: var(--ff-accent) !important;
   color: #fff !important;
   box-shadow: none !important;
   font-family: var(--ff-font-sans) !important;
   font-size: 1rem !important;
   font-weight: 800 !important;
   line-height: 1 !important;
-}
-
-/* Breakfast/Lunch/Dinner live inside a padded rail. Match Snack to the full rail
-   height rather than only the inner tab height so the four choices read as peers. */
-.ff-v3-day-path-wrap {
-  --ff-meal-rail-height: calc(var(--ff-meal-tab-height, 3.15rem) + 0.76rem);
-  align-items: stretch !important;
-}
-
-.ff-v3-day-path {
-  min-height: var(--ff-meal-rail-height) !important;
-}
-
-.ff-v3-snack-log-shell {
-  height: var(--ff-meal-rail-height) !important;
-  min-height: var(--ff-meal-rail-height) !important;
-  align-self: stretch !important;
-}
-
-.ff-v3-snack-log {
-  height: 100% !important;
-  min-height: var(--ff-meal-rail-height) !important;
-  align-self: stretch !important;
-  border-radius: 1.15rem !important;
 }
 
 /* Explicitly transparent form controls intentionally inherit their enclosing
@@ -101,7 +38,7 @@ body select.bg-transparent:focus {
 
 body input[type="date"].bg-transparent {
   border-color: transparent !important;
-  color: #fff !important;
+  color: var(--ff-text-primary) !important;
   padding: 0 !important;
 }
 
@@ -111,7 +48,7 @@ body input[type="date"].bg-transparent:focus {
 
 body input[type="date"].bg-transparent::-webkit-calendar-picker-indicator {
   opacity: 0.88;
-  filter: invert(1);
+
   cursor: pointer;
 }
 

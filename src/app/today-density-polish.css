@@ -8,6 +8,47 @@
   box-shadow: inset 2px 0 0 var(--ff-accent) !important;
 }
 
+/* The home recommendation should answer "what would I actually eat?" without
+   forcing a second page. Keep the top pick inside the existing next-meal card. */
+.ff-v2-top-pick {
+  display: grid;
+  gap: 0.16rem;
+  margin-top: 0.78rem;
+  padding: 0.68rem 0.78rem;
+  border: 1px solid rgba(130, 188, 229, 0.13);
+  border-radius: 0.8rem;
+  background: rgba(130, 188, 229, 0.055);
+}
+
+.ff-v2-top-pick > span {
+  color: var(--ff-accent-light);
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ff-v2-top-pick > strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ff-text-primary);
+  font-size: 0.86rem;
+  line-height: 1.25;
+  font-weight: 760;
+  letter-spacing: -0.018em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ff-v2-top-pick > small {
+  overflow: hidden;
+  color: var(--ff-text-secondary);
+  font-size: 0.62rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (min-width: 900px) {
   /* Greeting/date are context. Keep them clear, but don't let them become the
      biggest object on the page. */
@@ -163,5 +204,14 @@
   .app-nav-active-pill {
     background: var(--ff-accent-muted) !important;
     box-shadow: none !important;
+  }
+
+  .ff-v2-top-pick {
+    margin-top: 0.68rem;
+    padding: 0.62rem 0.7rem;
+  }
+
+  .ff-v2-top-pick > small {
+    white-space: normal;
   }
 }

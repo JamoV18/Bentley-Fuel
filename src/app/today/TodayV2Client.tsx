@@ -14,12 +14,24 @@ import { resolveLivingDayState, type CoreMealSlot } from "@/lib/livingDay";
 import {
   browserMealHistoryRepository,
   browserProgressRepository,
+  computeMealBuild,
   createDailyNutritionSnapshot,
+  generateMealCandidatesFromResources,
   MEAL_COMPLETION_CHOICES,
   resolveNutritionPlan,
+  scoreResolvedMeals,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
-import type { MealCompletionFraction, MealHistoryEntry, UserProfile } from "@/types";
+import type {
+  FoodComponent,
+  Location,
+  MealCompletionFraction,
+  MealHistoryEntry,
+  MenuItem,
+  RecommendationContext,
+  Station,
+  UserProfile,
+} from "@/types";
 
 const PENDING_CHECK_IN_WINDOW_MS = 36 * 60 * 60 * 1000;
 const CORE_MEALS: CoreMealSlot[] = ["breakfast", "lunch", "dinner"];
@@ -32,6 +44,13 @@ const formatWeight = (kg: number, units: UserProfile["unitSystem"]) => units ===
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
 const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => item.display?.name ?? itemNames[item.menuItemId] ?? "Meal item").join(" + ");
 const mealImageUrl = (entry: MealHistoryEntry, itemImageUrls: Record<string, string | undefined>) => entry.build.items[0]?.display?.imageUrl ?? itemImageUrls[primaryItemId(entry)];
+
+type TodayRecommendationData = {
+  locations: Location[];
+  menuItems: MenuItem[];
+  stations: Station[];
+  components: FoodComponent[];
+};
 
 function dayLabel(date: Date) {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(date);
@@ -119,11 +138,13 @@ export default function TodayV2Client({
   locationNames,
   itemNames,
   itemImageUrls,
+  recommendationData,
   isDemo,
 }: {
   locationNames: Record<string, string>;
   itemNames: Record<string, string>;
   itemImageUrls: Record<string, string | undefined>;
+  recommendationData: TodayRecommendationData;
   isDemo: boolean;
 }) {
   const reduceMotion = useReducedMotion();
@@ -165,6 +186,67 @@ export default function TodayV2Client({
 
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);
   const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets, selectedDate), [entries, plan?.activeTargets, profile?.dailyTargets, selectedDate]);
+  const now = new Date();
+  const hour = now.getHours();
+  const livingDay = resolveLivingDayState(snapshot.meals, hour);
+  const recommendationPeriod = livingDay.recommendationPeriod;
+  const preferenceMealSlot = recommendationPeriod === "breakfast" || recommendationPeriod === "lunch" || recommendationPeriod === "dinner" ? recommendationPeriod : undefined;
+  const locationPreference = preferredLocation(recentEntries, locationNames, preferenceMealSlot);
+
+  const topMealPick = useMemo(() => {
+    if (!profile || !recommendationPeriod || !locationPreference.id) return undefined;
+
+    const location = recommendationData.locations.find((candidate) => candidate.id === locationPreference.id);
+    if (!location) return undefined;
+
+    const menuItems = recommendationData.menuItems.filter((item) => item.locationId === locationPreference.id);
+    const stations = recommendationData.stations.filter((station) => station.locationId === locationPreference.id);
+    if (menuItems.length === 0 || stations.length === 0) return undefined;
+
+    const activeTargets = plan?.activeTargets ?? profile.dailyTargets;
+    const recommendationProfile = {
+      ...profile,
+      primaryGoal: plan?.phase === "maintenance" ? "maintain-weight" as const : profile.primaryGoal,
+      dailyTargets: activeTargets,
+    };
+    const baseContext: RecommendationContext = {
+      profile: recommendationProfile,
+      locationId: locationPreference.id,
+      mealPeriod: recommendationPeriod,
+      remainingMacros: snapshot.remaining ?? activeTargets,
+      recentHistory: recentEntries.slice(0, 12),
+    };
+    const excludedMenuItemIds = [...new Set(
+      entries
+        .filter((entry) => entry.completionFraction !== 0)
+        .flatMap((entry) => entry.build.items.map((item) => item.menuItemId)),
+    )];
+    let context: RecommendationContext = { ...baseContext, excludeMenuItemIds: excludedMenuItemIds };
+    const generationOptions = { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 10, requireMain: true };
+    let candidates = generateMealCandidatesFromResources(menuItems, stations, recommendationData.components, context, generationOptions);
+    if (candidates.length === 0 && excludedMenuItemIds.length > 0) {
+      context = baseContext;
+      candidates = generateMealCandidatesFromResources(menuItems, stations, recommendationData.components, context, generationOptions);
+    }
+
+    const resources = { location, menuItems, stations, components: recommendationData.components };
+    const ranked = scoreResolvedMeals(
+      candidates.map((candidate) => ({ candidate, computed: computeMealBuild(candidate.build, resources) })),
+      context,
+    );
+    const best = ranked[0];
+    if (!best?.computed.nutrition) return undefined;
+
+    const lines = best.computed.lines;
+    const stationNames = [...new Set(lines.map((line) => line.station?.name).filter((name): name is string => Boolean(name)))];
+    return {
+      name: lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || "Top meal",
+      imageUrl: lines[0]?.item?.imageUrl,
+      calories: Math.round(best.computed.nutrition.calories),
+      protein: Math.round(best.computed.nutrition.protein),
+      stationNames,
+    };
+  }, [entries, locationPreference.id, plan, profile, recentEntries, recommendationData, recommendationPeriod, snapshot.remaining]);
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;
@@ -193,14 +275,8 @@ export default function TodayV2Client({
   if (profile === undefined) return <main className="ff-v2-shell"><p className="ff-v2-loading">Loading your day…</p></main>;
   if (!profile) return <main className="ff-v2-shell"><p className="brand-kicker">Falcon Fuel</p><h1 className="ff-v2-empty-title">Know what to eat before you get there.</h1><p className="ff-v2-empty-copy">Build your plan once. Falcon Fuel will turn it into campus meals you can actually get.</p><Link className="primary ff-v2-empty-cta" href="/onboarding">Build my plan</Link></main>;
 
-  const now = new Date();
-  const hour = now.getHours();
-  const livingDay = resolveLivingDayState(snapshot.meals, hour);
-  const recommendationPeriod = livingDay.recommendationPeriod;
-  const preferenceMealSlot = recommendationPeriod === "breakfast" || recommendationPeriod === "lunch" || recommendationPeriod === "dinner" ? recommendationPeriod : undefined;
-  const locationPreference = preferredLocation(recentEntries, locationNames, preferenceMealSlot);
   const mealPeriodLabel = recommendationPeriod ? readable(recommendationPeriod) : undefined;
-  const preferredLocationName = locationNames[locationPreference.id] ?? "campus dining";
+  const preferredLocationName = locationNames[locationPreference.id ?? ""] ?? "campus dining";
   const target = snapshot.targets;
   const remainingCalories = target ? Math.max(0, snapshot.remaining?.calories ?? target.calories - snapshot.consumed.calories) : undefined;
   const remainingProtein = target ? Math.max(0, snapshot.remaining?.protein ?? target.protein - snapshot.consumed.protein) : undefined;
@@ -215,7 +291,7 @@ export default function TodayV2Client({
   const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0).length;
   const goals = profile.goals?.length ? profile.goals : [profile.primaryGoal];
   const planLabel = plan?.phase === "maintenance" ? "Maintenance" : goals.map(readable).join(" · ");
-  const recommendationHref = recommendationPeriod ? `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
+  const recommendationHref = recommendationPeriod && locationPreference.id ? `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
 
   const nutritionCue = livingDay.mode === "late-night"
     ? "No need to close every number tonight. This is context only—use late-night options if you actually want another meal."
@@ -349,7 +425,12 @@ export default function TodayV2Client({
             transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ff-v2-hero-visual">
-              <MealImage name={`${preferredLocationName} ${mealPeriodLabel ?? "meal"}`} aspect="hero" className="ff-v2-hero-image" />
+              <MealImage
+                name={topMealPick?.name ?? `${preferredLocationName} ${mealPeriodLabel ?? "meal"}`}
+                imageUrl={topMealPick?.imageUrl}
+                aspect="hero"
+                className="ff-v2-hero-image"
+              />
               <div className="ff-v2-photo-shade" />
               <span className="ff-v2-photo-label">{livingDay.mode === "anticipate" ? `Up next · ${mealPeriodLabel}` : mealPeriodLabel}</span>
             </div>
@@ -358,6 +439,16 @@ export default function TodayV2Client({
               <p className="ff-v2-eyebrow">{heroEyebrow}</p>
               <h2>{heroTitle}</h2>
               <p className="ff-v2-hero-reason">{heroReason}</p>
+              {topMealPick && livingDay.mode !== "late-night" && (
+                <div className="ff-v2-top-pick" aria-label="Current top meal recommendation">
+                  <span>Top pick</span>
+                  <strong>{topMealPick.name}</strong>
+                  <small>
+                    {topMealPick.calories.toLocaleString()} cal · {topMealPick.protein}g protein
+                    {topMealPick.stationNames.length > 0 ? ` · ${topMealPick.stationNames.join(" + ")}` : ""}
+                  </small>
+                </div>
+              )}
               <div className="ff-v2-nutrition-cue"><span aria-hidden="true">↗</span><p>{nutritionCue}</p></div>
               <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
                 <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>

@@ -35,7 +35,7 @@ jobs:
         run: npm run lint
 
       - name: Build
-        run: npm run build
+        run: npx next build --webpack
 
       - name: Validate dining data
         run: npm run validate:data

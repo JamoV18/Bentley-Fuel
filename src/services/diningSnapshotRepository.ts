@@ -10,6 +10,8 @@ export interface DiningMenuSnapshot {
   menuDate: string;
   retrievedAt: string;
   verifiedAt: string;
+  /** Existing snapshots without this field are treated as server-published DineOnCampus snapshots. */
+  publicationSource?: "dineoncampus-server" | "trusted-browser-sync";
   sourceApiVersions: Array<"v4" | "v1">;
   contentHash: string;
   stations: Station[];
@@ -77,7 +79,7 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
     try {
       const cache = getCache();
       const existing = await cache.get(key(snapshot.outletKey, snapshot.menuDate)) as DiningMenuSnapshot | null | undefined;
-      if (existing?.contentHash === snapshot.contentHash) return;
+      if (existing?.contentHash === snapshot.contentHash && existing?.publicationSource === snapshot.publicationSource) return;
       await cache.set(key(snapshot.outletKey, snapshot.menuDate), snapshot, {
         ttl: SNAPSHOT_TTL_SECONDS,
         tags: [`dining:${snapshot.outletKey}`, `dining-date:${snapshot.menuDate}`],

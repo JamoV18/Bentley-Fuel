@@ -57,6 +57,36 @@ The route skips refresh work outside active Bentley dining hours.
 
 `vercel.json` schedules one daily refresh at `12:00 UTC`. This intentionally stays compatible with a $0 Vercel Hobby deployment while request-triggered refresh supplies additional freshness during normal app use.
 
+## Trusted 921 browser sync
+
+`/admin/921-sync` is a single-owner operational workflow protected by an
+Auth.js GitHub OAuth session. GitHub sign-in is accepted only when the stable
+numeric GitHub account ID matches `FALCON_FUEL_ADMIN_GITHUB_ID`. The page and
+`POST /api/dining/sync/921` both enforce that allowlist on the server. No sync
+secret is rendered into or entered through the browser.
+
+Configure these server-only Production environment variables in Vercel:
+
+- `AUTH_SECRET` — a high-entropy Auth.js secret.
+- `AUTH_GITHUB_ID` — the GitHub OAuth App client ID.
+- `AUTH_GITHUB_SECRET` — the GitHub OAuth App client secret.
+- `FALCON_FUEL_ADMIN_GITHUB_ID` — the one allowed account's numeric GitHub ID.
+
+Set the GitHub OAuth App callback URL to
+`https://<production-domain>/api/auth/callback/github`. Redeploy production
+after adding or changing the variables.
+
+Vercel Runtime Cache is isolated by deployment environment. A snapshot written
+from a Preview deployment is not the snapshot read by the Production
+deployment. For that reason, previewing a capture is allowed after admin
+authentication, but publishing is rejected unless the request is running in
+the Vercel Production environment. The real daily workflow must use the
+production `/admin/921-sync` URL. Production publishing writes the verified,
+date-scoped snapshot to the same Production Runtime Cache environment used by
+Falcon Fuel's production dining provider. Runtime Cache remains ephemeral and
+regional with a 48-hour TTL; this workflow does not convert it into durable
+storage or introduce an external database.
+
 ## Diagnostics
 
 `GET /api/dining/health` returns process-local source-health observations for recent requests, including:

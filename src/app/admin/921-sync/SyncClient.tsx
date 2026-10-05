@@ -32,8 +32,7 @@ type ApiResponse = {
   published?: { menuDate: string; verifiedAt: string; contentHash: string; itemCount: number; stationCount: number };
 };
 
-export default function SyncClient() {
-  const [secret, setSecret] = useState("");
+export default function SyncClient({ publishingEnabled }: { publishingEnabled: boolean }) {
   const [captureText, setCaptureText] = useState("");
   const [preview, setPreview] = useState<SyncPreview>();
   const [message, setMessage] = useState("");
@@ -57,10 +56,6 @@ export default function SyncClient() {
   }
 
   async function submit(mode: "preview" | "publish") {
-    if (!secret.trim()) {
-      setMessage("Enter DINING_SYNC_SECRET (or the existing CRON_SECRET fallback) first.");
-      return;
-    }
     if (!parsedCapture) {
       setMessage("Paste a valid capture JSON payload or choose the downloaded JSON file first.");
       return;
@@ -70,7 +65,7 @@ export default function SyncClient() {
     try {
       const response = await fetch("/api/dining/sync/921", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, capture: parsedCapture }),
       });
       const data = await response.json() as ApiResponse;
@@ -110,10 +105,6 @@ export default function SyncClient() {
       <section className="ff921-card">
         <div className="ff921-step"><span>3</span><div><strong>Review and publish</strong><p>Choose the downloaded JSON. Falcon Fuel validates meal-period completeness and normalizes stations, item names, portions, calories, macros, ingredients and published dietary indicators. Missing or incomplete data is surfaced instead of invented.</p></div></div>
 
-        <label className="ff921-label">Sync secret
-          <input className="ff921-input" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="DINING_SYNC_SECRET or CRON_SECRET" autoComplete="off" />
-        </label>
-
         <label className="ff921-label">Capture payload
           <textarea className="ff921-textarea" value={captureText} onChange={(event) => { setCaptureText(event.target.value); setPreview(undefined); }} placeholder="Paste a 921 capture JSON here, or choose the downloaded file below." spellCheck={false} />
         </label>
@@ -137,7 +128,8 @@ export default function SyncClient() {
           </div>
           {warnings.length > 0 ? <div className="ff921-issues"><strong>{warnings.length} item{warnings.length === 1 ? "" : "s"} to review</strong>{warnings.slice(0, 12).map((issue, index) => <p key={`${issue.code}-${index}`}>{issue.message}</p>)}{warnings.length > 12 ? <p>+ {warnings.length - 12} more warnings</p> : null}</div> : null}
           {blockingIssues.length > 0 ? <div className="ff921-errors"><strong>Publish blocked</strong>{blockingIssues.map((issue, index) => <p key={`${issue.code}-${index}`}>{issue.message}</p>)}</div> : null}
-          <button className="ff921-primary" type="button" disabled={busy || blockingIssues.length > 0} onClick={() => void submit("publish")}>Publish {preview.menuDate} 921 menu</button>
+          {!publishingEnabled ? <p className="ff921-environment-note">Preview deployments cannot publish the production snapshot. Sign in at the production Falcon Fuel admin URL to publish after review.</p> : null}
+          <button className="ff921-primary" type="button" disabled={busy || blockingIssues.length > 0 || !publishingEnabled} onClick={() => void submit("publish")}>Publish {preview.menuDate} 921 menu</button>
         </section>
       ) : null}
 

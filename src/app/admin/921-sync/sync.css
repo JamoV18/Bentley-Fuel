@@ -101,6 +101,7 @@
 .ff921-issues p,
 .ff921-errors p { margin: 7px 0 0; color: var(--ff-text-secondary); font-size: 13px; line-height: 1.45; }
 .ff921-errors { border: 1px solid rgba(253, 111, 80, 0.32); }
+.ff921-environment-note { margin: 18px 0 0; color: var(--ff-text-secondary); font-size: 13px; line-height: 1.5; }
 .ff921-status { position: sticky; bottom: 18px; margin-top: 18px; padding: 13px 15px; border: 1px solid var(--ff-divider); border-radius: var(--ff-radius-control); background: rgba(28, 34, 40, 0.96); box-shadow: var(--shadow); color: var(--ff-text-secondary); line-height: 1.45; }
 
 @media (max-width: 640px) {

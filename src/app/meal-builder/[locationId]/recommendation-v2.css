@@ -129,6 +129,33 @@
   font-weight: 850;
 }
 
+.ff-rec-update {
+  display: flex;
+  gap: .55rem;
+  align-items: flex-start;
+  margin: .9rem 0 0;
+  padding: .72rem .8rem;
+  border: 1px solid rgba(43, 122, 91, .18);
+  border-radius: .85rem;
+  background: rgba(231, 246, 238, .72);
+  color: #285e49;
+  font-size: .7rem;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.ff-rec-update span {
+  display: grid;
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #2b7a5b;
+  color: white;
+  font-size: .62rem;
+}
+
 .ff-rec-macros {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -203,6 +230,52 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.ff-rec-feedback {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rec-line);
+}
+
+.ff-rec-feedback > p:first-child {
+  margin: 0 0 .55rem;
+  color: var(--rec-muted);
+  font-size: .66rem;
+  font-weight: 850;
+}
+
+.ff-rec-feedback > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.ff-rec-feedback button {
+  appearance: none;
+  padding: .5rem .7rem;
+  border: 1px solid var(--rec-line);
+  border-radius: 999px;
+  background: white;
+  color: var(--rec-ink-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: .64rem;
+  font-weight: 850;
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+
+.ff-rec-feedback button:hover {
+  border-color: rgba(0, 117, 190, .3);
+  background: rgba(0, 117, 190, .055);
+  color: var(--rec-blue);
+}
+
+.ff-rec-feedback .ff-rec-feedback-note {
+  margin: .65rem 0 0;
+  color: var(--rec-muted);
+  font-size: .65rem;
+  line-height: 1.5;
 }
 
 .ff-rec-text-button,

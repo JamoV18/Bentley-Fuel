@@ -22,12 +22,14 @@ import {
   generateMealCandidatesFromResources,
   portionGuidanceFor,
   removeMealItem,
+  revisedRecommendationForFeedback,
   resolveNutritionPlan,
   scoreResolvedMeals,
   setComponentSelections,
   suggestMealItemReplacements,
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
+import type { RecommendationFeedbackIntent } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
 import type { CustomizationStep, MealBuild, MealPeriod, NutritionPlanSnapshot, RecommendationContext } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
@@ -95,6 +97,8 @@ export default function MealBuilderClient({
   const [replacementPrompt, setReplacementPrompt] = useState<ReplacementPrompt>();
   const [whyOpen, setWhyOpen] = useState(false);
   const [chooseSuccess, setChooseSuccess] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string>();
+  const [feedbackMessage, setFeedbackMessage] = useState<string>();
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
@@ -149,6 +153,8 @@ export default function MealBuilderClient({
       setRankings(ranked);
       setRecommendationIndex(0);
       setEdited(false);
+      setUpdateMessage(undefined);
+      setFeedbackMessage(undefined);
       if (ranked.length === 0) { setRecommendationState("no-candidates"); return; }
       setBuild(ranked[0].candidate.build);
       setRecommendationState("ready");
@@ -185,7 +191,7 @@ export default function MealBuilderClient({
     chooseTimerRef.current = window.setTimeout(() => router.push("/today"), 460);
   };
 
-  const selectRecommendation = (index: number) => {
+  const selectRecommendation = (index: number, explanation = "Updated because you chose another option.") => {
     const ranking = rankings[index];
     if (!ranking || index === recommendationIndex || chooseSuccess) return;
     setWhyOpen(false);
@@ -194,6 +200,22 @@ export default function MealBuilderClient({
     setCustomizing(false);
     setEdited(false);
     setReplacementPrompt(undefined);
+    setUpdateMessage(explanation);
+    setFeedbackMessage(undefined);
+  };
+
+  const respondToRecommendation = (intent: RecommendationFeedbackIntent) => {
+    const revised = revisedRecommendationForFeedback(rankings, recommendationIndex, intent);
+    if (!revised) {
+      setUpdateMessage(undefined);
+      setFeedbackMessage(intent === "lighter"
+        ? "This is already the lightest option among the strongest matches. You can adjust a serving below."
+        : intent === "more-protein"
+          ? "This is already the highest-protein option among the strongest matches. You can add or swap an item below."
+          : "There are no other eligible complete meals for this menu window.");
+      return;
+    }
+    selectRecommendation(revised.index, revised.explanation);
   };
 
   const removeWithSuggestions = (lineId: string) => {
@@ -315,7 +337,6 @@ export default function MealBuilderClient({
 
           <AnimatePresence initial={false} mode="wait">
             <motion.section
-              key={`recommendation-${recommendationIndex}-${edited ? "edited" : "ranked"}`}
               className="ff-rec-selected"
               id="selected-meal-details"
               aria-labelledby="candidate-heading"
@@ -331,7 +352,19 @@ export default function MealBuilderClient({
                 </div>
                 <h2 id="candidate-heading" className="ff-rec-selected-title">{selectedMealName}</h2>
 
-                {computed.nutrition && (edited || !personalized) && (
+                {updateMessage && (
+                  <motion.p
+                    className="ff-rec-update"
+                    role="status"
+                    aria-live="polite"
+                    initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <span aria-hidden="true">✓</span>{updateMessage}
+                  </motion.p>
+                )}
+
+{computed.nutrition && (edited || !personalized) && (
                   <dl className="ff-rec-macros">
                     {[["Calories", Math.round(computed.nutrition.calories), "cal"], ["Protein", compactMacro(computed.nutrition.protein), "g"], ["Carbs", compactMacro(computed.nutrition.carbs), "g"], ["Fat", compactMacro(computed.nutrition.fat), "g"]].map(([label, value, unit]) => (
                       <div className="ff-rec-macro" key={label}>
@@ -359,6 +392,18 @@ export default function MealBuilderClient({
                     <Link href={manualHref}>Build something different</Link>
                   </div>
                 </div>
+
+                {personalized && !edited && (
+                  <div className="ff-rec-feedback" aria-labelledby="recommendation-feedback-heading">
+                    <p id="recommendation-feedback-heading">What should change?</p>
+                    <div>
+                      <button type="button" onClick={() => respondToRecommendation("lighter")}>Something lighter</button>
+                      <button type="button" onClick={() => respondToRecommendation("more-protein")}>More protein</button>
+                      <button type="button" onClick={() => respondToRecommendation("different")}>Show another</button>
+                    </div>
+                    {feedbackMessage && <p className="ff-rec-feedback-note" role="status" aria-live="polite">{feedbackMessage}</p>}
+                  </div>
+                )}
               </div>
             </motion.section>
           </AnimatePresence>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import ActivityReviewDueBanner from "./ActivityReviewDueBanner";
@@ -16,6 +16,10 @@ const items = [
   { href: "/history", label: "History", icon: "chart" },
   { href: "/profile-summary", label: "Plan", icon: "target" },
 ] as const;
+
+const subscribeToClientEnvironment = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 function Icon({ name }: { name: (typeof items)[number]["icon"] }) {
   if (name === "home") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.7 12 3.8l8.5 6.9v8.8a1.5 1.5 0 0 1-1.5 1.5h-4.8v-6.2H9.8V21H5a1.5 1.5 0 0 1-1.5-1.5z" /></svg>;
@@ -34,13 +38,9 @@ export default function AppNav({
 }) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
-  const [portalReady, setPortalReady] = useState(false);
+  const portalReady = useSyncExternalStore(subscribeToClientEnvironment, getClientSnapshot, getServerSnapshot);
   const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
   const showProgressivePrompt = pathname === "/today" || pathname === "/dashboard";
-
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
 
   const navigation = (
     <nav className="app-nav" aria-label="Falcon Fuel app navigation">

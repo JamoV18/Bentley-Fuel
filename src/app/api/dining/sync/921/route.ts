@@ -1,57 +1,92 @@
+import { auth, isAdminSession } from "@/auth";
+import { canPublish921Snapshot } from "@/services/admin921SyncEnvironment";
 import { build921BrowserSnapshot, publish921BrowserCapture } from "@/services/manual921Sync";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function authorized(request: Request): boolean {
-  const secret = process.env.DINING_SYNC_SECRET ?? process.env.CRON_SECRET;
-  return Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+type BuildCapture = typeof build921BrowserSnapshot;
+type PublishCapture = typeof publish921BrowserCapture;
+
+interface SyncRouteDependencies {
+  authorize: () => Promise<boolean>;
+  buildCapture: BuildCapture;
+  publishCapture: PublishCapture;
+  canPublish: () => boolean;
 }
 
-export async function POST(request: Request) {
-  if (!authorized(request)) {
-    const configured = Boolean(process.env.DINING_SYNC_SECRET ?? process.env.CRON_SECRET);
-    return Response.json(
-      { ok: false, error: configured ? "unauthorized" : "sync-secret-not-configured" },
-      { status: configured ? 401 : 503 },
-    );
-  }
+const noStoreHeaders = { "Cache-Control": "no-store" };
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ ok: false, error: "invalid-json" }, { status: 400 });
-  }
+function json(body: unknown, init?: ResponseInit): Response {
+  return Response.json(body, {
+    ...init,
+    headers: { ...noStoreHeaders, ...init?.headers },
+  });
+}
 
-  const payload = body && typeof body === "object" ? body as Record<string, unknown> : {};
-  const mode = payload.mode === "publish" ? "publish" : payload.mode === "preview" ? "preview" : undefined;
-  if (!mode) return Response.json({ ok: false, error: "invalid-mode" }, { status: 400 });
+const defaultDependencies: SyncRouteDependencies = {
+  authorize: async () => isAdminSession(await auth()),
+  buildCapture: build921BrowserSnapshot,
+  publishCapture: publish921BrowserCapture,
+  canPublish: canPublish921Snapshot,
+};
 
-  try {
-    if (mode === "preview") {
-      const { preview } = build921BrowserSnapshot(payload.capture);
-      return Response.json({ ok: true, mode, preview }, { headers: { "Cache-Control": "no-store" } });
+export function create921SyncPost(
+  overrides: Partial<SyncRouteDependencies> = {},
+): (request: Request) => Promise<Response> {
+  const dependencies = { ...defaultDependencies, ...overrides };
+
+  return async function post921Sync(request: Request): Promise<Response> {
+    if (!await dependencies.authorize()) {
+      return json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 
-    const { snapshot, preview } = await publish921BrowserCapture(payload.capture);
-    return Response.json({
-      ok: true,
-      mode,
-      preview,
-      published: {
-        menuDate: snapshot.menuDate,
-        verifiedAt: snapshot.verifiedAt,
-        contentHash: snapshot.contentHash,
-        itemCount: snapshot.items.length,
-        stationCount: snapshot.stations.length,
-      },
-    }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error) {
-    return Response.json({
-      ok: false,
-      error: "capture-rejected",
-      message: error instanceof Error ? error.message : "Unable to parse the 921 capture.",
-    }, { status: 400 });
-  }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ ok: false, error: "invalid-json" }, { status: 400 });
+    }
+
+    const payload = body && typeof body === "object" ? body as Record<string, unknown> : {};
+    const mode = payload.mode === "publish" ? "publish" : payload.mode === "preview" ? "preview" : undefined;
+    if (!mode) return json({ ok: false, error: "invalid-mode" }, { status: 400 });
+
+    if (mode === "publish" && !dependencies.canPublish()) {
+      return json({
+        ok: false,
+        error: "production-publish-required",
+        message: "Publish from the production Falcon Fuel admin page so the verified snapshot is stored in the production Runtime Cache environment.",
+      }, { status: 409 });
+    }
+
+    try {
+      if (mode === "preview") {
+        const { preview } = dependencies.buildCapture(payload.capture);
+        return json({ ok: true, mode, preview });
+      }
+
+      const { snapshot, preview } = await dependencies.publishCapture(payload.capture);
+      return json({
+        ok: true,
+        mode,
+        preview,
+        published: {
+          menuDate: snapshot.menuDate,
+          verifiedAt: snapshot.verifiedAt,
+          contentHash: snapshot.contentHash,
+          itemCount: snapshot.items.length,
+          stationCount: snapshot.stations.length,
+        },
+      });
+    } catch (error) {
+      return json({
+        ok: false,
+        error: "capture-rejected",
+        message: error instanceof Error ? error.message : "Unable to parse the 921 capture.",
+      }, { status: 400 });
+    }
+  };
 }
+
+export const POST = create921SyncPost();

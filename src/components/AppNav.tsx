@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import ActivityReviewDueBanner from "./ActivityReviewDueBanner";
 import DailyMealCheckinStrip from "./DailyMealCheckinStrip";
@@ -14,6 +16,10 @@ const items = [
   { href: "/history", label: "History", icon: "chart" },
   { href: "/profile-summary", label: "Plan", icon: "target" },
 ] as const;
+
+const subscribeToClientEnvironment = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 function Icon({ name }: { name: (typeof items)[number]["icon"] }) {
   if (name === "home") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.7 12 3.8l8.5 6.9v8.8a1.5 1.5 0 0 1-1.5 1.5h-4.8v-6.2H9.8V21H5a1.5 1.5 0 0 1-1.5-1.5z" /></svg>;
@@ -32,41 +38,46 @@ export default function AppNav({
 }) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
+  const portalReady = useSyncExternalStore(subscribeToClientEnvironment, getClientSnapshot, getServerSnapshot);
   const isEatFlow = pathname === "/dashboard" || pathname.startsWith("/locations/") || pathname.startsWith("/meal-builder/") || pathname.startsWith("/meals/");
   const showProgressivePrompt = pathname === "/today" || pathname === "/dashboard";
 
+  const navigation = (
+    <nav className="app-nav" aria-label="Falcon Fuel app navigation">
+      {items.map((item) => {
+        const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="app-nav-item relative isolate overflow-hidden"
+            data-active={active}
+          >
+            {active && (
+              <motion.span
+                aria-hidden="true"
+                className="app-nav-active-pill absolute inset-0 z-0"
+                layoutId="app-nav-active-pill"
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40, mass: 0.48 }}
+              />
+            )}
+            <motion.span
+              className="app-nav-content relative z-10 inline-flex items-center justify-center"
+              whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <span className="app-nav-icon"><Icon name={item.icon} /></span>
+              <span>{item.label}</span>
+            </motion.span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
   return (
     <>
-      <nav className="app-nav" aria-label="Falcon Fuel app navigation">
-        {items.map((item) => {
-          const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="app-nav-item relative isolate overflow-hidden"
-              data-active={active}
-            >
-              {active && (
-                <motion.span
-                  aria-hidden="true"
-                  className="app-nav-active-pill absolute inset-0 z-0"
-                  layoutId="app-nav-active-pill"
-                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40, mass: 0.48 }}
-                />
-              )}
-              <motion.span
-                className="app-nav-content relative z-10 inline-flex items-center justify-center"
-                whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-                transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <span className="app-nav-icon"><Icon name={item.icon} /></span>
-                <span>{item.label}</span>
-              </motion.span>
-            </Link>
-          );
-        })}
-      </nav>
+      {portalReady ? createPortal(navigation, document.body) : null}
       {pathname === "/today" && showDailyMealCheckin && <DailyMealCheckinStrip />}
       {showContextPrompts && pathname !== "/profile-summary" && <ActivityReviewDueBanner />}
       {showContextPrompts && showProgressivePrompt && <ProgressiveProfilePrompt />}

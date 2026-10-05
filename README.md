@@ -5,16 +5,22 @@ question: **"Given my goals, restrictions, remaining macros, and location, what
 should I eat?"** — using deterministic scoring (no ML/AI chat) as the
 differentiator, not just a digital menu.
 
-> **All nutrition/menu data is currently MOCK** (`dataStatus: "mock"`) and lives
-> behind a service layer so it can be swapped for real Bentley/Chartwells data
-> without rewriting the UI or recommendation engine. Falcon Fuel never claims a
-> meal is allergen-safe — always defer to Bentley Dining's official guidance.
+> Falcon Fuel now has a **live Bentley Dining / DineOnCampus reliability layer**
+> for supported campus outlets, while the mock dataset remains behind the same
+> provider interface for development and non-live fallback domains. Live-backed
+> locations fail closed: mock food is never silently presented as a verified
+> current Bentley menu. Falcon Fuel never claims a meal is allergen-safe — always
+> defer to Bentley Dining's official guidance.
+
+See [`docs/dining-data-reliability.md`](docs/dining-data-reliability.md) for the
+live-source architecture, same-date snapshot rules, source-health diagnostics,
+and the current DineOnCampus/Cloudflare limitation.
 
 ## Tech stack
 
 - **Next.js 16** (App Router) · **React 19** · **TypeScript** (strict)
 - **Tailwind CSS v4**
-- Mobile-first, system font stack (no external font fetch)
+- **Vercel Runtime Cache** for date-scoped verified dining snapshots when deployed on Vercel
 
 ## Getting started
 
@@ -26,88 +32,89 @@ npm run dev            # http://localhost:3000
 Other scripts:
 
 ```bash
+npm test               # deterministic unit/service suite
 npm run build          # production build
 npm run typecheck      # tsc --noEmit
 npm run lint           # eslint
 npm run validate:data  # referential-integrity check of the mock dataset
+npm run audit:recommendations
+npm run smoke:dining   # manual external DineOnCampus diagnostic
 ```
 
 ## Architecture
 
-### Data model (Phase 1) — `src/types/`
+### Data model — `src/types/`
 
 The domain hierarchy is **University → Location → Station → MenuItem →
 FoodComponent**. Relationships use stable, opaque IDs (never display names), and
-every entity carries **provenance** (`dataStatus`, `source`, `confidence`).
+entities carry provenance so Falcon Fuel can distinguish where a value came from
+and how much confidence to place in it.
+
+Live menu entities additionally separate **availability provenance** from
+**nutrition provenance**. That means an official branded nutrition source can
+support a nutrition value without being treated as proof that Bentley serves the
+item today.
 
 | File | What's in it |
 | --- | --- |
 | `common.ts` | IDs, `Provenance`/`DataSource`/`DataStatus`, hours, serving sizes, meal periods |
 | `nutrition.ts` | `Macros`, `NutritionFacts`, `Allergen`, `DietaryTag`, `ALLERGEN_DISCLAIMER` |
-| `menu.ts` | `University`, `Location`, `Station`, `FoodComponent`, `MenuItem`, `CustomizationStep`, `DiningDataset` |
-| `user.ts` | `UserProfile`, `PrimaryGoal`, `MacroTargets`, `BodyMetrics` |
+| `menu.ts` | `University`, `Location`, `Station`, `FoodComponent`, `MenuItem`, availability verification metadata |
+| `user.ts` | `UserProfile`, goals, macro targets, body metrics |
 | `meal.ts` | Editable `MealBuild`, stable meal lines, and customizable component selections |
 
 Menu items are either **`predefined`** (carry their own nutrition + component
 composition) or **`customizable`** (define builder `CustomizationStep`s whose
-nutrition is summed live from the chosen components — e.g. a Blue Chip bowl).
+nutrition is summed live from selected components).
 
-### Mock dataset (Phase 2) — `src/data/mock/`
+### Development/mock dataset — `src/data/mock/`
 
-Mock data for four locations: **921** (dining hall), **LaCava** (food court),
-**Dana Center** (Blue Chip and The Nest), and **The Market** (grab-and-go).
+The mock dataset remains useful for deterministic development, recommendation
+tests, and locations or concepts that do not yet have a verified live source.
+It is not allowed to masquerade as live food for a location that is configured
+as DineOnCampus-backed.
 
-```
-data/mock/
-  university.ts          Bentley University
-  locations.ts           4 locations + hours
-  stations.ts            13 stations across the locations
-  hours.ts               helpers for building weekly hours
-  provenance.ts          mock provenance factory (dataStatus: "mock")
-  components/            FoodComponents (atomic building blocks)
-    brito.ts             build-your-own bowl/burrito ingredients (the showcase)
-    pantry.ts            reusable components shared by predefined items
-  menuItems/             MenuItems, split by location
-    nine21.ts  lacava.ts  brito.ts  market.ts
-  index.ts               assembles everything into a single DiningDataset
-```
+### Dining reliability layer — `src/services/`
 
-### Service layer — `src/services/`
-
-Nothing in the UI or engine imports `data/mock` directly. Everything goes
-through the provider interface, so real data is a drop-in swap.
+All UI and recommendation code consumes the provider interface rather than
+reaching into dining-source implementations directly.
 
 | File | Responsibility |
 | --- | --- |
-| `diningProvider.ts` | `DiningDataProvider` interface (async, future-proof) + `MenuItemQuery` |
-| `mockDiningProvider.ts` | In-memory implementation with O(1) ID indexes |
-| `diningService.ts` | `getDiningProvider()` singleton + `setDiningProvider()` for the future swap |
-| `nutrition.ts` | Pure nutrition math: `addNutrition`, `scaleNutrition`, `computeBuild` (live builder totals + allergen/dietary roll-ups) |
-| `mealBuilder.ts` | Provider-backed complete-meal resolution, validation, and deterministic roll-ups |
-| `mealEditing.ts` | Immutable line-level add, remove, replace, quantity, and component edits |
+| `diningProvider.ts` | Async provider contract + `MenuItemQuery` |
+| `diningService.ts` | App provider singleton and live-safety boundary |
+| `dineOnCampusDiscovery.ts` | Bentley site/outlet discovery while preserving Falcon Fuel's stable IDs |
+| `dineOnCampusTransport.ts` | Timeouts, retries, browser-header retry, typed failure diagnostics, structured logging |
+| `dineOnCampusParsing.ts` | Period/menu parsing and v4/v1 merging |
+| `reliableDineOnCampusProvider.ts` | Live ingestion, request cache, same-date snapshot fallback, provenance separation |
+| `diningSnapshotRepository.ts` | Vercel Runtime Cache + process-local verified snapshot storage |
+| `diningSourceHealth.ts` | Source request/ingestion health observations |
+| `brandedNutrition.ts` | Deterministic official-brand nutrition matching; never fuzzy-guesses an ambiguous product |
+| `mockDiningProvider.ts` | In-memory development dataset implementation |
+| `nutrition.ts` | Pure nutrition math and allergen/dietary roll-ups |
+| `mealBuilder.ts` | Provider-backed complete-meal resolution and validation |
+| `mealEditing.ts` | Immutable line-level meal edits |
+
+Operational endpoints:
+
+- `GET /api/dining/health` — process-local dining-source diagnostics.
+- `GET /api/dining/refresh` — `CRON_SECRET`-protected proactive refresh.
+
+The production cron is intentionally daily so it remains compatible with a
+zero-cost Vercel Hobby deployment; ordinary student requests also trigger live
+reads, so freshness is not dependent on that single scheduled refresh.
 
 ### Validation — `src/lib/validateDataset.ts`
 
-`validateDataset()` checks the dataset for duplicate IDs, dangling foreign keys,
-confidence bounds, and shape-by-kind rules. Run it with `npm run validate:data`.
+`validateDataset()` checks the development dataset for duplicate IDs, dangling
+foreign keys, confidence bounds, and shape-by-kind rules. Reliability behavior
+is covered by service tests, and CI runs tests, typecheck, lint, build, dataset
+validation, and the recommendation audit.
 
-## Build phases
+## Core product capabilities
 
-1. ✅ **Types** — domain data models
-2. ✅ **Mock data** — Bentley dining dataset behind the service layer
-3. ✅ **Onboarding/user nutrition profile** — goals, restrictions, optional body
-   information and maintenance estimate, persisted locally
-4. ✅ **Dashboard / location browsing** — provider-backed location cards and
-   station-grouped menus
-5. ✅ **Meal Detail** — clear provider-backed information for an individual menu item
-6. ✅ **Meal Builder + Combination Model** — complete meals assembled from multiple items and stations within a physical dining location
-7. **Personalized Recommendation Engine** — next
-8. **Food Logging**
-9. **Mobile Polish**
-
-Phase 6 gives Falcon Fuel a deterministic representation of a complete eating
-occasion, including multiple menu items/stations and selected components inside
-customizable items. The UI accepts a preassembled `MealBuild` in one tap, then
-supports correction-oriented edits without logging food. Phase 7 will generate
-and rank personalized `MealBuild` candidates and smart replacement suggestions;
-Phase 6 deliberately contains no recommendation scoring.
+Falcon Fuel currently includes the domain model, onboarding/profile system,
+location browsing, meal detail and editing, complete-meal generation,
+personalized deterministic recommendation scoring, food logging and daily
+nutrition state, behavior/preference learning, progress/weekly insights, and the
+live dining reliability layer described above.

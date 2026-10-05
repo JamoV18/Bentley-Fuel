@@ -21,6 +21,7 @@ export type DataSourceType =
   | "mock-generator"
   | "bentley-dining"
   | "chartwells"
+  | "brand-official"
   | "usda"
   | "manual-estimate"
   | "user";

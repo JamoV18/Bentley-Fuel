@@ -5,6 +5,7 @@ import {
   getDiningProvider,
   inferMenuItemMealRole,
   mealBuildSimilarity,
+  MockDiningProvider,
   scoreResolvedMeals,
 } from "@/services";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
@@ -31,6 +32,7 @@ interface CliOptions {
   period: MealPeriod;
   top: number;
   json: boolean;
+  live: boolean;
 }
 
 interface AuditScenario {
@@ -110,6 +112,7 @@ function parseCli(argv: string[]): CliOptions {
     period: rawPeriod as MealPeriod,
     top: rawTop,
     json: argv.includes("--json"),
+    live: argv.includes("--live"),
   };
 }
 
@@ -195,8 +198,13 @@ function scenarioFlags(
 
 async function main() {
   const options = parseCli(process.argv.slice(2));
-  installDineOnCampusServerFetchHeaders();
-  const provider = getDiningProvider();
+
+  // CI must audit recommendation logic deterministically. External DineOnCampus
+  // availability has its own manual smoke workflow and must not make scoring CI
+  // flaky. --live remains available for an intentional source-backed audit.
+  const provider = options.live ? getDiningProvider() : new MockDiningProvider();
+  if (options.live) installDineOnCampusServerFetchHeaders();
+
   const location = await provider.getLocation(options.locationId);
   if (!location) throw new Error(`Unknown Falcon Fuel location ${options.locationId}.`);
 
@@ -205,25 +213,26 @@ async function main() {
     provider.getStations(options.locationId, options.date),
   ]);
   const verifiedItems = menuItems.filter((item) => item.provenance.dataStatus === "verified");
-  if (verifiedItems.length === 0) {
+  if (options.live && verifiedItems.length === 0) {
     console.error(`No verified live menu was returned for ${location.name} on ${options.date} (${options.period}).`);
-    console.error("This audit intentionally refuses to evaluate demo/mock rows as if they were current dining data.");
+    console.error("The live audit intentionally refuses to evaluate demo/mock rows as if they were current dining data.");
     process.exitCode = 2;
     return;
   }
 
-  const componentIds = [...new Set(menuItems.flatMap((item) => [
+  const sourceItems = options.live ? verifiedItems : menuItems;
+  const componentIds = [...new Set(sourceItems.flatMap((item) => [
     ...(item.componentIds ?? []),
     ...(item.customization?.flatMap((step) => step.componentIds) ?? []),
   ]))];
   const components = await provider.getComponents(componentIds);
-  const resources = { location, menuItems, stations, components };
-  const completeNutrition = menuItems.filter((item) => item.kind === "customizable" || Boolean(item.nutrition));
+  const resources = { location, menuItems: sourceItems, stations, components };
+  const completeNutrition = sourceItems.filter((item) => item.kind === "customizable" || Boolean(item.nutrition));
   const menuRoles = roleCounts(completeNutrition);
   const globalFlags: AuditFlag[] = [];
-  const nutritionCoverage = verifiedItems.length === 0 ? 0 : completeNutrition.length / verifiedItems.length;
+  const nutritionCoverage = sourceItems.length === 0 ? 0 : completeNutrition.length / sourceItems.length;
   if (nutritionCoverage < 0.5) {
-    globalFlags.push({ severity: "warning", code: "LOW_NUTRITION_COVERAGE", message: `Only ${Math.round(nutritionCoverage * 100)}% of verified menu rows have enough nutrition to be scored.` });
+    globalFlags.push({ severity: "warning", code: "LOW_NUTRITION_COVERAGE", message: `Only ${Math.round(nutritionCoverage * 100)}% of audit menu rows have enough nutrition to be scored.` });
   }
   if (menuRoles.main === 0) {
     globalFlags.push({ severity: "warning", code: "NO_INFERRED_MAINS", message: "No nutrition-complete menu rows were inferred as mains; candidate generation may need to use its fallback composition pass." });
@@ -239,7 +248,7 @@ async function main() {
       recentHistory: [],
     };
     const candidates = generateMealCandidatesFromResources(
-      menuItems,
+      sourceItems,
       stations,
       components,
       context,
@@ -289,15 +298,18 @@ async function main() {
 
   const report = {
     generatedAt: new Date().toISOString(),
+    sourceMode: options.live ? "live-verified" : "deterministic-development-fixture",
     productionGenerationOptions: PRODUCTION_GENERATION_OPTIONS,
-    note: "Diagnostic target fixtures are controlled engineering inputs for comparing ranking behavior; they are not nutrition prescriptions for a specific person.",
+    note: options.live
+      ? "Live mode audits only verified current-source rows. Controlled target fixtures are engineering inputs, not nutrition prescriptions for a specific person."
+      : "Default CI mode audits recommendation logic against deterministic development fixtures. It does not claim these rows are the current Bentley menu. External source availability is tested separately by smoke:dining.",
     menu: {
       locationId: options.locationId,
       locationName: location.name,
       date: options.date,
       period: options.period,
       stationCount: stations.length,
-      itemCount: menuItems.length,
+      itemCount: sourceItems.length,
       verifiedItemCount: verifiedItems.length,
       nutritionCompleteItemCount: completeNutrition.length,
       nutritionCoveragePercent: Math.round(nutritionCoverage * 1000) / 10,
@@ -312,10 +324,12 @@ async function main() {
     return;
   }
 
-  console.log("Falcon Fuel — live recommendation audit");
-  console.log("=======================================");
+  console.log(options.live ? "Falcon Fuel — live recommendation audit" : "Falcon Fuel — deterministic recommendation audit");
+  console.log("===============================================");
   console.log(`${location.name} · ${options.date} · ${options.period}`);
-  console.log(`Verified rows: ${verifiedItems.length}; scoreable rows: ${completeNutrition.length} (${report.menu.nutritionCoveragePercent}%); stations: ${stations.length}`);
+  console.log(`Source mode: ${report.sourceMode}`);
+  console.log(`Audit rows: ${sourceItems.length}; scoreable rows: ${completeNutrition.length} (${report.menu.nutritionCoveragePercent}%); stations: ${stations.length}`);
+  if (options.live) console.log(`Verified live rows: ${verifiedItems.length}`);
   console.log(`Inferred roles: ${Object.entries(menuRoles).map(([role, count]) => `${role}=${count}`).join(", ")}`);
   for (const flag of globalFlags) console.log(`[${flag.severity.toUpperCase()}] ${flag.code}: ${flag.message}`);
 

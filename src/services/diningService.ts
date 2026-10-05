@@ -1,20 +1,15 @@
 import type { FoodComponentId, LocationId, MenuItemId, StationId } from "@/types";
 import type { DiningDataProvider, MenuItemQuery } from "./diningProvider";
-import { AdditionalDineOnCampusProvider } from "./additionalDineOnCampusProvider";
-import { DineOnCampusHybridProvider } from "./dineOnCampusProvider";
-import { ADDITIONAL_LIVE_LOCATION_IDS } from "./dineOnCampusLocationTargets";
-import { installDineOnCampusServerFetchHeaders } from "./dineOnCampusServerFetch";
+import { RELIABLE_DINE_ON_CAMPUS_OUTLETS } from "./dineOnCampusDiscovery";
+import { ReliableDineOnCampusProvider } from "./reliableDineOnCampusProvider";
 
-installDineOnCampusServerFetchHeaders();
-
-const LIVE_ONLY_LOCATION_IDS = new Set<LocationId>(["loc-921", ...ADDITIONAL_LIVE_LOCATION_IDS]);
+const LIVE_ONLY_LOCATION_IDS = new Set<LocationId>(RELIABLE_DINE_ON_CAMPUS_OUTLETS.map((target) => target.locationId));
 const LIVE_MENU_PLACEHOLDER = "/live-menu-placeholder.svg";
 
 /**
- * Once a student-facing location is wired to DineOnCampus, mock menu rows are
- * no longer allowed to substitute for an unavailable live publication. This
- * keeps live-vs-demo provenance centralized while Falcon Market remains mock
- * until Bentley exposes a menu source for it.
+ * Live-backed locations may only expose records whose source provenance is
+ * verified. A temporary upstream failure can therefore serve a same-date
+ * verified snapshot, but can never silently substitute demo/mock menu rows.
  */
 function liveSafeProvider(inner: DiningDataProvider): DiningDataProvider {
   const isAllowedLive = (record: { locationId: LocationId; provenance: { dataStatus: string } }) =>
@@ -48,7 +43,9 @@ function liveSafeProvider(inner: DiningDataProvider): DiningDataProvider {
   };
 }
 
-const liveDiningProvider = new AdditionalDineOnCampusProvider(new DineOnCampusHybridProvider());
+const liveDiningProvider = new ReliableDineOnCampusProvider();
 let provider: DiningDataProvider = liveSafeProvider(liveDiningProvider);
+
 export function getDiningProvider(): DiningDataProvider { return provider; }
+export function getReliableDiningProvider(): ReliableDineOnCampusProvider { return liveDiningProvider; }
 export function setDiningProvider(nextProvider: DiningDataProvider): void { provider = liveSafeProvider(nextProvider); }

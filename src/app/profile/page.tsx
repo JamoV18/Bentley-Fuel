@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SUPPORTED_LANGUAGE_OPTIONS, useLanguage } from "@/components/LanguageProvider";
 import AppNav from "@/components/AppNav";
+import GoingOutSettings from "@/components/GoingOutSettings";
 import { centimetersToFeetAndInches } from "@/lib/onboardingValidation";
 import { browserProgressRepository } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
@@ -101,6 +102,7 @@ export default function ProfilePage() {
           <Link href="/data-privacy" className="ff-inline-link">Data & privacy →</Link>
           <Link href="/methodology" className="ff-inline-link">How recommendations work →</Link>
         </section>
+        <GoingOutSettings profile={profile} />
       </div>
     </main>
   );

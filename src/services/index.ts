@@ -34,3 +34,7 @@ export * from "./nutritionForecast";
 export * from "./weeklyFocus";
 export * from "./institutionalAnalytics";
 export * from "./widgetNutrition";
+export * from "./campusBeverages";
+export * from "./alcoholNutrition";
+export * from "./goingOutRepository";
+export * from "./goingOutRecommendation";

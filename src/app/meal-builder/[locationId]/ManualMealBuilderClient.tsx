@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import FlowHeader from "@/components/FlowHeader";
 import MealImage from "@/components/MealImage";
+import CampusBeverageSelector from "@/components/CampusBeverageSelector";
 import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { createManualMealItemSelection } from "@/lib/manualMealSelection";
@@ -17,10 +18,12 @@ import {
   MEAL_COMPLETION_CHOICES,
   removeMealItem,
   setComponentSelections,
+  mealNutritionWithBeverages,
+  recentCampusBeverages,
 } from "@/services";
 import type { MealBuildResources } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
-import type { CustomizationStep, MealBuild, MealCompletionFraction, MealPeriod } from "@/types";
+import type { CampusBeverageSelection, CustomizationStep, MealBuild, MealCompletionFraction, MealPeriod } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
 
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
@@ -51,8 +54,11 @@ export default function ManualMealBuilderClient({
   const [savedAt, setSavedAt] = useState<string>();
   const [showCompletionCheckIn, setShowCompletionCheckIn] = useState(false);
   const [completionFraction, setCompletionFraction] = useState<MealCompletionFraction>();
+  const [beverages, setBeverages] = useState<CampusBeverageSelection[]>([]);
+  const [recentBeverages, setRecentBeverages] = useState<CampusBeverageSelection[]>([]);
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
+  const selectedNutrition = useMemo(() => computed.nutrition ? mealNutritionWithBeverages(computed.nutrition, beverages) : undefined, [beverages, computed.nutrition]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
   const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
   const backHref = `/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
@@ -63,15 +69,20 @@ export default function ManualMealBuilderClient({
   const recommendationHref = `/meal-builder/${locationId}${recommendationQuery ? `?${recommendationQuery}` : ""}`;
 
   useEffect(() => {
-    if (!savedHistoryId || !savedAt || !computed.isValid || !computed.nutrition || build.items.length === 0) return;
-    browserMealHistoryRepository().upsert({ id: savedHistoryId, locationId: build.locationId, build, selectedAt: savedAt, nutrition: computed.nutrition, source: "self-built" });
-  }, [build, computed.isValid, computed.nutrition, savedAt, savedHistoryId]);
+    if (!savedHistoryId || !savedAt || !computed.isValid || !selectedNutrition || build.items.length === 0) return;
+    browserMealHistoryRepository().upsert({ id: savedHistoryId, locationId: build.locationId, build, selectedAt: savedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built" });
+  }, [beverages, build, computed.isValid, savedAt, savedHistoryId, selectedNutrition]);
+
+  useEffect(() => {
+    const recent = recentCampusBeverages(browserMealHistoryRepository().getRecent(40));
+    queueMicrotask(() => setRecentBeverages(recent));
+  }, []);
 
   const saveMeal = () => {
-    if (futureMenu || !computed.isValid || !computed.nutrition || build.items.length === 0) return;
+    if (futureMenu || !computed.isValid || !selectedNutrition || build.items.length === 0) return;
     const id = savedHistoryId ?? crypto.randomUUID();
     const selectedAt = savedAt ?? new Date().toISOString();
-    browserMealHistoryRepository().upsert({ id, locationId: build.locationId, build, selectedAt, nutrition: computed.nutrition, source: "self-built" });
+    browserMealHistoryRepository().upsert({ id, locationId: build.locationId, build, selectedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built" });
     setSavedHistoryId(id); setSavedAt(selectedAt);
   };
 
@@ -135,7 +146,8 @@ export default function ManualMealBuilderClient({
               </div>
             )}
 
-            {computed.nutrition && <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-[var(--ff-divider)] pt-3">{[["Calories", computed.nutrition.calories, "cal"], ["Protein", computed.nutrition.protein, "g"], ["Carbs", computed.nutrition.carbs, "g"], ["Fat", computed.nutrition.fat, "g"]].map(([label, value, unit]) => <div key={label} className="py-2"><dt className="text-xs text-[var(--ff-text-secondary)]">{label}</dt><dd className="mt-1 font-bold text-[var(--ff-text-primary)]">{value}{unit}</dd></div>)}</dl>}
+            {selectedNutrition && <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-[var(--ff-divider)] pt-3">{[["Calories", Math.round(selectedNutrition.calories), "cal"], ["Protein", Math.round(selectedNutrition.protein * 10) / 10, "g"], ["Carbs", Math.round(selectedNutrition.carbs * 10) / 10, "g"], ["Fat", Math.round(selectedNutrition.fat * 10) / 10, "g"]].map(([label, value, unit]) => <div key={label} className="py-2"><dt className="text-xs text-[var(--ff-text-secondary)]">{label}</dt><dd className="mt-1 font-bold text-[var(--ff-text-primary)]">{value}{unit}</dd></div>)}</dl>}
+            {locationId === "loc-921" && <CampusBeverageSelector locationId={locationId} value={beverages} onChange={setBeverages} recent={recentBeverages} />}
             {build.items.length > 0 && !computed.isValid && <div className="mt-5 rounded-xl bg-[var(--ff-warning-surface)] p-3 text-sm text-[var(--ff-danger)]"><strong>Meal needs attention.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}</ul></div>}
             <button type="button" className="primary mt-5 w-full" disabled={futureMenu || !computed.isValid || build.items.length === 0} onClick={saveMeal}><AnimatePresence initial={false} mode="wait"><motion.span key={futureMenu ? "future" : savedHistoryId ? "saved" : "save"} className="inline-flex items-center justify-center gap-2" initial={reduceMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -3 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>{savedHistoryId && !futureMenu && <motion.span initial={reduceMotion ? false : { scale: 0.7 }} animate={{ scale: 1 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 24, mass: 0.55 }} aria-hidden="true">✓</motion.span>}{futureMenu ? "Future menu · preview only" : savedHistoryId ? "Meal saved" : "Save this meal"}</motion.span></AnimatePresence></button>
             {savedHistoryId && <div className="mt-4 border-t border-[var(--ff-divider)] pt-4">{completionFraction !== undefined ? <div className="flex items-center justify-between gap-3 text-sm"><p><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div> : <button type="button" className="text-sm font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Finished eating? Add a quick check-in</button>}<AnimatePresence initial={false}>{showCompletionCheckIn && <motion.div className="surface-soft mt-3 overflow-hidden p-4" initial={reduceMotion ? false : { opacity: 0, y: -6, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} animate={{ opacity: 1, y: 0, height: "auto", marginTop: 12, paddingTop: 16, paddingBottom: 16 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}><p className="text-sm font-bold">How much did you finish?</p><div className="mt-2 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div><p className="mt-2 text-xs subtle"></p></motion.div>}</AnimatePresence></div>}

@@ -69,6 +69,12 @@
 .ff-v2-confirm-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .ff-v2-confirm-actions button { min-height: 44px; border: 1px solid var(--ff-border); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
 .ff-v2-confirm-actions button.is-selected { background: var(--ff-accent); color: white; }
+.ff-weekend-outlook-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: min(100%,1080px); margin-inline: auto; border: 1px solid var(--ff-divider); border-radius: var(--ff-radius-card); background: var(--ff-action-surface); padding: 18px 20px; }
+.ff-weekend-outlook-card h2 { margin-top: 3px; font-size: 17px; letter-spacing: -.025em; }
+.ff-weekend-outlook-card p:not(.ff-v2-eyebrow) { margin-top: 4px; color: var(--ff-text-secondary); font-size: 12px; }
+.ff-weekend-outlook-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.ff-weekend-outlook-actions a,.ff-weekend-outlook-actions button { min-height: 40px; display: inline-flex; align-items: center; padding: 8px 10px; color: var(--ff-accent-light); font-size: 12px; font-weight: 700; }
+.ff-weekend-outlook-actions button { color: var(--ff-text-secondary); }
 .ff-v2-section-title { padding-bottom: 8px; }
 .ff-v2-section-title h2 { font-size: 21px; }
 .ff-diary-section { border-top: 1px solid var(--ff-divider); }
@@ -123,5 +129,7 @@
   .ff-calorie-context strong { font-size: 18px; line-height: 1.2; }
   .ff-today-macros { padding-top: 12px; }
   .ff-today-macro-line strong { font-size: 20px; line-height: 1.2; }
+  .ff-weekend-outlook-card { align-items: flex-start; flex-direction: column; padding: 16px; }
+  .ff-weekend-outlook-actions { justify-content: flex-start; }
 }
 @media(min-width:1100px) { .ff-today-macro-track { margin-top: 6px; } }

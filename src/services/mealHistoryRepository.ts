@@ -58,7 +58,14 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
     (portion === undefined || PORTION_VALUES.includes(portion as MealPortionScale)) &&
     (feedback === undefined || feedback === "like" || feedback === "dislike") &&
     (mealSlot === undefined || MEAL_LOG_SLOTS.includes(mealSlot as (typeof MEAL_LOG_SLOTS)[number])) &&
-    (value.source === undefined || value.source === "recommended" || value.source === "self-built" || value.source === "manual-log");
+    (value.source === undefined || value.source === "recommended" || value.source === "self-built" || value.source === "manual-log" || value.source === "night-out") &&
+    (value.entryKind === undefined || value.entryKind === "food" || value.entryKind === "alcohol") &&
+    (value.ownerProfileId === undefined || typeof value.ownerProfileId === "string") &&
+    (value.sourceEventId === undefined || typeof value.sourceEventId === "string") &&
+    (value.sourceRecordId === undefined || typeof value.sourceRecordId === "string") &&
+    (value.timeAccuracy === undefined || value.timeAccuracy === "exact" || value.timeAccuracy === "date-only") &&
+    (value.standardDrinks === undefined || (typeof value.standardDrinks === "number" && Number.isFinite(value.standardDrinks) && value.standardDrinks >= 0)) &&
+    (value.campusBeverages === undefined || (Array.isArray(value.campusBeverages) && value.campusBeverages.every((beverage) => isRecord(beverage) && typeof beverage.id === "string" && typeof beverage.name === "string" && typeof beverage.quantity === "number" && beverage.quantity > 0 && validNutrition(beverage.nutrition))));
 };
 
 export interface MealHistoryRepository {
@@ -69,6 +76,8 @@ export interface MealHistoryRepository {
   upsert(entry: MealHistoryEntry): void;
   updateFeedback(id: string, completionFraction?: MealCompletionFraction, explicitFeedback?: MealExplicitFeedback): void;
   updateReflection(id: string, portionScale?: MealPortionScale, explicitFeedback?: MealExplicitFeedback): void;
+  remove(id: string): void;
+  removeBySourceEventId(sourceEventId: string, ownerProfileId: string): void;
   clear(): void;
 }
 
@@ -129,7 +138,7 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
       const next = [merged, ...current.filter((candidate) => candidate.id !== entry.id)]
         .sort((a, b) => mealTime(b) - mealTime(a));
       write(next);
-      if (merged.source !== "manual-log") recordChosenMealInteractions(storage, merged);
+      if (merged.source !== "manual-log" && merged.source !== "night-out") recordChosenMealInteractions(storage, merged);
     },
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");
@@ -158,6 +167,12 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
       } : entry);
       write(next);
     },
+    remove(id) {
+      write(read().filter((entry) => entry.id !== id));
+    },
+    removeBySourceEventId(sourceEventId, ownerProfileId) {
+      write(read().filter((entry) => !(entry.sourceEventId === sourceEventId && entry.ownerProfileId === ownerProfileId)));
+    },
     clear() {
       storage.removeItem(MEAL_HISTORY_STORAGE_KEY);
     },
@@ -179,7 +194,7 @@ export const browserMealHistoryRepository = (): MealHistoryRepository => {
   return {
     ...repository,
     upsert(entry) {
-      if (entry.mealSlot || entry.source === "manual-log") {
+      if (entry.mealSlot || entry.source === "manual-log" || entry.source === "night-out") {
         repository.upsert(entry);
         return;
       }

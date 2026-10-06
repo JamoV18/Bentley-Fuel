@@ -15,6 +15,12 @@ export default function DataPrivacyPage() {
       <div className="mt-6 grid gap-5 lg:grid-cols-12">
         <ProfileDataControls />
         <section className="surface p-5 sm:p-6 lg:col-span-4">
+          <p className="eyebrow">Sensitive context</p>
+          <h2 className="mt-1 text-xl font-bold">Going Out stays on this device</h2>
+          <p className="mt-3 text-sm leading-relaxed subtle">Plans and alcohol recaps are opt-in, profile-scoped records in this browser. They are not sent to Bentley, shared socially, used for advertising, or included in institutional reports. Disabling Going Out removes its recommendation influence immediately; deleting its history is a separate action in Profile.</p>
+          <p className="mt-3 text-xs leading-relaxed subtle">This prototype does not provide account-synced storage or server authorization. Browser-local storage should not be presented as permanent or multi-device protection.</p>
+        </section>
+        <section className="surface p-5 sm:p-6 lg:col-span-4">
           <p className="eyebrow">Behavior model</p>
           <h2 className="mt-1 text-xl font-bold">Shown is not eaten</h2>
           <p className="mt-3 text-sm leading-relaxed subtle">A recommendation appearing on screen is not treated as a food preference or consumption event. Saved/selected meals, later completion confirmation, and explicit like/dislike feedback are separate signals.</p>

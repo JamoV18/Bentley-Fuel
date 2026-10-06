@@ -22,12 +22,14 @@ import {
   generateMealCandidatesFromResources,
   portionGuidanceFor,
   removeMealItem,
+  revisedRecommendationForFeedback,
   resolveNutritionPlan,
   scoreResolvedMeals,
   setComponentSelections,
   suggestMealItemReplacements,
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
+import type { RecommendationFeedbackIntent } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
 import type { CustomizationStep, MealBuild, MealPeriod, NutritionPlanSnapshot, RecommendationContext } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
@@ -95,12 +97,13 @@ export default function MealBuilderClient({
   const [replacementPrompt, setReplacementPrompt] = useState<ReplacementPrompt>();
   const [whyOpen, setWhyOpen] = useState(false);
   const [chooseSuccess, setChooseSuccess] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string>();
+  const [feedbackMessage, setFeedbackMessage] = useState<string>();
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
   const activeRanking = rankings[recommendationIndex];
   const reasons = useMemo(() => reasonsFor(activeRanking, recommendationContext), [activeRanking, recommendationContext]);
-  const imageFor = (menuItemId: string | undefined) => resources.menuItems.find((item) => item.id === menuItemId)?.imageUrl;
   const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
   const backHref = `/locations/${build.locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
   const manualParams = new URLSearchParams({ mode: "manual" });
@@ -150,6 +153,8 @@ export default function MealBuilderClient({
       setRankings(ranked);
       setRecommendationIndex(0);
       setEdited(false);
+      setUpdateMessage(undefined);
+      setFeedbackMessage(undefined);
       if (ranked.length === 0) { setRecommendationState("no-candidates"); return; }
       setBuild(ranked[0].candidate.build);
       setRecommendationState("ready");
@@ -186,7 +191,7 @@ export default function MealBuilderClient({
     chooseTimerRef.current = window.setTimeout(() => router.push("/today"), 460);
   };
 
-  const selectRecommendation = (index: number) => {
+  const selectRecommendation = (index: number, explanation = "Updated because you chose another option.") => {
     const ranking = rankings[index];
     if (!ranking || index === recommendationIndex || chooseSuccess) return;
     setWhyOpen(false);
@@ -195,6 +200,22 @@ export default function MealBuilderClient({
     setCustomizing(false);
     setEdited(false);
     setReplacementPrompt(undefined);
+    setUpdateMessage(explanation);
+    setFeedbackMessage(undefined);
+  };
+
+  const respondToRecommendation = (intent: RecommendationFeedbackIntent) => {
+    const revised = revisedRecommendationForFeedback(rankings, recommendationIndex, intent);
+    if (!revised) {
+      setUpdateMessage(undefined);
+      setFeedbackMessage(intent === "lighter"
+        ? "This is already the lightest option among the strongest matches. You can adjust a serving below."
+        : intent === "more-protein"
+          ? "This is already the highest-protein option among the strongest matches. You can add or swap an item below."
+          : "There are no other eligible complete meals for this menu window.");
+      return;
+    }
+    selectRecommendation(revised.index, revised.explanation);
   };
 
   const removeWithSuggestions = (lineId: string) => {
@@ -221,12 +242,9 @@ export default function MealBuilderClient({
   };
 
   const personalized = recommendationState === "ready";
-  const heroName = computed.lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || "Complete meal";
+  const selectedMealName = computed.lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || "Complete meal";
   const locationLabel = resources.location?.shortName ?? resources.location?.name ?? "This location";
-  const stationNames = [...new Set(computed.lines.map((line) => line.station?.name).filter(Boolean))];
-  const rankLabel = edited ? "Adjusted by you" : recommendationIndex === 0 ? "Best match" : `Alternative #${recommendationIndex + 1}`;
-  const topRecommendations = rankings.slice(0, 4).map((ranking, index) => ({ ranking, index }));
-  const alternatives = topRecommendations.filter(({ index }) => index !== recommendationIndex).slice(0, 3);
+  const topRecommendations = rankings.slice(0, 3);
   const stationCount = new Set(orderReference.lines.map((line) => line.stationName)).size;
   const supportingFacts = [
     ...reasons,
@@ -234,11 +252,8 @@ export default function MealBuilderClient({
     orderReference.lines.length > 0 ? `${stationCount} station${stationCount === 1 ? "" : "s"} to collect the full meal.` : undefined,
   ].filter((reason): reason is string => Boolean(reason));
   const reasonCards = edited
-    ? ["You adjusted this meal. The nutrition totals below update with your changes.", supportingFacts.find((reason) => reason.includes("calories")), supportingFacts.find((reason) => reason.includes("station"))].filter((reason): reason is string => Boolean(reason)).slice(0, 3)
+    ? ["You adjusted this meal. The nutrition totals update with your changes.", supportingFacts.find((reason) => reason.includes("calories")), supportingFacts.find((reason) => reason.includes("station"))].filter((reason): reason is string => Boolean(reason)).slice(0, 3)
     : [...new Set(supportingFacts)].slice(0, 3);
-  const primaryReason = edited
-    ? "This is now your version of the recommendation. Falcon Fuel keeps the totals current while you fine-tune it."
-    : reasons[0] ?? `Built from the ${readable(mealPeriod).toLowerCase()} menu at ${locationLabel}.`;
 
   return (
     <main className="ff-rec-shell">
@@ -247,11 +262,11 @@ export default function MealBuilderClient({
       <header className="ff-rec-header">
         <div>
           <p className="ff-rec-kicker">{locationLabel} · {readable(mealPeriod)}</p>
-          <h1>{personalized ? "Here’s what I’d get." : recommendationState === "loading" ? "Finding your best meal." : "Build a complete meal."}</h1>
-          {personalized && <p>One complete choice first. The math, ordering details, and alternatives stay close when you want them.</p>}
+          <h1>{personalized ? "Your top meals." : recommendationState === "loading" ? "Finding meals…" : "Build a complete meal."}</h1>
+
           {recommendationState === "missing-profile" && <p>Complete your profile to turn the example meal into a recommendation based on your goals and dietary needs.</p>}
         </div>
-        <Link href={manualHref} className="ff-rec-manual-link">Build my own</Link>
+
       </header>
 
       {isDemo && <p className="ff-rec-note is-warning">Demo menu data · not current official Bentley Dining information.</p>}
@@ -260,44 +275,96 @@ export default function MealBuilderClient({
       {recommendationState === "loading" ? (
         <motion.section className="ff-rec-loading" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
           <p className="ff-rec-eyebrow">Ranking the menu</p>
-          <strong>Checking what fits the rest of your day.</strong>
-          <p>Falcon Fuel is applying your dietary constraints, current nutrition, meal structure, preferences, and recent variety.</p>
+          <strong>Checking the menu…</strong>
+          <p>Matching your goals and dietary restrictions.</p>
         </motion.section>
       ) : recommendationState === "no-candidates" ? (
         <section className="ff-rec-empty">
           <p className="ff-rec-eyebrow">No complete match</p>
-          <h2>Nothing eligible ranked cleanly for this window.</h2>
-          <p>Falcon Fuel will not force a recommendation when the available menu does not produce an eligible complete meal.</p>
+          <h2>No matching meals available.</h2>
+          <p>Try another meal period or build from the menu.</p>
           <Link href={manualHref} className="ff-rec-manual-link" style={{ display: "inline-flex", marginTop: "1rem" }}>Build from the menu</Link>
         </section>
       ) : build.items.length > 0 ? (
         <>
+          {personalized && (
+            <section className="ff-rec-top-three" aria-label="Top meal recommendations">
+              <ol className="ff-rec-ranked-list">
+                {topRecommendations.map((ranking, index) => {
+                  const lines = ranking.computed.lines;
+                  const name = getMealOrderReference(ranking.computed, resources.components).lines.map((line) => {
+                    const ingredients = line.components.map((component) => `${component.name}${component.quantity > 1 ? ` ×${component.quantity}` : ""}`).join(", ");
+                    return `${line.itemName}${line.quantity > 1 ? ` ×${line.quantity}` : ""}${ingredients ? ` (${ingredients})` : ""}`;
+                  }).join(" + ");
+                  const nutrition = ranking.computed.nutrition;
+                  const stations = [...new Set(lines.map((line) => line.station?.name).filter(Boolean))].join(" · ");
+                  const reason = reasonsFor(ranking, recommendationContext)[0];
+                  const selected = index === recommendationIndex;
+                  return (
+                    <li key={index}>
+                      <button
+                        type="button"
+                        className={`ff-rec-ranked-card${index === 0 ? " is-best" : ""}`}
+                        onClick={() => selectRecommendation(index)}
+                        aria-pressed={selected}
+                        aria-controls="selected-meal-details"
+                        disabled={chooseSuccess}
+                      >
+                        <span className="ff-rec-ranked-heading">
+                          <span className="ff-rec-ranked-number">#{index + 1}</span>
+                          {index === 0 && <span className="ff-rec-best-label">Best match</span>}
+                        </span>
+                        <span className="ff-rec-ranked-name">{name}</span>
+                        {nutrition && (
+                          <span className="ff-rec-ranked-nutrition">
+                            <span className="ff-rec-ranked-primary-macros">
+                              <span><strong>{Math.round(nutrition.calories)}</strong> cal</span>
+                              <span><strong>{compactMacro(nutrition.protein)}g</strong> protein</span>
+                            </span>
+                            <span className="ff-rec-ranked-secondary-macros">{compactMacro(nutrition.carbs)}g carbs · {compactMacro(nutrition.fat)}g fat</span>
+                          </span>
+                        )}
+                        {stations && <span className="ff-rec-ranked-stations">{stations}</span>}
+                        {reason && <span className="ff-rec-ranked-reason">{reason}</span>}
+                        <span className="ff-rec-ranked-status">{selected ? edited ? "Selected · adjusted below" : "✓ Selected" : "Select meal"}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          )}
+
           <AnimatePresence initial={false} mode="wait">
             <motion.section
-              key={`recommendation-${recommendationIndex}-${edited ? "edited" : "ranked"}`}
-              className="ff-rec-hero"
+              className="ff-rec-selected"
+              id="selected-meal-details"
               aria-labelledby="candidate-heading"
               initial={reduceMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -5 }}
               transition={reduceMotion ? { duration: 0 } : { duration: .25, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className="ff-rec-photo">
-                <MealImage name={heroName} imageUrl={imageFor(computed.lines[0]?.selection.menuItemId)} aspect="hero" />
-                <div className="ff-rec-photo-shade" />
-                <span className="ff-rec-photo-badge">{rankLabel}</span>
-                <p className="ff-rec-photo-caption">{locationLabel}{stationNames.length > 0 ? ` · ${stationNames.join(" + ")}` : ""}</p>
-              </div>
-
-              <div className="ff-rec-hero-copy">
+              <div className="ff-rec-selected-copy">
                 <div className="ff-rec-rankline">
-                  <p className="ff-rec-eyebrow">{edited ? "Your adjusted meal" : personalized ? "Recommended complete meal" : "Example complete meal"}</p>
-                  {personalized && !edited && <span>#{recommendationIndex + 1} of {Math.min(rankings.length, 4)}</span>}
+                  <p className="ff-rec-eyebrow">{edited ? "Your adjusted meal" : personalized ? "Selected meal" : "Example complete meal"}</p>
+                  {personalized && <span>Rank #{recommendationIndex + 1}</span>}
                 </div>
-                <h2 id="candidate-heading" className="ff-rec-meal-title">{heroName}</h2>
-                <p className="ff-rec-reason">{primaryReason}</p>
+                <h2 id="candidate-heading" className="ff-rec-selected-title">{selectedMealName}</h2>
 
-                {computed.nutrition && (
+                {updateMessage && (
+                  <motion.p
+                    className="ff-rec-update"
+                    role="status"
+                    aria-live="polite"
+                    initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <span aria-hidden="true">✓</span>{updateMessage}
+                  </motion.p>
+                )}
+
+{computed.nutrition && (edited || !personalized) && (
                   <dl className="ff-rec-macros">
                     {[["Calories", Math.round(computed.nutrition.calories), "cal"], ["Protein", compactMacro(computed.nutrition.protein), "g"], ["Carbs", compactMacro(computed.nutrition.carbs), "g"], ["Fat", compactMacro(computed.nutrition.fat), "g"]].map(([label, value, unit]) => (
                       <div className="ff-rec-macro" key={label}>
@@ -307,19 +374,6 @@ export default function MealBuilderClient({
                     ))}
                   </dl>
                 )}
-
-                <ul className="ff-rec-components" aria-label="Meal components">
-                  {computed.lines.map((line) => (
-                    <li className="ff-rec-component" key={line.selection.id}>
-                      <MealImage name={line.item?.name ?? line.selection.menuItemId} imageUrl={line.item?.imageUrl} />
-                      <div>
-                        <strong>{line.item?.name ?? line.selection.menuItemId}</strong>
-                        <p>{line.station?.name ?? "Station unavailable"} · {portionSummary(line.item, line.selection)}</p>
-                      </div>
-                      <span>×{line.selection.quantity}</span>
-                    </li>
-                  ))}
-                </ul>
 
                 <div className="ff-rec-actions">
                   <motion.button
@@ -338,26 +392,30 @@ export default function MealBuilderClient({
                     <Link href={manualHref}>Build something different</Link>
                   </div>
                 </div>
+
+                {personalized && !edited && (
+                  <div className="ff-rec-feedback" aria-labelledby="recommendation-feedback-heading">
+                    <p id="recommendation-feedback-heading">What should change?</p>
+                    <div>
+                      <button type="button" onClick={() => respondToRecommendation("lighter")}>Something lighter</button>
+                      <button type="button" onClick={() => respondToRecommendation("more-protein")}>More protein</button>
+                      <button type="button" onClick={() => respondToRecommendation("different")}>Show another</button>
+                    </div>
+                    {feedbackMessage && <p className="ff-rec-feedback-note" role="status" aria-live="polite">{feedbackMessage}</p>}
+                  </div>
+                )}
               </div>
             </motion.section>
           </AnimatePresence>
 
-          <section className="ff-rec-section" aria-labelledby="why-heading">
+          {personalized && !edited && <section className="ff-rec-section" aria-labelledby="why-heading">
             <div className="ff-rec-section-heading">
-              <div><p className="ff-rec-eyebrow">Decision context</p><h2 id="why-heading">Why this works</h2></div>
-            </div>
-            <div className="ff-rec-reasons">
-              {reasonCards.map((reason, index) => (
-                <article className="ff-rec-reason-item" key={reason}>
-                  <span className="ff-rec-reason-number">{index + 1}</span>
-                  <p>{reason}</p>
-                </article>
-              ))}
+              <div><h2 id="why-heading">Why this works</h2></div>
             </div>
             {personalized && activeRanking && recommendationContext && !edited && (
               <div className="ff-rec-details">
                 <button type="button" onClick={() => setWhyOpen((value) => !value)} aria-expanded={whyOpen}>
-                  <span>{whyOpen ? "Hide the full breakdown" : "See the full ranking breakdown"}</span>
+                  <span>{whyOpen ? "Hide breakdown" : "Ranking breakdown"}</span>
                   <motion.span animate={{ rotate: whyOpen ? 180 : 0 }} transition={reduceMotion ? { duration: 0 } : { duration: .2 }} aria-hidden="true">⌄</motion.span>
                 </button>
                 <AnimatePresence initial={false}>
@@ -369,13 +427,21 @@ export default function MealBuilderClient({
                       exit={reduceMotion ? { opacity: 1 } : { opacity: 0, height: 0, y: -3 }}
                       transition={reduceMotion ? { duration: 0 } : { duration: .24, ease: [0.22, 1, 0.36, 1] }}
                     >
+            <div className="ff-rec-reasons">
+              {reasonCards.map((reason, index) => (
+                <article className="ff-rec-reason-item" key={reason}>
+                  <span className="ff-rec-reason-number">{index + 1}</span>
+                  <p>{reason}</p>
+                </article>
+              ))}
+            </div>
                       <RecommendationWhyPanel ranked={activeRanking} context={recommendationContext} plan={recommendationPlan} resources={resources} summaryReasons={[]} />
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             )}
-          </section>
+          </section>}
 
           {orderReference.lines.length > 0 && (
             <section className="ff-rec-section" aria-labelledby="order-heading">
@@ -398,41 +464,6 @@ export default function MealBuilderClient({
             </section>
           )}
 
-          {personalized && alternatives.length > 0 && !edited && (
-            <section className="ff-rec-section" aria-labelledby="alternatives-heading">
-              <div className="ff-rec-section-heading">
-                <div><p className="ff-rec-eyebrow">Only if you want another option</p><h2 id="alternatives-heading">Alternatives</h2></div>
-              </div>
-              <div className="ff-rec-alt-grid">
-                {alternatives.map(({ ranking, index }) => {
-                  const lines = ranking.computed.lines;
-                  const name = lines.map((line) => line.item?.name).filter(Boolean).join(" + ") || `Meal option ${index + 1}`;
-                  const nutrition = ranking.computed.nutrition;
-                  const stations = [...new Set(lines.map((line) => line.station?.name).filter(Boolean))].join(" · ");
-                  return (
-                    <motion.button
-                      key={`${ranking.candidate.build.locationId}-${index}-${lines.map((line) => line.selection.menuItemId).join("-")}`}
-                      type="button"
-                      className="ff-rec-alt"
-                      onClick={() => selectRecommendation(index)}
-                      whileTap={reduceMotion ? undefined : { scale: .99 }}
-                    >
-                      <div>
-                        <MealImage name={name} imageUrl={imageFor(lines[0]?.selection.menuItemId)} aspect="wide" />
-                        <span className="ff-rec-alt-rank">#{index + 1}</span>
-                      </div>
-                      <div className="ff-rec-alt-copy">
-                        <h3>{name}</h3>
-                        {stations && <p>{stations}</p>}
-                        {nutrition && <div className="ff-rec-alt-macros"><span>{Math.round(nutrition.calories)} cal</span><span>{compactMacro(nutrition.protein)}g protein</span></div>}
-                      </div>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
           <AnimatePresence initial={false}>
             {customizing && (
               <motion.section
@@ -444,7 +475,7 @@ export default function MealBuilderClient({
                 aria-labelledby="customize-heading"
               >
                 <div className="ff-rec-customize-head">
-                  <div><p className="ff-rec-eyebrow">Fine tune</p><h2 id="customize-heading">Make it yours</h2><p>Change servings or ingredients, remove something, or add another eligible food. Your totals update immediately.</p></div>
+                  <div><p className="ff-rec-eyebrow">Fine tune</p><h2 id="customize-heading">Make it yours</h2><p>Adjust servings, ingredients, or foods.</p></div>
                   <button type="button" className="ff-rec-close" onClick={() => setCustomizing(false)}>Done</button>
                 </div>
 
@@ -453,7 +484,7 @@ export default function MealBuilderClient({
                     <article className="ff-rec-edit-card" key={line.selection.id}>
                       <div className="ff-rec-edit-top">
                         <MealImage name={line.item?.name ?? line.selection.menuItemId} imageUrl={line.item?.imageUrl} />
-                        <div><h3>{line.item?.name ?? line.selection.menuItemId}</h3><p>{line.station?.name}{line.nutrition && ` · ${macroSummary(line.nutrition)}`}</p></div>
+                        <div><h3>{line.item?.name ?? line.selection.menuItemId}</h3><p>{line.station?.name} · {portionSummary(line.item, line.selection)}{line.nutrition && ` · ${macroSummary(line.nutrition)}`}</p></div>
                         <button type="button" className="ff-rec-remove" onClick={() => removeWithSuggestions(line.selection.id)}>Remove</button>
                       </div>
                       <div className="ff-rec-qty">

@@ -23,7 +23,7 @@ export default function WeeklyFocusPanel({ focus }: { focus: WeeklyFocus }) {
         <p className="max-w-3xl text-xs leading-relaxed subtle">Why this focus: {focus.evidence}</p>
         <Link href={focus.href} className="primary shrink-0 text-center text-sm">{focus.actionLabel}</Link>
       </div>
-      <p className="mt-3 text-xs leading-relaxed subtle">Falcon Fuel chooses one priority at a time. Other trends remain available below when you want the detail.</p>
+
     </section>
   );
 }

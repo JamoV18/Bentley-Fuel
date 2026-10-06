@@ -4,6 +4,7 @@ import "./history-v2.css";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import PageHeader from "@/components/PageHeader";
 import AppNav from "@/components/AppNav";
 import DeepNutritionPatternsPanel from "@/components/DeepNutritionPatternsPanel";
 import HistoryConsistencyHeatmap from "@/components/HistoryConsistencyHeatmap";
@@ -36,27 +37,27 @@ const imageFor = (entry: MealHistoryEntry, urls: Record<string, string | undefin
 function storyFor(report: ReturnType<typeof buildLatestCompletedWeeklyNutritionReport>, locations: Record<string, string>) {
   if (report.status === "empty") return {
     title: "Still learning your routine.",
-    copy: "Once a few meals are confirmed, Falcon Fuel will turn them into a useful weekly story instead of guessing from missing data.",
+    copy: "Confirm meals to see weekly patterns.",
   };
   if (report.status === "partial") return {
-    title: "An early read is forming.",
-    copy: `There ${report.fullyConfirmedDays === 1 ? "is" : "are"} ${report.fullyConfirmedDays} complete day${report.fullyConfirmedDays === 1 ? "" : "s"} from last week. That is enough for context, not a strong trend yet.`,
+    title: "Limited data last week.",
+    copy: `There ${report.fullyConfirmedDays === 1 ? "is" : "are"} ${report.fullyConfirmedDays} complete day${report.fullyConfirmedDays === 1 ? "" : "s"} from last week. Too few for a reliable trend.`,
   };
   const alignment = report.targetAlignment;
   const comparison = report.comparison;
   if (comparison && comparison.proteinPercent >= 5) return {
     title: "Protein is moving up.",
-    copy: `Across ${comparison.matchedDays} comparable days, recorded protein was ${Math.round(comparison.proteinPercent)}% higher than the week before. That is a real change in matched data, not a partial-week comparison.`,
+    copy: `Across ${comparison.matchedDays} comparable days, recorded protein was ${Math.round(comparison.proteinPercent)}% higher than the week before.`,
   };
   if (alignment && alignment.calorieRangeDays >= Math.max(2, Math.ceil(alignment.fullyConfirmedDays / 2))) return {
     title: "You’re getting more consistent.",
-    copy: `${alignment.calorieRangeDays} of ${alignment.fullyConfirmedDays} complete days landed near your calorie plan. The useful signal is consistency across recorded days, not perfection on one day.`,
+    copy: `${alignment.calorieRangeDays} of ${alignment.fullyConfirmedDays} complete days landed near your calorie plan.`,
   };
   if (report.dining) return {
-    title: `${locations[report.dining.topLocationId] ?? "One dining spot"} is clearly part of your routine.`,
-    copy: `${Math.round(report.dining.shareOfConfirmedMeals)}% of last week’s confirmed meals came from there. Falcon Fuel can use that behavior to keep recommendations realistic.`,
+    title: `${locations[report.dining.topLocationId] ?? "One dining spot"} is your most-used location.`,
+    copy: `${Math.round(report.dining.shareOfConfirmedMeals)}% of last week’s confirmed meals came from there.`,
   };
-  return { title: "Last week is starting to tell a story.", copy: "The useful patterns are the ones that repeat. Falcon Fuel will keep the summary conservative until enough complete days agree." };
+  return { title: "No clear trend yet.", copy: "More complete days are needed." };
 }
 
 function confidenceText(report: ReturnType<typeof buildLatestCompletedWeeklyNutritionReport>) {
@@ -105,7 +106,7 @@ export default function HistoryV2Client({ locationNames, stationNames, itemNames
   const dining = report.dining ? `${Math.round(report.dining.shareOfConfirmedMeals)}%` : "—";
 
   return <main className="ff-history-v2">
-    <header><p className="kicker">Falcon Fuel</p><h1>History</h1><p style={{color:"var(--muted)",maxWidth:"42rem"}}>Patterns, not judgment. The story leads; the charts are there when you want the evidence.</p></header>
+    <PageHeader title="History" />
     <AppNav />
 
     <motion.section className="ff-history-story" initial={reduceMotion ? false : {opacity:0,y:8}} animate={{opacity:1,y:0}} transition={reduceMotion ? {duration:0}:{duration:.35,ease:[.22,1,.36,1]}}>
@@ -118,18 +119,18 @@ export default function HistoryV2Client({ locationNames, stationNames, itemNames
     </motion.section>
 
     <WeeklyFocusPanel focus={focus} />
-    <WeeklyNutritionReportPanel report={report} locationNames={locationNames} />
+    <details className="ff-disclosure"><summary>Weekly report</summary><WeeklyNutritionReportPanel report={report} locationNames={locationNames} /></details>
 
-    <section className="ff-history-section">
-      <div className="ff-history-section-head"><div><p className="eyebrow">Evidence</p><h2>See the numbers behind the story</h2></div><div className="ff-history-range">{(["week","month"] as Range[]).map((value)=><button key={value} className={range===value?"is-active":undefined} onClick={()=>setRange(value)}>{value === "week" ? "This week" : "This month"}</button>)}</div></div>
+    <details className="ff-disclosure"><summary>Nutrition averages & consistency</summary>
+      <div className="ff-history-section-head"><div><p className="eyebrow">Evidence</p><h2>Nutrition averages</h2></div><div className="ff-history-range">{(["week","month"] as Range[]).map((value)=><button type="button" aria-pressed={range === value} key={value} className={range===value?"is-active":undefined} onClick={()=>setRange(value)}>{value === "week" ? "This week" : "This month"}</button>)}</div></div>
       <div className="ff-history-grid">
-        <div className="ff-history-panel"><div className="ff-history-kpis"><div className="ff-history-kpi"><span>Avg recorded calories</span><strong>{Math.round(period.averageConfirmedConsumption.calories)}</strong></div><div className="ff-history-kpi"><span>Avg recorded protein</span><strong>{Math.round(period.averageConfirmedConsumption.protein)}g</strong></div><div className="ff-history-kpi"><span>Complete days</span><strong>{period.daysWithAllSavedMealsConfirmed}</strong></div></div><p>Only confirmed consumption contributes. Missing logs never become zero-calorie days.</p></div>
+        <div className="ff-history-panel"><div className="ff-history-kpis"><div className="ff-history-kpi"><span>Avg recorded calories</span><strong>{Math.round(period.averageConfirmedConsumption.calories)}</strong></div><div className="ff-history-kpi"><span>Avg recorded protein</span><strong>{Math.round(period.averageConfirmedConsumption.protein)}g</strong></div><div className="ff-history-kpi"><span>Complete days</span><strong>{period.daysWithAllSavedMealsConfirmed}</strong></div></div><p>Confirmed meals only. Missing logs are not counted as zero.</p></div>
         <HistoryConsistencyHeatmap history={history} anchor={anchor} />
       </div>
-    </section>
+    </details>
 
-    <section className="ff-history-section"><div className="ff-history-section-head"><div><p className="eyebrow">Longer view</p><h2>Deeper analysis stays optional</h2></div><button className="ff-history-detail-button" onClick={()=>setDeep((v)=>!v)}>{deep ? "Hide deeper analysis" : "Explore deeper analysis →"}</button></div>{deep && insights && patterns && <motion.div initial={reduceMotion?false:{opacity:0,y:5}} animate={{opacity:1,y:0}}><NutritionOutlookPanel outlook={outlook}/><HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem}/><DeepNutritionPatternsPanel analysis={patterns} locationNames={locationNames} stationNames={stationNames}/></motion.div>}</section>
+    <section className="ff-history-section"><div className="ff-history-section-head"><div><p className="eyebrow">Longer view</p><h2>Long-term trends</h2></div><button type="button" aria-expanded={deep} className="ff-history-detail-button" onClick={()=>setDeep((v)=>!v)}>{deep ? "Hide trends" : "Show trends"}</button></div>{deep && insights && patterns && <motion.div initial={reduceMotion?false:{opacity:0,y:5}} animate={{opacity:1,y:0}}><NutritionOutlookPanel outlook={outlook}/><HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem}/><DeepNutritionPatternsPanel analysis={patterns} locationNames={locationNames} stationNames={stationNames}/></motion.div>}</section>
 
-    <section className="ff-history-section"><div className="ff-history-section-head"><div><p className="eyebrow">Timeline</p><h2>Recent meals</h2></div><Link href="/today" className="ff-history-detail-button">Today →</Link></div>{recent.length===0?<div className="ff-history-empty">Eat your first meal with Falcon Fuel and it’ll show up here.</div>:<div className="ff-history-meals">{recent.map((entry)=><article className="ff-history-meal" key={entry.id}><MealImage name={nameFor(entry,itemNames)} imageUrl={imageFor(entry,itemImageUrls)}/><div><h3>{nameFor(entry,itemNames)}</h3><p>{locationNames[entry.locationId] ?? entry.locationId} · {mealTime(entry).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</p></div><span>{entry.completionFraction === undefined ? "Pending" : entry.explicitFeedback === "like" ? "Loved" : entry.explicitFeedback === "dislike" ? "Skip" : `${Math.round(entry.completionFraction*100)}%`}</span></article>)}</div>}</section>
+    <section className="ff-history-section"><div className="ff-history-section-head"><div><p className="eyebrow">Timeline</p><h2>Recent meals</h2></div></div>{recent.length===0?<div className="ff-history-empty">No meals logged yet.</div>:<div className="ff-history-meals">{recent.map((entry)=><article className="ff-history-meal" key={entry.id}><MealImage name={nameFor(entry,itemNames)} imageUrl={imageFor(entry,itemImageUrls)}/><div><h3>{nameFor(entry,itemNames)}</h3><p>{locationNames[entry.locationId] ?? entry.locationId} · {mealTime(entry).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</p></div><span>{entry.completionFraction === undefined ? "Pending" : entry.explicitFeedback === "like" ? "Loved" : entry.explicitFeedback === "dislike" ? "Skip" : `${Math.round(entry.completionFraction*100)}%`}</span></article>)}</div>}</section>
   </main>;
 }

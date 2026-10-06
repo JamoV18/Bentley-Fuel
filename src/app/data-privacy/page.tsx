@@ -1,3 +1,4 @@
+import PageHeader from "@/components/PageHeader";
 import Link from "next/link";
 import AppNav from "@/components/AppNav";
 import ProfileDataControls from "@/components/ProfileDataControls";
@@ -8,11 +9,8 @@ export default function DataPrivacyPage() {
       <div className="flex items-center justify-between gap-3">
         <Link href="/profile" className="text-sm font-bold text-emerald-800 transition hover:text-emerald-950">← Profile</Link>
       </div>
-      <header className="mt-8">
-        <p className="brand-kicker">Falcon Fuel</p>
-        <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Data & privacy</h1>
-        <p className="mt-2 max-w-3xl subtle">See what this prototype stores, export or restore your data, or reset it.</p>
-      </header>
+      <PageHeader title="Data & privacy" description="Export, restore, or delete your data." />
+
       <AppNav />
       <div className="mt-6 grid gap-5 lg:grid-cols-12">
         <ProfileDataControls />

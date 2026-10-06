@@ -3,7 +3,7 @@ import test from "node:test";
 import { canPublish921Snapshot } from "@/services/admin921SyncEnvironment";
 import { MemoryDiningSnapshotRepository } from "@/services/diningSnapshotRepository";
 import { publish921BrowserCapture } from "@/services/manual921Sync";
-import { create921SyncPost } from "./route";
+import { create921SyncPost } from "@/services/admin921SyncRoute";
 
 function capture() {
   return {

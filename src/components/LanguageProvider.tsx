@@ -1,9 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { translateDiningText } from "@/lib/diningTranslations";
 import { translateFrenchText } from "@/lib/frenchTranslations";
 import { translateProfileText } from "@/lib/profileTranslations";
@@ -128,74 +126,23 @@ function translateTree(root: Node, language: SupportedLanguage) {
   }
 }
 
-function OnboardingLanguageChooser({ value, onChange, t }: { value: SupportedLanguage; onChange(language: SupportedLanguage): void; t(source: string): string }) {
-  const reduceMotion = useReducedMotion();
-  const selected = SUPPORTED_LANGUAGE_OPTIONS.find((option) => option.code === value) ?? SUPPORTED_LANGUAGE_OPTIONS[0];
-
-  return (
-    <section data-i18n-skip className="mt-5 overflow-hidden rounded-2xl border border-emerald-900/[.08] bg-white/75 p-4 shadow-sm backdrop-blur sm:p-5" aria-label="Language">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="eyebrow">{t("Language")}</p>
-          <div className="mt-1 flex min-h-9 items-center gap-3">
-            <h2 className="text-lg font-bold text-emerald-950">{t("Choose your language")}</h2>
-            <span className="relative inline-flex min-w-16 overflow-hidden rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-800">
-              <AnimatePresence initial={false} mode="popLayout">
-                <motion.span
-                  key={selected.code}
-                  initial={reduceMotion ? false : { opacity: 0, y: 7 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -6 }}
-                  transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  {selected.greeting}
-                </motion.span>
-              </AnimatePresence>
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap justify-end rounded-2xl bg-black/[.04] p-1" role="group" aria-label="Language options">
-          {SUPPORTED_LANGUAGE_OPTIONS.map((option) => {
-            const active = option.code === value;
-            return (
-              <button
-                key={option.code}
-                type="button"
-                onClick={() => onChange(option.code)}
-                aria-pressed={active}
-                className={`relative isolate rounded-xl px-3 py-2 text-sm font-bold transition-colors ${active ? "text-emerald-950" : "text-black/50 hover:text-emerald-900"}`}
-              >
-                {active && <motion.span layoutId="onboarding-language-pill" className="absolute inset-0 -z-10 rounded-xl bg-white shadow-sm" transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 430, damping: 34, mass: 0.55 }} />}
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <p className="mt-3 max-w-3xl text-xs leading-relaxed text-black/50">{t("You can change this during onboarding. Bentley dining and location names stay unchanged.")}</p>
-    </section>
-  );
+export function LanguageChooser() {
+  const { language, setLanguage, t } = useLanguage();
+  return <label data-i18n-skip className="ff-language-choice">{t("Language")}
+    <select value={language} onChange={(event) => setLanguage(event.target.value as SupportedLanguage)}>
+      {SUPPORTED_LANGUAGE_OPTIONS.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}
+    </select>
+  </label>;
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [language, setLanguageState] = useState<SupportedLanguage>("en");
-  const [onboardingHeader, setOnboardingHeader] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
     if (stored === "fr" || isAppLanguage(stored)) queueMicrotask(() => setLanguageState(stored));
   }, []);
-
-  useEffect(() => {
-    if (pathname !== "/onboarding") {
-      queueMicrotask(() => setOnboardingHeader(null));
-      return;
-    }
-    const findHeader = () => setOnboardingHeader(document.querySelector<HTMLElement>("main > header"));
-    const frame = requestAnimationFrame(findHeader);
-    return () => cancelAnimationFrame(frame);
-  }, [pathname]);
 
   const setLanguage = (next: SupportedLanguage) => {
     setLanguageState(next);
@@ -252,10 +199,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   return (
     <LanguageContext.Provider value={value}>
       {children}
-      {pathname === "/onboarding" && onboardingHeader && createPortal(
-        <OnboardingLanguageChooser value={language} onChange={setLanguage} t={value.t} />,
-        onboardingHeader,
-      )}
     </LanguageContext.Provider>
   );
 }

@@ -13,6 +13,7 @@ export * from "./recommendationPreferenceLearning";
 export * from "./recommendationInteractions";
 export * from "./recommendationReplacements";
 export * from "./recommendationExplanation";
+export * from "./recommendationFeedback";
 export * from "./breakfastRoutine";
 export * from "./progressiveProfile";
 export * from "./progressivePreferenceScoring";

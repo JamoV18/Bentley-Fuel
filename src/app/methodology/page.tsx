@@ -1,4 +1,3 @@
-import Link from "next/link";
 import FlowHeader from "@/components/FlowHeader";
 import { MEAL_PERIOD_TARGET_SHARE, NATIONAL_ACADEMIES_ENERGY_REPORT_URL, WEIGHT_LOSS_INTENSITY_REDUCTION } from "@/services";
 
@@ -10,7 +9,7 @@ export default function MethodologyPage() {
       <FlowHeader backHref="/today" backLabel="Today" />
       <header className="mt-8 max-w-3xl">
         <p className="brand-kicker">Falcon Fuel methodology</p>
-        <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">How a recommendation is produced</h1>
+        <h1 className="mt-4 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">How recommendations work</h1>
         <p className="mt-4 text-base leading-relaxed subtle">Falcon Fuel separates published nutrition, scientific energy estimation, product planning rules, and personalization so the app does not present its own heuristics as outside scientific recommendations.</p>
       </header>
 
@@ -64,8 +63,7 @@ export default function MethodologyPage() {
         </section>
       </div>
 
-      <p className="mt-8 text-sm subtle">Want to inspect a specific meal? Open a personalized recommendation and tap <strong>Why this meal?</strong> to see the numbers used for that recommendation.</p>
-      <Link href="/today" className="secondary mt-5 inline-flex">Back to Today</Link>
+      <p className="mt-8 text-sm subtle">Want to inspect a specific meal? Open a personalized recommendation and tap <strong>Ranking breakdown</strong> to see the numbers used for that recommendation.</p>
     </main>
   );
 }

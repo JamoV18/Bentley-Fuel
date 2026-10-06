@@ -90,7 +90,7 @@ export default function PlanEditControl({
   return (
     <section className="mt-5" aria-label="Plan editing">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm subtle">Plan settings stay locked until you choose to edit them.</p>
+
         {!editing && <button type="button" className="secondary px-4 py-2.5" onClick={beginEditing}>Edit plan</button>}
       </div>
 
@@ -105,11 +105,11 @@ export default function PlanEditControl({
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="eyebrow">Edit plan</p>
-                <h2 className="mt-1 text-xl font-bold">Adjust your trajectory</h2>
-                <p className="mt-1 max-w-2xl text-sm subtle">These changes update the plan used by Today and future meal recommendations.</p>
+
+                <h2 className="mt-1 text-xl font-bold">Edit plan</h2>
+                <p className="mt-1 max-w-2xl text-sm subtle">Applies to future recommendations.</p>
               </div>
-              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">Editing</span>
+
             </div>
 
             <motion.div
@@ -151,7 +151,7 @@ export default function PlanEditControl({
               ) : (
                 <div className="rounded-2xl bg-black/[.025] p-4 text-sm">
                   <p className="font-bold">Current goal: {profile.primaryGoal.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ")}</p>
-                  <p className="mt-1 subtle">Intensity only applies when weight loss is one of your selected goals. Broader goal and body changes stay in Profile.</p>
+                  <p className="mt-1 subtle">Intensity applies to weight-loss goals.</p>
                 </div>
               )}
             </motion.div>

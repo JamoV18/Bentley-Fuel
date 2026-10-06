@@ -65,6 +65,8 @@ export function recordDiningTransportResult(result: DineOnCampusTransportResult)
     menuDate,
     kind: result.context.kind,
     apiVersion: result.context.apiVersion,
+    periodName: result.context.periodName,
+    periodId: result.context.periodId,
     ok: result.ok,
     status: lastAttempt?.status,
     failureReason: result.ok ? undefined : result.failureReason,
@@ -81,6 +83,20 @@ export function recordDiningIngestion(update: IngestionUpdate): void {
   const previous = registry().get(key) ?? { key, outletKey: update.outletKey, menuDate: update.menuDate };
   const next = { ...previous, ...update, key, outletKey: update.outletKey, menuDate: update.menuDate };
   registry().set(key, next);
+
+  console.info(JSON.stringify({
+    event: "dining-ingestion",
+    outletKey: update.outletKey,
+    menuDate: update.menuDate,
+    outletName: update.outletName,
+    discoveryMode: update.discoveryMode,
+    periodCount: update.periodCount,
+    stationCount: update.stationCount,
+    itemCount: update.itemCount,
+    nutritionItemCount: update.nutritionItemCount,
+    servingSnapshot: update.servingSnapshot,
+    latestFailureReason: update.latestFailureReason,
+  }));
 }
 
 export function markDiningLiveVerification(outletKey: string, menuDate: string, timestamp = new Date().toISOString()): void {

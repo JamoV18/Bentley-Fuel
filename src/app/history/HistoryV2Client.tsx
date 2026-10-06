@@ -109,6 +109,14 @@ export default function HistoryV2Client({ locationNames, stationNames, itemNames
     <PageHeader title="History" />
     <AppNav />
 
+    <section className="ff-history-overview" aria-label="Nutrition averages and consistency">
+      <div className="ff-history-section-head"><div><p className="eyebrow">Evidence</p><h2>Nutrition averages</h2></div><div className="ff-history-range">{(["week","month"] as Range[]).map((value)=><button type="button" aria-pressed={range === value} key={value} className={range===value?"is-active":undefined} onClick={()=>setRange(value)}>{value === "week" ? "This week" : "This month"}</button>)}</div></div>
+      <div className="ff-history-grid">
+        <div className="ff-history-panel"><div className="ff-history-kpis"><div className="ff-history-kpi"><span>Avg recorded calories</span><strong>{Math.round(period.averageConfirmedConsumption.calories)}</strong></div><div className="ff-history-kpi"><span>Avg recorded protein</span><strong>{Math.round(period.averageConfirmedConsumption.protein)}g</strong></div><div className="ff-history-kpi"><span>Complete days</span><strong>{period.daysWithAllSavedMealsConfirmed}</strong></div></div><p>Confirmed meals only. Missing logs are not counted as zero.</p></div>
+        <HistoryConsistencyHeatmap history={history} anchor={anchor} />
+      </div>
+    </section>
+
     <motion.section className="ff-history-story" initial={reduceMotion ? false : {opacity:0,y:8}} animate={{opacity:1,y:0}} transition={reduceMotion ? {duration:0}:{duration:.35,ease:[.22,1,.36,1]}}>
       <p className="eyebrow">Last completed week</p><h2>{story.title}</h2><p>{story.copy}</p><span className="ff-history-confidence">{confidenceText(report)}</span>
       <div className="ff-history-facts">
@@ -121,13 +129,7 @@ export default function HistoryV2Client({ locationNames, stationNames, itemNames
     <WeeklyFocusPanel focus={focus} />
     <details className="ff-disclosure"><summary>Weekly report</summary><WeeklyNutritionReportPanel report={report} locationNames={locationNames} /></details>
 
-    <details className="ff-disclosure"><summary>Nutrition averages & consistency</summary>
-      <div className="ff-history-section-head"><div><p className="eyebrow">Evidence</p><h2>Nutrition averages</h2></div><div className="ff-history-range">{(["week","month"] as Range[]).map((value)=><button type="button" aria-pressed={range === value} key={value} className={range===value?"is-active":undefined} onClick={()=>setRange(value)}>{value === "week" ? "This week" : "This month"}</button>)}</div></div>
-      <div className="ff-history-grid">
-        <div className="ff-history-panel"><div className="ff-history-kpis"><div className="ff-history-kpi"><span>Avg recorded calories</span><strong>{Math.round(period.averageConfirmedConsumption.calories)}</strong></div><div className="ff-history-kpi"><span>Avg recorded protein</span><strong>{Math.round(period.averageConfirmedConsumption.protein)}g</strong></div><div className="ff-history-kpi"><span>Complete days</span><strong>{period.daysWithAllSavedMealsConfirmed}</strong></div></div><p>Confirmed meals only. Missing logs are not counted as zero.</p></div>
-        <HistoryConsistencyHeatmap history={history} anchor={anchor} />
-      </div>
-    </details>
+
 
     <section className="ff-history-section"><div className="ff-history-section-head"><div><p className="eyebrow">Longer view</p><h2>Long-term trends</h2></div><button type="button" aria-expanded={deep} className="ff-history-detail-button" onClick={()=>setDeep((v)=>!v)}>{deep ? "Hide trends" : "Show trends"}</button></div>{deep && insights && patterns && <motion.div initial={reduceMotion?false:{opacity:0,y:5}} animate={{opacity:1,y:0}}><NutritionOutlookPanel outlook={outlook}/><HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem}/><DeepNutritionPatternsPanel analysis={patterns} locationNames={locationNames} stationNames={stationNames}/></motion.div>}</section>
 

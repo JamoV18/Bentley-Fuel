@@ -1,12 +1,12 @@
 .ff-first-run { position: fixed; z-index: 100; inset: 0; overflow: auto; background: var(--ff-canvas); color: var(--ff-text-primary); }
-.ff-first-run-inner { width: min(100%, 70rem); margin: 0 auto; padding: 2rem 1.25rem; }
+.ff-first-run-inner { width: min(100%, 34rem); margin: 0 auto; padding: 2rem 1.25rem; }
 .ff-first-run-kicker { margin: 0; color: var(--ff-text-secondary); font-size: .8rem; }
-.ff-first-run h1 { margin: .5rem 0; font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.2; }
+.ff-first-run h1 { margin: .5rem 0; font-size: 26px; line-height: 1.2; }
 .ff-first-run-lede { color: var(--ff-text-secondary); font-size: .9rem; }
-.ff-first-run-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-top: 1.25rem; }
-.ff-first-run-card { border: 1px solid var(--ff-border); border-radius: var(--ff-radius-card); background: var(--ff-surface); padding: 1rem; text-align: left; color: var(--ff-text-primary); font: inherit; cursor: pointer; }
+.ff-first-run-grid { display: grid; grid-template-columns: 1fr; gap: 0; margin-top: 1.25rem; border-top: 1px solid var(--ff-divider); }
+.ff-first-run-card { border: 0; border-bottom: 1px solid var(--ff-divider); border-radius: 0; background: transparent; padding: 14px 0; text-align: left; color: var(--ff-text-primary); font: inherit; cursor: pointer; }
 .ff-first-run-copy strong { display: block; font-size: 1.1rem; }
 .ff-first-run-copy small { display: block; margin-top: .4rem; font-size: .8rem; color: var(--ff-text-secondary); }
 .ff-first-run-foot { margin-top: 1rem; font-size: .8rem; color: var(--ff-text-secondary); }
 .ff-first-run-saving { pointer-events: none; }
-@media (max-width: 600px) { .ff-first-run-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) { .ff-first-run-grid { grid-template-columns: 1fr; } }

@@ -261,7 +261,7 @@ export default function MealBuilderClient({
 
       <header className="ff-rec-header">
         <div>
-          <p className="ff-rec-kicker">{locationLabel} · {readable(mealPeriod)}</p>
+          <p className="ff-rec-kicker">{locationLabel}{recommendationState !== "loading" && ` · ${readable(mealPeriod)}`}</p>
           <h1>{personalized ? "Your top meals." : recommendationState === "loading" ? "Finding meals…" : "Build a complete meal."}</h1>
 
           {recommendationState === "missing-profile" && <p>Complete your profile to turn the example meal into a recommendation based on your goals and dietary needs.</p>}
@@ -273,11 +273,11 @@ export default function MealBuilderClient({
       {futureMenu && <p className="ff-rec-note">Future menu preview · you can inspect the recommendation now, but logging stays disabled until that menu date.</p>}
 
       {recommendationState === "loading" ? (
-        <motion.section className="ff-rec-loading" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+        <section className="ff-rec-loading">
           <p className="ff-rec-eyebrow">Ranking the menu</p>
           <strong>Checking the menu…</strong>
           <p>Matching your goals and dietary restrictions.</p>
-        </motion.section>
+        </section>
       ) : recommendationState === "no-candidates" ? (
         <section className="ff-rec-empty">
           <p className="ff-rec-eyebrow">No complete match</p>
@@ -350,7 +350,7 @@ export default function MealBuilderClient({
                   <p className="ff-rec-eyebrow">{edited ? "Your adjusted meal" : personalized ? "Selected meal" : "Example complete meal"}</p>
                   {personalized && <span>Rank #{recommendationIndex + 1}</span>}
                 </div>
-                <h2 id="candidate-heading" className="ff-rec-selected-title">{selectedMealName}</h2>
+                <motion.h2 key={selectedMealName} id="candidate-heading" className="ff-rec-selected-title" initial={reduceMotion ? false : { opacity: .4, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : .18 }}>{selectedMealName}</motion.h2>
 
                 {updateMessage && (
                   <motion.p
@@ -364,12 +364,12 @@ export default function MealBuilderClient({
                   </motion.p>
                 )}
 
-{computed.nutrition && (edited || !personalized) && (
+{computed.nutrition && (
                   <dl className="ff-rec-macros">
                     {[["Calories", Math.round(computed.nutrition.calories), "cal"], ["Protein", compactMacro(computed.nutrition.protein), "g"], ["Carbs", compactMacro(computed.nutrition.carbs), "g"], ["Fat", compactMacro(computed.nutrition.fat), "g"]].map(([label, value, unit]) => (
                       <div className="ff-rec-macro" key={label}>
                         <dt>{label}</dt>
-                        <dd>{value}{unit}</dd>
+                        <dd>{value}<small>{unit}</small></dd>
                       </div>
                     ))}
                   </dl>

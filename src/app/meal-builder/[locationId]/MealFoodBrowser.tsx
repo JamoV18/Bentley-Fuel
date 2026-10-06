@@ -27,17 +27,17 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
   return (
     <section className={embedded ? "" : "mt-8"} aria-labelledby="food-browser-heading">
 
-      <h2 id="food-browser-heading" className="mt-1 text-2xl font-bold">Add food by station</h2>
+      <h2 id="food-browser-heading" className="mt-1 text-lg font-bold">Add food by station</h2>
 
 
       <div className="mt-5 space-y-5">
         {availableStations.map((station) => {
           const items = resources.menuItems.filter((item) => item.stationId === station.id && periodAvailable(item.availability, mealPeriod));
           return (
-            <section key={station.id} className="surface p-4 sm:p-5" aria-labelledby={`${station.id}-manual-heading`}>
-              <div className="flex items-end justify-between gap-3"><div><h3 id={`${station.id}-manual-heading`} className="text-xl font-bold">{station.name}</h3>{station.description && <p className="mt-1 text-sm subtle">{station.description}</p>}</div><span className="text-xs font-semibold subtle">{items.length} items</span></div>
+            <section key={station.id} className="border-t border-[var(--ff-divider)] py-3" aria-labelledby={`${station.id}-manual-heading`}>
+              <div className="flex items-end justify-between gap-3"><div><h3 id={`${station.id}-manual-heading`} className="text-base font-semibold">{station.name}</h3>{station.description && <p className="mt-1 text-xs subtle">{station.description}</p>}</div><span className="text-xs font-semibold subtle">{items.length} items</span></div>
               {items.length === 0 ? <p className="mt-4 text-sm subtle">No menu items are loaded for this eating window yet.</p> : (
-                <ul className="mt-4 space-y-3">
+                <ul className="mt-2">
                   {items.map((item) => {
                     const matchingLines = build.items.filter((line) => line.menuItemId === item.id);
                     const servings = matchingLines.reduce((sum, line) => sum + line.quantity, 0);
@@ -48,7 +48,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                         className="meal-row"
                         initial={false}
                         animate={reduceMotion ? undefined : {
-                          backgroundColor: justAdded ? "var(--ff-accent-muted)" : "var(--ff-surface)",
+                          backgroundColor: justAdded ? "var(--ff-accent-muted)" : "var(--ff-canvas)",
                           scale: justAdded ? 1.006 : 1,
                         }}
                         transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
@@ -61,7 +61,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                             {servings > 0 && (
                               <motion.p
                                 key={servings}
-                                className="mt-1.5 text-xs font-bold text-emerald-800"
+                                className="mt-1.5 text-xs font-bold text-[var(--ff-accent-light)]"
                                 initial={reduceMotion ? false : { opacity: 0, y: 3 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -2 }}

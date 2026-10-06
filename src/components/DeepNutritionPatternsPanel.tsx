@@ -74,31 +74,31 @@ export default function DeepNutritionPatternsPanel({
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="surface mt-5 p-5 sm:p-6">
+    <section className="mt-4 border-t border-[var(--ff-divider)] py-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="eyebrow">Deeper patterns</p>
-          <h2 className="mt-1 text-2xl font-bold">What tends to happen together</h2>
+          <h2 className="mt-1 text-lg font-bold">What tends to happen together</h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed subtle">Falcon Fuel combines repeated meal, dining, timing, station, and recommendation-edit signals only after enough usable history exists. These are associations in your records, not causal medical claims.</p>
         </div>
-        <span className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-900">
+        <span className="rounded-full bg-[var(--ff-surface-elevated)] px-3 py-1.5 text-xs font-bold text-[var(--ff-text-secondary)]">
           {analysis.evidenceLevelWeeks > 0 ? `${analysis.evidenceLevelWeeks}-week evidence level` : "Building evidence"}
         </span>
       </div>
 
       {!analysis.ready ? (
-        <div className="mt-5 rounded-2xl border border-black/[.06] bg-white/75 p-5">
+        <div className="mt-5 rounded-lg border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><p className="text-lg font-bold">Not enough repeated history yet</p><p className="mt-1 text-sm subtle">{analysis.usableWeeks}/4 usable weeks toward the first deeper-analysis level.</p></div>
-            <span className="text-xs font-bold text-black/45">{analysis.confirmedMeals} confirmed meals observed</span>
+            <span className="text-xs font-bold text-[var(--ff-text-secondary)]">{analysis.confirmedMeals} confirmed meals observed</span>
           </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/[.05]" aria-label={`${Math.min(analysis.usableWeeks, 4)} of 4 usable weeks`}>
-            <div className="h-full rounded-full bg-emerald-900" style={{ width: `${Math.min(100, analysis.usableWeeks * 25)}%` }} />
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--ff-surface-elevated)]" aria-label={`${Math.min(analysis.usableWeeks, 4)} of 4 usable weeks`}>
+            <div className="h-full rounded-full bg-[var(--ff-accent)]" style={{ width: `${Math.min(100, analysis.usableWeeks * 25)}%` }} />
           </div>
           <p className="mt-3 text-xs leading-relaxed subtle">Falcon Fuel deliberately waits instead of turning a few meals into an impressive-looking but unreliable story.</p>
         </div>
       ) : analysis.findings.length === 0 ? (
-        <div className="mt-5 rounded-2xl border border-black/[.06] bg-white/75 p-5">
+        <div className="mt-5 rounded-lg border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] p-5">
           <p className="text-lg font-bold">Enough data, no strong repeated difference yet</p>
           <p className="mt-2 text-sm leading-relaxed subtle">That is still useful information. Your recent records do not currently show a location, station, meal-time, meal-size, or edit pattern large enough to clear Falcon Fuel&apos;s evidence thresholds.</p>
         </div>
@@ -109,19 +109,19 @@ export default function DeepNutritionPatternsPanel({
             return (
               <motion.article
                 key={`${finding.kind}-${index}`}
-                className="rounded-2xl border border-black/[.06] bg-white/75 p-4 sm:p-5"
+                className="border-t border-[var(--ff-divider)] py-3"
                 initial={reduceMotion ? false : { opacity: 0, y: 5 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
                 transition={reduceMotion ? { duration: 0 } : { duration: 0.2, delay: index * 0.035, ease: [0.22, 1, 0.36, 1] }}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[.12em] subtle">{copy.eyebrow}</p>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${finding.confidence === "strong" ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>{confidenceLabel(finding.confidence)}</span>
+                  <p className="text-xs font-semibold subtle">{copy.eyebrow}</p>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${finding.confidence === "strong" ? "bg-[var(--ff-surface-elevated)] text-[var(--ff-text-primary)]" : "bg-[var(--ff-warning-surface)] text-[var(--ff-warning)]"}`}>{confidenceLabel(finding.confidence)}</span>
                 </div>
                 <h3 className="mt-2 text-lg font-bold leading-snug">{copy.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-black/70">{copy.body}</p>
-                <p className="mt-3 border-t border-black/[.06] pt-3 text-xs leading-relaxed subtle">{copy.footnote}</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--ff-text-secondary)]">{copy.body}</p>
+                <p className="mt-3 border-t border-[var(--ff-divider)] pt-3 text-xs leading-relaxed subtle">{copy.footnote}</p>
               </motion.article>
             );
           })}

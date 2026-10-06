@@ -2,7 +2,7 @@
 
 import "./today-v2.css";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import AppNav from "@/components/AppNav";
@@ -58,7 +58,7 @@ function dayLabel(date: Date) {
 function AnimatedCalorieRing({ progress, children }: { progress: number; children: ReactNode }) {
   const reduceMotion = useReducedMotion();
   const value = useMotionValue(progress);
-  const cssProgress = useTransform(value, (latest) => `${latest}%`);
+  const strokeOffset = useTransform(value, (latest) => 100 - latest);
   const previous = useRef(progress);
   const mounted = useRef(false);
 
@@ -81,7 +81,13 @@ function AnimatedCalorieRing({ progress, children }: { progress: number; childre
     return () => controls.stop();
   }, [progress, reduceMotion, value]);
 
-  return <motion.div className="ff-v2-ring" style={{ "--ff-ring": cssProgress } as unknown as CSSProperties}>{children}</motion.div>;
+  return <div className="ff-v2-ring">
+    <svg viewBox="0 0 240 240" aria-hidden="true">
+      <circle className="ff-ring-track" cx="120" cy="120" r="108" />
+      <motion.circle className="ff-ring-progress" cx="120" cy="120" r="108" pathLength="100" strokeDasharray="100" style={{ strokeDashoffset: strokeOffset, opacity: progress > 0 ? 1 : 0 }} />
+    </svg>
+    {children}
+  </div>;
 }
 
 function inferredCoreMealSlot(entry: MealHistoryEntry): CoreMealSlot | undefined {
@@ -266,7 +272,7 @@ export default function TodayV2Client({
   };
 
   if (profile === undefined) return <main className="ff-v2-shell"><p className="ff-v2-loading">Loading your day…</p></main>;
-  if (!profile) return <main className="ff-v2-shell"><p className="brand-kicker">Falcon Fuel</p><h1 className="ff-v2-empty-title">Set up your profile</h1><p className="ff-v2-empty-copy">Get meals matched to your goals and dietary needs.</p><Link className="primary ff-v2-empty-cta" href="/onboarding">Build my plan</Link></main>;
+  if (!profile) return <main className="ff-v2-shell ff-today-setup"><p className="brand-kicker">Falcon Fuel</p><h1 className="ff-v2-empty-title">Set up your profile</h1><p className="ff-v2-empty-copy">Get meals matched to your goals and dietary needs.</p><Link className="primary ff-v2-empty-cta" href="/onboarding">Build my plan</Link></main>;
 
   const mealPeriodLabel = recommendationPeriod ? readable(recommendationPeriod) : undefined;
   const preferredLocationName = locationNames[locationPreference.id ?? ""] ?? "campus dining";
@@ -301,7 +307,7 @@ export default function TodayV2Client({
     <main className="ff-v2-shell">
       <header className="ff-v2-header">
         <div className="ff-v2-header-copy">
-
+          <p className="ff-today-kicker">Your daily nutrition</p>
           <h1>{isToday ? "Today" : new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(selectedDate)}</h1>
         </div>
         <ProfileMenu profile={profile} />
@@ -317,13 +323,15 @@ export default function TodayV2Client({
 
       {isDemo && <p className="ff-v2-data-note">Some locations still use demo menu data. Verified Bentley Dining data is used where available.</p>}
 
+      <div className="ff-today-dashboard">
+      <div className="ff-today-overview">
       <section className="ff-today-nutrition" aria-labelledby="today-nutrition-title">
         <div className="ff-today-nutrition-head">
           <div>
 
-            <h2 id="today-nutrition-title">{isToday ? "Nutrition" : "Recorded nutrition"}</h2>
+            <h2 id="today-nutrition-title">Calories</h2>
           </div>
-          <div className="ff-today-mode-toggle" role="group" aria-label="Nutrition display">
+          <div className="ff-today-mode-toggle" data-mode={effectiveNutritionMode} role="group" aria-label="Nutrition display">
             <button type="button" aria-pressed={effectiveNutritionMode === "consumed"} onClick={() => setNutritionMode("consumed")}>Consumed</button>
             <button type="button" aria-pressed={effectiveNutritionMode === "remaining"} disabled={!snapshot.remaining} onClick={() => setNutritionMode("remaining")}>Remaining</button>
           </div>
@@ -331,12 +339,15 @@ export default function TodayV2Client({
         <div className="ff-today-nutrition-grid">
           <div className="ff-today-calories">
             <AnimatedCalorieRing progress={calorieCoverage}>
-              <div className="ff-v2-ring-inner">
-                <span>{effectiveNutritionMode === "remaining" ? "Remaining" : "Consumed"}</span>
+              <div className="ff-v2-ring-inner ff-calorie-value">
                 <strong><AnimatedCounter value={round(displayedNutrition.calories)} /></strong>
-                <small>{target ? `of ${round(target.calories).toLocaleString()} cal` : "Calories"}</small>
+                <p>{effectiveNutritionMode === "remaining" ? "Calories remaining" : "Calories consumed"}</p>
               </div>
             </AnimatedCalorieRing>
+            <div className="ff-calorie-context">
+              <div><span>Consumed</span><strong>{round(snapshot.consumed.calories).toLocaleString()} <small>cal</small></strong></div>
+              <div><span>Daily goal</span><strong>{target ? <>{round(target.calories).toLocaleString()} <small>cal</small></> : "Not set"}</strong></div>
+            </div>
           </div>
           <div className="ff-today-macros">
             {[
@@ -345,7 +356,7 @@ export default function TodayV2Client({
               { label: "Fat", value: displayedNutrition.fat, targetValue: target?.fat, progress: fatCoverage },
             ].map((macro) => (
               <div className="ff-today-macro" key={macro.label}>
-                <div className="ff-today-macro-line"><span>{macro.label}</span><strong>{round(macro.value)}g</strong></div>
+                <div className="ff-today-macro-line"><span>{macro.label}</span><strong><AnimatedCounter value={round(macro.value)} suffix="g" /></strong></div>
                 <div className="ff-today-macro-track"><span style={{ width: `${macro.progress}%` }} /></div>
                 <small>{effectiveNutritionMode === "remaining" ? "left" : macro.targetValue ? `of ${round(macro.targetValue)}g` : "tracked"}</small>
               </div>
@@ -398,7 +409,7 @@ export default function TodayV2Client({
                   </small>
                 </div>
               )}
-              <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
+              <motion.div tabIndex={-1} whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
                 <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>
               </motion.div>
               <Link href="/dashboard" className="ff-v2-secondary-link">Change location</Link>
@@ -406,61 +417,6 @@ export default function TodayV2Client({
             </div>
           </motion.section>
 
-          <div className="ff-v3-day-path-wrap">
-            <div className="ff-v3-day-path" aria-label="Today’s meal progression and quick logging">
-              {CORE_MEALS.map((slot, index) => {
-                const done = livingDay.completedSlots[slot];
-                const next = recommendationPeriod === slot;
-                const status = done ? "Confirmed" : next ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : "Later";
-                return (
-                  <motion.div
-                    key={slot}
-                    className="ff-v3-day-step-shell"
-                    whileHover={reduceMotion ? undefined : { y: -2 }}
-                    whileTap={reduceMotion ? undefined : { scale: 0.985 }}
-                    transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 26 }}
-                  >
-                    <Link
-                      href={`/log-meal?slot=${slot}`}
-                      className={`ff-v3-day-step${done ? " is-done" : ""}${next ? " is-next" : ""}`}
-                      aria-label={`Log ${readable(slot)}. ${status}.`}
-                    >
-                      {next && (
-                        <motion.span
-                          aria-hidden="true"
-                          className="ff-v3-day-active"
-                          layoutId="ff-day-active"
-                          transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 30, mass: .55 }}
-                        />
-                      )}
-                      <motion.span
-                        className="ff-v3-day-dot"
-                        aria-hidden="true"
-                        initial={reduceMotion ? false : { scale: .82, opacity: .72 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={reduceMotion ? { duration: 0 } : { delay: index * .04, type: "spring", stiffness: 360, damping: 22 }}
-                      >
-                        {done ? "✓" : next ? "→" : "·"}
-                      </motion.span>
-                      <div className="ff-v3-day-copy"><strong>{readable(slot)}</strong><small>{status}</small></div>
-                      <span className="ff-v3-day-log" aria-hidden="true">+</span>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </div>
-            <motion.div
-              className="ff-v3-snack-log-shell"
-              whileHover={reduceMotion ? undefined : { y: -2 }}
-              whileTap={reduceMotion ? undefined : { scale: .985 }}
-              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 26 }}
-            >
-              <Link href="/log-meal?slot=snack" className="ff-v3-snack-log" aria-label="Log an optional snack">
-                <span aria-hidden="true">+</span>
-                <div><strong>Snack</strong><small>Optional</small></div>
-              </Link>
-            </motion.div>
-          </div>
         </>
       ) : (
         <section className="ff-v2-history-hero">
@@ -509,21 +465,29 @@ export default function TodayV2Client({
         )}
       </AnimatePresence>
 
+      </div>
       <motion.section className="ff-v2-meals" layout="position" transition={reduceMotion ? { duration: 0 } : { layout: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}>
         <div className="ff-v2-section-title">
           <div><h2>{isToday ? "Meals" : "Recorded meals"}</h2></div>
           <Link href="/history">History →</Link>
         </div>
-        {snapshot.meals.length === 0 ? (
-          <div className="ff-v2-empty-meals"><strong>Nothing here yet.</strong><p>{isToday ? "Your first confirmed meal will show up here." : "No meals were logged for this date."}</p></div>
-        ) : (
-          <div className="ff-v2-meal-list">
-            {snapshot.meals.map((entry) => (
+        {[...CORE_MEALS, "snack" as const].map((slot) => {
+          const meals = snapshot.meals.filter((entry) => (entry.mealSlot === "snack" ? "snack" : inferredCoreMealSlot(entry)) === slot);
+          const known = meals.filter((entry) => entry.nutrition && entry.completionFraction !== undefined);
+          const subtotal = known.reduce((total, entry) => total + entry.nutrition!.calories * entry.completionFraction!, 0);
+          const incomplete = meals.some((entry) => !entry.nutrition || entry.completionFraction === undefined);
+          return <section className="ff-diary-section" data-current={isToday && recommendationPeriod === slot} key={slot} aria-label={readable(slot)}>
+            <div className="ff-diary-heading">
+              <h3>{readable(slot)}{isToday && slot !== "snack" && <small className="ff-diary-slot-state">{" "}{livingDay.completedSlots[slot] ? "Confirmed" : recommendationPeriod === slot ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : ""}</small>}{meals.length === 0 && <span className="ff-diary-empty-inline">{slot === "snack" ? "Optional" : "No foods logged"}</span>}</h3>
+              <span>{meals.length ? `${known.length ? `${Math.round(subtotal)} cal` : "—"}${incomplete ? " · incomplete" : ""}` : "—"}</span>
+              {isToday && <Link href={`/log-meal?slot=${slot}`} aria-label={`Log ${readable(slot)}`}>+</Link>}
+            </div>
+            {meals.map((entry) => (
               <article key={entry.id} className="ff-v2-meal-row">
                 <MealImage name={mealName(entry, itemNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} />
                 <div className="ff-v2-meal-copy">
-                  <span>{locationNames[entry.locationId] ?? entry.locationId}</span>
                   <h3>{mealName(entry, itemNames)}</h3>
+                  <span>{locationNames[entry.locationId] ?? entry.locationId}</span>
                   {entry.nutrition && <p>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</p>}
                 </div>
                 <div className="ff-v2-meal-status" aria-label={entry.completionFraction === undefined ? "Check-in pending" : `${Math.round(entry.completionFraction * 100)} percent finished`}>
@@ -531,9 +495,10 @@ export default function TodayV2Client({
                 </div>
               </article>
             ))}
-          </div>
-        )}
+          </section>;
+        })}
       </motion.section>
+      </div>
 
     </main>
   );

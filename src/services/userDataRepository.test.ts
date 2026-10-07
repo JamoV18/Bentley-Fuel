@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createLocalActivityCheckInRepository } from "./activityCheckIn";
+import { createDirectDrinkHistoryEntry } from "./drinkLogging";
 import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
 import { createUserProfile } from "./profileRepository";
 import { createLocalProgressiveProfileRepository } from "./progressiveProfile";
@@ -148,6 +149,48 @@ test("a valid export can be previewed and restored exactly without generating ex
   assert.deepEqual(restored.progressivePreferences, exported.progressivePreferences);
   assert.deepEqual(restored.recommendationInteractions, exported.recommendationInteractions);
   assert.equal(target.getItem("unrelated-app-key"), "keep-me");
+});
+
+test("age-19 exports preserve retrospective alcohol logs but cannot import future alcohol planning", () => {
+  const storage = new MemoryStorage();
+  const age19Profile = createUserProfile({
+    primaryGoal: "maintain-weight",
+    goals: ["maintain-weight"],
+    dietaryPreferences: [],
+    allergensToAvoid: [],
+    breakfastPreferences: [],
+    unitSystem: "us",
+    behavioralGoals: [],
+    metrics: { age: 19 },
+  });
+  storage.setItem("bentley-fuel.profile.v1", JSON.stringify(age19Profile));
+  createLocalMealHistoryRepository(storage).upsert(createDirectDrinkHistoryEntry(
+    age19Profile,
+    { category: "beer", name: "Beer", quantity: 1, servingOunces: 12, abvPercent: 5, caloriesPerServing: 150, consumedAt: "2026-10-06T20:00:00.000Z", estimateStatus: "approximate" },
+    { id: "age-19-beer", now: "2026-10-06T20:01:00.000Z" },
+  ));
+
+  const exported = createLocalUserDataRepository(storage).exportData();
+  assert.equal(previewFalconFuelUserDataImport(exported).valid, true);
+
+  const age17Export = { ...exported, profile: { ...age19Profile, metrics: { age: 17 } } };
+  const age17Preview = previewFalconFuelUserDataImport(age17Export);
+  assert.equal(age17Preview.valid, false);
+  assert.match(age17Preview.errors.join(" "), /18 or older/i);
+
+  const futureAlcoholPlan = {
+    id: "age-19-plan",
+    ownerProfileId: age19Profile.id,
+    eventDate: "2026-10-09",
+    planKind: "social" as const,
+    alcoholForecast: "1-2" as const,
+    status: "planned" as const,
+    createdAt: "2026-10-06T12:00:00.000Z",
+    updatedAt: "2026-10-06T12:00:00.000Z",
+  };
+  const planningPreview = previewFalconFuelUserDataImport({ ...exported, goingOutEvents: [futureAlcoholPlan] });
+  assert.equal(planningPreview.valid, false);
+  assert.match(planningPreview.errors.join(" "), /21 or older/i);
 });
 
 test("invalid or duplicate records are rejected before any Falcon Fuel key is changed", () => {

@@ -49,11 +49,14 @@ test("advanced serving adjustments scale the catalog estimate while a calorie co
   assert.equal(corrected.nutrition.calories, 180);
 });
 
-test("alcohol logs are age-gated while nonalcoholic logs remain available", () => {
+test("alcohol logs are available at 18 while nonalcoholic logs remain available to younger profiles", () => {
   const base = { name: "Beer", quantity: 1, servingOunces: 12, abvPercent: 5, caloriesPerServing: 150, consumedAt: "2026-10-06T20:00:00.000Z", estimateStatus: "estimated" as const };
   for (const preset of DIRECT_DRINK_PRESETS.filter((candidate) => candidate.category !== "nonalcoholic")) {
-    assert.throws(() => createDirectDrinkHistoryEntry({ id: "minor", metrics: { age: 20 } }, { ...base, category: preset.category, name: preset.label, servingOunces: preset.servingOunces, abvPercent: preset.abvPercent, caloriesPerServing: preset.caloriesPerServing }), /21 or older/i);
+    const draft = { ...base, category: preset.category, name: preset.label, servingOunces: preset.servingOunces, abvPercent: preset.abvPercent, caloriesPerServing: preset.caloriesPerServing };
+    assert.throws(() => createDirectDrinkHistoryEntry({ id: "age-17", metrics: { age: 17 } }, draft), /18 or older/i);
+    assert.equal(createDirectDrinkHistoryEntry({ id: "age-19", metrics: { age: 19 } }, draft).entryKind, "alcohol");
+    assert.equal(createDirectDrinkHistoryEntry({ id: "age-21", metrics: { age: 21 } }, draft).entryKind, "alcohol");
   }
-  const nonalcoholic = createDirectDrinkHistoryEntry({ id: "minor", metrics: { age: 20 } }, { ...base, category: "nonalcoholic", name: "Soda", abvPercent: 0 }, { id: "drink-1", now: "2026-10-06T20:01:00.000Z" });
+  const nonalcoholic = createDirectDrinkHistoryEntry({ id: "age-17", metrics: { age: 17 } }, { ...base, category: "nonalcoholic", name: "Soda", abvPercent: 0 }, { id: "drink-1", now: "2026-10-06T20:01:00.000Z" });
   assert.equal(nonalcoholic.entryKind, "beverage");
 });

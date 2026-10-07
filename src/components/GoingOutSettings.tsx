@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import {
   browserGoingOutRepository,
   browserMealHistoryRepository,
-  canUseAlcoholFeatures,
+  canLogAlcohol,
+  canPlanAlcohol,
 } from "@/services";
 import type { GoingOutSettings as Settings, UserProfile } from "@/types";
 
@@ -13,7 +14,8 @@ export default function GoingOutSettings({ profile }: { profile: UserProfile }) 
   const [settings, setSettings] = useState<Settings>();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [message, setMessage] = useState("");
-  const eligible = canUseAlcoholFeatures(profile);
+  const loggingEligible = canLogAlcohol(profile);
+  const planningEligible = canPlanAlcohol(profile);
 
   useEffect(() => {
     const next = browserGoingOutRepository(profile).getSettings();
@@ -63,8 +65,9 @@ export default function GoingOutSettings({ profile }: { profile: UserProfile }) 
       </div>
 
       <div className="mt-4 rounded-xl border border-[var(--ff-divider)] p-4 text-sm">
-        <p className="font-bold">Alcohol controls: {eligible ? "available" : "unavailable"}</p>
-        <p className="mt-1 text-xs leading-relaxed subtle">{eligible ? "Your profile declares age 21 or older. This is self-declared eligibility, not identity verification." : "General social and late-night planning remains available. Alcohol forecasting and recap controls require a profile age of 21 or older."}</p>
+        <p className="font-bold">Alcohol logging: {loggingEligible ? "available" : "unavailable"}</p>
+        <p className="mt-1 text-xs leading-relaxed subtle">{loggingEligible ? "Your profile declares age 18 or older, so you can record drinks you already consumed." : "Alcohol-specific drink logging requires a profile age of 18 or older. Nonalcoholic logging remains available."}</p>
+        <p className="mt-2 text-xs leading-relaxed subtle">Future alcohol planning and recap controls {planningEligible ? "are available because your profile declares age 21 or older." : "require a profile age of 21 or older."}</p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-[var(--ff-divider)] pt-5">

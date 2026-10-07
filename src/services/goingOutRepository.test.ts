@@ -4,7 +4,8 @@ import type { GoingOutEvent } from "@/types";
 import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
 import { createDirectDrinkHistoryEntry } from "./drinkLogging";
 import {
-  canUseAlcoholFeatures,
+  canLogAlcohol,
+  canPlanAlcohol,
   createLocalGoingOutRepository,
   nightOutMealEntries,
   syncNightOutNutrition,
@@ -74,12 +75,19 @@ test("cross-midnight recaps attribute entries to selected dates and remain idemp
   assert.equal(history.getByDateRange(new Date("2026-10-10T00:00:00"), new Date("2026-10-10T23:59:59")).length, 1);
 });
 
-test("age eligibility is restricted to profiles declaring age 21 or older", () => {
-  assert.equal(canUseAlcoholFeatures({ metrics: { age: 21 } }), true);
-  assert.equal(canUseAlcoholFeatures({ metrics: { age: 20 } }), false);
-  assert.equal(canUseAlcoholFeatures({ metrics: {} }), false);
+test("retrospective logging begins at 18 while future alcohol planning begins at 21", () => {
+  assert.equal(canLogAlcohol({ metrics: { age: 17 } }), false);
+  assert.equal(canPlanAlcohol({ metrics: { age: 17 } }), false);
+  assert.equal(canLogAlcohol({ metrics: { age: 19 } }), true);
+  assert.equal(canPlanAlcohol({ metrics: { age: 19 } }), false);
+  assert.equal(canLogAlcohol({ metrics: { age: 21 } }), true);
+  assert.equal(canPlanAlcohol({ metrics: { age: 21 } }), true);
+  assert.equal(canLogAlcohol({ metrics: {} }), false);
+  assert.equal(canPlanAlcohol({ metrics: {} }), false);
   const storage = new MemoryStorage();
-  assert.throws(() => createLocalGoingOutRepository(storage, "profile-a", { alcoholEligible: false }).upsertEvent(plannedEvent()), /21 or older/i);
+  const repository = createLocalGoingOutRepository(storage, "profile-a", { alcoholPlanningEligible: false });
+  assert.throws(() => repository.upsertEvent(plannedEvent()), /21 or older/i);
+  assert.doesNotThrow(() => repository.upsertEvent(plannedEvent({ id: "general-plan", alcoholForecast: undefined })));
 });
 
 test("recurring days use the same bounded context without creating a consumed record", () => {

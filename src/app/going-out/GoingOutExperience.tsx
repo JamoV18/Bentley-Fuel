@@ -9,7 +9,8 @@ import PageHeader from "@/components/PageHeader";
 import {
   browserGoingOutRepository,
   browserMealHistoryRepository,
-  canUseAlcoholFeatures,
+  canLogAlcohol,
+  canPlanAlcohol,
   createDirectDrinkHistoryEntry,
   DIRECT_DRINK_PRESETS,
   directDrinkEntries,
@@ -70,7 +71,8 @@ export default function GoingOutExperience() {
   const [recapDraft, setRecapDraft] = useState<NightOutConsumption[]>([]);
   const [message, setMessage] = useState("");
 
-  const eligible = profile ? canUseAlcoholFeatures(profile) : false;
+  const loggingEligible = profile ? canLogAlcohol(profile) : false;
+  const planningEligible = profile ? canPlanAlcohol(profile) : false;
   const refresh = useCallback((activeProfile: UserProfile) => {
     const repository = browserGoingOutRepository(activeProfile);
     const nextSettings = repository.getSettings();
@@ -92,7 +94,7 @@ export default function GoingOutExperience() {
       const requestedDay = new URLSearchParams(window.location.search).get("day");
       if (requested === "log") setPanel("log");
       if (requested === "plan") setPanel("plan");
-      setDrinkDraft(draftFor(canUseAlcoholFeatures(current) ? "wine" : "nonalcoholic", requestedDay && /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) ? requestedDay : todayKey()));
+      setDrinkDraft(draftFor(canLogAlcohol(current) ? "wine" : "nonalcoholic", requestedDay && /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) ? requestedDay : todayKey()));
     });
   }, [refresh]);
 
@@ -114,6 +116,12 @@ export default function GoingOutExperience() {
   const chooseDrink = (category: NightOutCategory) => {
     setDrinkDraft(draftFor(category, drinkDraft.day));
     setEditingDrinkId(undefined);
+  };
+  const changeQuantity = (delta: number) => {
+    setDrinkDraft((current) => ({
+      ...current,
+      quantity: String(Math.max(1, Math.floor(numberOrZero(current.quantity)) + delta)),
+    }));
   };
   const updateServingAmount = (value: string) => {
     setDrinkDraft((current) => {
@@ -140,7 +148,7 @@ export default function GoingOutExperience() {
       refresh(profile);
       setMessage(editingDrinkId ? "Drink updated in your daily log." : "Drink added to your daily log.");
       setEditingDrinkId(undefined);
-      setDrinkDraft(draftFor(eligible ? "wine" : "nonalcoholic", drinkDraft.day));
+      setDrinkDraft(draftFor(loggingEligible ? "wine" : "nonalcoholic", drinkDraft.day));
       setPanel(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Check the drink details and try again.");
@@ -170,7 +178,7 @@ export default function GoingOutExperience() {
     const chosenDate = planDateChoice === "today" ? todayKey() : planDateChoice === "tomorrow" ? tomorrowKey() : planDate;
     const now = new Date().toISOString();
     repository.saveSettings({ ...settings, enabled: true, updatedAt: now });
-    repository.upsertEvent({ id: existing?.id ?? crypto.randomUUID(), ownerProfileId: profile.id, eventDate: chosenDate, planKind: occasion === "late-night-food" ? "late-night" : "social", occasion, alcoholForecast: eligible && forecast ? forecast : undefined, expectedFoodNote: foodNote.trim() || undefined, status: existing?.status ?? "planned", ignoredForRecommendations: existing?.ignoredForRecommendations, actualConsumption: existing?.actualConsumption, createdAt: existing?.createdAt ?? now, updatedAt: now });
+    repository.upsertEvent({ id: existing?.id ?? crypto.randomUUID(), ownerProfileId: profile.id, eventDate: chosenDate, planKind: occasion === "late-night-food" ? "late-night" : "social", occasion, alcoholForecast: planningEligible && forecast ? forecast : undefined, expectedFoodNote: foodNote.trim() || undefined, status: existing?.status ?? "planned", ignoredForRecommendations: existing?.ignoredForRecommendations, actualConsumption: existing?.actualConsumption, createdAt: existing?.createdAt ?? now, updatedAt: now });
     refresh(profile); setPanel(null); setEditingPlanId(undefined); setFoodNote(""); setForecast("");
     setMessage("Night out planned. Nothing has been logged as consumed.");
   };
@@ -213,7 +221,7 @@ export default function GoingOutExperience() {
 
   if (profile === undefined) return <main className="ff-page"><p className="subtle">Loading Going Out…</p></main>;
   if (!profile) return <main className="ff-page"><PageHeader title="Going Out" /><p className="mt-5">Create a profile before using this feature.</p><Link className="primary mt-5 inline-flex" href="/onboarding">Build my plan</Link></main>;
-  const categories = DIRECT_DRINK_PRESETS.filter((preset) => eligible || preset.category === "nonalcoholic");
+  const categories = DIRECT_DRINK_PRESETS.filter((preset) => loggingEligible || preset.category === "nonalcoholic");
   const upcoming = events.filter((event) => event.status === "planned" && event.eventDate >= todayKey()).sort((a, b) => a.eventDate.localeCompare(b.eventDate));
 
   return <main className="ff-page ff-going-out">
@@ -221,7 +229,7 @@ export default function GoingOutExperience() {
     <AppNav />
 
     <section className="ff-go-actions" aria-label="Going Out actions">
-      <button type="button" className="ff-go-action ff-go-action-log" onClick={() => setPanel(panel === "log" ? null : "log")}><DrinkIllustration category={eligible ? "cocktail" : "nonalcoholic"} className="ff-go-action-art" /><span><small>Already had something?</small><strong>Log a drink</strong><em>{eligible ? "Record what you actually drank." : "Record a nonalcoholic beverage."}</em></span><b>→</b></button>
+      <button type="button" className="ff-go-action ff-go-action-log" onClick={() => setPanel(panel === "log" ? null : "log")}><DrinkIllustration category={loggingEligible ? "cocktail" : "nonalcoholic"} className="ff-go-action-art" /><span><small>Already had something?</small><strong>Log a drink</strong><em>{loggingEligible ? "Record what you actually drank." : "Record a nonalcoholic beverage."}</em></span><b>→</b></button>
       <button type="button" className="ff-go-action ff-go-action-plan" onClick={() => setPanel(panel === "plan" ? null : "plan")}><span className="ff-plan-emblem" aria-hidden="true"><i>FRI</i><i>+</i></span><span><small>Going out tonight?</small><strong>Plan a night out</strong><em>Tell Falcon Fuel about an upcoming occasion.</em></span><b>→</b></button>
     </section>
 
@@ -232,7 +240,14 @@ export default function GoingOutExperience() {
       <div className="ff-drink-tiles">{categories.map((preset) => <button type="button" key={preset.category} aria-pressed={drinkDraft.category === preset.category} onClick={() => chooseDrink(preset.category)}><DrinkIllustration category={preset.category} /><strong>{preset.label}</strong><span>{preset.servingLabel} · ~{preset.caloriesPerServing} cal</span></button>)}</div>
       <div className="ff-drink-editor">
         <div className="ff-editor-copy"><DrinkIllustration category={drinkDraft.category} /><div><p className="eyebrow">Ready to add</p><h3>{drinkDraft.name}</h3><p>{formattedDrinkServing(drinkDraft.category, numericDraft.servingOunces)} · Estimated {Math.round(numericDraft.caloriesPerServing ?? 0)} calories{drinkDraft.category === "cocktail" ? " · varies by preparation" : ""}</p></div></div>
-        <div className="ff-drink-primary"><label className="field">Quantity<input type="number" min="1" step="1" value={drinkDraft.quantity} onChange={(e) => setDrinkDraft((current) => ({ ...current, quantity: e.target.value }))} /></label></div>
+        <div className="ff-drink-primary">
+          <span id="drink-quantity-label">Quantity</span>
+          <div className="ff-drink-stepper" role="group" aria-labelledby="drink-quantity-label">
+            <button type="button" aria-label="Decrease quantity" disabled={numberOrZero(drinkDraft.quantity) <= 1} onClick={() => changeQuantity(-1)}>−</button>
+            <output aria-live="polite">{drinkDraft.quantity}</output>
+            <button type="button" aria-label="Increase quantity" onClick={() => changeQuantity(1)}>+</button>
+          </div>
+        </div>
         <details className="ff-drink-details">
           <summary>Adjust estimate</summary>
           <p>Reference estimates vary by beverage and preparation. Change these only when your serving was different.</p>
@@ -251,9 +266,9 @@ export default function GoingOutExperience() {
       </div>
     </section>}
 
-    {panel === "plan" && <section className="ff-plan-flow" aria-labelledby="plan-flow-heading"><div className="ff-flow-heading"><div><p className="eyebrow">Upcoming occasion</p><h2 id="plan-flow-heading">Plan a night out</h2><p>A plan can slightly improve meal fit. It never adds calories or logs a drink.</p></div><button type="button" onClick={() => setPanel(null)}>Close</button></div><fieldset><legend>When?</legend><div className="ff-choice-row"><button type="button" aria-pressed={planDateChoice === "today"} onClick={() => setPlanDateChoice("today")}>Tonight</button><button type="button" aria-pressed={planDateChoice === "tomorrow"} onClick={() => setPlanDateChoice("tomorrow")}>Tomorrow</button><button type="button" aria-pressed={planDateChoice === "choose"} onClick={() => setPlanDateChoice("choose")}>Choose a date</button></div>{planDateChoice === "choose" && <label className="field ff-date-field">Date<input type="date" value={planDate} onChange={(e) => setPlanDate(e.target.value)} /></label>}</fieldset><fieldset><legend>What are you planning?</legend><div className="ff-occasion-grid">{(Object.keys(occasionLabels) as Occasion[]).map((value) => <button type="button" key={value} aria-pressed={occasion === value} onClick={() => setOccasion(value)}><span aria-hidden="true">{value === "dinner-out" ? "◇" : value === "social-gathering" ? "◎" : value === "late-night-food" ? "☾" : "+"}</span>{occasionLabels[value]}</button>)}</div></fieldset>{eligible && <fieldset><legend>Expected beverages <span>Optional</span></legend><div className="ff-choice-row">{(Object.keys(forecastLabels) as AlcoholForecast[]).map((value) => <button type="button" key={value} aria-pressed={forecast === value} onClick={() => setForecast(forecast === value ? "" : value)}>{forecastLabels[value]}</button>)}</div></fieldset>}<label className="field">Food plans <span>Optional</span><input value={foodNote} onChange={(e) => setFoodNote(e.target.value)} placeholder="Dinner reservation, late-night pizza…" /></label><div className="ff-plan-summary"><span><small>Your plan</small><strong>{prettyDate(planDateChoice === "today" ? todayKey() : planDateChoice === "tomorrow" ? tomorrowKey() : planDate)} — {occasionLabels[occasion].toLowerCase()} planned.</strong><em>Falcon Fuel may give suitable meals a small positive ranking boost. Your calorie target stays the same.</em></span><button type="button" className="primary" onClick={savePlan}>{editingPlanId ? "Update plan" : "Save plan"}</button></div></section>}
+    {panel === "plan" && <section className="ff-plan-flow" aria-labelledby="plan-flow-heading"><div className="ff-flow-heading"><div><p className="eyebrow">Upcoming occasion</p><h2 id="plan-flow-heading">Plan a night out</h2><p>A plan can slightly improve meal fit. It never adds calories or logs a drink.</p></div><button type="button" onClick={() => setPanel(null)}>Close</button></div><fieldset><legend>When?</legend><div className="ff-choice-row"><button type="button" aria-pressed={planDateChoice === "today"} onClick={() => setPlanDateChoice("today")}>Tonight</button><button type="button" aria-pressed={planDateChoice === "tomorrow"} onClick={() => setPlanDateChoice("tomorrow")}>Tomorrow</button><button type="button" aria-pressed={planDateChoice === "choose"} onClick={() => setPlanDateChoice("choose")}>Choose a date</button></div>{planDateChoice === "choose" && <label className="field ff-date-field">Date<input type="date" value={planDate} onChange={(e) => setPlanDate(e.target.value)} /></label>}</fieldset><fieldset><legend>What are you planning?</legend><div className="ff-occasion-grid">{(Object.keys(occasionLabels) as Occasion[]).map((value) => <button type="button" key={value} aria-pressed={occasion === value} onClick={() => setOccasion(value)}><span aria-hidden="true">{value === "dinner-out" ? "◇" : value === "social-gathering" ? "◎" : value === "late-night-food" ? "☾" : "+"}</span>{occasionLabels[value]}</button>)}</div></fieldset>{planningEligible && <fieldset><legend>Expected beverages <span>Optional</span></legend><div className="ff-choice-row">{(Object.keys(forecastLabels) as AlcoholForecast[]).map((value) => <button type="button" key={value} aria-pressed={forecast === value} onClick={() => setForecast(forecast === value ? "" : value)}>{forecastLabels[value]}</button>)}</div></fieldset>}<label className="field">Food plans <span>Optional</span><input value={foodNote} onChange={(e) => setFoodNote(e.target.value)} placeholder="Dinner reservation, late-night pizza…" /></label><div className="ff-plan-summary"><span><small>Your plan</small><strong>{prettyDate(planDateChoice === "today" ? todayKey() : planDateChoice === "tomorrow" ? tomorrowKey() : planDate)} — {occasionLabels[occasion].toLowerCase()} planned.</strong><em>Falcon Fuel may give suitable meals a small positive ranking boost. Your calorie target stays the same.</em></span><button type="button" className="primary" onClick={savePlan}>{editingPlanId ? "Update plan" : "Save plan"}</button></div></section>}
 
-    <section className="ff-outlook-events" aria-labelledby="upcoming-heading"><div className="ff-outlook-section-head"><div><p className="eyebrow">Coming up</p><h2 id="upcoming-heading">Upcoming plans</h2></div><span>{upcoming.length || "None yet"}</span></div>{upcoming.length === 0 ? <div className="ff-outlook-empty"><strong>Planning something this weekend?</strong><p>Add a date and occasion. No calorie math is required.</p><button type="button" onClick={() => setPanel("plan")}>Plan a night out →</button></div> : <div className="ff-event-list">{upcoming.map((event) => <article className="ff-outlook-event" key={event.id}><div><p className="eyebrow">{prettyDate(event.eventDate)}</p><h3>{occasionLabels[event.occasion ?? (event.planKind === "late-night" ? "late-night-food" : "social-gathering")]}</h3><p>{event.expectedFoodNote || "No food details added"}{event.alcoholForecast ? ` · ${forecastLabels[event.alcoholForecast]} drinks expected` : ""}</p></div><div className="ff-outlook-event-actions"><button type="button" onClick={() => editPlan(event)}>Edit plan</button>{eligible && <button type="button" onClick={() => beginRecap(event)}>Review night</button>}<button type="button" className="is-danger" onClick={() => deletePlan(event)}>Delete</button></div>{recapEventId === event.id && <div className="ff-recap-panel"><h4>Review what you drank</h4><p>Drinks already in your daily log are included automatically and will not be counted twice.</p>{recapDraft.length > 0 && <div className="ff-recap-list">{recapDraft.map((entry) => <div key={entry.id}><span><strong>{entry.name}</strong><small>{entry.sourceHistoryEntryId ? "Already logged" : `${Math.round(entry.nutrition.calories)} cal estimate`}</small></span>{!entry.sourceHistoryEntryId && <button type="button" onClick={() => setRecapDraft((current) => current.filter((row) => row.id !== entry.id))}>Remove</button>}</div>)}</div>}<div className="ff-recap-add">{(["beer", "hard-seltzer", "wine", "wine-bottle", "spirits", "cocktail"] as const).map((category) => <button type="button" key={category} onClick={() => addRecapEstimate(category)}>+ {drinkPresetFor(category).label}</button>)}</div><div className="ff-recap-actions"><button type="button" className="primary" onClick={() => saveRecap(event, "recap-completed")}>Save recap</button><button type="button" className="secondary" onClick={() => saveRecap(event, "recap-completed", [])}>I had none</button><button type="button" className="secondary" onClick={() => saveRecap(event, "recap-skipped", [])}>Skip</button><button type="button" onClick={() => setRecapEventId(undefined)}>Cancel</button></div></div>}</article>)}</div>}</section>
+    <section className="ff-outlook-events" aria-labelledby="upcoming-heading"><div className="ff-outlook-section-head"><div><p className="eyebrow">Coming up</p><h2 id="upcoming-heading">Upcoming plans</h2></div><span>{upcoming.length || "None yet"}</span></div>{upcoming.length === 0 ? <div className="ff-outlook-empty"><strong>Planning something this weekend?</strong><p>Add a date and occasion. No calorie math is required.</p><button type="button" onClick={() => setPanel("plan")}>Plan a night out →</button></div> : <div className="ff-event-list">{upcoming.map((event) => <article className="ff-outlook-event" key={event.id}><div><p className="eyebrow">{prettyDate(event.eventDate)}</p><h3>{occasionLabels[event.occasion ?? (event.planKind === "late-night" ? "late-night-food" : "social-gathering")]}</h3><p>{event.expectedFoodNote || "No food details added"}{event.alcoholForecast ? ` · ${forecastLabels[event.alcoholForecast]} drinks expected` : ""}</p></div><div className="ff-outlook-event-actions"><button type="button" onClick={() => editPlan(event)}>Edit plan</button>{planningEligible && <button type="button" onClick={() => beginRecap(event)}>Review night</button>}<button type="button" className="is-danger" onClick={() => deletePlan(event)}>Delete</button></div>{recapEventId === event.id && <div className="ff-recap-panel"><h4>Review what you drank</h4><p>Drinks already in your daily log are included automatically and will not be counted twice.</p>{recapDraft.length > 0 && <div className="ff-recap-list">{recapDraft.map((entry) => <div key={entry.id}><span><strong>{entry.name}</strong><small>{entry.sourceHistoryEntryId ? "Already logged" : `${Math.round(entry.nutrition.calories)} cal estimate`}</small></span>{!entry.sourceHistoryEntryId && <button type="button" onClick={() => setRecapDraft((current) => current.filter((row) => row.id !== entry.id))}>Remove</button>}</div>)}</div>}<div className="ff-recap-add">{(["beer", "hard-seltzer", "wine", "wine-bottle", "spirits", "cocktail"] as const).map((category) => <button type="button" key={category} onClick={() => addRecapEstimate(category)}>+ {drinkPresetFor(category).label}</button>)}</div><div className="ff-recap-actions"><button type="button" className="primary" onClick={() => saveRecap(event, "recap-completed")}>Save recap</button><button type="button" className="secondary" onClick={() => saveRecap(event, "recap-completed", [])}>I had none</button><button type="button" className="secondary" onClick={() => saveRecap(event, "recap-skipped", [])}>Skip</button><button type="button" onClick={() => setRecapEventId(undefined)}>Cancel</button></div></div>}</article>)}</div>}</section>
 
     <section className="ff-recent-drinks" aria-labelledby="recent-drinks-heading"><div className="ff-outlook-section-head"><div><p className="eyebrow">Actually consumed</p><h2 id="recent-drinks-heading">Recent drinks</h2></div>{drinks.length > 0 && <button type="button" onClick={() => setPanel("log")}>Log another →</button>}</div>{drinks.length === 0 ? <div className="ff-outlook-empty"><strong>Nothing logged yet.</strong><p>Plans stay separate until you add something you actually drank.</p></div> : <div className="ff-recent-list">{drinks.slice(0, 6).map((entry) => <article key={entry.id}><DrinkIllustration category={entry.drinkDetails?.category ?? "custom"} /><div><strong>{entry.drinkDetails?.name}</strong><span>{new Date(entry.eatenAt ?? entry.selectedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {Math.round(entry.nutrition?.calories ?? 0)} cal · {entry.nutritionEstimateStatus}</span></div><button type="button" onClick={() => editDrink(entry)}>Edit</button><button type="button" className="is-danger" onClick={() => deleteDrink(entry)}>Delete</button></article>)}</div>}</section>
 

@@ -1,5 +1,5 @@
 import type { MealHistoryEntry, NightOutCategory, NightOutConsumption, UserProfile } from "@/types";
-import { canUseAlcoholFeatures } from "./goingOutRepository";
+import { canLogAlcohol } from "./goingOutRepository";
 import { detailedAlcoholNutrition } from "./alcoholNutrition";
 export { DIRECT_DRINK_PRESETS } from "./drinkCatalog";
 
@@ -40,8 +40,8 @@ export function createDirectDrinkHistoryEntry(
   draft: DirectDrinkDraft,
   options: { id?: string; now?: string } = {},
 ): MealHistoryEntry {
-  if (isAlcoholCategory(draft.category) && !canUseAlcoholFeatures(profile)) {
-    throw new Error("Alcohol-specific drink logging requires a profile declaring age 21 or older.");
+  if (isAlcoholCategory(draft.category) && !canLogAlcohol(profile)) {
+    throw new Error("Alcohol-specific drink logging requires a profile declaring age 18 or older.");
   }
   if (!draft.name.trim() || !Number.isFinite(draft.quantity) || draft.quantity <= 0 || !Number.isFinite(draft.servingOunces) || draft.servingOunces <= 0 || !Number.isFinite(draft.abvPercent) || draft.abvPercent < 0 || draft.abvPercent > 100 || Number.isNaN(Date.parse(draft.consumedAt))) {
     throw new Error("Drink details are incomplete or invalid.");

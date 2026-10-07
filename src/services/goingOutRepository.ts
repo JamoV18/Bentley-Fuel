@@ -56,9 +56,10 @@ export function isValidGoingOutSettings(value: unknown): value is GoingOutSettin
     (value.dismissedTodayDate === undefined || validDateKey(value.dismissedTodayDate)) && validIso(value.updatedAt);
 }
 
-export const canUseAlcoholFeatures = (profile: Pick<UserProfile, "metrics">): boolean => (profile.metrics?.age ?? 0) >= 21;
+export const canLogAlcohol = (profile: Pick<UserProfile, "metrics">): boolean => (profile.metrics?.age ?? 0) >= 18;
+export const canPlanAlcohol = (profile: Pick<UserProfile, "metrics">): boolean => (profile.metrics?.age ?? 0) >= 21;
 
-export function createLocalGoingOutRepository(storage: StorageLike, ownerProfileId: string, options?: { alcoholEligible?: boolean }) {
+export function createLocalGoingOutRepository(storage: StorageLike, ownerProfileId: string, options?: { alcoholPlanningEligible?: boolean }) {
   const assertOwned = (recordOwner: string) => {
     if (recordOwner !== ownerProfileId) throw new Error("This Going Out record belongs to another profile on this device.");
   };
@@ -94,7 +95,7 @@ export function createLocalGoingOutRepository(storage: StorageLike, ownerProfile
     upsertEvent(event: GoingOutEvent) {
       assertOwned(event.ownerProfileId);
       if (!isValidGoingOutEvent(event)) throw new Error("Invalid Going Out event.");
-      if (options?.alcoholEligible === false && (event.alcoholForecast !== undefined || (event.actualConsumption ?? []).some((entry) => entry.category !== "nonalcoholic"))) {
+      if (options?.alcoholPlanningEligible === false && (event.alcoholForecast !== undefined || (event.actualConsumption ?? []).some((entry) => entry.category !== "nonalcoholic"))) {
         throw new Error("Alcohol-specific records require a profile declaring age 21 or older.");
       }
       const all = readAllEvents();
@@ -125,7 +126,7 @@ export function createLocalGoingOutRepository(storage: StorageLike, ownerProfile
 }
 
 export type GoingOutRepository = ReturnType<typeof createLocalGoingOutRepository>;
-export const browserGoingOutRepository = (profile: UserProfile) => createLocalGoingOutRepository(window.localStorage, profile.id, { alcoholEligible: canUseAlcoholFeatures(profile) });
+export const browserGoingOutRepository = (profile: UserProfile) => createLocalGoingOutRepository(window.localStorage, profile.id, { alcoholPlanningEligible: canPlanAlcohol(profile) });
 
 const localNoon = (dateKey: string) => `${dateKey}T12:00:00`;
 

@@ -40,3 +40,5 @@ export * from "./goingOutRepository";
 export * from "./goingOutRecommendation";
 export * from "./drinkLogging";
 export * from "./drinkCatalog";
+export * from "./canonicalFoodCatalog";
+export * from "./canonicalFoodLogging";

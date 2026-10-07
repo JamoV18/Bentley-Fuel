@@ -6,6 +6,7 @@ export * from "./common";
 export * from "./nutrition";
 export * from "./beverage";
 export * from "./goingOut";
+export * from "./canonicalFood";
 export * from "./menu";
 export * from "./user";
 export * from "./plan";

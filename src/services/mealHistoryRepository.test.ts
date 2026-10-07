@@ -186,6 +186,27 @@ test("rejects malformed nutrition snapshots", () => {
   assert.deepEqual(repository.getRecent().map((item) => item.id), ["good"]);
 });
 
+test("canonical food snapshots survive persistence and reload", () => {
+  const storage = memoryStorage();
+  const repository = createLocalMealHistoryRepository(storage);
+  repository.upsert({
+    ...entry("canonical"),
+    build: { locationId: "loc-921", items: [{
+      id: "egg-line", menuItemId: "generic:egg", quantity: 2,
+      display: { name: "Egg" },
+      foodSnapshot: {
+        foodId: "generic:egg", displayName: "Egg", quantity: 2,
+        portionUnitId: "egg", portionAmount: 1, portionUnit: "egg", portionLabel: "2 eggs",
+        nutrition: { calories: 144, protein: 12.6, carbs: 0.8, fat: 9.6 },
+        source: "generic", verification: "verified", loggedAt: "2026-10-07T08:00:00.000Z",
+      },
+    }] },
+  });
+  const snapshot = createLocalMealHistoryRepository(storage).getRecent()[0].build.items[0].foodSnapshot;
+  assert.equal(snapshot?.portionLabel, "2 eggs");
+  assert.equal(snapshot?.nutrition.calories, 144);
+});
+
 test("clear removes local meal history", () => {
   const storage = memoryStorage();
   const repository = createLocalMealHistoryRepository(storage);

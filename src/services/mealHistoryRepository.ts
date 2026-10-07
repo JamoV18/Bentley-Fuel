@@ -20,24 +20,35 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const validIso = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
 
-const validBuild = (value: unknown): value is MealBuild => {
-  if (!isRecord(value) || typeof value.locationId !== "string" || !Array.isArray(value.items) || value.items.length === 0) return false;
-  return value.items.every((line) => {
-    if (!isRecord(line) || typeof line.id !== "string" || typeof line.menuItemId !== "string" || typeof line.quantity !== "number" || !Number.isFinite(line.quantity) || line.quantity <= 0) return false;
-    if (line.componentSelections === undefined) return true;
-    return Array.isArray(line.componentSelections) && line.componentSelections.every((selection) =>
-      isRecord(selection) && typeof selection.componentId === "string" && typeof selection.quantity === "number" && Number.isFinite(selection.quantity) && selection.quantity > 0,
-    );
-  });
-};
-
-const validNutrition = (value: unknown): value is NutritionFacts => {
+function validNutrition(value: unknown): value is NutritionFacts {
   if (!isRecord(value)) return false;
   const required = ["calories", "protein", "carbs", "fat"] as const;
   if (!required.every((key) => typeof value[key] === "number" && Number.isFinite(value[key]) && value[key] >= 0)) return false;
   return OPTIONAL_NUTRIENT_KEYS.every((key) =>
     value[key] === undefined || (typeof value[key] === "number" && Number.isFinite(value[key]) && value[key] >= 0),
   );
+}
+
+const validBuild = (value: unknown): value is MealBuild => {
+  if (!isRecord(value) || typeof value.locationId !== "string" || !Array.isArray(value.items) || value.items.length === 0) return false;
+  return value.items.every((line) => {
+    if (!isRecord(line) || typeof line.id !== "string" || typeof line.menuItemId !== "string" || typeof line.quantity !== "number" || !Number.isFinite(line.quantity) || line.quantity <= 0) return false;
+    const validComponents = line.componentSelections === undefined || (Array.isArray(line.componentSelections) && line.componentSelections.every((selection) =>
+      isRecord(selection) && typeof selection.componentId === "string" && typeof selection.quantity === "number" && Number.isFinite(selection.quantity) && selection.quantity > 0,
+    ));
+    if (!validComponents || line.foodSnapshot === undefined) return validComponents;
+    const snapshot = line.foodSnapshot;
+    return isRecord(snapshot) && typeof snapshot.foodId === "string" && snapshot.foodId.length > 0 &&
+      typeof snapshot.displayName === "string" && snapshot.displayName.length > 0 &&
+      typeof snapshot.quantity === "number" && Number.isFinite(snapshot.quantity) && snapshot.quantity > 0 &&
+      typeof snapshot.portionUnitId === "string" && typeof snapshot.portionAmount === "number" && snapshot.portionAmount > 0 &&
+      typeof snapshot.portionUnit === "string" && typeof snapshot.portionLabel === "string" &&
+      (snapshot.source === "bentley-dining" || snapshot.source === "generic" || snapshot.source === "custom") &&
+      (snapshot.verification === "verified" || snapshot.verification === "calibrated-estimate" || snapshot.verification === "unverified-estimate") &&
+      validIso(snapshot.loggedAt) && validNutrition(snapshot.nutrition) &&
+      (snapshot.locationId === undefined || typeof snapshot.locationId === "string") &&
+      (snapshot.stationId === undefined || typeof snapshot.stationId === "string");
+  });
 };
 
 export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEntry => {

@@ -532,6 +532,7 @@ export default function TodayV2Client({
                   <span>{entry.source === "drink-log" ? `Drink · ${entry.nutritionEstimateStatus ?? "estimated"}` : entry.entryKind === "alcohol" ? `Alcohol · ${entry.nutritionEstimateStatus ?? "estimated"}${entry.timeAccuracy === "date-only" ? " · time approximate" : ""}` : (locationNames[entry.locationId] ?? entry.locationId)}</span>
                   {entry.campusBeverages?.length ? <span>+ {entry.campusBeverages.map((beverage) => beverage.name).join(", ")}</span> : null}
                   {entry.nutrition && <p>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</p>}
+                  {isToday && entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log" && entry.source !== "night-out" && <Link href={`/log-meal?slot=${slot}&entryId=${encodeURIComponent(entry.id)}`} className="mt-1 inline-block text-xs font-bold text-[var(--ff-accent-light)]">+ Add item</Link>}
                 </div>
                 <div className="ff-v2-meal-status" aria-label={entry.completionFraction === undefined ? "Check-in pending" : `${Math.round(entry.completionFraction * 100)} percent finished`}>
                   {entry.completionFraction === undefined ? "…" : entry.completionFraction === 1 ? "✓" : `${Math.round(entry.completionFraction * 100)}%`}

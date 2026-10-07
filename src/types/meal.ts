@@ -1,4 +1,5 @@
 import type { FoodComponentId, LocationId, MenuItemId, StationId } from "./common";
+import type { LoggedFoodSnapshot } from "./canonicalFood";
 
 /** A discrete component choice inside one customizable menu-item line. */
 export interface ComponentSelection {
@@ -29,6 +30,8 @@ export interface MealItemSelection {
   componentSelections?: ComponentSelection[];
   /** Display identity captured when the menu item was selected. */
   display?: MealItemDisplaySnapshot;
+  /** Canonical identity, selected portion, and immutable nutrition for manually logged foods. */
+  foodSnapshot?: LoggedFoodSnapshot;
 }
 
 /** An editable complete eating occasion at one physical location (not a log). */

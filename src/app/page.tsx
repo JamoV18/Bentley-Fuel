@@ -22,7 +22,7 @@ export default function Home() {
         animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
         transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       >
-        <p className="text-4xl font-black tracking-[-0.055em] sm:text-5xl">Falcon Fuel</p>
+        <p className="text-2xl font-semibold tracking-[-0.055em] sm:text-5xl">Falcon Fuel</p>
         <p className="mt-3 text-xs font-bold uppercase tracking-[.18em] text-[var(--ff-text-secondary)]">Loading…</p>
       </motion.div>
     </main>

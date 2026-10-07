@@ -41,7 +41,7 @@ export default function DailyMealCheckinStrip() {
 
   return (
     <motion.section
-      className="mt-4 overflow-hidden rounded-[1.35rem] border border-[#294567]/10 bg-gradient-to-br from-[#10263d] via-[#173d5d] to-[#0d5570] p-4 text-white shadow-[0_16px_34px_rgba(25,55,82,.15)] sm:p-5"
+      className="mt-4 overflow-hidden rounded-lg border border-[var(--ff-divider)] bg-[var(--ff-surface)] p-4 sm:p-5"
       initial={reduceMotion ? false : { opacity: 0, y: 7 }}
       animate={{ opacity: 1, y: 0 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
@@ -49,28 +49,28 @@ export default function DailyMealCheckinStrip() {
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[.16em] text-white/55">Today&apos;s check-in</p>
+          <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--ff-text-secondary)]">Today&apos;s check-in</p>
           <div className="mt-1 flex items-baseline gap-2">
             <motion.strong
               key={progress.completedCoreMeals}
               initial={reduceMotion ? false : { opacity: 0.45, y: 4, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 330, damping: 24 }}
-              className="text-2xl font-black tracking-[-0.04em]"
+              className="text-2xl font-semibold tracking-[-0.04em]"
             >
               {progress.completedCoreMeals}/3
             </motion.strong>
-            <span className="text-xs font-bold text-white/60">main meals logged</span>
+            <span className="text-xs font-bold text-[var(--ff-text-secondary)]">main meals logged</span>
           </div>
         </div>
-        <Link href="/log-meal" className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-black text-white/85 backdrop-blur transition hover:bg-white/15">
+        <Link href="/log-meal" className="rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-3 py-2 text-xs font-semibold text-[var(--ff-text-secondary)] backdrop-blur transition hover:bg-[var(--ff-surface-elevated)]">
           {progress.coreComplete ? "View log" : "Log a meal"}
         </Link>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--ff-surface-elevated)]">
         <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-[#82BCE5] via-[#4fa8d8] to-[#42B7B0]"
+          className="h-full rounded-full bg-[var(--ff-accent-light)]"
           initial={false}
           animate={{ width: `${percent}%` }}
           transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 120, damping: 20 }}
@@ -84,24 +84,24 @@ export default function DailyMealCheckinStrip() {
             <Link
               href="/log-meal"
               key={slot}
-              className={`group flex items-center gap-2 rounded-xl border px-2.5 py-2.5 transition ${done ? "border-white/18 bg-white/12" : "border-white/10 bg-black/5 hover:bg-white/[.07]"}`}
+              className={`group flex items-center gap-2 rounded-xl border px-2.5 py-2.5 transition ${done ? "border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)]" : "border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] hover:bg-[var(--ff-surface-elevated)]"}`}
               aria-label={`${label}: ${done ? "logged" : "not logged"}`}
             >
               <motion.span
-                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-black ${done ? "bg-[#42B7B0] text-[#10263d]" : "border border-white/25 text-white/45"}`}
+                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold ${done ? "bg-[#42B7B0] text-[#10263d]" : "border border-[var(--ff-divider)] text-[var(--ff-text-secondary)]"}`}
                 initial={false}
                 animate={done && !reduceMotion ? { scale: [1, 1.18, 1], rotate: [0, -5, 0] } : { scale: 1, rotate: 0 }}
                 transition={reduceMotion ? { duration: 0 } : { duration: 0.38, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
               >
                 {done ? "✓" : "·"}
               </motion.span>
-              <span className="min-w-0 text-xs font-black text-white/85 sm:text-sm">{label}</span>
+              <span className="min-w-0 text-xs font-semibold text-[var(--ff-text-secondary)] sm:text-sm">{label}</span>
             </Link>
           );
         })}
       </div>
 
-      <p className="mt-3 text-[11px] font-medium leading-relaxed text-white/48">
+      <p className="mt-3 text-[11px] font-medium leading-relaxed text-[var(--ff-text-secondary)]">
         {progress.coreComplete ? "Day complete. Breakfast, lunch, and dinner are accounted for." : "Three simple checkpoints. Snacks stay optional."}
       </p>
     </motion.section>

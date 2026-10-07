@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Keep browser QA data isolated from the developer's localhost profile.
+  allowedDevOrigins: ["127.0.0.1"],
   webpack(config, { isServer }) {
     // @vercel/functions re-exports its optional WebSocket support from the package
     // root. Falcon Fuel only uses Runtime Cache on the server, but webpack still

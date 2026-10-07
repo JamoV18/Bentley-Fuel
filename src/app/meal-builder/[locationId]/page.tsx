@@ -52,11 +52,11 @@ export default async function MealBuilderPage({
   if (isLiveMenuLocation && !usesVerifiedMenu) {
     const requestedLabel = asMealPeriod(query.period);
     return (
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
+      <main className="ff-page">
         <FlowHeader backHref={`/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`} backLabel={location.shortName ?? location.name} />
         <section className="surface mt-8 p-6 sm:p-8">
           <p className="eyebrow">{location.shortName ?? location.name} live menu</p>
-          <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Live menu unavailable</h1>
+          <h1 className="mt-2 text-2xl font-bold tracking-[-0.04em] sm:text-5xl">Live menu unavailable</h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed subtle">
             Falcon Fuel could not verify the DineOnCampus {requestedLabel ? `${readablePeriod(requestedLabel).toLowerCase()} ` : ""}menu for {menuDate ? formatMenuDate(menuDate) : "this date"}. No demo foods are being substituted.
           </p>
@@ -159,14 +159,14 @@ export default async function MealBuilderPage({
           <section className="surface-soft flex flex-wrap items-center justify-between gap-3 p-3.5" aria-label={`Choose ${location.shortName ?? location.name} meal period`}>
             <div>
               <p className="eyebrow">{location.shortName ?? location.name} · {formatMenuDate(menuDate)}</p>
-              <p className="mt-1 text-sm font-bold text-emerald-950">Choose the menu Falcon Fuel should use</p>
+              <p className="mt-1 text-sm font-bold text-[var(--ff-text-primary)]">Choose the menu Falcon Fuel should use</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {availablePeriods.map((period) => (
                 <Link
                   key={period}
                   href={periodHref(period)}
-                  className={selectedPeriod === period ? "rounded-full bg-emerald-900 px-4 py-2 text-sm font-bold text-white shadow-sm" : "rounded-full border border-emerald-900/15 bg-white px-4 py-2 text-sm font-bold text-emerald-950 transition hover:border-emerald-800/30"}
+                  className={selectedPeriod === period ? "rounded-full bg-[var(--ff-accent)] px-4 py-2 text-sm font-bold text-white shadow-sm" : "rounded-full border border-[var(--ff-border)] bg-[var(--ff-surface-elevated)] px-4 py-2 text-sm font-bold text-[var(--ff-text-primary)] transition hover:border-[var(--ff-border)]"}
                   aria-current={selectedPeriod === period ? "page" : undefined}
                 >
                   {readablePeriod(period)}

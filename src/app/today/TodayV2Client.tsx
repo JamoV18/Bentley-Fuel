@@ -2,7 +2,7 @@
 
 import "./today-v2.css";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import AppNav from "@/components/AppNav";
@@ -12,6 +12,7 @@ import SuccessMorphLabel from "@/components/SuccessMorphLabel";
 import { resolveLivingDayState, type CoreMealSlot } from "@/lib/livingDay";
 import {
   browserMealHistoryRepository,
+  browserGoingOutRepository,
   browserProgressRepository,
   computeMealBuild,
   createDailyNutritionSnapshot,
@@ -30,6 +31,8 @@ import type {
   RecommendationContext,
   Station,
   UserProfile,
+  GoingOutEvent,
+  GoingOutSettings,
 } from "@/types";
 
 const PENDING_CHECK_IN_WINDOW_MS = 36 * 60 * 60 * 1000;
@@ -39,6 +42,8 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 const coverage = (value: number, target: number) => target > 0 ? clamp(Math.round((value / target) * 100), 0, 100) : 0;
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
+const localDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const todayKey = () => localDateKey(new Date());
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
 const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => item.display?.name ?? itemNames[item.menuItemId] ?? "Meal item").join(" + ");
 const mealImageUrl = (entry: MealHistoryEntry, itemImageUrls: Record<string, string | undefined>) => entry.build.items[0]?.display?.imageUrl ?? itemImageUrls[primaryItemId(entry)];
@@ -58,7 +63,7 @@ function dayLabel(date: Date) {
 function AnimatedCalorieRing({ progress, children }: { progress: number; children: ReactNode }) {
   const reduceMotion = useReducedMotion();
   const value = useMotionValue(progress);
-  const cssProgress = useTransform(value, (latest) => `${latest}%`);
+  const strokeOffset = useTransform(value, (latest) => 100 - latest);
   const previous = useRef(progress);
   const mounted = useRef(false);
 
@@ -81,7 +86,13 @@ function AnimatedCalorieRing({ progress, children }: { progress: number; childre
     return () => controls.stop();
   }, [progress, reduceMotion, value]);
 
-  return <motion.div className="ff-v2-ring" style={{ "--ff-ring": cssProgress } as unknown as CSSProperties}>{children}</motion.div>;
+  return <div className="ff-v2-ring">
+    <svg viewBox="0 0 240 240" aria-hidden="true">
+      <circle className="ff-ring-track" cx="120" cy="120" r="108" />
+      <motion.circle className="ff-ring-progress" cx="120" cy="120" r="108" pathLength="100" strokeDasharray="100" style={{ strokeDashoffset: strokeOffset, opacity: progress > 0 ? 1 : 0 }} />
+    </svg>
+    {children}
+  </div>;
 }
 
 function inferredCoreMealSlot(entry: MealHistoryEntry): CoreMealSlot | undefined {
@@ -149,6 +160,8 @@ export default function TodayV2Client({
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [savingCheckIn, setSavingCheckIn] = useState<{ id: string; fraction: MealCompletionFraction }>();
   const [nutritionMode, setNutritionMode] = useState<"remaining" | "consumed">("remaining");
+  const [goingOutSettings, setGoingOutSettings] = useState<GoingOutSettings>();
+  const [goingOutEvents, setGoingOutEvents] = useState<GoingOutEvent[]>([]);
   const checkInTimer = useRef<number | null>(null);
 
   const isToday = sameDay(selectedDate, new Date());
@@ -158,11 +171,21 @@ export default function TodayV2Client({
     const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
     const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1, 0, 0, 0, -1);
     const now = new Date();
-    setProfile(browserProfileRepository().get());
+    const activeProfile = browserProfileRepository().get();
+    setProfile(activeProfile);
+    if (activeProfile) {
+      const goingOut = browserGoingOutRepository(activeProfile);
+      setGoingOutSettings(goingOut.getSettings());
+      setGoingOutEvents(goingOut.listEvents());
+    }
     setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
     setEntries(repository.getByDateRange(start, end));
     setRecentEntries(repository.getRecent(24));
-    setPending(isToday ? repository.getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS)) : []);
+    setPending(isToday
+      ? repository
+        .getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS))
+        .filter((entry) => entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log")
+      : []);
   }, [selectedDate, isToday]);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
@@ -185,6 +208,17 @@ export default function TodayV2Client({
   const recommendationPeriod = livingDay.recommendationPeriod;
   const preferenceMealSlot = recommendationPeriod === "breakfast" || recommendationPeriod === "lunch" || recommendationPeriod === "dinner" ? recommendationPeriod : undefined;
   const locationPreference = preferredLocation(recentEntries, locationNames, preferenceMealSlot);
+  const goingOutContext = useMemo(() => {
+    if (!profile || !goingOutSettings?.enabled) return undefined;
+    const key = localDateKey(selectedDate);
+    const event = goingOutEvents.find((candidate) => candidate.eventDate === key && candidate.planKind !== "ordinary" && candidate.status === "planned" && !candidate.ignoredForRecommendations);
+    if (event) return { eventId: event.id, eventDate: event.eventDate, planKind: event.planKind as "social" | "late-night" };
+    if (goingOutSettings.usualHigherDays?.includes(selectedDate.getDay())) return { eventId: `usual-day:${selectedDate.getDay()}`, eventDate: key, planKind: "social" as const };
+    return undefined;
+  }, [goingOutEvents, goingOutSettings?.enabled, goingOutSettings?.usualHigherDays, profile, selectedDate]);
+  const upcomingGoingOutEvent = useMemo(() => [...goingOutEvents]
+    .filter((event) => event.status === "planned" && event.eventDate >= todayKey())
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0], [goingOutEvents]);
 
   const topMealPick = useMemo(() => {
     if (!profile || !recommendationPeriod || !locationPreference.id) return undefined;
@@ -207,7 +241,8 @@ export default function TodayV2Client({
       locationId: locationPreference.id,
       mealPeriod: recommendationPeriod,
       remainingMacros: snapshot.remaining ?? activeTargets,
-      recentHistory: recentEntries.slice(0, 12),
+      recentHistory: recentEntries.filter((entry) => entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log").slice(0, 12),
+      goingOut: goingOutContext,
     };
     const excludedMenuItemIds = [...new Set(
       entries
@@ -239,7 +274,14 @@ export default function TodayV2Client({
       protein: Math.round(best.computed.nutrition.protein),
       stationNames,
     };
-  }, [entries, locationPreference.id, plan, profile, recentEntries, recommendationData, recommendationPeriod, snapshot.remaining]);
+  }, [entries, goingOutContext, locationPreference.id, plan, profile, recentEntries, recommendationData, recommendationPeriod, snapshot.remaining]);
+
+  const dismissOutlook = () => {
+    if (!profile || !goingOutSettings) return;
+    const next = { ...goingOutSettings, dismissedTodayDate: todayKey(), updatedAt: new Date().toISOString() };
+    browserGoingOutRepository(profile).saveSettings(next);
+    setGoingOutSettings(next);
+  };
 
   const saveCompletion = (id: string, fraction: MealCompletionFraction) => {
     if (savingCheckIn) return;
@@ -266,7 +308,7 @@ export default function TodayV2Client({
   };
 
   if (profile === undefined) return <main className="ff-v2-shell"><p className="ff-v2-loading">Loading your day…</p></main>;
-  if (!profile) return <main className="ff-v2-shell"><p className="brand-kicker">Falcon Fuel</p><h1 className="ff-v2-empty-title">Set up your profile</h1><p className="ff-v2-empty-copy">Get meals matched to your goals and dietary needs.</p><Link className="primary ff-v2-empty-cta" href="/onboarding">Build my plan</Link></main>;
+  if (!profile) return <main className="ff-v2-shell ff-today-setup"><p className="brand-kicker">Falcon Fuel</p><h1 className="ff-v2-empty-title">Set up your profile</h1><p className="ff-v2-empty-copy">Get meals matched to your goals and dietary needs.</p><Link className="primary ff-v2-empty-cta" href="/onboarding">Build my plan</Link></main>;
 
   const mealPeriodLabel = recommendationPeriod ? readable(recommendationPeriod) : undefined;
   const preferredLocationName = locationNames[locationPreference.id ?? ""] ?? "campus dining";
@@ -301,7 +343,7 @@ export default function TodayV2Client({
     <main className="ff-v2-shell">
       <header className="ff-v2-header">
         <div className="ff-v2-header-copy">
-
+          <p className="ff-today-kicker">Your daily nutrition</p>
           <h1>{isToday ? "Today" : new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(selectedDate)}</h1>
         </div>
         <ProfileMenu profile={profile} />
@@ -317,13 +359,15 @@ export default function TodayV2Client({
 
       {isDemo && <p className="ff-v2-data-note">Some locations still use demo menu data. Verified Bentley Dining data is used where available.</p>}
 
+      <div className="ff-today-dashboard">
+      <div className="ff-today-overview">
       <section className="ff-today-nutrition" aria-labelledby="today-nutrition-title">
         <div className="ff-today-nutrition-head">
           <div>
 
-            <h2 id="today-nutrition-title">{isToday ? "Nutrition" : "Recorded nutrition"}</h2>
+            <h2 id="today-nutrition-title">Calories</h2>
           </div>
-          <div className="ff-today-mode-toggle" role="group" aria-label="Nutrition display">
+          <div className="ff-today-mode-toggle" data-mode={effectiveNutritionMode} role="group" aria-label="Nutrition display">
             <button type="button" aria-pressed={effectiveNutritionMode === "consumed"} onClick={() => setNutritionMode("consumed")}>Consumed</button>
             <button type="button" aria-pressed={effectiveNutritionMode === "remaining"} disabled={!snapshot.remaining} onClick={() => setNutritionMode("remaining")}>Remaining</button>
           </div>
@@ -331,12 +375,15 @@ export default function TodayV2Client({
         <div className="ff-today-nutrition-grid">
           <div className="ff-today-calories">
             <AnimatedCalorieRing progress={calorieCoverage}>
-              <div className="ff-v2-ring-inner">
-                <span>{effectiveNutritionMode === "remaining" ? "Remaining" : "Consumed"}</span>
+              <div className="ff-v2-ring-inner ff-calorie-value">
                 <strong><AnimatedCounter value={round(displayedNutrition.calories)} /></strong>
-                <small>{target ? `of ${round(target.calories).toLocaleString()} cal` : "Calories"}</small>
+                <p>{effectiveNutritionMode === "remaining" ? "Calories remaining" : "Calories consumed"}</p>
               </div>
             </AnimatedCalorieRing>
+            <div className="ff-calorie-context">
+              <div><span>Consumed</span><strong>{round(snapshot.consumed.calories).toLocaleString()} <small>cal</small></strong></div>
+              <div><span>Daily goal</span><strong>{target ? <>{round(target.calories).toLocaleString()} <small>cal</small></> : "Not set"}</strong></div>
+            </div>
           </div>
           <div className="ff-today-macros">
             {[
@@ -345,7 +392,7 @@ export default function TodayV2Client({
               { label: "Fat", value: displayedNutrition.fat, targetValue: target?.fat, progress: fatCoverage },
             ].map((macro) => (
               <div className="ff-today-macro" key={macro.label}>
-                <div className="ff-today-macro-line"><span>{macro.label}</span><strong>{round(macro.value)}g</strong></div>
+                <div className="ff-today-macro-line"><span>{macro.label}</span><strong><AnimatedCounter value={round(macro.value)} suffix="g" /></strong></div>
                 <div className="ff-today-macro-track"><span style={{ width: `${macro.progress}%` }} /></div>
                 <small>{effectiveNutritionMode === "remaining" ? "left" : macro.targetValue ? `of ${round(macro.targetValue)}g` : "tracked"}</small>
               </div>
@@ -398,7 +445,7 @@ export default function TodayV2Client({
                   </small>
                 </div>
               )}
-              <motion.div whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
+              <motion.div tabIndex={-1} whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
                 <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>
               </motion.div>
               <Link href="/dashboard" className="ff-v2-secondary-link">Change location</Link>
@@ -406,61 +453,6 @@ export default function TodayV2Client({
             </div>
           </motion.section>
 
-          <div className="ff-v3-day-path-wrap">
-            <div className="ff-v3-day-path" aria-label="Today’s meal progression and quick logging">
-              {CORE_MEALS.map((slot, index) => {
-                const done = livingDay.completedSlots[slot];
-                const next = recommendationPeriod === slot;
-                const status = done ? "Confirmed" : next ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : "Later";
-                return (
-                  <motion.div
-                    key={slot}
-                    className="ff-v3-day-step-shell"
-                    whileHover={reduceMotion ? undefined : { y: -2 }}
-                    whileTap={reduceMotion ? undefined : { scale: 0.985 }}
-                    transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 26 }}
-                  >
-                    <Link
-                      href={`/log-meal?slot=${slot}`}
-                      className={`ff-v3-day-step${done ? " is-done" : ""}${next ? " is-next" : ""}`}
-                      aria-label={`Log ${readable(slot)}. ${status}.`}
-                    >
-                      {next && (
-                        <motion.span
-                          aria-hidden="true"
-                          className="ff-v3-day-active"
-                          layoutId="ff-day-active"
-                          transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 30, mass: .55 }}
-                        />
-                      )}
-                      <motion.span
-                        className="ff-v3-day-dot"
-                        aria-hidden="true"
-                        initial={reduceMotion ? false : { scale: .82, opacity: .72 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={reduceMotion ? { duration: 0 } : { delay: index * .04, type: "spring", stiffness: 360, damping: 22 }}
-                      >
-                        {done ? "✓" : next ? "→" : "·"}
-                      </motion.span>
-                      <div className="ff-v3-day-copy"><strong>{readable(slot)}</strong><small>{status}</small></div>
-                      <span className="ff-v3-day-log" aria-hidden="true">+</span>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </div>
-            <motion.div
-              className="ff-v3-snack-log-shell"
-              whileHover={reduceMotion ? undefined : { y: -2 }}
-              whileTap={reduceMotion ? undefined : { scale: .985 }}
-              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 26 }}
-            >
-              <Link href="/log-meal?slot=snack" className="ff-v3-snack-log" aria-label="Log an optional snack">
-                <span aria-hidden="true">+</span>
-                <div><strong>Snack</strong><small>Optional</small></div>
-              </Link>
-            </motion.div>
-          </div>
         </>
       ) : (
         <section className="ff-v2-history-hero">
@@ -509,21 +501,36 @@ export default function TodayV2Client({
         )}
       </AnimatePresence>
 
+      </div>
+      {isToday && (goingOutSettings?.showOnToday ?? true) && goingOutSettings?.dismissedTodayDate !== todayKey() && (
+        <motion.section className="ff-weekend-outlook-card" initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <div><p className="ff-v2-eyebrow">Going Out</p><h2>{upcomingGoingOutEvent ? `${readable(upcomingGoingOutEvent.planKind)} · ${new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(new Date(`${upcomingGoingOutEvent.eventDate}T12:00:00`))}` : "Going out tonight?"}</h2><p>{upcomingGoingOutEvent ? "Your plan is saved. Drinks only count after you log what you actually had." : "Track a drink or tell Falcon Fuel about an upcoming night out."}</p></div>
+          <div className="ff-weekend-outlook-actions"><Link href="/going-out?action=log">Log a drink</Link><Link href="/going-out?action=plan">{upcomingGoingOutEvent ? "View plan" : "Plan ahead"} →</Link><button type="button" onClick={dismissOutlook}>Dismiss today</button></div>
+        </motion.section>
+      )}
       <motion.section className="ff-v2-meals" layout="position" transition={reduceMotion ? { duration: 0 } : { layout: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}>
         <div className="ff-v2-section-title">
           <div><h2>{isToday ? "Meals" : "Recorded meals"}</h2></div>
           <Link href="/history">History →</Link>
         </div>
-        {snapshot.meals.length === 0 ? (
-          <div className="ff-v2-empty-meals"><strong>Nothing here yet.</strong><p>{isToday ? "Your first confirmed meal will show up here." : "No meals were logged for this date."}</p></div>
-        ) : (
-          <div className="ff-v2-meal-list">
-            {snapshot.meals.map((entry) => (
+        {[...CORE_MEALS, "snack" as const].map((slot) => {
+          const meals = snapshot.meals.filter((entry) => (entry.mealSlot === "snack" ? "snack" : inferredCoreMealSlot(entry)) === slot);
+          const known = meals.filter((entry) => entry.nutrition && entry.completionFraction !== undefined);
+          const subtotal = known.reduce((total, entry) => total + entry.nutrition!.calories * entry.completionFraction!, 0);
+          const incomplete = meals.some((entry) => !entry.nutrition || entry.completionFraction === undefined);
+          return <section className="ff-diary-section" data-current={isToday && recommendationPeriod === slot} key={slot} aria-label={readable(slot)}>
+            <div className="ff-diary-heading">
+              <h3>{readable(slot)}{isToday && slot !== "snack" && <small className="ff-diary-slot-state">{" "}{livingDay.completedSlots[slot] ? "Confirmed" : recommendationPeriod === slot ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : ""}</small>}{meals.length === 0 && <span className="ff-diary-empty-inline">{slot === "snack" ? "Optional" : "No foods logged"}</span>}</h3>
+              <span>{meals.length ? `${known.length ? `${Math.round(subtotal)} cal` : "—"}${incomplete ? " · incomplete" : ""}` : "—"}</span>
+              {isToday && <Link href={`/log-meal?slot=${slot}`} aria-label={`Log ${readable(slot)}`}>+</Link>}
+            </div>
+            {meals.map((entry) => (
               <article key={entry.id} className="ff-v2-meal-row">
                 <MealImage name={mealName(entry, itemNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} />
                 <div className="ff-v2-meal-copy">
-                  <span>{locationNames[entry.locationId] ?? entry.locationId}</span>
-                  <h3>{mealName(entry, itemNames)}</h3>
+                  <h3>{entry.source === "drink-log" ? mealName(entry, itemNames) : entry.entryKind === "alcohol" ? `Night Out · ${mealName(entry, itemNames)}` : mealName(entry, itemNames)}</h3>
+                  <span>{entry.source === "drink-log" ? `Drink · ${entry.nutritionEstimateStatus ?? "estimated"}` : entry.entryKind === "alcohol" ? `Alcohol · ${entry.nutritionEstimateStatus ?? "estimated"}${entry.timeAccuracy === "date-only" ? " · time approximate" : ""}` : (locationNames[entry.locationId] ?? entry.locationId)}</span>
+                  {entry.campusBeverages?.length ? <span>+ {entry.campusBeverages.map((beverage) => beverage.name).join(", ")}</span> : null}
                   {entry.nutrition && <p>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</p>}
                 </div>
                 <div className="ff-v2-meal-status" aria-label={entry.completionFraction === undefined ? "Check-in pending" : `${Math.round(entry.completionFraction * 100)} percent finished`}>
@@ -531,9 +538,10 @@ export default function TodayV2Client({
                 </div>
               </article>
             ))}
-          </div>
-        )}
+          </section>;
+        })}
       </motion.section>
+      </div>
 
     </main>
   );

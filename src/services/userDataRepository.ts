@@ -29,7 +29,16 @@ import {
   createLocalRecommendationInteractionRepository,
   isValidRecommendationInteraction,
 } from "./recommendationInteractions";
-import type { MealHistoryEntry, ProgressivePreferenceAnswer, RecommendationInteraction, UserProfile, WeightObservation } from "@/types";
+import {
+  GOING_OUT_EVENTS_STORAGE_KEY,
+  GOING_OUT_SETTINGS_STORAGE_KEY,
+  canLogAlcohol,
+  canPlanAlcohol,
+  createLocalGoingOutRepository,
+  isValidGoingOutEvent,
+  isValidGoingOutSettings,
+} from "./goingOutRepository";
+import type { GoingOutEvent, GoingOutSettings, MealHistoryEntry, ProgressivePreferenceAnswer, RecommendationInteraction, UserProfile, WeightObservation } from "@/types";
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -44,6 +53,8 @@ export const FALCON_FUEL_USER_DATA_KEYS = [
   ACTIVITY_CHECK_IN_STORAGE_KEY,
   PROGRESSIVE_PROFILE_STORAGE_KEY,
   RECOMMENDATION_INTERACTION_STORAGE_KEY,
+  GOING_OUT_SETTINGS_STORAGE_KEY,
+  GOING_OUT_EVENTS_STORAGE_KEY,
 ] as const;
 
 export const FALCON_FUEL_USER_DATA_SCHEMA_VERSION = 2 as const;
@@ -59,6 +70,8 @@ export interface FalconFuelUserDataExport {
   activityCheckIns: ActivityCheckInRecord[];
   progressivePreferences: ProgressivePreferenceAnswer[];
   recommendationInteractions: RecommendationInteraction[];
+  goingOutSettings?: GoingOutSettings | null;
+  goingOutEvents?: GoingOutEvent[];
 }
 
 export interface FalconFuelStoredDataSummary {
@@ -68,6 +81,7 @@ export interface FalconFuelStoredDataSummary {
   activityCheckInCount: number;
   progressivePreferenceCount: number;
   recommendationInteractionCount: number;
+  goingOutEventCount: number;
   storageScope: "this-device";
 }
 
@@ -93,6 +107,7 @@ const summaryFrom = (data: FalconFuelUserDataExport): FalconFuelStoredDataSummar
   activityCheckInCount: data.activityCheckIns.length,
   progressivePreferenceCount: data.progressivePreferences.length,
   recommendationInteractionCount: data.recommendationInteractions.length,
+  goingOutEventCount: data.goingOutEvents?.length ?? 0,
   storageScope: "this-device",
 });
 
@@ -129,8 +144,20 @@ export function previewFalconFuelUserDataImport(value: unknown): FalconFuelImpor
   const activityValid = validateCollection("activityCheckIns", value.activityCheckIns, isValidActivityCheckInRecord);
   const preferencesValid = validateCollection("progressivePreferences", value.progressivePreferences, isValidProgressivePreferenceAnswer);
   const interactionsValid = validateCollection("recommendationInteractions", value.recommendationInteractions, isValidRecommendationInteraction);
+  const goingOutEventsCandidate = value.goingOutEvents ?? [];
+  const goingOutEventsValid = validateCollection("goingOutEvents", goingOutEventsCandidate, isValidGoingOutEvent);
+  const goingOutSettingsValid = value.goingOutSettings === undefined || value.goingOutSettings === null || isValidGoingOutSettings(value.goingOutSettings);
+  if (!goingOutSettingsValid) errors.push("goingOutSettings contains an invalid record.");
+  if (isValidUserProfile(value.profile)) {
+    const ownerId = value.profile.id;
+    if (isValidGoingOutSettings(value.goingOutSettings) && value.goingOutSettings.ownerProfileId !== ownerId) errors.push("Going Out settings belong to another profile.");
+    if (goingOutEventsValid && goingOutEventsCandidate.some((event) => event.ownerProfileId !== ownerId)) errors.push("Going Out events belong to another profile.");
+    if (!canPlanAlcohol(value.profile) && goingOutEventsValid && goingOutEventsCandidate.some((event) => event.alcoholForecast !== undefined || (event.actualConsumption?.length ?? 0) > 0)) errors.push("Alcohol-specific Going Out records require a profile declaring age 21 or older.");
+    if (!canLogAlcohol(value.profile) && mealHistoryValid && (value.mealHistory as MealHistoryEntry[]).some((entry) => entry.source === "drink-log" && entry.entryKind === "alcohol")) errors.push("Alcohol-specific drink logs require a profile declaring age 18 or older.");
+    if (mealHistoryValid && (value.mealHistory as MealHistoryEntry[]).some((entry) => (entry.source === "night-out" || entry.source === "drink-log") && entry.ownerProfileId !== ownerId)) errors.push("Going Out nutrition entries belong to another profile.");
+  }
 
-  if (errors.length > 0 || !mealHistoryValid || !progressValid || !activityValid || !preferencesValid || !interactionsValid) {
+  if (errors.length > 0 || !mealHistoryValid || !progressValid || !activityValid || !preferencesValid || !interactionsValid || !goingOutEventsValid || !goingOutSettingsValid) {
     return { valid: false, errors };
   }
 
@@ -144,6 +171,8 @@ export function previewFalconFuelUserDataImport(value: unknown): FalconFuelImpor
     activityCheckIns: value.activityCheckIns as ActivityCheckInRecord[],
     progressivePreferences: value.progressivePreferences as ProgressivePreferenceAnswer[],
     recommendationInteractions: value.recommendationInteractions as RecommendationInteraction[],
+    goingOutSettings: (value.goingOutSettings ?? null) as GoingOutSettings | null,
+    goingOutEvents: goingOutEventsCandidate as GoingOutEvent[],
   };
 
   return {
@@ -182,19 +211,25 @@ export function createLocalUserDataRepository(storage: StorageLike) {
   const progressiveProfileRepository = createLocalProgressiveProfileRepository(storage);
   const recommendationInteractionRepository = createLocalRecommendationInteractionRepository(storage);
 
-  const exportData = (): FalconFuelUserDataExport => ({
-    schemaVersion: FALCON_FUEL_USER_DATA_SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
-    storageScope: "this-device",
-    // Portability should preserve exactly what was stored, not a read-time
-    // profile whose targets may have been dynamically re-resolved.
-    profile: profileRepository.getStored(),
-    mealHistory: mealHistoryRepository.getRecent(Number.MAX_SAFE_INTEGER),
-    progress: progressRepository.getRecent(Number.MAX_SAFE_INTEGER),
-    activityCheckIns: activityCheckInRepository.getRecent(Number.MAX_SAFE_INTEGER),
-    progressivePreferences: progressiveProfileRepository.getRecent(Number.MAX_SAFE_INTEGER),
-    recommendationInteractions: recommendationInteractionRepository.getRecent(Number.MAX_SAFE_INTEGER),
-  });
+  const exportData = (): FalconFuelUserDataExport => {
+    const storedProfile = profileRepository.getStored();
+    const goingOutRepository = storedProfile ? createLocalGoingOutRepository(storage, storedProfile.id) : undefined;
+    return {
+      schemaVersion: FALCON_FUEL_USER_DATA_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      storageScope: "this-device",
+      // Portability should preserve exactly what was stored, not a read-time
+      // profile whose targets may have been dynamically re-resolved.
+      profile: storedProfile,
+      mealHistory: mealHistoryRepository.getRecent(Number.MAX_SAFE_INTEGER),
+      progress: progressRepository.getRecent(Number.MAX_SAFE_INTEGER),
+      activityCheckIns: activityCheckInRepository.getRecent(Number.MAX_SAFE_INTEGER),
+      progressivePreferences: progressiveProfileRepository.getRecent(Number.MAX_SAFE_INTEGER),
+      recommendationInteractions: recommendationInteractionRepository.getRecent(Number.MAX_SAFE_INTEGER),
+      goingOutSettings: goingOutRepository?.getSettings() ?? null,
+      goingOutEvents: goingOutRepository?.listEvents() ?? [],
+    };
+  };
 
   const summary = (): FalconFuelStoredDataSummary => summaryFrom(exportData());
 
@@ -205,6 +240,8 @@ export function createLocalUserDataRepository(storage: StorageLike) {
     activityCheckInRepository.clear();
     progressiveProfileRepository.clear();
     recommendationInteractionRepository.clear();
+    storage.removeItem(GOING_OUT_SETTINGS_STORAGE_KEY);
+    storage.removeItem(GOING_OUT_EVENTS_STORAGE_KEY);
   };
 
   const replaceFromExport = (value: unknown): FalconFuelStoredDataSummary => {
@@ -225,6 +262,9 @@ export function createLocalUserDataRepository(storage: StorageLike) {
       writeArray(ACTIVITY_CHECK_IN_STORAGE_KEY, data.activityCheckIns);
       writeArray(PROGRESSIVE_PROFILE_STORAGE_KEY, data.progressivePreferences);
       writeArray(RECOMMENDATION_INTERACTION_STORAGE_KEY, data.recommendationInteractions);
+      if (data.goingOutSettings) storage.setItem(GOING_OUT_SETTINGS_STORAGE_KEY, JSON.stringify(data.goingOutSettings));
+      else storage.removeItem(GOING_OUT_SETTINGS_STORAGE_KEY);
+      writeArray(GOING_OUT_EVENTS_STORAGE_KEY, data.goingOutEvents ?? []);
     } catch (error) {
       // Restore every Falcon Fuel key if any browser storage write fails so a
       // quota/storage exception cannot leave half of one identity imported.

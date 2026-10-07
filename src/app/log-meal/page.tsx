@@ -1,6 +1,7 @@
 "use client";
 
 import PageHeader from "@/components/PageHeader";
+import Link from "next/link";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -131,6 +132,7 @@ export default function LogMealPage() {
   const entriesBySlot = useMemo(() => {
     const result: Record<MealLogSlot, MealHistoryEntry[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
     for (const entry of entries) {
+      if (entry.entryKind === "alcohol" || entry.entryKind === "beverage" || entry.source === "drink-log" || entry.source === "night-out") continue;
       if (entry.completionFraction === undefined || entry.completionFraction <= 0) continue;
       result[inferMealLogSlot(entry)].push(entry);
     }
@@ -202,6 +204,10 @@ export default function LogMealPage() {
         <p>{progress.completedCoreMeals}/3 meals logged</p>
         <label className="field">Date<input type="date" value={selectedDate} max={todayKey()} onChange={(event) => { setSelectedDate(event.target.value || todayKey()); setActiveSlot(null); }} /></label>
       </div>
+
+      <Link href={`/going-out?action=log&day=${selectedDate}`} className="mt-4 flex min-h-16 items-center justify-between gap-4 rounded-2xl border border-[var(--ff-divider)] bg-[var(--ff-action-surface)] px-4 py-3 transition hover:border-[var(--ff-border)]">
+        <span><strong className="block text-sm">Log a drink</strong><small className="mt-1 block text-xs subtle">Add a beverage you actually consumed, with serving size and time.</small></span><span className="text-lg font-bold text-[var(--ff-accent-light)]">→</span>
+      </Link>
 
       <div className="mt-5 flex items-center justify-between gap-3">
         <div><p className="eyebrow">{prettyDate(selectedDate)}</p><h2 className="mt-1 text-lg font-semibold tracking-[-0.035em]">What have you eaten?</h2></div>

@@ -38,3 +38,4 @@ export * from "./campusBeverages";
 export * from "./alcoholNutrition";
 export * from "./goingOutRepository";
 export * from "./goingOutRecommendation";
+export * from "./drinkLogging";

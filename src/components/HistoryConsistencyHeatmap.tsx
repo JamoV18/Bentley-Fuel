@@ -150,6 +150,7 @@ export default function HistoryConsistencyHeatmap({ history, anchor }: { history
     const byDay = new Map<string, Omit<DaySummary, "key" | "date" | "level" | "future">>();
 
     for (const entry of history) {
+      if (entry.entryKind === "alcohol" || entry.entryKind === "beverage" || entry.source === "drink-log") continue;
       const date = new Date(entry.eatenAt ?? entry.selectedAt);
       const key = dateKey(date);
       const current = byDay.get(key) ?? { recorded: 0, confirmed: 0, calories: 0, protein: 0, future: false };

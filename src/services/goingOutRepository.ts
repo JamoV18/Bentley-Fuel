@@ -32,6 +32,8 @@ export function isValidNightOutConsumption(value: unknown): value is NightOutCon
     (value.approximateDate === undefined || validDateKey(value.approximateDate)) &&
     (value.timeAccuracy === "exact" || value.timeAccuracy === "date-only") &&
     validNutrition(value.nutrition) &&
+    (value.brandOrType === undefined || typeof value.brandOrType === "string") &&
+    (value.sourceHistoryEntryId === undefined || typeof value.sourceHistoryEntryId === "string") &&
     (value.standardDrinks === undefined || (typeof value.standardDrinks === "number" && value.standardDrinks >= 0));
 }
 
@@ -40,6 +42,8 @@ export function isValidGoingOutEvent(value: unknown): value is GoingOutEvent {
   return typeof value.id === "string" && value.id.length > 0 &&
     typeof value.ownerProfileId === "string" && value.ownerProfileId.length > 0 &&
     validDateKey(value.eventDate) && validPlan(value.planKind) && validForecast(value.alcoholForecast) &&
+    (value.occasion === undefined || value.occasion === "dinner-out" || value.occasion === "social-gathering" || value.occasion === "late-night-food" || value.occasion === "other") &&
+    (value.expectedFoodNote === undefined || typeof value.expectedFoodNote === "string") &&
     (value.status === "planned" || value.status === "recap-completed" || value.status === "recap-skipped") &&
     validIso(value.createdAt) && validIso(value.updatedAt) &&
     (value.actualConsumption === undefined || (Array.isArray(value.actualConsumption) && value.actualConsumption.every(isValidNightOutConsumption)));
@@ -48,6 +52,7 @@ export function isValidGoingOutEvent(value: unknown): value is GoingOutEvent {
 export function isValidGoingOutSettings(value: unknown): value is GoingOutSettings {
   return isRecord(value) && typeof value.ownerProfileId === "string" &&
     typeof value.enabled === "boolean" && typeof value.showOnToday === "boolean" &&
+    (value.usualHigherDays === undefined || (Array.isArray(value.usualHigherDays) && value.usualHigherDays.every((day) => Number.isInteger(day) && day >= 0 && day <= 6))) &&
     (value.dismissedTodayDate === undefined || validDateKey(value.dismissedTodayDate)) && validIso(value.updatedAt);
 }
 
@@ -89,7 +94,7 @@ export function createLocalGoingOutRepository(storage: StorageLike, ownerProfile
     upsertEvent(event: GoingOutEvent) {
       assertOwned(event.ownerProfileId);
       if (!isValidGoingOutEvent(event)) throw new Error("Invalid Going Out event.");
-      if (options?.alcoholEligible === false && (event.alcoholForecast !== undefined || (event.actualConsumption?.length ?? 0) > 0)) {
+      if (options?.alcoholEligible === false && (event.alcoholForecast !== undefined || (event.actualConsumption ?? []).some((entry) => entry.category !== "nonalcoholic"))) {
         throw new Error("Alcohol-specific records require a profile declaring age 21 or older.");
       }
       const all = readAllEvents();
@@ -111,7 +116,10 @@ export function createLocalGoingOutRepository(storage: StorageLike, ownerProfile
       const settings = readSettings();
       if (!settings.enabled) return undefined;
       const event = readAllEvents().find((candidate) => candidate.ownerProfileId === ownerProfileId && candidate.eventDate === dateKey && candidate.planKind !== "ordinary" && candidate.status === "planned" && !candidate.ignoredForRecommendations);
-      return event ? { eventId: event.id, planKind: event.planKind as GoingOutRecommendationContext["planKind"], eventDate: event.eventDate } : undefined;
+      if (event) return { eventId: event.id, planKind: event.planKind as GoingOutRecommendationContext["planKind"], eventDate: event.eventDate };
+      const weekday = new Date(`${dateKey}T12:00:00`).getDay();
+      if (settings.usualHigherDays?.includes(weekday)) return { eventId: `usual-day:${weekday}`, planKind: "social", eventDate: dateKey };
+      return undefined;
     },
   };
 }
@@ -121,9 +129,10 @@ export const browserGoingOutRepository = (profile: UserProfile) => createLocalGo
 
 const localNoon = (dateKey: string) => `${dateKey}T12:00:00`;
 
-export function nightOutMealEntries(event: GoingOutEvent): MealHistoryEntry[] {
+export function nightOutMealEntries(event: GoingOutEvent, existingHistory: readonly MealHistoryEntry[] = []): MealHistoryEntry[] {
   if (event.status !== "recap-completed") return [];
-  return (event.actualConsumption ?? []).map((entry) => {
+  const existingIds = new Set(existingHistory.filter((entry) => entry.source === "drink-log").map((entry) => entry.id));
+  return (event.actualConsumption ?? []).filter((entry) => !entry.sourceHistoryEntryId || !existingIds.has(entry.sourceHistoryEntryId)).map((entry) => {
     const occurredAt = entry.consumedAt ?? localNoon(entry.approximateDate ?? event.eventDate);
     return {
       id: `night-out:${event.id}:${entry.id}`,
@@ -151,6 +160,7 @@ export function nightOutMealEntries(event: GoingOutEvent): MealHistoryEntry[] {
 }
 
 export function syncNightOutNutrition(event: GoingOutEvent, history: MealHistoryRepository) {
+  const existing = history.getRecent(Number.MAX_SAFE_INTEGER);
   history.removeBySourceEventId(event.id, event.ownerProfileId);
-  for (const entry of nightOutMealEntries(event)) history.upsert(entry);
+  for (const entry of nightOutMealEntries(event, existing)) history.upsert(entry);
 }

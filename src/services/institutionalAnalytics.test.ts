@@ -68,6 +68,13 @@ test("Night Out consumption is excluded from university-facing analytics contrib
   assert.deepEqual(result.locations, []);
 });
 
+test("direct drink logs are excluded from university-facing analytics contributions", () => {
+  const direct = { ...meal("drink-log", "loc-921", 1), source: "drink-log" as const, entryKind: "alcohol" as const, ownerProfileId: "profile-a" };
+  const result = buildInstitutionalAnalyticsContribution("opaque-student", [direct], []);
+  assert.equal(result.savedMeals, 0);
+  assert.equal(result.confirmedConsumedMeals, 0);
+});
+
 test("institutional metrics are fully suppressed below ten distinct participants", () => {
   const report = buildInstitutionalAnalyticsReport(Array.from({ length: 9 }, (_, index) => contribution(`student-${index}`)));
   assert.equal(report.status, "suppressed");

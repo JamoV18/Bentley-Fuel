@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { GoingOutEvent } from "@/types";
 import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
+import { createDirectDrinkHistoryEntry } from "./drinkLogging";
 import {
   canUseAlcoholFeatures,
   createLocalGoingOutRepository,
@@ -79,4 +80,29 @@ test("age eligibility is restricted to profiles declaring age 21 or older", () =
   assert.equal(canUseAlcoholFeatures({ metrics: {} }), false);
   const storage = new MemoryStorage();
   assert.throws(() => createLocalGoingOutRepository(storage, "profile-a", { alcoholEligible: false }).upsertEvent(plannedEvent()), /21 or older/i);
+});
+
+test("recurring days use the same bounded context without creating a consumed record", () => {
+  const storage = new MemoryStorage();
+  const repository = createLocalGoingOutRepository(storage, "profile-a");
+  repository.saveSettings({ ownerProfileId: "profile-a", enabled: true, showOnToday: true, usualHigherDays: [5, 6], updatedAt: "2026-10-06T12:00:00.000Z" });
+  assert.equal(repository.recommendationContextFor("2026-10-09")?.planKind, "social");
+  assert.equal(repository.recommendationContextFor("2026-10-08"), undefined);
+  assert.equal(createLocalMealHistoryRepository(storage).getRecent().length, 0);
+});
+
+test("a recap linked to a direct drink log does not duplicate its calories", () => {
+  const storage = new MemoryStorage();
+  const history = createLocalMealHistoryRepository(storage);
+  const direct = createDirectDrinkHistoryEntry(
+    { id: "profile-a", metrics: { age: 21 } },
+    { category: "beer", name: "Beer", quantity: 1, servingOunces: 12, abvPercent: 5, caloriesPerServing: 150, consumedAt: "2026-10-09T21:00:00.000Z", estimateStatus: "estimated" },
+    { id: "drink-direct", now: "2026-10-09T21:01:00.000Z" },
+  );
+  history.upsert(direct);
+  const event = plannedEvent({ status: "recap-completed", actualConsumption: [{ ...direct.drinkDetails!, sourceHistoryEntryId: direct.id }] });
+  syncNightOutNutrition(event, history);
+  assert.equal(history.getRecent(20).length, 1);
+  assert.equal(history.getRecent(20)[0].source, "drink-log");
+  assert.equal(history.getRecent(20)[0].nutrition?.calories, 150);
 });

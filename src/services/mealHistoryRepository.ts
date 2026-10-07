@@ -58,14 +58,15 @@ export const isValidMealHistoryEntry = (value: unknown): value is MealHistoryEnt
     (portion === undefined || PORTION_VALUES.includes(portion as MealPortionScale)) &&
     (feedback === undefined || feedback === "like" || feedback === "dislike") &&
     (mealSlot === undefined || MEAL_LOG_SLOTS.includes(mealSlot as (typeof MEAL_LOG_SLOTS)[number])) &&
-    (value.source === undefined || value.source === "recommended" || value.source === "self-built" || value.source === "manual-log" || value.source === "night-out") &&
-    (value.entryKind === undefined || value.entryKind === "food" || value.entryKind === "alcohol") &&
+    (value.source === undefined || value.source === "recommended" || value.source === "self-built" || value.source === "manual-log" || value.source === "night-out" || value.source === "drink-log") &&
+    (value.entryKind === undefined || value.entryKind === "food" || value.entryKind === "alcohol" || value.entryKind === "beverage") &&
     (value.ownerProfileId === undefined || typeof value.ownerProfileId === "string") &&
     (value.sourceEventId === undefined || typeof value.sourceEventId === "string") &&
     (value.sourceRecordId === undefined || typeof value.sourceRecordId === "string") &&
     (value.timeAccuracy === undefined || value.timeAccuracy === "exact" || value.timeAccuracy === "date-only") &&
     (value.standardDrinks === undefined || (typeof value.standardDrinks === "number" && Number.isFinite(value.standardDrinks) && value.standardDrinks >= 0)) &&
-    (value.campusBeverages === undefined || (Array.isArray(value.campusBeverages) && value.campusBeverages.every((beverage) => isRecord(beverage) && typeof beverage.id === "string" && typeof beverage.name === "string" && typeof beverage.quantity === "number" && beverage.quantity > 0 && validNutrition(beverage.nutrition))));
+    (value.campusBeverages === undefined || (Array.isArray(value.campusBeverages) && value.campusBeverages.every((beverage) => isRecord(beverage) && typeof beverage.id === "string" && typeof beverage.name === "string" && typeof beverage.quantity === "number" && beverage.quantity > 0 && validNutrition(beverage.nutrition)))) &&
+    (value.drinkDetails === undefined || (isRecord(value.drinkDetails) && typeof value.drinkDetails.id === "string" && typeof value.drinkDetails.name === "string" && typeof value.drinkDetails.quantity === "number" && value.drinkDetails.quantity > 0 && validNutrition(value.drinkDetails.nutrition)));
 };
 
 export interface MealHistoryRepository {
@@ -138,7 +139,7 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
       const next = [merged, ...current.filter((candidate) => candidate.id !== entry.id)]
         .sort((a, b) => mealTime(b) - mealTime(a));
       write(next);
-      if (merged.source !== "manual-log" && merged.source !== "night-out") recordChosenMealInteractions(storage, merged);
+      if (merged.source !== "manual-log" && merged.source !== "night-out" && merged.source !== "drink-log") recordChosenMealInteractions(storage, merged);
     },
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");
@@ -194,7 +195,7 @@ export const browserMealHistoryRepository = (): MealHistoryRepository => {
   return {
     ...repository,
     upsert(entry) {
-      if (entry.mealSlot || entry.source === "manual-log" || entry.source === "night-out") {
+      if (entry.mealSlot || entry.source === "manual-log" || entry.source === "night-out" || entry.source === "drink-log") {
         repository.upsert(entry);
         return;
       }

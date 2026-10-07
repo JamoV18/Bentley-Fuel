@@ -38,7 +38,9 @@ export function detailedAlcoholNutrition(input: {
   };
 }
 
-const QUICK_ESTIMATES: Record<Exclude<NightOutCategory, "custom">, { name: string; calories: number; standardDrinks?: number }> = {
+export type QuickAlcoholCategory = Exclude<NightOutCategory, "custom" | "nonalcoholic">;
+
+const QUICK_ESTIMATES: Record<QuickAlcoholCategory, { name: string; calories: number; standardDrinks?: number }> = {
   beer: { name: "Beer", calories: 150, standardDrinks: 1 },
   "hard-seltzer": { name: "Hard seltzer", calories: 100, standardDrinks: 1 },
   wine: { name: "Wine", calories: 125, standardDrinks: 1 },
@@ -47,7 +49,7 @@ const QUICK_ESTIMATES: Record<Exclude<NightOutCategory, "custom">, { name: strin
   "mixed-unknown": { name: "Mixed / unknown drink", calories: 180 },
 };
 
-export function quickAlcoholEstimate(category: Exclude<NightOutCategory, "custom">, quantity: number) {
+export function quickAlcoholEstimate(category: QuickAlcoholCategory, quantity: number) {
   const estimate = QUICK_ESTIMATES[category];
   const safeQuantity = Math.max(0, Math.floor(quantity));
   return {

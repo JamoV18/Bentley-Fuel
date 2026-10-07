@@ -80,11 +80,11 @@ export interface MealHistoryEntry {
   explicitFeedback?: MealExplicitFeedback;
   /** Explicit daily-log slot when known; older/recommended meals can infer from time. */
   mealSlot?: MealLogSlot;
-  source?: "recommended" | "self-built" | "manual-log" | "night-out";
+  source?: "recommended" | "self-built" | "manual-log" | "night-out" | "drink-log";
   /** Optional meal-level beverages, already included in the nutrition snapshot. */
   campusBeverages?: CampusBeverageSelection[];
   /** Keeps alcohol entries visibly distinct from food in Today and History. */
-  entryKind?: "food" | "alcohol";
+  entryKind?: "food" | "alcohol" | "beverage";
   /** Sensitive records are scoped to the profile that created them on this device. */
   ownerProfileId?: string;
   sourceEventId?: string;
@@ -92,6 +92,8 @@ export interface MealHistoryEntry {
   nutritionEstimateStatus?: "verified" | "estimated" | "approximate";
   standardDrinks?: number;
   timeAccuracy?: "exact" | "date-only";
+  /** Calculation snapshot for a directly logged drink. */
+  drinkDetails?: import("./goingOut").NightOutConsumption;
 }
 
 /** Deliberate recommendation/editor behaviors stored separately from meal history. */

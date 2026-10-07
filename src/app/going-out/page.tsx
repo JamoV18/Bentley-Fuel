@@ -1,5 +1,5 @@
-import GoingOutClient from "./GoingOutClient";
+import GoingOutExperience from "./GoingOutExperience";
 
 export default function GoingOutPage() {
-  return <GoingOutClient />;
+  return <GoingOutExperience />;
 }

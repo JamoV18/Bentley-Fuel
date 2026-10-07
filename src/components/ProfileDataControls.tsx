@@ -118,7 +118,7 @@ export default function ProfileDataControls() {
             <button type="button" className="rounded-full border border-red-200 bg-[var(--ff-warning-surface)] px-4 py-2 text-sm font-bold text-[var(--ff-danger)] transition hover:bg-red-100" onClick={() => setConfirmingReset(true)}>Reset Falcon Fuel data</button>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-[var(--ff-warning-surface)] p-2">
-              <span className="px-2 text-xs font-semibold text-[var(--ff-danger)]">This removes your profile, meal history, Going Out plans and recaps, recommendation-edit history, weight check-ins, activity reviews, and preference answers from this browser.</span>
+              <span className="px-2 text-xs font-semibold text-[var(--ff-danger)]">This removes your profile, meal history, Going Out plans and drink logs, recommendation-edit history, weight check-ins, activity reviews, and preference answers from this browser.</span>
               <button type="button" className="rounded-full bg-red-700 px-3 py-2 text-xs font-bold text-white" onClick={resetData}>Delete all</button>
               <button type="button" className="rounded-full bg-[var(--ff-surface-elevated)] px-3 py-2 text-xs font-bold text-[var(--ff-text-secondary)]" onClick={() => setConfirmingReset(false)}>Cancel</button>
             </div>

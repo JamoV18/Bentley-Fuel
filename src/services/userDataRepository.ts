@@ -151,7 +151,8 @@ export function previewFalconFuelUserDataImport(value: unknown): FalconFuelImpor
     if (isValidGoingOutSettings(value.goingOutSettings) && value.goingOutSettings.ownerProfileId !== ownerId) errors.push("Going Out settings belong to another profile.");
     if (goingOutEventsValid && goingOutEventsCandidate.some((event) => event.ownerProfileId !== ownerId)) errors.push("Going Out events belong to another profile.");
     if ((value.profile.metrics?.age ?? 0) < 21 && goingOutEventsValid && goingOutEventsCandidate.some((event) => event.alcoholForecast !== undefined || (event.actualConsumption?.length ?? 0) > 0)) errors.push("Alcohol-specific Going Out records require a profile declaring age 21 or older.");
-    if (mealHistoryValid && (value.mealHistory as MealHistoryEntry[]).some((entry) => entry.source === "night-out" && entry.ownerProfileId !== ownerId)) errors.push("Night Out nutrition entries belong to another profile.");
+    if ((value.profile.metrics?.age ?? 0) < 21 && mealHistoryValid && (value.mealHistory as MealHistoryEntry[]).some((entry) => entry.source === "drink-log" && entry.entryKind === "alcohol")) errors.push("Alcohol-specific drink logs require a profile declaring age 21 or older.");
+    if (mealHistoryValid && (value.mealHistory as MealHistoryEntry[]).some((entry) => (entry.source === "night-out" || entry.source === "drink-log") && entry.ownerProfileId !== ownerId)) errors.push("Going Out nutrition entries belong to another profile.");
   }
 
   if (errors.length > 0 || !mealHistoryValid || !progressValid || !activityValid || !preferencesValid || !interactionsValid || !goingOutEventsValid || !goingOutSettingsValid) {

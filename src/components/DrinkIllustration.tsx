@@ -1,0 +1,12 @@
+import type { NightOutCategory } from "@/types";
+
+export default function DrinkIllustration({ category, className = "" }: { category: NightOutCategory; className?: string }) {
+  const common = { viewBox: "0 0 96 96", role: "img", "aria-hidden": true } as const;
+  if (category === "wine") return <svg {...common} className={className}><path fill="#7d3048" d="M22 18h12v54H22z"/><path fill="#b55973" d="M24 11h8v12h-8z"/><path fill="#eac7d1" d="M24 38h8v18h-8z"/><path fill="#e8edf0" d="M50 18h30c0 22-4 35-15 38v17h11v7H48v-7h11V56C49 53 50 40 50 18Z"/><path fill="#a93f5c" d="M54 31h22c-1 12-5 19-11 19s-10-7-11-19Z"/></svg>;
+  if (category === "beer") return <svg {...common} className={className}><path fill="#f2b84b" d="M20 27h49v55H20z"/><path fill="#fff3d6" d="M20 20c4-8 12-8 17-3 7-8 18-5 20 1 8-4 15 2 12 12H20Z"/><path fill="none" stroke="#e8edf0" strokeWidth="7" d="M69 39h8c8 0 8 25 0 25h-8"/><path fill="#fff" opacity=".45" d="M29 34h7v38h-7z"/></svg>;
+  if (category === "hard-seltzer") return <svg {...common} className={className}><rect x="29" y="12" width="38" height="72" rx="9" fill="#6fc9d5"/><path fill="#e9fbff" d="M34 17h28v6H34z"/><path fill="#ff7e80" d="m36 56 25-24 6 7-25 24z"/><circle cx="50" cy="64" r="8" fill="#fff" opacity=".8"/></svg>;
+  if (category === "spirits") return <svg {...common} className={className}><path fill="#e9f2f5" d="M24 29h48l-7 51H31z"/><path fill="#db8e55" d="m29 51 38-4-4 27H33z"/><path fill="#fff" opacity=".65" d="M34 34h8l-4 34h-6z"/><path fill="#9fb4bc" d="M22 23h52v8H22z"/></svg>;
+  if (category === "cocktail" || category === "mixed-unknown") return <svg {...common} className={className}><path fill="#eaf2f4" d="M17 22h62L52 54v20h15v7H29v-7h15V54Z"/><path fill="#ef7f72" d="M26 29h44L49 49h-3z"/><path fill="none" stroke="#6abda8" strokeWidth="5" d="m62 15 12 16"/><circle cx="66" cy="18" r="7" fill="#f3c45a"/></svg>;
+  if (category === "nonalcoholic") return <svg {...common} className={className}><path fill="#e8f3f7" d="M24 21h46l-6 62H30z"/><path fill="#f19b5f" d="M29 45h36l-3 32H32z"/><path fill="none" stroke="#78c8bf" strokeWidth="5" d="m54 11 14 42"/><circle cx="43" cy="54" r="7" fill="#ffd366"/><circle cx="54" cy="65" r="5" fill="#fff" opacity=".7"/></svg>;
+  return <svg {...common} className={className}><path fill="#dfe9ed" d="M25 20h46l-5 63H30z"/><path fill="#6e8fba" d="M29 45h38l-3 32H32z"/><path fill="#fff" opacity=".65" d="M35 27h8l-4 43h-7z"/><circle cx="70" cy="24" r="10" fill="#8ed0bc"/><path fill="#16343b" d="M68 18h4v12h-4zM64 22h12v4H64z"/></svg>;
+}

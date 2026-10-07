@@ -181,7 +181,11 @@ export default function TodayV2Client({
     setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
     setEntries(repository.getByDateRange(start, end));
     setRecentEntries(repository.getRecent(24));
-    setPending(isToday ? repository.getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS)) : []);
+    setPending(isToday
+      ? repository
+        .getPendingCheckIns(4, new Date(now.getTime() - PENDING_CHECK_IN_WINDOW_MS))
+        .filter((entry) => entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log")
+      : []);
   }, [selectedDate, isToday]);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
@@ -208,8 +212,10 @@ export default function TodayV2Client({
     if (!profile || !goingOutSettings?.enabled) return undefined;
     const key = localDateKey(selectedDate);
     const event = goingOutEvents.find((candidate) => candidate.eventDate === key && candidate.planKind !== "ordinary" && candidate.status === "planned" && !candidate.ignoredForRecommendations);
-    return event ? { eventId: event.id, eventDate: event.eventDate, planKind: event.planKind as "social" | "late-night" } : undefined;
-  }, [goingOutEvents, goingOutSettings?.enabled, profile, selectedDate]);
+    if (event) return { eventId: event.id, eventDate: event.eventDate, planKind: event.planKind as "social" | "late-night" };
+    if (goingOutSettings.usualHigherDays?.includes(selectedDate.getDay())) return { eventId: `usual-day:${selectedDate.getDay()}`, eventDate: key, planKind: "social" as const };
+    return undefined;
+  }, [goingOutEvents, goingOutSettings?.enabled, goingOutSettings?.usualHigherDays, profile, selectedDate]);
   const upcomingGoingOutEvent = useMemo(() => [...goingOutEvents]
     .filter((event) => event.status === "planned" && event.eventDate >= todayKey())
     .sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0], [goingOutEvents]);
@@ -235,7 +241,7 @@ export default function TodayV2Client({
       locationId: locationPreference.id,
       mealPeriod: recommendationPeriod,
       remainingMacros: snapshot.remaining ?? activeTargets,
-      recentHistory: recentEntries.filter((entry) => entry.entryKind !== "alcohol").slice(0, 12),
+      recentHistory: recentEntries.filter((entry) => entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log").slice(0, 12),
       goingOut: goingOutContext,
     };
     const excludedMenuItemIds = [...new Set(
@@ -496,10 +502,10 @@ export default function TodayV2Client({
       </AnimatePresence>
 
       </div>
-      {isToday && goingOutSettings?.enabled && goingOutSettings.showOnToday && goingOutSettings.dismissedTodayDate !== todayKey() && (
+      {isToday && (goingOutSettings?.showOnToday ?? true) && goingOutSettings?.dismissedTodayDate !== todayKey() && (
         <motion.section className="ff-weekend-outlook-card" initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <div><p className="ff-v2-eyebrow">Weekend Outlook</p><h2>{upcomingGoingOutEvent ? `${readable(upcomingGoingOutEvent.planKind)} · ${new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(new Date(`${upcomingGoingOutEvent.eventDate}T12:00:00`))}` : "Any social or late nights coming up?"}</h2><p>{upcomingGoingOutEvent ? (upcomingGoingOutEvent.ignoredForRecommendations ? "Saved, but currently ignored for recommendations." : "A small schedule-aware signal is available for eligible meal recommendations.") : "Add optional schedule context in a few seconds."}</p></div>
-          <div className="ff-weekend-outlook-actions"><Link href="/going-out">{upcomingGoingOutEvent ? "View plan" : "Plan ahead"} →</Link><button type="button" onClick={dismissOutlook}>Dismiss today</button></div>
+          <div><p className="ff-v2-eyebrow">Going Out</p><h2>{upcomingGoingOutEvent ? `${readable(upcomingGoingOutEvent.planKind)} · ${new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(new Date(`${upcomingGoingOutEvent.eventDate}T12:00:00`))}` : "Going out tonight?"}</h2><p>{upcomingGoingOutEvent ? "Your plan is saved. Drinks only count after you log what you actually had." : "Track a drink or tell Falcon Fuel about an upcoming night out."}</p></div>
+          <div className="ff-weekend-outlook-actions"><Link href="/going-out?action=log">Log a drink</Link><Link href="/going-out?action=plan">{upcomingGoingOutEvent ? "View plan" : "Plan ahead"} →</Link><button type="button" onClick={dismissOutlook}>Dismiss today</button></div>
         </motion.section>
       )}
       <motion.section className="ff-v2-meals" layout="position" transition={reduceMotion ? { duration: 0 } : { layout: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}>
@@ -522,8 +528,8 @@ export default function TodayV2Client({
               <article key={entry.id} className="ff-v2-meal-row">
                 <MealImage name={mealName(entry, itemNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} />
                 <div className="ff-v2-meal-copy">
-                  <h3>{entry.entryKind === "alcohol" ? `Night Out · ${mealName(entry, itemNames)}` : mealName(entry, itemNames)}</h3>
-                  <span>{entry.entryKind === "alcohol" ? `Alcohol · ${entry.nutritionEstimateStatus ?? "estimated"}${entry.timeAccuracy === "date-only" ? " · time approximate" : ""}` : (locationNames[entry.locationId] ?? entry.locationId)}</span>
+                  <h3>{entry.source === "drink-log" ? mealName(entry, itemNames) : entry.entryKind === "alcohol" ? `Night Out · ${mealName(entry, itemNames)}` : mealName(entry, itemNames)}</h3>
+                  <span>{entry.source === "drink-log" ? `Drink · ${entry.nutritionEstimateStatus ?? "estimated"}` : entry.entryKind === "alcohol" ? `Alcohol · ${entry.nutritionEstimateStatus ?? "estimated"}${entry.timeAccuracy === "date-only" ? " · time approximate" : ""}` : (locationNames[entry.locationId] ?? entry.locationId)}</span>
                   {entry.campusBeverages?.length ? <span>+ {entry.campusBeverages.map((beverage) => beverage.name).join(", ")}</span> : null}
                   {entry.nutrition && <p>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</p>}
                 </div>

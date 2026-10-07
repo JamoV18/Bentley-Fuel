@@ -67,7 +67,7 @@ export function buildInstitutionalAnalyticsContribution(
 ): InstitutionalAnalyticsContribution {
   if (!participantKey.trim()) throw new Error("Institutional analytics contribution requires an opaque participant key.");
   // Sensitive Going Out consumption never enters even aggregate university-facing reports.
-  const reportableHistory = history.filter((entry) => entry.entryKind !== "alcohol" && entry.source !== "night-out");
+  const reportableHistory = history.filter((entry) => entry.entryKind !== "alcohol" && entry.source !== "night-out" && entry.source !== "drink-log");
 
   const locationCounts = new Map<LocationId, number>();
   let mealCheckIns = 0;

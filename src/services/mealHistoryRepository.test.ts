@@ -36,6 +36,48 @@ test("stores newest meal history first and upserts by id", () => {
   assert.equal(recent[0].completionFraction, 0.8);
 });
 
+test("batch upsert validates first, writes once, and is idempotent on retry", () => {
+  const data = new Map<string, string>();
+  let writes = 0;
+  const storage = {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => { if (key === MEAL_HISTORY_STORAGE_KEY) writes += 1; data.set(key, value); },
+    removeItem: (key: string) => { data.delete(key); },
+  };
+  const repository = createLocalMealHistoryRepository(storage);
+  repository.upsertMany([entry("beer", "2026-10-06T20:00:00.000Z"), entry("wine", "2026-10-06T21:00:00.000Z")]);
+  assert.equal(writes, 1);
+  assert.deepEqual(repository.getRecent().map((item) => item.id), ["wine", "beer"]);
+  repository.upsertMany([entry("beer", "2026-10-06T20:00:00.000Z"), entry("wine", "2026-10-06T21:00:00.000Z")]);
+  assert.equal(repository.getRecent().length, 2);
+});
+
+test("a failed batch write leaves no partial entries and can be retried safely", () => {
+  const data = new Map<string, string>();
+  let failNext = true;
+  const storage = {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      if (failNext) { failNext = false; throw new Error("storage unavailable"); }
+      data.set(key, value);
+    },
+    removeItem: (key: string) => { data.delete(key); },
+  };
+  const repository = createLocalMealHistoryRepository(storage);
+  const batch = [entry("beer"), entry("wine")];
+  assert.throws(() => repository.upsertMany(batch), /storage unavailable/);
+  assert.deepEqual(repository.getRecent(), []);
+  repository.upsertMany(batch);
+  assert.deepEqual(repository.getRecent().map((item) => item.id).sort(), ["beer", "wine"]);
+});
+
+test("an invalid batch entry prevents the entire batch from being written", () => {
+  const storage = memoryStorage();
+  const repository = createLocalMealHistoryRepository(storage);
+  assert.throws(() => repository.upsertMany([entry("valid"), { ...entry("invalid"), nutrition: { calories: -1, protein: 0, carbs: 0, fat: 0 } }]), /invalid meal history entry/);
+  assert.deepEqual(repository.getRecent(), []);
+});
+
 test("updates completion and records feedback time without changing the saved build or nutrition", () => {
   const storage = memoryStorage();
   const repository = createLocalMealHistoryRepository(storage);

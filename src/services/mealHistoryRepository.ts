@@ -75,6 +75,7 @@ export interface MealHistoryRepository {
   /** Pending meals, optionally bounded to meals on/after `since`. */
   getPendingCheckIns(limit?: number, since?: Date): MealHistoryEntry[];
   upsert(entry: MealHistoryEntry): void;
+  upsertMany(entries: readonly MealHistoryEntry[]): void;
   updateFeedback(id: string, completionFraction?: MealCompletionFraction, explicitFeedback?: MealExplicitFeedback): void;
   updateReflection(id: string, portionScale?: MealPortionScale, explicitFeedback?: MealExplicitFeedback): void;
   remove(id: string): void;
@@ -98,6 +99,22 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
   };
   const write = (entries: readonly MealHistoryEntry[]) =>
     storage.setItem(MEAL_HISTORY_STORAGE_KEY, JSON.stringify(entries));
+  const mergeEntry = (entry: MealHistoryEntry, existing?: MealHistoryEntry): MealHistoryEntry => existing
+    ? {
+        ...entry,
+        eatenAt: entry.eatenAt ?? existing.eatenAt,
+        completionRecordedAt: entry.completionRecordedAt ?? existing.completionRecordedAt,
+        reflectionRecordedAt: entry.reflectionRecordedAt ?? existing.reflectionRecordedAt,
+        nutrition: entry.nutrition ?? existing.nutrition,
+        completionFraction: entry.completionFraction ?? existing.completionFraction,
+        portionScale: entry.portionScale ?? existing.portionScale,
+        explicitFeedback: entry.explicitFeedback ?? existing.explicitFeedback,
+        mealSlot: entry.mealSlot ?? existing.mealSlot,
+        source: entry.source ?? existing.source,
+      }
+    : entry;
+  const recordsInteraction = (entry: MealHistoryEntry) =>
+    entry.source !== "manual-log" && entry.source !== "night-out" && entry.source !== "drink-log";
 
   return {
     getRecent(limit = 12) {
@@ -122,24 +139,26 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
       if (!isValidMealHistoryEntry(entry)) throw new Error("Refusing to store an invalid meal history entry");
       const current = read();
       const existing = current.find((candidate) => candidate.id === entry.id);
-      const merged: MealHistoryEntry = existing
-        ? {
-            ...entry,
-            eatenAt: entry.eatenAt ?? existing.eatenAt,
-            completionRecordedAt: entry.completionRecordedAt ?? existing.completionRecordedAt,
-            reflectionRecordedAt: entry.reflectionRecordedAt ?? existing.reflectionRecordedAt,
-            nutrition: entry.nutrition ?? existing.nutrition,
-            completionFraction: entry.completionFraction ?? existing.completionFraction,
-            portionScale: entry.portionScale ?? existing.portionScale,
-            explicitFeedback: entry.explicitFeedback ?? existing.explicitFeedback,
-            mealSlot: entry.mealSlot ?? existing.mealSlot,
-            source: entry.source ?? existing.source,
-          }
-        : entry;
+      const merged = mergeEntry(entry, existing);
       const next = [merged, ...current.filter((candidate) => candidate.id !== entry.id)]
         .sort((a, b) => mealTime(b) - mealTime(a));
       write(next);
-      if (merged.source !== "manual-log" && merged.source !== "night-out" && merged.source !== "drink-log") recordChosenMealInteractions(storage, merged);
+      if (recordsInteraction(merged)) recordChosenMealInteractions(storage, merged);
+    },
+    upsertMany(entries) {
+      if (!entries.every(isValidMealHistoryEntry)) throw new Error("Refusing to store an invalid meal history entry");
+      if (entries.length === 0) return;
+      const byId = new Map(read().map((entry) => [entry.id, entry]));
+      const mergedEntries: MealHistoryEntry[] = [];
+      for (const entry of entries) {
+        const merged = mergeEntry(entry, byId.get(entry.id));
+        byId.set(entry.id, merged);
+        mergedEntries.push(merged);
+      }
+      write([...byId.values()].sort((a, b) => mealTime(b) - mealTime(a)));
+      for (const entry of mergedEntries) {
+        if (recordsInteraction(entry)) recordChosenMealInteractions(storage, entry);
+      }
     },
     updateFeedback(id, completionFraction, explicitFeedback) {
       if (completionFraction !== undefined && !COMPLETION_VALUES.includes(completionFraction)) throw new Error("Invalid completion fraction");
@@ -200,6 +219,13 @@ export const browserMealHistoryRepository = (): MealHistoryRepository => {
         return;
       }
       repository.upsert({ ...entry, mealSlot: routedSlot });
+    },
+    upsertMany(entries) {
+      repository.upsertMany(entries.map((entry) =>
+        entry.mealSlot || entry.source === "manual-log" || entry.source === "night-out" || entry.source === "drink-log"
+          ? entry
+          : { ...entry, mealSlot: routedSlot },
+      ));
     },
   };
 };

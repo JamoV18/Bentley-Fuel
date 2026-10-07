@@ -2,15 +2,17 @@
 
 import "./going-out.css";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AppNav from "@/components/AppNav";
 import DrinkIllustration from "@/components/DrinkIllustration";
 import PageHeader from "@/components/PageHeader";
 import {
   browserGoingOutRepository,
   browserMealHistoryRepository,
+  addPendingDirectDrink,
   canLogAlcohol,
   canPlanAlcohol,
+  createDirectDrinkHistoryEntries,
   createDirectDrinkHistoryEntry,
   DIRECT_DRINK_PRESETS,
   directDrinkEntries,
@@ -18,13 +20,17 @@ import {
   drinkPresetFor,
   estimatedDrinkCaloriesPerServing,
   formattedDrinkServing,
+  pendingDirectDrinkCalories,
   quickAlcoholEstimate,
+  restorePendingDirectDrinks,
   servingAmountToOunces,
   servingOuncesToAmount,
+  setPendingDirectDrinkQuantity,
   syncNightOutNutrition,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { AlcoholForecast, GoingOutEvent, GoingOutSettings, MealHistoryEntry, NightOutCategory, NightOutConsumption, UserProfile } from "@/types";
+import type { PendingDirectDrink } from "@/services";
 
 const pad = (value: number) => String(value).padStart(2, "0");
 const dateKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -43,6 +49,8 @@ const entryDate = (entry: MealHistoryEntry) => dateKey(new Date(entry.eatenAt ??
 const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const occasionLabels = { "dinner-out": "Dinner out", "social-gathering": "Social gathering", "late-night-food": "Late-night food", other: "Another occasion" } as const;
 const forecastLabels: Record<AlcoholForecast, string> = { none: "None expected", unsure: "Not sure", "1-2": "About 1–2", "3-4": "About 3–4", "5-plus": "5 or more" };
+const pendingStorageKey = (profileId: string) => `falcon-fuel.pending-drinks.v1:${profileId}`;
+const pendingTime = (consumedAt: string) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(consumedAt));
 type Panel = "log" | "plan" | null;
 type Occasion = keyof typeof occasionLabels;
 
@@ -58,6 +66,9 @@ export default function GoingOutExperience() {
   const [drinks, setDrinks] = useState<MealHistoryEntry[]>([]);
   const [panel, setPanel] = useState<Panel>(null);
   const [drinkDraft, setDrinkDraft] = useState(() => draftFor("wine"));
+  const [pendingDrinks, setPendingDrinks] = useState<PendingDirectDrink[]>([]);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
+  const [isSubmittingDrinks, setIsSubmittingDrinks] = useState(false);
   const [editingDrinkId, setEditingDrinkId] = useState<string>();
   const [planDateChoice, setPlanDateChoice] = useState<"today" | "tomorrow" | "choose">("today");
   const [planDate, setPlanDate] = useState(todayKey);
@@ -70,6 +81,7 @@ export default function GoingOutExperience() {
   const [recapEventId, setRecapEventId] = useState<string>();
   const [recapDraft, setRecapDraft] = useState<NightOutConsumption[]>([]);
   const [message, setMessage] = useState("");
+  const drinkSubmissionLock = useRef(false);
 
   const loggingEligible = profile ? canLogAlcohol(profile) : false;
   const planningEligible = profile ? canPlanAlcohol(profile) : false;
@@ -95,8 +107,17 @@ export default function GoingOutExperience() {
       if (requested === "log") setPanel("log");
       if (requested === "plan") setPanel("plan");
       setDrinkDraft(draftFor(canLogAlcohol(current) ? "wine" : "nonalcoholic", requestedDay && /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) ? requestedDay : todayKey()));
+      setPendingDrinks(restorePendingDirectDrinks(current, window.sessionStorage.getItem(pendingStorageKey(current.id))));
+      setPendingLoaded(true);
     });
   }, [refresh]);
+
+  useEffect(() => {
+    if (!profile || !pendingLoaded) return;
+    const key = pendingStorageKey(profile.id);
+    if (pendingDrinks.length === 0) window.sessionStorage.removeItem(key);
+    else window.sessionStorage.setItem(key, JSON.stringify(pendingDrinks));
+  }, [pendingDrinks, pendingLoaded, profile]);
 
   const numericDraft = useMemo(() => ({
     category: drinkDraft.category,
@@ -112,6 +133,8 @@ export default function GoingOutExperience() {
   const preview = useMemo(() => directDrinkNutrition(numericDraft), [numericDraft]);
   const activePreset = useMemo(() => drinkPresetFor(drinkDraft.category), [drinkDraft.category]);
   const displayedServingAmount = servingOuncesToAmount(activePreset, numberOrZero(drinkDraft.servingOunces));
+  const pendingCalories = useMemo(() => pendingDirectDrinkCalories(pendingDrinks), [pendingDrinks]);
+  const pendingCount = pendingDrinks.reduce((total, item) => total + item.draft.quantity, 0);
 
   const chooseDrink = (category: NightOutCategory) => {
     setDrinkDraft(draftFor(category, drinkDraft.day));
@@ -140,18 +163,57 @@ export default function GoingOutExperience() {
     const preset = drinkPresetFor(drinkDraft.category);
     setDrinkDraft((current) => ({ ...current, servingOunces: String(preset.servingOunces), abvPercent: String(preset.abvPercent), caloriesPerServing: String(preset.caloriesPerServing), estimateStatus: preset.estimateStatus, estimateAdjusted: false }));
   };
-  const saveDrink = () => {
+  const addDrinkToList = () => {
+    if (!profile) return;
+    try {
+      const next = addPendingDirectDrink(profile, pendingDrinks, numericDraft);
+      setPendingDrinks(next);
+      setDrinkDraft((current) => ({ ...current, quantity: "1" }));
+      setMessage("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Check the drink details and try again.");
+    }
+  };
+  const saveDrinkEdit = () => {
     if (!profile) return;
     try {
       const entry = createDirectDrinkHistoryEntry(profile, numericDraft, { id: editingDrinkId });
       browserMealHistoryRepository().upsert(entry);
       refresh(profile);
-      setMessage(editingDrinkId ? "Drink updated in your daily log." : "Drink added to your daily log.");
+      setMessage("Drink updated in your daily log.");
       setEditingDrinkId(undefined);
       setDrinkDraft(draftFor(loggingEligible ? "wine" : "nonalcoholic", drinkDraft.day));
       setPanel(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Check the drink details and try again.");
+    }
+  };
+  const changePendingQuantity = (id: string, delta: number) => {
+    setPendingDrinks((current) => {
+      const item = current.find((candidate) => candidate.id === id);
+      if (!item) return current;
+      return setPendingDirectDrinkQuantity(current, id, item.draft.quantity + delta);
+    });
+  };
+  const removePendingDrink = (id: string) => {
+    setPendingDrinks((current) => current.filter((item) => item.id !== id));
+  };
+  const logPendingDrinks = () => {
+    if (!profile || pendingDrinks.length === 0 || drinkSubmissionLock.current) return;
+    drinkSubmissionLock.current = true;
+    setIsSubmittingDrinks(true);
+    try {
+      const entries = createDirectDrinkHistoryEntries(profile, pendingDrinks);
+      browserMealHistoryRepository().upsertMany(entries);
+      window.sessionStorage.removeItem(pendingStorageKey(profile.id));
+      setPendingDrinks([]);
+      refresh(profile);
+      setMessage(`${pendingCount} ${pendingCount === 1 ? "drink" : "drinks"} added to your daily log.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Your drinks were not saved. Your list is still here so you can try again.");
+    } finally {
+      drinkSubmissionLock.current = false;
+      setIsSubmittingDrinks(false);
     }
   };
   const editDrink = (entry: MealHistoryEntry) => {
@@ -236,7 +298,7 @@ export default function GoingOutExperience() {
     {message && <p className="ff-outlook-message" role="status">{message}</p>}
 
     {panel === "log" && <section className="ff-drink-flow" aria-labelledby="drink-flow-heading">
-      <div className="ff-flow-heading"><div><p className="eyebrow">Actual consumption</p><h2 id="drink-flow-heading">{editingDrinkId ? "Edit your drink" : "What did you drink?"}</h2><p>Choose a type, check the serving, and add it to today&apos;s nutrition.</p></div><button type="button" onClick={() => { setPanel(null); setEditingDrinkId(undefined); }}>Close</button></div>
+      <div className="ff-flow-heading"><div><p className="eyebrow">Actual consumption</p><h2 id="drink-flow-heading">{editingDrinkId ? "Edit your drink" : "What did you drink?"}</h2><p>{editingDrinkId ? "Update the saved details below." : "Choose a type, check the serving, and add it to your list."}</p></div><button type="button" onClick={() => { setPanel(null); setEditingDrinkId(undefined); }}>Close</button></div>
       <div className="ff-drink-tiles">{categories.map((preset) => <button type="button" key={preset.category} aria-pressed={drinkDraft.category === preset.category} onClick={() => chooseDrink(preset.category)}><DrinkIllustration category={preset.category} /><strong>{preset.label}</strong><span>{preset.servingLabel} · ~{preset.caloriesPerServing} cal</span></button>)}</div>
       <div className="ff-drink-editor">
         <div className="ff-editor-copy"><DrinkIllustration category={drinkDraft.category} /><div><p className="eyebrow">Ready to add</p><h3>{drinkDraft.name}</h3><p>{formattedDrinkServing(drinkDraft.category, numericDraft.servingOunces)} · Estimated {Math.round(numericDraft.caloriesPerServing ?? 0)} calories{drinkDraft.category === "cocktail" ? " · varies by preparation" : ""}</p></div></div>
@@ -262,8 +324,20 @@ export default function GoingOutExperience() {
           <summary>Date and time</summary>
           <div className="ff-editor-fields"><label className="field">Day<input type="date" value={drinkDraft.day} onChange={(e) => setDrinkDraft((current) => ({ ...current, day: e.target.value }))} /></label><label className="field">Time<input type="time" value={drinkDraft.time} onChange={(e) => setDrinkDraft((current) => ({ ...current, time: e.target.value }))} /></label></div>
         </details>
-        <div className="ff-drink-review"><span><strong>{Math.round(preview.nutrition.calories)} estimated calories</strong><small>{drinkDraft.category !== "nonalcoholic" ? `About ${preview.standardDrinks.toFixed(1)} standard drinks. Estimates vary by beverage and preparation.` : "This estimate will be included in your daily total."}</small></span><button type="button" className="primary" onClick={saveDrink}>{editingDrinkId ? "Save changes" : "Add drink"}</button></div>
+        <div className="ff-drink-review"><span><strong>{Math.round(preview.nutrition.calories)} estimated calories</strong><small>{drinkDraft.category !== "nonalcoholic" ? `About ${preview.standardDrinks.toFixed(1)} standard drinks. Estimates vary by beverage and preparation.` : "This estimate will be included in your daily total."}</small></span><button type="button" className="primary" onClick={editingDrinkId ? saveDrinkEdit : addDrinkToList}>{editingDrinkId ? "Save changes" : "+ Add to list"}</button></div>
       </div>
+      {!editingDrinkId && <section className="ff-pending-drinks" aria-labelledby="pending-drinks-heading">
+        <div className="ff-pending-heading"><div><p className="eyebrow">Batch entry</p><h3 id="pending-drinks-heading">Drinks to log</h3></div><span aria-live="polite">{pendingCount} {pendingCount === 1 ? "drink" : "drinks"}</span></div>
+        {pendingDrinks.length === 0 ? <div className="ff-pending-empty"><p>Your list is empty.</p><span>Add a drink above. Nothing counts toward nutrition until you log the list.</span></div> : <div className="ff-pending-list">{pendingDrinks.map((item) => {
+          const itemCalories = directDrinkNutrition(item.draft).nutrition.calories;
+          return <article key={item.id}>
+            <DrinkIllustration category={item.draft.category} />
+            <div className="ff-pending-copy"><strong>{item.draft.name}</strong><span>{formattedDrinkServing(item.draft.category, item.draft.servingOunces)} · {pendingTime(item.draft.consumedAt)}</span><small>{Math.round(itemCalories)} estimated calories</small></div>
+            <div className="ff-pending-controls"><span id={`pending-quantity-${item.id}`}>Quantity</span><div className="ff-drink-stepper" role="group" aria-labelledby={`pending-quantity-${item.id}`}><button type="button" aria-label={`Decrease ${item.draft.name} quantity`} disabled={item.draft.quantity <= 1} onClick={() => changePendingQuantity(item.id, -1)}>−</button><output aria-live="polite">{item.draft.quantity}</output><button type="button" aria-label={`Increase ${item.draft.name} quantity`} onClick={() => changePendingQuantity(item.id, 1)}>+</button></div><button type="button" className="ff-pending-remove" onClick={() => removePendingDrink(item.id)}>Remove</button></div>
+          </article>;
+        })}</div>}
+        <div className="ff-pending-submit"><span><small>Cumulative estimate</small><strong>{Math.round(pendingCalories)} calories</strong></span><button type="button" className="primary" disabled={pendingDrinks.length === 0 || isSubmittingDrinks} onClick={logPendingDrinks}>{isSubmittingDrinks ? "Logging…" : pendingCount > 0 ? `Log ${pendingCount} ${pendingCount === 1 ? "drink" : "drinks"}` : "Log drinks"}</button></div>
+      </section>}
     </section>}
 
     {panel === "plan" && <section className="ff-plan-flow" aria-labelledby="plan-flow-heading"><div className="ff-flow-heading"><div><p className="eyebrow">Upcoming occasion</p><h2 id="plan-flow-heading">Plan a night out</h2><p>A plan can slightly improve meal fit. It never adds calories or logs a drink.</p></div><button type="button" onClick={() => setPanel(null)}>Close</button></div><fieldset><legend>When?</legend><div className="ff-choice-row"><button type="button" aria-pressed={planDateChoice === "today"} onClick={() => setPlanDateChoice("today")}>Tonight</button><button type="button" aria-pressed={planDateChoice === "tomorrow"} onClick={() => setPlanDateChoice("tomorrow")}>Tomorrow</button><button type="button" aria-pressed={planDateChoice === "choose"} onClick={() => setPlanDateChoice("choose")}>Choose a date</button></div>{planDateChoice === "choose" && <label className="field ff-date-field">Date<input type="date" value={planDate} onChange={(e) => setPlanDate(e.target.value)} /></label>}</fieldset><fieldset><legend>What are you planning?</legend><div className="ff-occasion-grid">{(Object.keys(occasionLabels) as Occasion[]).map((value) => <button type="button" key={value} aria-pressed={occasion === value} onClick={() => setOccasion(value)}><span aria-hidden="true">{value === "dinner-out" ? "◇" : value === "social-gathering" ? "◎" : value === "late-night-food" ? "☾" : "+"}</span>{occasionLabels[value]}</button>)}</div></fieldset>{planningEligible && <fieldset><legend>Expected beverages <span>Optional</span></legend><div className="ff-choice-row">{(Object.keys(forecastLabels) as AlcoholForecast[]).map((value) => <button type="button" key={value} aria-pressed={forecast === value} onClick={() => setForecast(forecast === value ? "" : value)}>{forecastLabels[value]}</button>)}</div></fieldset>}<label className="field">Food plans <span>Optional</span><input value={foodNote} onChange={(e) => setFoodNote(e.target.value)} placeholder="Dinner reservation, late-night pizza…" /></label><div className="ff-plan-summary"><span><small>Your plan</small><strong>{prettyDate(planDateChoice === "today" ? todayKey() : planDateChoice === "tomorrow" ? tomorrowKey() : planDate)} — {occasionLabels[occasion].toLowerCase()} planned.</strong><em>Falcon Fuel may give suitable meals a small positive ranking boost. Your calorie target stays the same.</em></span><button type="button" className="primary" onClick={savePlan}>{editingPlanId ? "Update plan" : "Save plan"}</button></div></section>}

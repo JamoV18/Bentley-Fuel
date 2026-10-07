@@ -224,6 +224,10 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
   }
 
   private async getOutletDate(target: ReliableDineOnCampusOutletTarget, date: string, force = false): Promise<LiveDateData | undefined> {
+    if (!force) {
+      const published = await this.snapshots.getCurrentPublished(target.key);
+      if (published) return snapshotView(published);
+    }
     const cacheKey = `${target.key}::${date}`;
     const now = Date.now();
     const cached = this.liveCache.get(cacheKey);
@@ -237,8 +241,13 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
   }
 
   private async snapshotFallback(target: ReliableDineOnCampusOutletTarget, date: string, failureReason: string): Promise<LiveDateData | undefined> {
-    const snapshot = await this.snapshots.get(target.key, date);
-    if (!snapshot || snapshot.menuDate !== date) {
+    const exactSnapshot = await this.snapshots.get(target.key, date);
+    const currentPublished = await this.snapshots.getCurrentPublished(target.key);
+    if (exactSnapshot?.publicationSource === "trusted-browser-sync" && currentPublished?.contentHash !== exactSnapshot.contentHash) {
+      await this.snapshots.set(exactSnapshot);
+    }
+    const snapshot = currentPublished ?? exactSnapshot;
+    if (!snapshot || (snapshot.menuDate !== date && snapshot.publicationSource !== "trusted-browser-sync")) {
       recordDiningIngestion({ outletKey: target.key, menuDate: date, stableLocationId: target.locationId, outletName: target.name, latestFailureReason: failureReason, servingSnapshot: false, stationCount: 0, itemCount: 0 });
       return undefined;
     }

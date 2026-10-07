@@ -4,6 +4,8 @@ import FirstRunDiningChoice from "@/components/FirstRunDiningChoice";
 import LocationChoiceCard from "@/components/LocationChoiceCard";
 import { getDiningProvider } from "@/services";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const provider = getDiningProvider();
   const locations = await provider.getLocations();

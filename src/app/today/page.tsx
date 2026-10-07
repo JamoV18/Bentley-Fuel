@@ -3,6 +3,8 @@ import MealReflectionDock from "@/components/MealReflectionDock";
 import { getDiningProvider } from "@/services";
 import TodayV2Client from "./TodayV2Client";
 
+export const dynamic = "force-dynamic";
+
 export default async function TodayPage() {
   const provider = getDiningProvider();
   const [locations, menuItems, stations, components] = await Promise.all([

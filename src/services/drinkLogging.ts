@@ -1,26 +1,7 @@
 import type { MealHistoryEntry, NightOutCategory, NightOutConsumption, UserProfile } from "@/types";
 import { canUseAlcoholFeatures } from "./goingOutRepository";
 import { detailedAlcoholNutrition } from "./alcoholNutrition";
-
-export interface DrinkPreset {
-  category: NightOutCategory;
-  label: string;
-  servingName: string;
-  servingOunces: number;
-  abvPercent: number;
-  caloriesPerServing: number;
-  estimateStatus: NightOutConsumption["estimateStatus"];
-}
-
-export const DIRECT_DRINK_PRESETS: readonly DrinkPreset[] = [
-  { category: "wine", label: "Wine", servingName: "glass", servingOunces: 5, abvPercent: 12, caloriesPerServing: 125, estimateStatus: "estimated" },
-  { category: "beer", label: "Beer", servingName: "bottle or can", servingOunces: 12, abvPercent: 5, caloriesPerServing: 150, estimateStatus: "estimated" },
-  { category: "hard-seltzer", label: "Hard seltzer", servingName: "can", servingOunces: 12, abvPercent: 5, caloriesPerServing: 100, estimateStatus: "estimated" },
-  { category: "spirits", label: "Shot / spirits", servingName: "shot", servingOunces: 1.5, abvPercent: 40, caloriesPerServing: 98, estimateStatus: "estimated" },
-  { category: "cocktail", label: "Cocktail", servingName: "mixed drink", servingOunces: 8, abvPercent: 15, caloriesPerServing: 240, estimateStatus: "approximate" },
-  { category: "nonalcoholic", label: "Nonalcoholic", servingName: "drink", servingOunces: 12, abvPercent: 0, caloriesPerServing: 100, estimateStatus: "approximate" },
-  { category: "custom", label: "Custom drink", servingName: "serving", servingOunces: 12, abvPercent: 0, caloriesPerServing: 0, estimateStatus: "approximate" },
-] as const;
+export { DIRECT_DRINK_PRESETS } from "./drinkCatalog";
 
 export interface DirectDrinkDraft {
   category: NightOutCategory;

@@ -1,4 +1,5 @@
 import type { NightOutCategory, NightOutConsumption, NutritionFacts } from "@/types";
+import { drinkPresetFor } from "./drinkCatalog";
 
 const OUNCES_TO_MILLILITERS = 29.5735;
 const ETHANOL_GRAMS_PER_MILLILITER = 0.789;
@@ -40,22 +41,14 @@ export function detailedAlcoholNutrition(input: {
 
 export type QuickAlcoholCategory = Exclude<NightOutCategory, "custom" | "nonalcoholic">;
 
-const QUICK_ESTIMATES: Record<QuickAlcoholCategory, { name: string; calories: number; standardDrinks?: number }> = {
-  beer: { name: "Beer", calories: 150, standardDrinks: 1 },
-  "hard-seltzer": { name: "Hard seltzer", calories: 100, standardDrinks: 1 },
-  wine: { name: "Wine", calories: 125, standardDrinks: 1 },
-  spirits: { name: "Spirits", calories: 98, standardDrinks: 1 },
-  cocktail: { name: "Cocktail", calories: 240 },
-  "mixed-unknown": { name: "Mixed / unknown drink", calories: 180 },
-};
-
 export function quickAlcoholEstimate(category: QuickAlcoholCategory, quantity: number) {
-  const estimate = QUICK_ESTIMATES[category];
+  const preset = drinkPresetFor(category);
   const safeQuantity = Math.max(0, Math.floor(quantity));
+  const standardDrinks = standardDrinksFromServing(preset.servingOunces, preset.abvPercent);
   return {
-    name: estimate.name,
-    nutrition: zeroMacros(estimate.calories * safeQuantity),
-    standardDrinks: estimate.standardDrinks === undefined ? undefined : estimate.standardDrinks * safeQuantity,
+    name: preset.label,
+    nutrition: zeroMacros(preset.caloriesPerServing * safeQuantity),
+    standardDrinks: category === "cocktail" || category === "mixed-unknown" ? undefined : standardDrinks * safeQuantity,
     estimateStatus: "approximate" as const,
     calculationMethod: "category-estimate" as const,
   };

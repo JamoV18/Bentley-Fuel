@@ -28,7 +28,7 @@ test("a source total replaces formula energy instead of double-counting ethanol"
 
 test("unspecified cocktails stay clearly approximate", () => {
   const estimate = quickAlcoholEstimate("cocktail", 2);
-  assert.equal(estimate.nutrition.calories, 480);
+  assert.equal(estimate.nutrition.calories, 400);
   assert.equal(estimate.standardDrinks, undefined);
   assert.equal(estimate.estimateStatus, "approximate");
 });

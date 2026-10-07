@@ -2,7 +2,7 @@ import type { NutritionFacts } from "./nutrition";
 
 export type SocialPlanKind = "ordinary" | "social" | "late-night";
 export type AlcoholForecast = "none" | "unsure" | "1-2" | "3-4" | "5-plus";
-export type NightOutCategory = "beer" | "hard-seltzer" | "wine" | "spirits" | "cocktail" | "mixed-unknown" | "nonalcoholic" | "custom";
+export type NightOutCategory = "beer" | "hard-seltzer" | "wine" | "wine-bottle" | "spirits" | "cocktail" | "mixed-unknown" | "nonalcoholic" | "custom";
 export type NutritionEstimateStatus = "verified" | "estimated" | "approximate";
 
 export interface GoingOutSettings {

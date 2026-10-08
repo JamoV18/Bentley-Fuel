@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   MAX_FALCON_FUEL_IMPORT_BYTES,
   browserUserDataRepository,
@@ -17,10 +18,12 @@ const EMPTY_SUMMARY: FalconFuelStoredDataSummary = {
   progressivePreferenceCount: 0,
   recommendationInteractionCount: 0,
   goingOutEventCount: 0,
+  plannedMealCount: 0,
   storageScope: "this-device",
 };
 
 export default function ProfileDataControls() {
+  const router = useRouter();
   const [summary, setSummary] = useState<FalconFuelStoredDataSummary>();
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [importPreview, setImportPreview] = useState<FalconFuelImportPreview>();
@@ -68,7 +71,7 @@ export default function ProfileDataControls() {
       setSummary(restored);
       setImportPreview(undefined);
       setImportMessage("Restore complete. Reloading Falcon Fuel with the restored data.");
-      window.location.href = restored.profileStored ? "/data-privacy" : "/onboarding";
+      router.push(restored.profileStored ? "/data-privacy" : "/onboarding");
     } catch (error) {
       setImportMessage(error instanceof Error ? error.message : "Falcon Fuel could not restore this export.");
     }
@@ -78,7 +81,7 @@ export default function ProfileDataControls() {
     browserUserDataRepository().clearAll();
     setSummary(EMPTY_SUMMARY);
     setConfirmingReset(false);
-    window.location.href = "/onboarding";
+    router.push("/onboarding");
   };
 
   return (
@@ -92,6 +95,7 @@ export default function ProfileDataControls() {
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--ff-text-secondary)]">Profile</p><p className="mt-2 text-lg font-bold text-[var(--ff-text-primary)]">{summary?.profileStored ? "Stored" : "Not stored"}</p></div>
         <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--ff-text-secondary)]">Meal records</p><p className="mt-2 text-lg font-bold text-[var(--ff-text-primary)]">{summary?.mealHistoryCount ?? "—"}</p></div>
+        <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--ff-text-secondary)]">Planned meals</p><p className="mt-2 text-lg font-bold text-[var(--ff-text-primary)]">{summary?.plannedMealCount ?? "—"}</p></div>
         <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--ff-text-secondary)]">Recommendation edits</p><p className="mt-2 text-lg font-bold text-[var(--ff-text-primary)]">{summary?.recommendationInteractionCount ?? "—"}</p></div>
         <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--ff-text-secondary)]">Weight check-ins</p><p className="mt-2 text-lg font-bold text-[var(--ff-text-primary)]">{summary?.progressObservationCount ?? "—"}</p></div>
         <div className="border-b border-[var(--ff-border)] py-3"><p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--ff-text-secondary)]">Activity reviews</p><p className="mt-2 text-lg font-bold text-[var(--ff-text-primary)]">{summary?.activityCheckInCount ?? "—"}</p></div>
@@ -128,7 +132,7 @@ export default function ProfileDataControls() {
         {importPreview?.valid && importPreview.summary && (
           <div className="mt-4 rounded-lg border border-[var(--ff-warning)] bg-[var(--ff-warning-surface)] p-4">
             <p className="text-sm font-bold text-[var(--ff-warning)]">Ready to restore this Falcon Fuel export</p>
-            <p className="mt-1 text-xs leading-relaxed text-[var(--ff-warning)]/75">Exported {importPreview.exportedAt ? new Date(importPreview.exportedAt).toLocaleString() : "at an unknown time"}. It contains {importPreview.summary.mealHistoryCount} meal records, {importPreview.summary.progressObservationCount} weight check-ins, {importPreview.summary.activityCheckInCount} activity reviews, {importPreview.summary.progressivePreferenceCount} preference answers, and {importPreview.summary.recommendationInteractionCount} recommendation interaction records.</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--ff-warning)]/75">Exported {importPreview.exportedAt ? new Date(importPreview.exportedAt).toLocaleString() : "at an unknown time"}. It contains {importPreview.summary.mealHistoryCount} meal records, {importPreview.summary.plannedMealCount} planned meals, {importPreview.summary.progressObservationCount} weight check-ins, {importPreview.summary.activityCheckInCount} activity reviews, {importPreview.summary.progressivePreferenceCount} preference answers, and {importPreview.summary.recommendationInteractionCount} recommendation interaction records.</p>
             <p className="mt-2 text-xs font-semibold text-[var(--ff-warning)]">Restoring replaces all current Falcon Fuel data on this device. It does not merge records and does not touch unrelated browser data.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" className="rounded-full bg-[var(--ff-accent)] px-4 py-2 text-xs font-bold text-white" onClick={restoreData}>Replace with this export</button>

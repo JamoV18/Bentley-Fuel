@@ -38,7 +38,8 @@ import {
   isValidGoingOutEvent,
   isValidGoingOutSettings,
 } from "./goingOutRepository";
-import type { GoingOutEvent, GoingOutSettings, MealHistoryEntry, ProgressivePreferenceAnswer, RecommendationInteraction, UserProfile, WeightObservation } from "@/types";
+import { createLocalPlannedMealRepository, isValidPlannedMeal, PLANNED_MEALS_STORAGE_KEY } from "./plannedMealRepository";
+import type { GoingOutEvent, GoingOutSettings, MealHistoryEntry, PlannedMeal, ProgressivePreferenceAnswer, RecommendationInteraction, UserProfile, WeightObservation } from "@/types";
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -55,6 +56,7 @@ export const FALCON_FUEL_USER_DATA_KEYS = [
   RECOMMENDATION_INTERACTION_STORAGE_KEY,
   GOING_OUT_SETTINGS_STORAGE_KEY,
   GOING_OUT_EVENTS_STORAGE_KEY,
+  PLANNED_MEALS_STORAGE_KEY,
 ] as const;
 
 export const FALCON_FUEL_USER_DATA_SCHEMA_VERSION = 2 as const;
@@ -72,6 +74,7 @@ export interface FalconFuelUserDataExport {
   recommendationInteractions: RecommendationInteraction[];
   goingOutSettings?: GoingOutSettings | null;
   goingOutEvents?: GoingOutEvent[];
+  plannedMeals?: PlannedMeal[];
 }
 
 export interface FalconFuelStoredDataSummary {
@@ -82,6 +85,7 @@ export interface FalconFuelStoredDataSummary {
   progressivePreferenceCount: number;
   recommendationInteractionCount: number;
   goingOutEventCount: number;
+  plannedMealCount: number;
   storageScope: "this-device";
 }
 
@@ -108,6 +112,7 @@ const summaryFrom = (data: FalconFuelUserDataExport): FalconFuelStoredDataSummar
   progressivePreferenceCount: data.progressivePreferences.length,
   recommendationInteractionCount: data.recommendationInteractions.length,
   goingOutEventCount: data.goingOutEvents?.length ?? 0,
+  plannedMealCount: data.plannedMeals?.length ?? 0,
   storageScope: "this-device",
 });
 
@@ -147,6 +152,8 @@ export function previewFalconFuelUserDataImport(value: unknown): FalconFuelImpor
   const goingOutEventsCandidate = value.goingOutEvents ?? [];
   const goingOutEventsValid = validateCollection("goingOutEvents", goingOutEventsCandidate, isValidGoingOutEvent);
   const goingOutSettingsValid = value.goingOutSettings === undefined || value.goingOutSettings === null || isValidGoingOutSettings(value.goingOutSettings);
+  const plannedMealsCandidate = value.plannedMeals ?? [];
+  const plannedMealsValid = validateCollection("plannedMeals", plannedMealsCandidate, isValidPlannedMeal);
   if (!goingOutSettingsValid) errors.push("goingOutSettings contains an invalid record.");
   if (isValidUserProfile(value.profile)) {
     const ownerId = value.profile.id;
@@ -155,9 +162,10 @@ export function previewFalconFuelUserDataImport(value: unknown): FalconFuelImpor
     if (!canPlanAlcohol(value.profile) && goingOutEventsValid && goingOutEventsCandidate.some((event) => event.alcoholForecast !== undefined || (event.actualConsumption?.length ?? 0) > 0)) errors.push("Alcohol-specific Going Out records require a profile declaring age 21 or older.");
     if (!canLogAlcohol(value.profile) && mealHistoryValid && (value.mealHistory as MealHistoryEntry[]).some((entry) => entry.source === "drink-log" && entry.entryKind === "alcohol")) errors.push("Alcohol-specific drink logs require a profile declaring age 18 or older.");
     if (mealHistoryValid && (value.mealHistory as MealHistoryEntry[]).some((entry) => (entry.source === "night-out" || entry.source === "drink-log") && entry.ownerProfileId !== ownerId)) errors.push("Going Out nutrition entries belong to another profile.");
+    if (plannedMealsValid && plannedMealsCandidate.some((plan) => plan.ownerProfileId !== ownerId)) errors.push("Planned meals belong to another profile.");
   }
 
-  if (errors.length > 0 || !mealHistoryValid || !progressValid || !activityValid || !preferencesValid || !interactionsValid || !goingOutEventsValid || !goingOutSettingsValid) {
+  if (errors.length > 0 || !mealHistoryValid || !progressValid || !activityValid || !preferencesValid || !interactionsValid || !goingOutEventsValid || !goingOutSettingsValid || !plannedMealsValid) {
     return { valid: false, errors };
   }
 
@@ -173,6 +181,7 @@ export function previewFalconFuelUserDataImport(value: unknown): FalconFuelImpor
     recommendationInteractions: value.recommendationInteractions as RecommendationInteraction[],
     goingOutSettings: (value.goingOutSettings ?? null) as GoingOutSettings | null,
     goingOutEvents: goingOutEventsCandidate as GoingOutEvent[],
+    plannedMeals: plannedMealsCandidate as PlannedMeal[],
   };
 
   return {
@@ -214,6 +223,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
   const exportData = (): FalconFuelUserDataExport => {
     const storedProfile = profileRepository.getStored();
     const goingOutRepository = storedProfile ? createLocalGoingOutRepository(storage, storedProfile.id) : undefined;
+    const plannedMealRepository = storedProfile ? createLocalPlannedMealRepository(storage, storedProfile.id) : undefined;
     return {
       schemaVersion: FALCON_FUEL_USER_DATA_SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
@@ -228,6 +238,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
       recommendationInteractions: recommendationInteractionRepository.getRecent(Number.MAX_SAFE_INTEGER),
       goingOutSettings: goingOutRepository?.getSettings() ?? null,
       goingOutEvents: goingOutRepository?.listEvents() ?? [],
+      plannedMeals: plannedMealRepository?.list() ?? [],
     };
   };
 
@@ -242,6 +253,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
     recommendationInteractionRepository.clear();
     storage.removeItem(GOING_OUT_SETTINGS_STORAGE_KEY);
     storage.removeItem(GOING_OUT_EVENTS_STORAGE_KEY);
+    storage.removeItem(PLANNED_MEALS_STORAGE_KEY);
   };
 
   const replaceFromExport = (value: unknown): FalconFuelStoredDataSummary => {
@@ -265,6 +277,7 @@ export function createLocalUserDataRepository(storage: StorageLike) {
       if (data.goingOutSettings) storage.setItem(GOING_OUT_SETTINGS_STORAGE_KEY, JSON.stringify(data.goingOutSettings));
       else storage.removeItem(GOING_OUT_SETTINGS_STORAGE_KEY);
       writeArray(GOING_OUT_EVENTS_STORAGE_KEY, data.goingOutEvents ?? []);
+      writeArray(PLANNED_MEALS_STORAGE_KEY, data.plannedMeals ?? []);
     } catch (error) {
       // Restore every Falcon Fuel key if any browser storage write fails so a
       // quota/storage exception cannot leave half of one identity imported.

@@ -7,6 +7,7 @@ import type {
   MealLogSlot,
   MenuItem,
   NutritionFacts,
+  Station,
 } from "@/types";
 import { scaleNutrition } from "./nutrition";
 import { CAMPUS_STAPLE_FOODS } from "./campusStaples";
@@ -49,6 +50,21 @@ export const GENERIC_CANONICAL_FOODS: readonly CanonicalFood[] = [
   generic({ foodId: "generic:pizza", name: "Pizza", aliases: ["pizza slice", "slice of pizza", "cheese pizza"], category: "mixed dish", nutritionReference: { grams: 107, nutrition: { calories: 285, protein: 12, carbs: 36, fat: 10 } }, defaultPortionUnitId: "slice", defaultQuantity: 1, portions: [portion("slice", "count", 1, "slice", "slices", "slice", 107)], source: "generic", verification: "unverified-estimate" }),
   generic({ foodId: "generic:banana", name: "Banana", aliases: ["bananas", "medium banana"], category: "fruit", nutritionReference: { grams: 118, nutrition: { calories: 105, protein: 1.3, carbs: 27, fat: 0.4 } }, defaultPortionUnitId: "banana", defaultQuantity: 1, portions: [portion("banana", "count", 1, "banana", "bananas", "banana", 118, 1, "calibrated-estimate")], source: "generic", verification: "calibrated-estimate" }),
 ] as const;
+
+export function canonicalPlanningDiningResources(locationId: string): { stations: Station[]; menuItems: MenuItem[] } {
+  const stationId = `canonical-foods:${locationId}`;
+  const provenance = { dataStatus: "estimated" as const, source: { type: "usda" as const, name: "Generic nutrition reference" }, confidence: 0.8, notes: "Generic estimate; actual portions vary." };
+  return {
+    stations: [{ id: stationId, name: "Generic foods", description: "Canonical foods with generic nutrition estimates.", locationId, mealPeriods: ["all-day"], provenance, availabilityStatus: "unverified" }],
+    menuItems: GENERIC_CANONICAL_FOODS.filter((food) => !food.locationId || food.locationId === locationId).map((food) => ({
+      id: food.foodId, name: food.name, description: "Generic canonical food", kind: "predefined" as const,
+      stationId, locationId, nutrition: calculateFoodNutrition(food, food.defaultPortionUnitId, food.defaultQuantity),
+      serving: { amount: food.defaultQuantity, unit: food.portions.find((portion) => portion.id === food.defaultPortionUnitId)?.unit ?? "serving", description: food.portions.find((portion) => portion.id === food.defaultPortionUnitId)?.displayName },
+      mealRole: food.category === "fruit" ? "snack" as const : food.category === "protein" || food.category === "mixed dish" ? "main" as const : "side" as const,
+      allergens: [], dietaryTags: [], availability: ["all-day" as const], provenance, nutritionProvenance: provenance, availabilityStatus: "unverified" as const,
+    })),
+  };
+}
 
 const slug = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 

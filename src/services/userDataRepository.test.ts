@@ -6,6 +6,7 @@ import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
 import { createUserProfile } from "./profileRepository";
 import { createLocalProgressiveProfileRepository } from "./progressiveProfile";
 import { createLocalProgressRepository } from "./progressRepository";
+import { createLocalPlannedMealRepository } from "./plannedMealRepository";
 import {
   FALCON_FUEL_USER_DATA_KEYS,
   createLocalUserDataRepository,
@@ -77,6 +78,12 @@ const seedPortableData = (storage: MemoryStorage) => {
     evidenceCount: 3,
     answeredAt: "2026-08-31T18:00:00.000Z",
   });
+  createLocalPlannedMealRepository(storage, created.id).upsert({
+    id: "plan-1", ownerProfileId: created.id, intendedDate: "2026-09-02", mealSlot: "lunch", locationId: "loc-921",
+    build: { locationId: "loc-921", items: [{ id: "planned-line", menuItemId: "item-1", quantity: 1 }] },
+    nutrition: { calories: 500, protein: 30, carbs: 55, fat: 18 }, source: "recommended", status: "planned",
+    createdAt: "2026-08-31T19:00:00.000Z", updatedAt: "2026-08-31T19:00:00.000Z",
+  });
   return created;
 };
 
@@ -102,6 +109,8 @@ test("export keeps profile, meals, progress, reviews, preferences, and recommend
   assert.equal(exported.recommendationInteractions[0].kind, "meal-chosen");
   assert.equal(data.summary().progressivePreferenceCount, 1);
   assert.equal(data.summary().recommendationInteractionCount, 1);
+  assert.equal(exported.plannedMeals?.length, 1);
+  assert.equal(data.summary().plannedMealCount, 1);
 });
 
 test("export preserves the raw stored profile instead of serializing read-time derived targets", () => {
@@ -148,6 +157,7 @@ test("a valid export can be previewed and restored exactly without generating ex
   assert.deepEqual(restored.activityCheckIns, exported.activityCheckIns);
   assert.deepEqual(restored.progressivePreferences, exported.progressivePreferences);
   assert.deepEqual(restored.recommendationInteractions, exported.recommendationInteractions);
+  assert.deepEqual(restored.plannedMeals, exported.plannedMeals);
   assert.equal(target.getItem("unrelated-app-key"), "keep-me");
 });
 

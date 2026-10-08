@@ -9,6 +9,7 @@ import AppNav from "@/components/AppNav";
 import BklitWeightProgressChart from "@/components/BklitWeightProgressChart";
 import PlanEditControl from "@/components/PlanEditControl";
 import SuccessMorphLabel from "@/components/SuccessMorphLabel";
+import FutureMealPlanner from "@/components/FutureMealPlanner";
 import { browserProgressRepository, resolveNutritionPlan } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { UserProfile, WeightObservation } from "@/types";
@@ -69,6 +70,8 @@ export default function ProfileSummary() {
     <main className="ff-page ff-settings">
       <PageHeader title="Your plan" />
       <AppNav />
+
+      <FutureMealPlanner profile={profile} />
 
       <div className="mt-3 grid gap-0 xl:grid-cols-[.82fr_1.18fr] xl:gap-5">
         <section className="surface p-5">

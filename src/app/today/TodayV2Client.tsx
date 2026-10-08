@@ -20,6 +20,9 @@ import {
   resolveNutritionPlan,
   scoreResolvedMeals,
   presentMeal,
+  browserPlannedMealRepository,
+  fulfilledPlan,
+  historyEntryFromPlan,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type {
@@ -31,6 +34,7 @@ import type {
   RecommendationContext,
   Station,
   UserProfile,
+  PlannedMeal,
   GoingOutEvent,
   GoingOutSettings,
 } from "@/types";
@@ -159,6 +163,7 @@ export default function TodayV2Client({
   const [entries, setEntries] = useState<MealHistoryEntry[]>([]);
   const [recentEntries, setRecentEntries] = useState<MealHistoryEntry[]>([]);
   const [pending, setPending] = useState<MealHistoryEntry[]>([]);
+  const [plannedMeals, setPlannedMeals] = useState<PlannedMeal[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [savingCheckIn, setSavingCheckIn] = useState<{ id: string; fraction: MealCompletionFraction }>();
   const [activeCheckInId, setActiveCheckInId] = useState<string>();
@@ -180,6 +185,9 @@ export default function TodayV2Client({
       const goingOut = browserGoingOutRepository(activeProfile);
       setGoingOutSettings(goingOut.getSettings());
       setGoingOutEvents(goingOut.listEvents());
+      setPlannedMeals(browserPlannedMealRepository(activeProfile.id).getByDate(localDateKey(selectedDate)));
+    } else {
+      setPlannedMeals([]);
     }
     setLatestWeightKg(browserProgressRepository().getRecent(1)[0]?.weightKg);
     setEntries(repository.getByDateRange(start, end));
@@ -302,6 +310,15 @@ export default function TodayV2Client({
     checkInTimer.current = window.setTimeout(finish, 520);
   };
 
+  const savePlannedCompletion = (plan: PlannedMeal, fraction: MealCompletionFraction) => {
+    if (savingCheckIn || !profile) return;
+    const history = historyEntryFromPlan(plan, fraction);
+    browserMealHistoryRepository().upsert(history);
+    browserPlannedMealRepository(profile.id).upsert(fulfilledPlan(plan, history.id));
+    setSavingCheckIn({ id: plan.id, fraction });
+    window.setTimeout(() => { setSavingCheckIn(undefined); refresh(); }, reduceMotion ? 0 : 520);
+  };
+
   const deleteEntry = (entry: MealHistoryEntry) => {
     const label = entry.source === "drink-log" ? "drink" : entry.mealSlot === "snack" ? "snack" : "meal";
     if (!window.confirm(`Delete this ${label}? This updates Today and History totals.`)) return;
@@ -330,12 +347,15 @@ export default function TodayV2Client({
   const effectiveNutritionMode = nutritionMode === "remaining" && snapshot.remaining ? "remaining" : "consumed";
   const displayedNutrition = effectiveNutritionMode === "remaining" && snapshot.remaining ? snapshot.remaining : snapshot.consumed;
   const firstPending = pending[0];
-  const savingFirstPending = firstPending ? savingCheckIn?.id === firstPending.id : false;
+  const activePlannedMeal = isToday ? plannedMeals.find((plan) => plan.mealSlot === recommendationPeriod) ?? plannedMeals[0] : undefined;
+  const plannedEntry: MealHistoryEntry | undefined = activePlannedMeal ? { id: activePlannedMeal.id, ownerProfileId: activePlannedMeal.ownerProfileId, locationId: activePlannedMeal.locationId, build: activePlannedMeal.build, selectedAt: activePlannedMeal.createdAt, mealSlot: activePlannedMeal.mealSlot, nutrition: activePlannedMeal.nutrition, campusBeverages: activePlannedMeal.campusBeverages, source: activePlannedMeal.source === "recommended" ? "recommended" : activePlannedMeal.source === "self-built" ? "self-built" : "manual-log" } : undefined;
+  const contextEntry = firstPending ?? plannedEntry;
+  const savingFirstPending = contextEntry ? savingCheckIn?.id === contextEntry.id : false;
   const completedMeals = snapshot.meals.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0).length;
   const recommendationHref = recommendationPeriod && locationPreference.id ? `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
 
   const heroEyebrow = livingDay.mode === "late-night" ? "Optional tonight" : "Next best meal";
-  const heroTitle = firstPending ? mealName(firstPending, itemNames, stationNames, locationNames) : livingDay.mode === "late-night"
+  const heroTitle = contextEntry ? mealName(contextEntry, itemNames, stationNames, locationNames) : livingDay.mode === "late-night"
     ? "Still hungry?"
     : `${mealPeriodLabel ?? "Meal"} at ${preferredLocationName}`;
   const heroCta = livingDay.mode === "anticipate" && mealPeriodLabel
@@ -366,6 +386,7 @@ export default function TodayV2Client({
         <button type="button" className="ff-v2-daybar-current" onClick={() => setSelectedDate(new Date())}><span>{isToday ? "Today" : "Back to today"}</span><strong>{dayLabel(selectedDate)}</strong></button>
         <button type="button" onClick={() => changeDay(1)} aria-label={`View ${dayLabel(tomorrow)}`}><small>{dayLabel(tomorrow)}</small><span>→</span></button>
       </div>
+      {isToday && <Link href="/profile-summary?focus=future" className="justify-self-end text-xs font-bold text-[var(--ff-accent-light)]">Plan tomorrow →</Link>}
 
       {isDemo && <p className="ff-v2-data-note">Some locations still use demo menu data. Verified Bentley Dining data is used where available.</p>}
 
@@ -444,9 +465,9 @@ export default function TodayV2Client({
             transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ff-v2-hero-copy">
-              <p className="ff-v2-eyebrow">{firstPending ? `${readable(inferredCoreMealSlot(firstPending) ?? "meal")} selected` : heroEyebrow}</p>
+              <p className="ff-v2-eyebrow">{contextEntry ? `${readable(activePlannedMeal?.mealSlot ?? inferredCoreMealSlot(contextEntry) ?? "meal")} ${activePlannedMeal && !firstPending ? "planned" : "selected"}` : heroEyebrow}</p>
               <h2>{heroTitle}</h2>
-              {firstPending ? (() => { const presentation = presentMeal(firstPending, { itemNames, stationNames, locationNames }); return <div className="ff-v2-top-pick"><strong>{locationNames[firstPending.locationId] ?? firstPending.locationId}</strong>{presentation.details && <small>{presentation.details}</small>}{firstPending.nutrition && <small>{round(firstPending.nutrition.calories)} cal · {round(firstPending.nutrition.protein)}g protein if finished</small>}</div>; })() : topMealPick && livingDay.mode !== "late-night" && (
+              {contextEntry ? (() => { const presentation = presentMeal(contextEntry, { itemNames, stationNames, locationNames }); return <div className="ff-v2-top-pick"><strong>{locationNames[contextEntry.locationId] ?? contextEntry.locationId}{activePlannedMeal && !firstPending ? " · Planned" : ""}</strong>{presentation.details && <small>{presentation.details}</small>}{contextEntry.nutrition && <small>{round(contextEntry.nutrition.calories)} cal · {round(contextEntry.nutrition.protein)}g protein if finished</small>}</div>; })() : topMealPick && livingDay.mode !== "late-night" && (
                 <div className="ff-v2-top-pick" aria-label="Current top meal recommendation">
                   <strong>{topMealPick.name}</strong>
                   <small>
@@ -455,9 +476,9 @@ export default function TodayV2Client({
                   </small>
                 </div>
               )}
-              {firstPending ? <>
-                {activeCheckInId === firstPending.id ? <div className="ff-v2-confirm-actions" aria-label="How much did you eat?">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" disabled={savingFirstPending} className={savingFirstPending && savingCheckIn?.fraction === choice.fraction ? "is-selected" : undefined} onClick={() => saveCompletion(firstPending.id, choice.fraction)}>{choice.label}</button>)}</div> : <button type="button" className="ff-v2-primary-cta" onClick={() => setActiveCheckInId(firstPending.id)}>Check in <span>→</span></button>}
-                <div className="ff-v2-context-actions"><Link href={`/log-meal?slot=${inferredCoreMealSlot(firstPending) ?? "snack"}&entryId=${encodeURIComponent(firstPending.id)}`}>+ Add item</Link><Link href={`/meal-builder/${firstPending.locationId}?mode=manual&period=${inferredCoreMealSlot(firstPending) ?? "late-night"}&entryId=${encodeURIComponent(firstPending.id)}`}>Edit meal</Link></div>
+              {contextEntry ? <>
+                {activeCheckInId === contextEntry.id ? <div className="ff-v2-confirm-actions" aria-label="How much did you eat?">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" disabled={savingFirstPending} className={savingFirstPending && savingCheckIn?.fraction === choice.fraction ? "is-selected" : undefined} onClick={() => activePlannedMeal && !firstPending ? savePlannedCompletion(activePlannedMeal, choice.fraction) : saveCompletion(contextEntry.id, choice.fraction)}>{choice.label}</button>)}</div> : <button type="button" className="ff-v2-primary-cta" onClick={() => setActiveCheckInId(contextEntry.id)}>Check in <span>→</span></button>}
+                {activePlannedMeal && !firstPending ? <div className="ff-v2-context-actions"><Link href={`/meal-builder/${activePlannedMeal.locationId}?mode=plan&manual=1&date=${activePlannedMeal.intendedDate}&period=${activePlannedMeal.mealSlot}&planId=${encodeURIComponent(activePlannedMeal.id)}`}>Edit</Link><Link href={`/meal-builder/${activePlannedMeal.locationId}?mode=plan&date=${activePlannedMeal.intendedDate}&period=${activePlannedMeal.mealSlot}&planId=${encodeURIComponent(activePlannedMeal.id)}`}>Change meal</Link></div> : <div className="ff-v2-context-actions"><Link href={`/log-meal?slot=${inferredCoreMealSlot(contextEntry) ?? "snack"}&entryId=${encodeURIComponent(contextEntry.id)}`}>+ Add item</Link><Link href={`/meal-builder/${contextEntry.locationId}?mode=manual&period=${inferredCoreMealSlot(contextEntry) ?? "late-night"}&entryId=${encodeURIComponent(contextEntry.id)}`}>Edit meal</Link></div>}
               </> : <><motion.div tabIndex={-1} whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}><Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link></motion.div><Link href="/dashboard" className="ff-v2-secondary-link">Change location</Link></>}
               {livingDay.mode === "late-night" && <p className="ff-v3-late-note">Only if you’re hungry.</p>}
             </div>
@@ -486,15 +507,17 @@ export default function TodayV2Client({
         </div>
         {[...CORE_MEALS, "snack" as const].map((slot) => {
           const meals = snapshot.meals.filter((entry) => (entry.mealSlot === "snack" ? "snack" : inferredCoreMealSlot(entry)) === slot);
+          const slotPlans = plannedMeals.filter((plan) => plan.mealSlot === slot);
           const known = meals.filter((entry) => entry.nutrition && entry.completionFraction !== undefined);
           const subtotal = known.reduce((total, entry) => total + entry.nutrition!.calories * entry.completionFraction!, 0);
           const incomplete = meals.some((entry) => !entry.nutrition || entry.completionFraction === undefined);
           return <section className="ff-diary-section" data-current={isToday && recommendationPeriod === slot} key={slot} aria-label={readable(slot)}>
             <div className="ff-diary-heading">
-              <h3>{readable(slot)}{isToday && slot !== "snack" && <small className="ff-diary-slot-state">{" "}{livingDay.completedSlots[slot] ? "Confirmed" : recommendationPeriod === slot ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : ""}</small>}{meals.length === 0 && <span className="ff-diary-empty-inline">{slot === "snack" ? "Optional" : "No foods logged"}</span>}</h3>
+              <h3>{readable(slot)}{isToday && slot !== "snack" && <small className="ff-diary-slot-state">{" "}{livingDay.completedSlots[slot] ? "Confirmed" : recommendationPeriod === slot ? (livingDay.mode === "anticipate" ? "Up next" : "Now") : ""}</small>}{meals.length === 0 && slotPlans.length === 0 && <span className="ff-diary-empty-inline">{slot === "snack" ? "Optional" : "No foods logged"}</span>}</h3>
               <span>{meals.length ? `${known.length ? `${Math.round(subtotal)} cal` : "—"}${incomplete ? " · incomplete" : ""}` : "—"}</span>
               {isToday && <Link href={`/log-meal?slot=${slot}`} aria-label={`Log ${readable(slot)}`}>+</Link>}
             </div>
+            {slotPlans.map((plan) => { const entry: MealHistoryEntry = { id: plan.id, locationId: plan.locationId, build: plan.build, selectedAt: plan.createdAt, mealSlot: plan.mealSlot, nutrition: plan.nutrition }; return <article key={plan.id} className="ff-v2-meal-row"><MealImage name={mealName(entry, itemNames, stationNames, locationNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} /><div className="ff-v2-meal-copy"><h3>{mealName(entry, itemNames, stationNames, locationNames)}</h3><span>Planned · {locationNames[plan.locationId] ?? plan.locationId}</span><p>Not counted until check-in</p></div><Link className="text-xs font-bold text-[var(--ff-accent-light)]" href={`/meal-builder/${plan.locationId}?mode=plan&manual=1&date=${plan.intendedDate}&period=${plan.mealSlot}&planId=${encodeURIComponent(plan.id)}`}>Edit</Link></article>; })}
             {meals.map((entry) => (
               <article key={entry.id} className="ff-v2-meal-row">
                 <MealImage name={mealName(entry, itemNames, stationNames, locationNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} />

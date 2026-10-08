@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import FlowHeader from "@/components/FlowHeader";
 import { formatMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
-import { campusStapleDiningResources, getDiningProvider } from "@/services";
+import { campusStapleDiningResources, canonicalPlanningDiningResources, getDiningProvider, recordsForExactMenuDate } from "@/services";
 import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
 import { normalizeStationMenuForMealBuilder } from "@/services/stationMenuNormalization";
@@ -33,10 +33,11 @@ export default async function MealBuilderPage({
   searchParams,
 }: {
   params: Promise<{ locationId: string }>;
-  searchParams: Promise<{ mode?: string; add?: string; date?: string; period?: string; entryId?: string }>;
+  searchParams: Promise<{ mode?: string; manual?: string; add?: string; date?: string; period?: string; entryId?: string; planId?: string }>;
 }) {
   const { locationId } = await params;
   const query = await searchParams;
+  const isPlanning = query.mode === "plan";
   installDineOnCampusServerFetchHeaders();
   const provider = getDiningProvider();
   const location = await provider.getLocation(locationId);
@@ -45,14 +46,25 @@ export default async function MealBuilderPage({
   const isNineTwentyOne = locationId === "loc-921";
   const isLiveMenuLocation = isNineTwentyOne || ADDITIONAL_LIVE_LOCATION_IDS.has(locationId);
   const menuDate = isLiveMenuLocation ? normalizeBentleyMenuDate(query.date) : undefined;
-  const providerMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
-  const providerStations = await provider.getStations(locationId, menuDate);
+  const rawProviderMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
+  const rawProviderStations = await provider.getStations(locationId, menuDate);
+  // The reliable provider intentionally serves the most recently published
+  // snapshot when upstream dining is unavailable. That is correct for current
+  // dining, but a future plan must never present that older snapshot as the
+  // requested day's menu.
+  const providerMenuItems = isPlanning && isLiveMenuLocation && menuDate
+    ? recordsForExactMenuDate(rawProviderMenuItems, menuDate)
+    : rawProviderMenuItems;
+  const providerStations = isPlanning && isLiveMenuLocation && menuDate
+    ? recordsForExactMenuDate(rawProviderStations, menuDate)
+    : rawProviderStations;
   const usesVerifiedMenu = providerMenuItems.some((item) => item.provenance.dataStatus === "verified");
   const staples = campusStapleDiningResources(locationId);
-  const allMenuItems = [...providerMenuItems, ...staples.menuItems];
-  const allStations = [...providerStations, ...staples.stations];
+  const canonical = isPlanning ? canonicalPlanningDiningResources(locationId) : { menuItems: [], stations: [] };
+  const allMenuItems = [...providerMenuItems, ...staples.menuItems, ...canonical.menuItems];
+  const allStations = [...providerStations, ...staples.stations, ...canonical.stations];
 
-  if (isLiveMenuLocation && !usesVerifiedMenu) {
+  if (isLiveMenuLocation && !usesVerifiedMenu && !isPlanning) {
     const requestedLabel = asMealPeriod(query.period);
     return (
       <main className="ff-page">
@@ -78,7 +90,7 @@ export default async function MealBuilderPage({
   const initialRawItem = query.add ? allMenuItems.find((item) => item.id === query.add) : undefined;
   const initialItemPeriod = initialRawItem?.availability?.find((period) => period !== "all-day" && PERIOD_ORDER.includes(period));
 
-  let selectedPeriod = requestedPeriod && availablePeriods.includes(requestedPeriod) ? requestedPeriod : undefined;
+  let selectedPeriod = requestedPeriod && (availablePeriods.includes(requestedPeriod) || isPlanning) ? requestedPeriod : undefined;
   if (!selectedPeriod && initialItemPeriod && availablePeriods.includes(initialItemPeriod)) selectedPeriod = initialItemPeriod;
   if (!selectedPeriod && isLiveMenuLocation && availablePeriods.length > 0) {
     const clockPeriod = currentBentleyMealPeriod();
@@ -90,6 +102,8 @@ export default async function MealBuilderPage({
     if (query.mode) next.set("mode", query.mode);
     if (query.add) next.set("add", query.add);
     if (query.entryId) next.set("entryId", query.entryId);
+    if (query.planId) next.set("planId", query.planId);
+    if (query.manual) next.set("manual", query.manual);
     next.set("date", menuDate);
     next.set("period", selectedPeriod);
     redirect(`/meal-builder/${locationId}?${next.toString()}`);
@@ -115,24 +129,28 @@ export default async function MealBuilderPage({
     ...normalized.components,
   ].map((component) => [component.id, component] as const)).values()];
   const resources = { location, menuItems, stations, components };
-  const isDemo = provider.dataStatus === "mock" && !usesVerifiedMenu;
+  const isDemo = provider.dataStatus === "mock" && !usesVerifiedMenu && !isPlanning;
 
   const periodHref = (period: MealPeriod) => {
     const next = new URLSearchParams();
-    if (query.mode === "manual") next.set("mode", "manual");
+    if (query.mode) next.set("mode", query.mode);
+    if (query.manual) next.set("manual", query.manual);
     if (query.entryId) next.set("entryId", query.entryId);
+    if (query.planId) next.set("planId", query.planId);
     if (menuDate) next.set("date", menuDate);
     next.set("period", period);
     return `/meal-builder/${locationId}?${next.toString()}`;
   };
 
   let content: React.ReactNode;
-  if (query.mode === "manual") {
+  if (query.mode === "manual" || (isPlanning && query.manual === "1")) {
     const initialMenuItemId = query.add && menuItems.some((item) => item.id === query.add) ? query.add : undefined;
     content = (
       <ManualMealBuilderClient
         locationId={locationId}
         editEntryId={query.entryId}
+        planId={query.planId}
+        planningDate={isPlanning ? menuDate : undefined}
         initialMenuItemId={initialMenuItemId}
         resources={resources}
         isDemo={isDemo}
@@ -154,13 +172,16 @@ export default async function MealBuilderPage({
         isDemo={isDemo}
         menuDate={menuDate}
         selectedMealPeriod={selectedPeriod}
+        planId={query.planId}
+        planningDate={isPlanning ? menuDate : undefined}
+        futureMenuAvailable={usesVerifiedMenu}
       />
     );
   }
 
   return (
     <>
-      {isLiveMenuLocation && menuDate && availablePeriods.length > 0 && (
+      {isLiveMenuLocation && menuDate && (availablePeriods.length > 0 || (isPlanning && selectedPeriod)) && (
         <div className="mx-auto w-full max-w-6xl px-6 pt-6">
           <section className="surface-soft flex flex-wrap items-center justify-between gap-3 p-3.5" aria-label={`Choose ${location.shortName ?? location.name} meal period`}>
             <div>
@@ -168,7 +189,7 @@ export default async function MealBuilderPage({
               <p className="mt-1 text-sm font-bold text-[var(--ff-text-primary)]">Choose the menu Falcon Fuel should use</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {availablePeriods.map((period) => (
+              {(availablePeriods.length > 0 ? availablePeriods : selectedPeriod ? [selectedPeriod] : []).map((period) => (
                 <Link
                   key={period}
                   href={periodHref(period)}

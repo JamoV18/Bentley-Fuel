@@ -7,6 +7,7 @@ import {
   calculateFoodNutrition,
   canonicalFoodCatalog,
   canonicalFoodFromMenuItem,
+  canonicalPlanningDiningResources,
   convertFoodPortionQuantity,
   createLoggedFoodSnapshot,
   rankCanonicalFoods,
@@ -72,6 +73,14 @@ test("921 banana is a location-wide campus staple with generic nutrition", () =>
   assert.equal(staple.contextLabel, "921 staple · generic nutrition");
   assert.equal(calculateFoodNutrition(staple, "banana", 2).calories, 210);
   assert.equal(rankCanonicalFoods("banana", canonicalFoodCatalog([]), [], { locationId: "loc-921", mealSlot: "snack" })[0].foodId, staple.foodId);
+});
+
+test("future planning resources remain clearly estimated and unverified", () => {
+  const resources = canonicalPlanningDiningResources("loc-921");
+  assert.ok(resources.menuItems.length > 0);
+  assert.equal(resources.stations[0].availabilityStatus, "unverified");
+  assert.ok(resources.menuItems.every((item) => item.provenance.dataStatus === "estimated"));
+  assert.ok(resources.menuItems.every((item) => item.availabilityStatus === "unverified"));
 });
 
 test("Cucina add-ins retain raw identity and gain omelette search context", () => {

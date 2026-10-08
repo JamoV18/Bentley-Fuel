@@ -18,6 +18,7 @@ import {
   browserMealHistoryRepository,
   browserProgressRepository,
   browserGoingOutRepository,
+  browserPlannedMealRepository,
   mealNutritionWithBeverages,
   recentCampusBeverages,
   computeMealBuild,
@@ -31,6 +32,8 @@ import {
   scoreResolvedMeals,
   setComponentSelections,
   suggestMealItemReplacements,
+  mealSlotForBuilderPeriod,
+  snapshotPlannedMealBuild,
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import type { RecommendationFeedbackIntent } from "@/services";
@@ -84,12 +87,18 @@ export default function MealBuilderClient({
   isDemo,
   menuDate,
   selectedMealPeriod,
+  planId,
+  planningDate,
+  futureMenuAvailable = true,
 }: {
   fallbackBuild: MealBuild;
   resources: MealBuildResources;
   isDemo: boolean;
   menuDate?: string;
   selectedMealPeriod?: MealPeriod;
+  planId?: string;
+  planningDate?: string;
+  futureMenuAvailable?: boolean;
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -111,6 +120,7 @@ export default function MealBuilderClient({
   const [beverages, setBeverages] = useState<CampusBeverageSelection[]>([]);
   const [recentBeverages, setRecentBeverages] = useState<CampusBeverageSelection[]>([]);
   const [ignoreGoingOut, setIgnoreGoingOut] = useState(false);
+  const isPlanning = Boolean(planningDate);
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const selectedNutrition = useMemo(() => computed.nutrition ? mealNutritionWithBeverages(computed.nutrition, beverages) : undefined, [beverages, computed.nutrition]);
@@ -118,15 +128,28 @@ export default function MealBuilderClient({
   const activeRanking = rankings[recommendationIndex];
   const reasons = useMemo(() => reasonsFor(activeRanking, recommendationContext), [activeRanking, recommendationContext]);
   const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
-  const backHref = `/locations/${build.locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
-  const manualParams = new URLSearchParams({ mode: "manual" });
+  const backHref = isPlanning ? `/profile-summary?date=${planningDate}` : `/locations/${build.locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
+  const manualParams = new URLSearchParams(isPlanning ? { mode: "plan", manual: "1" } : { mode: "manual" });
   if (menuDate) manualParams.set("date", menuDate);
   if (selectedMealPeriod) manualParams.set("period", selectedMealPeriod);
+  if (planId) manualParams.set("planId", planId);
   const manualHref = `/meal-builder/${build.locationId}?${manualParams.toString()}`;
 
   useEffect(() => () => {
     if (chooseTimerRef.current !== null) window.clearTimeout(chooseTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (!planId) return;
+    const profile = browserProfileRepository().get();
+    const plan = profile ? browserPlannedMealRepository(profile.id).get(planId) : undefined;
+    if (!plan) return;
+    queueMicrotask(() => {
+      setBuild(plan.build);
+      setBeverages(plan.campusBeverages ?? []);
+      setEdited(true);
+    });
+  }, [planId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,15 +191,16 @@ export default function MealBuilderClient({
       setRecommendationPlan(plan);
       setRankings(ranked);
       setRecommendationIndex(0);
-      setEdited(false);
       setUpdateMessage(undefined);
       setFeedbackMessage(undefined);
+      if (planId) { setRecommendationState("ready"); return; }
+      setEdited(false);
       if (ranked.length === 0) { setRecommendationState("no-candidates"); return; }
       setBuild(ranked[0].candidate.build);
       setRecommendationState("ready");
     });
     return () => { cancelled = true; };
-  }, [fallbackBuild.locationId, futureMenu, ignoreGoingOut, mealPeriod, menuDate, resources]);
+  }, [fallbackBuild.locationId, futureMenu, ignoreGoingOut, mealPeriod, menuDate, planId, resources]);
 
   const markEdited = () => {
     setEdited(true);
@@ -195,7 +219,20 @@ export default function MealBuilderClient({
   };
 
   const chooseMeal = () => {
-    if (futureMenu || !computed.isValid || !selectedNutrition || chooseSuccess) return;
+    if ((!isPlanning && futureMenu) || !computed.isValid || !selectedNutrition || chooseSuccess) return;
+    if (isPlanning && planningDate) {
+      const profile = browserProfileRepository().get();
+      const mealSlot = mealSlotForBuilderPeriod(selectedMealPeriod);
+      if (!profile || !mealSlot) return;
+      const repository = browserPlannedMealRepository(profile.id);
+      const existing = planId ? repository.get(planId) : undefined;
+      const now = new Date().toISOString();
+      const id = existing?.id ?? crypto.randomUUID();
+      repository.upsert({ id, ownerProfileId: profile.id, intendedDate: planningDate, mealSlot, locationId: build.locationId, build: snapshotPlannedMealBuild(computed, now), nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built", status: "planned", createdAt: existing?.createdAt ?? now, updatedAt: now });
+      setChooseSuccess(true);
+      router.push(`/profile-summary?date=${planningDate}`);
+      return;
+    }
     const historyId = crypto.randomUUID();
     const now = new Date().toISOString();
     browserMealHistoryRepository().upsert({ id: historyId, locationId: build.locationId, build, selectedAt: now, nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built" });
@@ -286,7 +323,8 @@ export default function MealBuilderClient({
       </header>
 
       {isDemo && <p className="ff-rec-note is-warning">Demo menu data · not current official Bentley Dining information.</p>}
-      {futureMenu && <p className="ff-rec-note">Future menu preview · you can inspect the recommendation now, but logging stays disabled until that menu date.</p>}
+      {futureMenu && !isPlanning && <p className="ff-rec-note">Future menu preview · you can inspect the recommendation now, but logging stays disabled until that menu date.</p>}
+      {isPlanning && !futureMenuAvailable && <p className="ff-rec-note">The 921 menu for this date is not available yet. Plan with campus staples or build from the foods currently available here.</p>}
 
       {recommendationState === "loading" ? (
         <section className="ff-rec-loading">
@@ -397,17 +435,18 @@ export default function MealBuilderClient({
                   <motion.button
                     type="button"
                     className="ff-rec-primary"
-                    disabled={futureMenu || !computed.isValid || !selectedNutrition || chooseSuccess}
+                    disabled={(!isPlanning && futureMenu) || !computed.isValid || !selectedNutrition || chooseSuccess}
                     onClick={chooseMeal}
                     animate={chooseSuccess && !reduceMotion ? { scale: [1, .985, 1.012, 1] } : { scale: 1 }}
                     transition={reduceMotion ? { duration: 0 } : { duration: .34, times: [0, .28, .68, 1], ease: [0.22, 1, 0.36, 1] }}
                   >
-                    <SuccessMorphLabel success={chooseSuccess} idleLabel={futureMenu ? "Future menu · preview only" : "Choose this meal"} successLabel="Meal selected" />
+                    <SuccessMorphLabel success={chooseSuccess} idleLabel={isPlanning ? (planId ? "Update plan" : "Plan this meal") : futureMenu ? "Future menu · preview only" : "Choose this meal"} successLabel={isPlanning ? "Meal planned" : "Meal selected"} />
                     <span className="ff-rec-primary-arrow" aria-hidden="true">→</span>
                   </motion.button>
                   <div className="ff-rec-secondary-row">
                     <button type="button" className="ff-rec-text-button" onClick={() => setCustomizing((value) => !value)}>{customizing ? "Done adjusting" : "Make a change"}</button>
                     <Link href={manualHref}>Build something different</Link>
+                    {!isPlanning && <Link href="/profile-summary?focus=future">Plan for later</Link>}
                   </div>
                 </div>
 

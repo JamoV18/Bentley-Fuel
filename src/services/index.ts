@@ -43,4 +43,6 @@ export * from "./drinkCatalog";
 export * from "./canonicalFoodCatalog";
 export * from "./campusStaples";
 export * from "./mealPresentation";
+export * from "./plannedMealRepository";
+export * from "./futureMenuAvailability";
 export * from "./canonicalFoodLogging";

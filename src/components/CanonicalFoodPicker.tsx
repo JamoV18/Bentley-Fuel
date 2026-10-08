@@ -16,7 +16,7 @@ import type { CanonicalFood, LoggedFoodSnapshot, MealLogSlot, MenuItem } from "@
 
 const rounded = (value: number) => Math.round(value * 10) / 10;
 
-export default function CanonicalFoodPicker({ foods, recent, compositionActions = [], locationId, mealSlot, campusAvailable, initialSnapshot, onAdd, onChooseComposition, actionLabel = "Add" }: {
+export default function CanonicalFoodPicker({ foods, recent, compositionActions = [], locationId, mealSlot, campusAvailable, initialSnapshot, onAdd, onChooseComposition, onBrowseMenu, actionLabel = "Add" }: {
   foods: readonly CanonicalFood[];
   recent: readonly RecentCanonicalFood[];
   compositionActions?: readonly MenuItem[];
@@ -26,6 +26,7 @@ export default function CanonicalFoodPicker({ foods, recent, compositionActions 
   initialSnapshot?: LoggedFoodSnapshot;
   onAdd: (snapshot: LoggedFoodSnapshot) => void;
   onChooseComposition?: (item: MenuItem) => void;
+  onBrowseMenu?: () => void;
   actionLabel?: string;
 }) {
   const allFoods = useMemo(() => {
@@ -56,11 +57,12 @@ export default function CanonicalFoodPicker({ foods, recent, compositionActions 
     <label className="field">What did you eat?
       <input autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setSelected(undefined); }} placeholder="Search eggs, rice, chicken…" autoComplete="off" />
     </label>
+    {!selected && onBrowseMenu && <button type="button" className="justify-self-start text-sm font-bold text-[var(--ff-accent-light)]" onClick={onBrowseMenu}>Browse the menu by station →</button>}
     {!campusAvailable && <p className="rounded-xl bg-[var(--ff-warning-surface)] px-3 py-2 text-xs text-[var(--ff-text-secondary)]">Bentley menu data is currently unavailable. Generic foods and your recent foods are still available.</p>}
 
-    {query.trim() && <div className="grid max-h-64 gap-1 overflow-y-auto" role="listbox" aria-label="Food search results">
-      {compositionResults.map((item) => <button type="button" role="option" aria-selected="false" className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-accent)] bg-[var(--ff-action-surface)] p-3 text-left" key={item.id} onClick={() => onChooseComposition?.(item)}><span><strong className="block text-sm">{item.composition?.actionTitle}</strong><small className="mt-1 block text-xs subtle">{item.composition?.selectionPrompt}</small></span><small className="text-right text-xs font-semibold text-[var(--ff-accent-light)]">Open builder</small></button>)}
-      {results.length === 0 && compositionResults.length === 0 ? <p className="p-3 text-sm subtle">No matching foods.</p> : results.map((food) => <button type="button" role="option" aria-selected="false" className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] p-3 text-left" key={food.foodId} onClick={() => choose(food)}><span><strong className="block text-sm">{food.name}</strong><small className="mt-1 block text-xs subtle">{food.contextLabel ?? food.portions.find((item) => item.id === food.defaultPortionUnitId)?.displayName}</small></span><small className="text-right text-xs font-semibold text-[var(--ff-accent-light)]">{foodSourceLabel(food.source, food.verification)}</small></button>)}</div>}
+    {query.trim() && <section className="grid max-h-64 gap-1 overflow-y-auto" aria-label="Food search results">
+      {compositionResults.map((item) => <button type="button" className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-accent)] bg-[var(--ff-action-surface)] p-3 text-left" key={item.id} onClick={() => onChooseComposition?.(item)}><span><strong className="block text-sm">{item.composition?.actionTitle}</strong><small className="mt-1 block text-xs subtle">{item.composition?.selectionPrompt}</small></span><small className="text-right text-xs font-semibold text-[var(--ff-accent-light)]">Open builder</small></button>)}
+      {results.length === 0 && compositionResults.length === 0 ? <div className="rounded-xl border border-dashed border-[var(--ff-divider)] p-3"><p className="text-sm subtle">No matching foods.</p><div className="mt-3 flex flex-wrap gap-3"><button type="button" className="text-xs font-bold text-[var(--ff-accent-light)]" onClick={() => setQuery("")}>Clear search</button>{onBrowseMenu && <button type="button" className="text-xs font-bold text-[var(--ff-accent-light)]" onClick={onBrowseMenu}>Browse by station →</button>}</div></div> : results.map((food) => <div className="flex items-stretch gap-2 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] p-1" key={food.foodId}><button type="button" className="min-w-0 flex flex-1 items-center justify-between gap-3 rounded-lg p-2 text-left" onClick={() => choose(food)}><span><strong className="block text-sm">{food.name}</strong><small className="mt-1 block text-xs subtle">{food.contextLabel ?? food.portions.find((item) => item.id === food.defaultPortionUnitId)?.displayName}</small></span><small className="text-right text-xs font-semibold text-[var(--ff-accent-light)]">{foodSourceLabel(food.source, food.verification)}</small></button><button type="button" className="min-h-11 shrink-0 rounded-lg border border-[var(--ff-divider)] px-3 text-xs font-bold text-[var(--ff-accent-light)]" aria-label={`Quick add ${food.name}, ${food.contextLabel ?? foodSourceLabel(food.source, food.verification)}`} onClick={() => onAdd(createLoggedFoodSnapshot(food, food.defaultPortionUnitId, food.defaultQuantity))}>+ Add</button></div>)}</section>}
 
     {!query.trim() && !selected && recent.length > 0 && <section><p className="eyebrow">Recent foods</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{recent.map((item) => {
       const food = allFoods.find((candidate) => candidate.foodId === item.foodId) ?? canonicalFoodFromSnapshot(item.snapshot);

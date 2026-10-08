@@ -170,6 +170,7 @@ export default function TodayV2Client({
   const [nutritionMode, setNutritionMode] = useState<"remaining" | "consumed">("remaining");
   const [goingOutSettings, setGoingOutSettings] = useState<GoingOutSettings>();
   const [goingOutEvents, setGoingOutEvents] = useState<GoingOutEvent[]>([]);
+  const [removedEntry, setRemovedEntry] = useState<MealHistoryEntry>();
   const checkInTimer = useRef<number | null>(null);
 
   const isToday = sameDay(selectedDate, new Date());
@@ -200,6 +201,13 @@ export default function TodayV2Client({
   }, [selectedDate, isToday]);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("date");
+    if (!requested || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) return;
+    const [year, month, day] = requested.split("-").map(Number);
+    const next = new Date(year, month - 1, day, 12);
+    if (!Number.isNaN(next.getTime())) queueMicrotask(() => setSelectedDate(next));
+  }, []);
   useEffect(() => {
     const onReturn = () => refresh();
     window.addEventListener("focus", onReturn);
@@ -320,9 +328,15 @@ export default function TodayV2Client({
   };
 
   const deleteEntry = (entry: MealHistoryEntry) => {
-    const label = entry.source === "drink-log" ? "drink" : entry.mealSlot === "snack" ? "snack" : "meal";
-    if (!window.confirm(`Delete this ${label}? This updates Today and History totals.`)) return;
     browserMealHistoryRepository().remove(entry.id);
+    setRemovedEntry(entry);
+    refresh();
+  };
+
+  const undoDelete = () => {
+    if (!removedEntry) return;
+    browserMealHistoryRepository().upsert(removedEntry);
+    setRemovedEntry(undefined);
     refresh();
   };
 
@@ -380,6 +394,8 @@ export default function TodayV2Client({
       </header>
 
       <AppNav showDailyMealCheckin={false} showContextPrompts={false} />
+
+      {removedEntry && <div className="fixed bottom-24 left-1/2 z-[120] flex w-[min(92vw,28rem)] -translate-x-1/2 items-center justify-between gap-4 rounded-2xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-4 py-3 shadow-xl" role="status"><span className="text-sm font-semibold">{removedEntry.source === "drink-log" ? "Drink" : removedEntry.mealSlot === "snack" ? "Snack" : "Meal"} deleted.</span><button type="button" className="text-sm font-bold text-[var(--ff-accent-light)]" onClick={undoDelete}>Undo</button></div>}
 
       <div className="ff-v2-daybar" aria-label="Choose day">
         <button type="button" onClick={() => changeDay(-1)} aria-label={`View ${dayLabel(yesterday)}`}><span>←</span><small>{dayLabel(yesterday)}</small></button>
@@ -478,7 +494,7 @@ export default function TodayV2Client({
               )}
               {contextEntry ? <>
                 {activeCheckInId === contextEntry.id ? <div className="ff-v2-confirm-actions" aria-label="How much did you eat?">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" disabled={savingFirstPending} className={savingFirstPending && savingCheckIn?.fraction === choice.fraction ? "is-selected" : undefined} onClick={() => activePlannedMeal && !firstPending ? savePlannedCompletion(activePlannedMeal, choice.fraction) : saveCompletion(contextEntry.id, choice.fraction)}>{choice.label}</button>)}</div> : <button type="button" className="ff-v2-primary-cta" onClick={() => setActiveCheckInId(contextEntry.id)}>Check in <span>→</span></button>}
-                {activePlannedMeal && !firstPending ? <div className="ff-v2-context-actions"><Link href={`/meal-builder/${activePlannedMeal.locationId}?mode=plan&manual=1&date=${activePlannedMeal.intendedDate}&period=${activePlannedMeal.mealSlot}&planId=${encodeURIComponent(activePlannedMeal.id)}`}>Edit</Link><Link href={`/meal-builder/${activePlannedMeal.locationId}?mode=plan&date=${activePlannedMeal.intendedDate}&period=${activePlannedMeal.mealSlot}&planId=${encodeURIComponent(activePlannedMeal.id)}`}>Change meal</Link></div> : <div className="ff-v2-context-actions"><Link href={`/log-meal?slot=${inferredCoreMealSlot(contextEntry) ?? "snack"}&entryId=${encodeURIComponent(contextEntry.id)}`}>+ Add item</Link><Link href={`/meal-builder/${contextEntry.locationId}?mode=manual&period=${inferredCoreMealSlot(contextEntry) ?? "late-night"}&entryId=${encodeURIComponent(contextEntry.id)}`}>Edit meal</Link></div>}
+                {activePlannedMeal && !firstPending ? <div className="ff-v2-context-actions"><Link href={`/meal-builder/${activePlannedMeal.locationId}?mode=plan&manual=1&date=${activePlannedMeal.intendedDate}&period=${activePlannedMeal.mealSlot}&planId=${encodeURIComponent(activePlannedMeal.id)}`}>Edit</Link><Link href={`/meal-builder/${activePlannedMeal.locationId}?mode=plan&date=${activePlannedMeal.intendedDate}&period=${activePlannedMeal.mealSlot}&planId=${encodeURIComponent(activePlannedMeal.id)}`}>Change meal</Link></div> : <div className="ff-v2-context-actions"><Link href={`/log-meal?slot=${inferredCoreMealSlot(contextEntry) ?? "snack"}&entryId=${encodeURIComponent(contextEntry.id)}`}>+ Add item</Link>{contextEntry.source === "manual-log" ? <Link href={`/log-meal?slot=${inferredCoreMealSlot(contextEntry) ?? "snack"}&date=${localDateKey(new Date(contextEntry.eatenAt ?? contextEntry.selectedAt))}&entryId=${encodeURIComponent(contextEntry.id)}&manage=1`}>Edit meal</Link> : <Link href={`/meal-builder/${contextEntry.locationId}?mode=manual&period=${inferredCoreMealSlot(contextEntry) ?? "late-night"}&entryId=${encodeURIComponent(contextEntry.id)}`}>Edit meal</Link>}</div>}
               </> : <><motion.div tabIndex={-1} whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}><Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link></motion.div><Link href="/dashboard" className="ff-v2-secondary-link">Change location</Link></>}
               {livingDay.mode === "late-night" && <p className="ff-v3-late-note">Only if you’re hungry.</p>}
             </div>
@@ -529,7 +545,7 @@ export default function TodayV2Client({
                   {entry.nutrition && <p>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</p>}
                   {isToday && entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log" && entry.source !== "night-out" && <Link href={`/log-meal?slot=${slot}&entryId=${encodeURIComponent(entry.id)}`} className="mt-1 inline-block text-xs font-bold text-[var(--ff-accent-light)]">+ Add item</Link>}
                 </div>
-                <details className="ff-meal-menu"><summary aria-label={`Actions for ${mealName(entry, itemNames, stationNames, locationNames)}`}>•••</summary><div>{entry.source === "drink-log" ? <Link href={`/going-out?action=log&edit=${encodeURIComponent(entry.id)}`}>Edit drink</Link> : entry.source === "manual-log" ? <Link href={`/log-meal?slot=${slot}&entryId=${encodeURIComponent(entry.id)}`}>Edit meal</Link> : <Link href={`/meal-builder/${entry.locationId}?mode=manual&period=${slot === "snack" ? "late-night" : slot}&entryId=${encodeURIComponent(entry.id)}`}>Edit meal</Link>}<button type="button" onClick={() => deleteEntry(entry)}>Delete {entry.source === "drink-log" ? "drink" : slot === "snack" ? "snack" : "meal"}</button></div></details>
+                <details className="ff-meal-menu"><summary aria-label={`Actions for ${mealName(entry, itemNames, stationNames, locationNames)}`}>•••</summary><div>{entry.source === "drink-log" ? <Link href={`/going-out?action=log&edit=${encodeURIComponent(entry.id)}`}>Edit drink</Link> : entry.source === "manual-log" ? <Link href={`/log-meal?slot=${slot}&date=${localDateKey(new Date(entry.eatenAt ?? entry.selectedAt))}&entryId=${encodeURIComponent(entry.id)}&manage=1`}>Edit meal</Link> : <Link href={`/meal-builder/${entry.locationId}?mode=manual&period=${slot === "snack" ? "late-night" : slot}&entryId=${encodeURIComponent(entry.id)}`}>Edit meal</Link>}<button type="button" onClick={() => deleteEntry(entry)}>Delete {entry.source === "drink-log" ? "drink" : slot === "snack" ? "snack" : "meal"}</button></div></details>
               </article>
             ))}
           </section>;

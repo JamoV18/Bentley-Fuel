@@ -92,6 +92,8 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
   const [targetEntryId, setTargetEntryId] = useState<string>();
   const [editingLineId, setEditingLineId] = useState<string>();
   const [initialSnapshot, setInitialSnapshot] = useState<LoggedFoodSnapshot>();
+  const [managingEntry, setManagingEntry] = useState(false);
+  const [removedEntry, setRemovedEntry] = useState<MealHistoryEntry>();
   const [error, setError] = useState("");
   const [savedSlot, setSavedSlot] = useState<MealLogSlot | null>(null);
   const successTimer = useRef<number | null>(null);
@@ -141,16 +143,20 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
     }
     return result;
   }, [entries]);
+  const activeEntry = useMemo(() => targetEntryId
+    ? entries.find((entry) => entry.id === targetEntryId) ?? browserMealHistoryRepository().getRecent(500).find((entry) => entry.id === targetEntryId)
+    : undefined, [entries, targetEntryId]);
 
-  const openForm = useCallback((slot: MealLogSlot, entryId?: string, lineId?: string) => {
+  const openForm = useCallback((slot: MealLogSlot, entryId?: string, lineId?: string, manage = false, dateOverride?: string) => {
     const target = entryId ? entries.find((entry) => entry.id === entryId) ?? browserMealHistoryRepository().getRecent(500).find((entry) => entry.id === entryId) : undefined;
     const snapshot = lineId ? target?.build.items.find((line) => line.id === lineId)?.foodSnapshot : undefined;
     setActiveSlot(slot);
     setTargetEntryId(entryId);
     setEditingLineId(lineId);
     setInitialSnapshot(snapshot);
+    setManagingEntry(manage);
     setLocationId(target?.locationId ?? LOCATION_IDS.nineTwentyOne);
-    setTime(target ? new Date(target.eatenAt ?? target.selectedAt).toTimeString().slice(0, 5) : defaultTime(slot, selectedDate));
+    setTime(target ? new Date(target.eatenAt ?? target.selectedAt).toTimeString().slice(0, 5) : defaultTime(slot, dateOverride ?? selectedDate));
     setError("");
   }, [entries, selectedDate]);
 
@@ -160,10 +166,15 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
     const params = new URLSearchParams(window.location.search);
     const requestedSlot = params.get("slot");
     const entryId = params.get("entryId") ?? undefined;
-    if (requestedSlot && LOG_SLOTS.includes(requestedSlot as MealLogSlot)) {
-      const slot = requestedSlot as MealLogSlot;
-      queueMicrotask(() => openForm(slot, entryId));
-    }
+    const lineId = params.get("lineId") ?? undefined;
+    const requestedDate = params.get("date");
+    const target = entryId ? browserMealHistoryRepository().getRecent(500).find((entry) => entry.id === entryId) : undefined;
+    const targetDate = target ? localDateKey(new Date(target.eatenAt ?? target.selectedAt)) : undefined;
+    const nextDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : targetDate;
+    queueMicrotask(() => {
+      if (nextDate) setSelectedDate(nextDate);
+      if (requestedSlot && LOG_SLOTS.includes(requestedSlot as MealLogSlot)) openForm(requestedSlot as MealLogSlot, entryId, lineId, params.get("manage") === "1", nextDate);
+    });
   }, [openForm]);
 
   const closeForm = () => {
@@ -171,21 +182,33 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
     setTargetEntryId(undefined);
     setEditingLineId(undefined);
     setInitialSnapshot(undefined);
+    setManagingEntry(false);
     setError("");
   };
 
   const save = (snapshot: LoggedFoodSnapshot) => {
     if (!activeSlot) return;
+    setRemovedEntry(undefined);
     try {
       const eatenAt = combineLocalDateAndTime(selectedDate, time);
       if (Number.isNaN(eatenAt.getTime())) throw new Error("Choose a valid time.");
       if (eatenAt.getTime() > Date.now()) throw new Error("Log a time that has already happened.");
-      const existing = targetEntryId ? entries.find((entry) => entry.id === targetEntryId) : undefined;
-      const entry = existing
+      const existing = targetEntryId
+        ? entries.find((entry) => entry.id === targetEntryId) ?? browserMealHistoryRepository().getRecent(500).find((entry) => entry.id === targetEntryId)
+        : undefined;
+      const saved = existing
         ? editingLineId
           ? updateCanonicalFoodInMeal(existing, editingLineId, snapshot)
           : appendCanonicalFoodToMeal(existing, snapshot)
         : createCanonicalFoodMealHistoryEntry({ id: crypto.randomUUID(), snapshot, slot: activeSlot, eatenAt, locationId });
+      const entry = existing ? {
+        ...saved,
+        locationId,
+        build: { ...saved.build, locationId },
+        selectedAt: eatenAt.toISOString(),
+        eatenAt: eatenAt.toISOString(),
+        mealSlot: activeSlot,
+      } : saved;
       browserMealHistoryRepository().upsert(entry);
       const completedSlot = activeSlot;
       setActiveSlot(null);
@@ -205,12 +228,38 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
   const removeLine = (entry: MealHistoryEntry, lineId: string) => {
     const updated = removeCanonicalFoodFromMeal(entry, lineId);
     if (updated) browserMealHistoryRepository().upsert(updated);
-    else browserMealHistoryRepository().remove(entry.id);
+    else {
+      browserMealHistoryRepository().remove(entry.id);
+      closeForm();
+    }
+    setRemovedEntry(entry);
     refresh();
   };
 
+  const undoRemove = () => {
+    if (!removedEntry) return;
+    browserMealHistoryRepository().upsert(removedEntry);
+    setRemovedEntry(undefined);
+    refresh();
+  };
+
+  const loggingTime = () => {
+    const eatenAt = combineLocalDateAndTime(selectedDate, time);
+    if (Number.isNaN(eatenAt.getTime())) { setError("Choose a valid time."); return undefined; }
+    if (eatenAt.getTime() > Date.now()) { setError("Log a time that has already happened."); return undefined; }
+    return eatenAt;
+  };
+
+  const openMenuBrowse = () => {
+    if (!activeSlot || locationId === "Other / off campus" || !loggingTime()) return;
+    const params = new URLSearchParams({ mode: "manual", intent: "log", date: selectedDate, time, slot: activeSlot, period: activeSlot === "snack" ? "late-night" : activeSlot });
+    if (targetEntryId) params.set("entryId", targetEntryId);
+    router.push(`/meal-builder/${locationId}?${params.toString()}`);
+  };
+
   const openComposition = (item: MenuItem) => {
-    const params = new URLSearchParams({ mode: "manual", add: item.id, date: selectedDate });
+    if (!loggingTime()) return;
+    const params = new URLSearchParams({ mode: "manual", intent: "log", add: item.id, date: selectedDate, time, ...(activeSlot ? { slot: activeSlot } : {}) });
     if (activeSlot && activeSlot !== "snack") params.set("period", activeSlot);
     router.push(`/meal-builder/${item.locationId}?${params.toString()}`);
   };
@@ -225,6 +274,8 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
         <p>{progress.completedCoreMeals}/3 meals logged</p>
         <label className="field">Date<input type="date" value={selectedDate} max={todayKey()} onChange={(event) => { setSelectedDate(event.target.value || todayKey()); setActiveSlot(null); }} /></label>
       </div>
+
+      {removedEntry && <div className="fixed bottom-24 left-1/2 z-[120] flex w-[min(92vw,28rem)] -translate-x-1/2 items-center justify-between gap-4 rounded-2xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-4 py-3 shadow-xl" role="status"><span className="text-sm font-semibold">Item removed.</span><button type="button" className="text-sm font-bold text-[var(--ff-accent-light)]" onClick={undoRemove}>Undo</button></div>}
 
       <Link href={`/going-out?action=log&day=${selectedDate}`} className="mt-4 flex min-h-16 items-center justify-between gap-4 rounded-2xl border border-[var(--ff-divider)] bg-[var(--ff-action-surface)] px-4 py-3 transition hover:border-[var(--ff-border)]">
         <span><strong className="block text-sm">Log a drink</strong><small className="mt-1 block text-xs subtle">Add a beverage you actually consumed, with serving size and time.</small></span><span className="text-lg font-bold text-[var(--ff-accent-light)]">→</span>
@@ -313,12 +364,18 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
               </div>
 
               <div className="mt-5">
-                <CanonicalFoodPicker key={`${targetEntryId ?? "new"}:${editingLineId ?? "add"}:${initialSnapshot?.loggedAt ?? ""}`} foods={foods} recent={recentFoods} compositionActions={targetEntryId ? [] : compositionActions} locationId={locationId} mealSlot={activeSlot} campusAvailable={campusAvailable} initialSnapshot={initialSnapshot} onAdd={save} onChooseComposition={openComposition} actionLabel={editingLineId ? "Save changes" : targetEntryId ? "Add item" : "Add food"} />
+                {managingEntry && activeEntry && !editingLineId ? <section className="grid gap-3" aria-labelledby="meal-items-heading"><div><p className="eyebrow">Saved meal</p><h3 id="meal-items-heading" className="mt-1 text-base font-bold">Meal items</h3></div>{activeEntry.build.items.map((line) => <div key={line.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-3 py-2"><span className="min-w-0 truncate text-sm font-semibold">{line.foodSnapshot?.displayName ?? line.display?.name ?? "Meal item"}</span><span className="flex shrink-0 gap-3">{line.foodSnapshot && <button type="button" className="text-xs font-bold text-[var(--ff-accent-light)]" onClick={() => openForm(activeSlot, activeEntry.id, line.id)}>Edit</button>}<button type="button" className="text-xs font-bold text-[var(--ff-danger)]" onClick={() => removeLine(activeEntry, line.id)}>Remove</button></span></div>)}<button type="button" className="secondary mt-1 w-full" onClick={() => setManagingEntry(false)}>+ Add another item</button></section> : <CanonicalFoodPicker key={`${targetEntryId ?? "new"}:${editingLineId ?? "add"}:${initialSnapshot?.loggedAt ?? ""}`} foods={foods} recent={recentFoods} compositionActions={targetEntryId ? [] : compositionActions} locationId={locationId} mealSlot={activeSlot} campusAvailable={campusAvailable} initialSnapshot={initialSnapshot} onAdd={save} onChooseComposition={openComposition} onBrowseMenu={openMenuBrowse} actionLabel={editingLineId ? "Save changes" : targetEntryId ? "Add item" : "Add food"} />}
               </div>
 
               <details className="surface-soft mt-5 p-4">
                 <summary className="cursor-pointer text-sm font-semibold">Where and when</summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="field">Meal
+                  <select value={activeSlot} onChange={(event) => setActiveSlot(event.target.value as MealLogSlot)}>{LOG_SLOTS.map((slot) => <option key={slot} value={slot}>{slot[0].toUpperCase() + slot.slice(1)}</option>)}</select>
+                </label>
+                <label className="field">Date
+                  <input type="date" value={selectedDate} max={todayKey()} onChange={(event) => setSelectedDate(event.target.value || todayKey())} />
+                </label>
                 <label className="field">Where?
                   <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>{LOCATIONS.map((location) => <option key={location.value} value={location.value}>{location.label}</option>)}</select>
                 </label>

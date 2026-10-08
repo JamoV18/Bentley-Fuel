@@ -29,17 +29,25 @@ import {
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { MealBuildResources } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
-import type { CampusBeverageSelection, CustomizationStep, MealBuild, MealCompletionFraction, MealPeriod } from "@/types";
+import type { CampusBeverageSelection, CustomizationStep, MealBuild, MealCompletionFraction, MealLogSlot, MealPeriod } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
 
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const completionLabel = (fraction: MealCompletionFraction) => MEAL_COMPLETION_CHOICES.find((choice) => choice.fraction === fraction)?.label ?? `${Math.round(fraction * 100)}%`;
+const localDateTime = (dateKey: string, time: string) => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute, 0, 0);
+};
 
 export default function ManualMealBuilderClient({
   locationId,
   editEntryId,
   planId,
   planningDate,
+  retrospectiveDate,
+  retrospectiveTime,
+  retrospectiveSlot,
   initialMenuItemId,
   resources,
   isDemo,
@@ -50,6 +58,9 @@ export default function ManualMealBuilderClient({
   editEntryId?: string;
   planId?: string;
   planningDate?: string;
+  retrospectiveDate?: string;
+  retrospectiveTime?: string;
+  retrospectiveSlot?: MealLogSlot;
   initialMenuItemId?: string;
   resources: MealBuildResources;
   isDemo: boolean;
@@ -103,8 +114,14 @@ export default function ManualMealBuilderClient({
     ? resources.menuItems.find((item) => item.id === build.items[0].menuItemId)?.composition
     : undefined;
   const isPlanning = Boolean(planningDate);
+  const isRetrospectiveFlow = Boolean(retrospectiveDate);
+  const isRetrospectiveLog = Boolean(retrospectiveDate && !editEntryId);
   const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
-  const backHref = isPlanning ? `/profile-summary?date=${planningDate}` : `/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
+  const retrospectiveBackParams = new URLSearchParams();
+  if (retrospectiveDate) retrospectiveBackParams.set("date", retrospectiveDate);
+  if (retrospectiveSlot) retrospectiveBackParams.set("slot", retrospectiveSlot);
+  if (editEntryId) { retrospectiveBackParams.set("entryId", editEntryId); retrospectiveBackParams.set("manage", "1"); }
+  const backHref = isPlanning ? `/profile-summary?date=${planningDate}` : isRetrospectiveFlow ? `/log-meal?${retrospectiveBackParams.toString()}` : `/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
   const recommendationParams = new URLSearchParams();
   if (menuDate) recommendationParams.set("date", menuDate);
   if (selectedMealPeriod) recommendationParams.set("period", selectedMealPeriod);
@@ -116,7 +133,9 @@ export default function ManualMealBuilderClient({
   useEffect(() => {
     if (isPlanning || !savedHistoryId || !savedAt || !computed.isValid || !selectedNutrition || build.items.length === 0) return;
     const savedBuild = snapshotMealCompositions(build, resources);
-    browserMealHistoryRepository().upsert({ id: savedHistoryId, locationId: build.locationId, build: savedBuild, selectedAt: savedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built" });
+    const repository = browserMealHistoryRepository();
+    const existing = repository.getRecent(Number.MAX_SAFE_INTEGER).find((entry) => entry.id === savedHistoryId);
+    repository.upsert({ ...existing, id: savedHistoryId, locationId: build.locationId, build: savedBuild, selectedAt: savedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: existing?.source ?? "self-built" });
   }, [beverages, build, computed.isValid, isPlanning, resources, savedAt, savedHistoryId, selectedNutrition]);
 
   useEffect(() => {
@@ -142,10 +161,32 @@ export default function ManualMealBuilderClient({
       return;
     }
     const id = savedHistoryId ?? crypto.randomUUID();
-    const selectedAt = savedAt ?? new Date().toISOString();
+    const retrospectiveAt = isRetrospectiveLog && retrospectiveDate
+      ? localDateTime(retrospectiveDate, retrospectiveTime && /^\d{2}:\d{2}$/.test(retrospectiveTime) ? retrospectiveTime : "12:00")
+      : undefined;
+    const selectedAt = savedAt ?? retrospectiveAt?.toISOString() ?? new Date().toISOString();
     const savedBuild = snapshotMealCompositions(build, resources);
-    browserMealHistoryRepository().upsert({ id, locationId: build.locationId, build: savedBuild, selectedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built" });
+    const repository = browserMealHistoryRepository();
+    const existing = editEntryId ? repository.getRecent(Number.MAX_SAFE_INTEGER).find((entry) => entry.id === editEntryId) : undefined;
+    repository.upsert({
+      ...existing,
+      id,
+      locationId: build.locationId,
+      build: savedBuild,
+      selectedAt,
+      nutrition: selectedNutrition,
+      campusBeverages: beverages,
+      source: existing?.source ?? "self-built",
+      ...(isRetrospectiveLog ? {
+        eatenAt: selectedAt,
+        completionFraction: 1 as MealCompletionFraction,
+        completionRecordedAt: new Date().toISOString(),
+        mealSlot: retrospectiveSlot ?? mealSlotForBuilderPeriod(selectedMealPeriod),
+        entryKind: "food" as const,
+      } : {}),
+    });
     setSavedHistoryId(id); setSavedAt(selectedAt);
+    if (isRetrospectiveLog && retrospectiveDate) router.push(`/log-meal?date=${retrospectiveDate}`);
   };
 
   const saveCompletion = (fraction: MealCompletionFraction) => {
@@ -163,14 +204,14 @@ export default function ManualMealBuilderClient({
 
   return (
     <main className="ff-page ff-manual-builder">
-      <FlowHeader backHref={backHref} backLabel={resources.location?.shortName ?? resources.location?.name ?? "Location"} />
+      <FlowHeader backHref={backHref} backLabel={isRetrospectiveFlow ? "Log a meal" : resources.location?.shortName ?? resources.location?.name ?? "Location"} />
 
       <header className="mt-2 grid min-w-0 gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between">
         <div className="max-w-2xl">
-          <h1 className="text-2xl font-bold">Build my meal</h1>
-          <p className="mt-1 text-sm subtle">Add foods and adjust servings.</p>
+          <h1 className="text-2xl font-bold">{isRetrospectiveFlow ? editEntryId ? "Edit what you ate" : "Log what you ate" : "Build my meal"}</h1>
+          <p className="mt-1 text-sm subtle">{isRetrospectiveFlow ? editEntryId ? "Adjust the foods in this logged meal." : "Choose the foods you already ate. This will count as consumed when you save." : "Add foods and adjust servings."}</p>
         </div>
-        <Link href={recommendationHref} className="secondary inline-flex w-fit items-center justify-center">See top meals</Link>
+        {!isRetrospectiveFlow && <Link href={recommendationHref} className="secondary inline-flex w-fit items-center justify-center">See top meals</Link>}
       </header>
 
       {isDemo && <p className="mt-3 border-l-2 border-[var(--ff-warning)] pl-3 text-xs text-[var(--ff-warning)]">Demo menu data · not current official Bentley Dining information.</p>}
@@ -212,8 +253,8 @@ export default function ManualMealBuilderClient({
             {selectedNutrition && <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-[var(--ff-divider)] pt-3">{[["Calories", Math.round(selectedNutrition.calories), "cal"], ["Protein", Math.round(selectedNutrition.protein * 10) / 10, "g"], ["Carbs", Math.round(selectedNutrition.carbs * 10) / 10, "g"], ["Fat", Math.round(selectedNutrition.fat * 10) / 10, "g"]].map(([label, value, unit]) => <div key={label} className="py-2"><dt className="text-xs text-[var(--ff-text-secondary)]">{label}</dt><dd className="mt-1 font-bold text-[var(--ff-text-primary)]">{value}{unit}</dd></div>)}</dl>}
             {locationId === "loc-921" && <CampusBeverageSelector locationId={locationId} value={beverages} onChange={setBeverages} recent={recentBeverages} />}
             {build.items.length > 0 && !computed.isValid && <div className="mt-5 rounded-xl bg-[var(--ff-warning-surface)] p-3 text-sm text-[var(--ff-danger)]"><strong>Meal needs attention.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}</ul></div>}
-            <button type="button" className="primary mt-5 w-full" disabled={(!isPlanning && futureMenu) || !computed.isValid || build.items.length === 0} onClick={saveMeal}>{isPlanning ? (planId || savedPlanId ? "Update plan" : soleComposition ? `Plan ${soleComposition.canonicalName.toLowerCase()}` : "Plan this meal") : futureMenu ? "Future menu · preview only" : savedHistoryId ? (editEntryId ? "Meal updated" : "Meal saved") : editEntryId ? "Update meal" : soleComposition ? `Add ${soleComposition.canonicalName.toLowerCase()}` : "Save this meal"}</button>
-            {!isPlanning && savedHistoryId && <div className="mt-4 border-t border-[var(--ff-divider)] pt-4">{completionFraction !== undefined ? <div className="flex items-center justify-between gap-3 text-sm"><p><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div> : <button type="button" className="text-sm font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Finished eating? Add a quick check-in</button>}<AnimatePresence initial={false}>{showCompletionCheckIn && <motion.div className="surface-soft mt-3 overflow-hidden p-4" initial={reduceMotion ? false : { opacity: 0, y: -6, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} animate={{ opacity: 1, y: 0, height: "auto", marginTop: 12, paddingTop: 16, paddingBottom: 16 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}><p className="text-sm font-bold">How much did you finish?</p><div className="mt-2 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div></motion.div>}</AnimatePresence></div>}
+            <button type="button" className="primary mt-5 w-full" disabled={(!isPlanning && futureMenu) || !computed.isValid || build.items.length === 0} onClick={saveMeal}>{isPlanning ? (planId || savedPlanId ? "Update plan" : soleComposition ? `Plan ${soleComposition.canonicalName.toLowerCase()}` : "Plan this meal") : futureMenu ? "Future menu · preview only" : isRetrospectiveLog ? (soleComposition ? `Log ${soleComposition.canonicalName.toLowerCase()}` : "Log meal") : savedHistoryId ? (editEntryId ? "Meal updated" : "Meal saved") : editEntryId ? "Update meal" : soleComposition ? `Add ${soleComposition.canonicalName.toLowerCase()}` : "Save this meal"}</button>
+            {!isPlanning && !isRetrospectiveLog && savedHistoryId && <div className="mt-4 border-t border-[var(--ff-divider)] pt-4">{completionFraction !== undefined ? <div className="flex items-center justify-between gap-3 text-sm"><p><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div> : <button type="button" className="text-sm font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Finished eating? Add a quick check-in</button>}<AnimatePresence initial={false}>{showCompletionCheckIn && <motion.div className="surface-soft mt-3 overflow-hidden p-4" initial={reduceMotion ? false : { opacity: 0, y: -6, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} animate={{ opacity: 1, y: 0, height: "auto", marginTop: 12, paddingTop: 16, paddingBottom: 16 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}><p className="text-sm font-bold">How much did you finish?</p><div className="mt-2 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div></motion.div>}</AnimatePresence></div>}
           </section>
 
           {savedHistoryId && build.items.length > 0 && <aside className="surface p-4" aria-label="Your saved meal order reference"><h2 className="eyebrow">Your order · {orderReference.locationName}</h2><ol className="mt-3 space-y-2">{orderReference.lines.map((line) => <li key={line.lineId} className="border-t border-[var(--ff-divider)] pt-2 first:border-0 first:pt-0"><p className="text-xs font-bold normal-case subtle">{line.stationName}</p><p className="text-sm font-bold">{line.itemName} ×{line.quantity}</p>{line.components.length > 0 && <p className="mt-1 text-xs subtle">{line.components.map((component) => `${component.name}${component.quantity > 1 ? ` ×${component.quantity}` : ""}`).join(" · ")}</p>}</li>)}</ol></aside>}

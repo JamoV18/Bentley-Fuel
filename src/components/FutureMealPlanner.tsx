@@ -21,6 +21,7 @@ const heading = (key: string) => {
 export default function FutureMealPlanner({ profile }: { profile: UserProfile }) {
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [plans, setPlans] = useState<PlannedMeal[]>([]);
+  const [removedPlan, setRemovedPlan] = useState<PlannedMeal>();
   const days = useMemo(() => Array.from({ length: 6 }, (_, index) => addDays(new Date(), index)), []);
   const refresh = useCallback((date = selectedDate) => setPlans(browserPlannedMealRepository(profile.id).getByDate(date)), [profile.id, selectedDate]);
 
@@ -40,7 +41,14 @@ export default function FutureMealPlanner({ profile }: { profile: UserProfile })
   };
   const removePlan = (plan: PlannedMeal) => {
     browserPlannedMealRepository(profile.id).remove(plan.id);
+    setRemovedPlan(plan);
     refresh();
+  };
+  const undoRemove = () => {
+    if (!removedPlan) return;
+    browserPlannedMealRepository(profile.id).upsert(removedPlan);
+    setRemovedPlan(undefined);
+    if (removedPlan.intendedDate === selectedDate) refresh();
   };
 
   return <section className="surface mb-5 p-4 sm:p-5" aria-labelledby="future-meals-heading">
@@ -61,5 +69,6 @@ export default function FutureMealPlanner({ profile }: { profile: UserProfile })
         </div>;
       })}
     </div>
+    {removedPlan && <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-3 py-2" role="status"><span className="text-sm font-semibold">{title(removedPlan.mealSlot)} plan deleted.</span><button type="button" className="text-sm font-bold text-[var(--ff-accent-light)]" onClick={undoRemove}>Undo</button></div>}
   </section>;
 }

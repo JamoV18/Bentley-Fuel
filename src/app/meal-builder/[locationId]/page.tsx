@@ -7,7 +7,7 @@ import { campusStapleDiningResources, canonicalPlanningDiningResources, getDinin
 import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
 import { normalizeStationMenuForMealBuilder } from "@/services/stationMenuNormalization";
-import type { MealBuild, MealPeriod } from "@/types";
+import type { MealBuild, MealLogSlot, MealPeriod } from "@/types";
 import ManualMealBuilderClient from "./ManualMealBuilderClient";
 import MealBuilderClient from "./MealBuilderClient";
 
@@ -15,6 +15,8 @@ const PERIOD_ORDER: MealPeriod[] = ["breakfast", "brunch", "lunch", "dinner", "l
 const readablePeriod = (period: MealPeriod) => period.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const periodMatches = (periods: readonly MealPeriod[] | undefined, period: MealPeriod) => !periods || periods.length === 0 || periods.includes("all-day") || periods.includes(period);
 const asMealPeriod = (value: string | undefined): MealPeriod | undefined => PERIOD_ORDER.includes(value as MealPeriod) ? value as MealPeriod : undefined;
+const LOG_SLOTS: MealLogSlot[] = ["breakfast", "lunch", "dinner", "snack"];
+const asMealLogSlot = (value: string | undefined): MealLogSlot | undefined => LOG_SLOTS.includes(value as MealLogSlot) ? value as MealLogSlot : undefined;
 
 function currentBentleyMealPeriod(): MealPeriod {
   const hour = Number(new Intl.DateTimeFormat("en-US", {
@@ -33,7 +35,7 @@ export default async function MealBuilderPage({
   searchParams,
 }: {
   params: Promise<{ locationId: string }>;
-  searchParams: Promise<{ mode?: string; manual?: string; add?: string; date?: string; period?: string; entryId?: string; planId?: string }>;
+  searchParams: Promise<{ mode?: string; manual?: string; intent?: string; time?: string; slot?: string; add?: string; date?: string; period?: string; entryId?: string; planId?: string }>;
 }) {
   const { locationId } = await params;
   const query = await searchParams;
@@ -104,6 +106,9 @@ export default async function MealBuilderPage({
     if (query.entryId) next.set("entryId", query.entryId);
     if (query.planId) next.set("planId", query.planId);
     if (query.manual) next.set("manual", query.manual);
+    if (query.intent) next.set("intent", query.intent);
+    if (query.time) next.set("time", query.time);
+    if (query.slot) next.set("slot", query.slot);
     next.set("date", menuDate);
     next.set("period", selectedPeriod);
     redirect(`/meal-builder/${locationId}?${next.toString()}`);
@@ -137,6 +142,9 @@ export default async function MealBuilderPage({
     if (query.manual) next.set("manual", query.manual);
     if (query.entryId) next.set("entryId", query.entryId);
     if (query.planId) next.set("planId", query.planId);
+    if (query.intent) next.set("intent", query.intent);
+    if (query.time) next.set("time", query.time);
+    if (query.slot) next.set("slot", query.slot);
     if (menuDate) next.set("date", menuDate);
     next.set("period", period);
     return `/meal-builder/${locationId}?${next.toString()}`;
@@ -151,6 +159,9 @@ export default async function MealBuilderPage({
         editEntryId={query.entryId}
         planId={query.planId}
         planningDate={isPlanning ? menuDate : undefined}
+        retrospectiveDate={!isPlanning && query.intent === "log" ? menuDate : undefined}
+        retrospectiveTime={!isPlanning && query.intent === "log" ? query.time : undefined}
+        retrospectiveSlot={!isPlanning && query.intent === "log" ? asMealLogSlot(query.slot) : undefined}
         initialMenuItemId={initialMenuItemId}
         resources={resources}
         isDemo={isDemo}

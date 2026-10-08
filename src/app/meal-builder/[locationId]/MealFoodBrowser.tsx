@@ -14,6 +14,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
   const reduceMotion = useReducedMotion();
   const [lastAddedItemId, setLastAddedItemId] = useState<string>();
   const [query, setQuery] = useState("");
+  const [stationFilter, setStationFilter] = useState("all");
   const normalizedQuery = query.trim().toLowerCase();
   const matchesSearch = useCallback((item: MealBuildResources["menuItems"][number]) => !normalizedQuery ||
     compositionMatchesSearch(item, normalizedQuery) ||
@@ -23,6 +24,10 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
     if (!normalizedQuery) return true;
     return resources.menuItems.some((item) => item.stationId === station.id && periodAvailable(item.availability, mealPeriod) && matchesSearch(item));
   }), [matchesSearch, mealPeriod, normalizedQuery, resources.menuItems, resources.stations]);
+  const effectiveStationFilter = availableStations.some((station) => station.id === stationFilter) ? stationFilter : "all";
+  const visibleStations = effectiveStationFilter === "all"
+    ? availableStations
+    : availableStations.filter((station) => station.id === effectiveStationFilter);
   const addItem = (itemId: string) => {
     const item = resources.menuItems.find((candidate) => candidate.id === itemId);
     if (!item) return;
@@ -40,10 +45,13 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
     <section className={embedded ? "" : "mt-8"} aria-labelledby="food-browser-heading">
 
       <h2 id="food-browser-heading" className="mt-1 text-lg font-bold">Add food by station</h2>
-      <label className="field mt-4 block">Find a food<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search banana, omelette, chicken…" /></label>
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_minmax(12rem,.55fr)]">
+        <label className="field block">Find a food<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search banana, omelette, chicken…" /></label>
+        <label className="field block">Station<select value={effectiveStationFilter} onChange={(event) => setStationFilter(event.target.value)}><option value="all">All stations</option>{availableStations.map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}</select></label>
+      </div>
 
       <div className="mt-5 space-y-5">
-        {availableStations.map((station) => {
+        {visibleStations.map((station) => {
           const items = resources.menuItems
             .filter((item) => item.stationId === station.id && periodAvailable(item.availability, mealPeriod) && matchesSearch(item))
             .sort((a, b) => Number(Boolean(b.composition && compositionMatchesSearch(b, normalizedQuery))) - Number(Boolean(a.composition && compositionMatchesSearch(a, normalizedQuery))) || Number(Boolean(b.composition)) - Number(Boolean(a.composition)) || a.name.localeCompare(b.name));
@@ -105,7 +113,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
           );
         })}
       </div>
-      {availableStations.length === 0 && <p className="mt-5 text-sm subtle">No foods match “{query}”.</p>}
+      {availableStations.length === 0 && <div className="mt-5 rounded-xl border border-dashed border-[var(--ff-divider)] p-4"><p className="text-sm subtle">No foods match “{query}”.</p>{query && <button type="button" className="mt-3 text-xs font-bold text-[var(--ff-accent-light)]" onClick={() => { setQuery(""); setStationFilter("all"); }}>Clear search and station</button>}</div>}
     </section>
   );
 }

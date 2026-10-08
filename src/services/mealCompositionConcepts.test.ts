@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createManualMealItemSelection } from "@/lib/manualMealSelection";
+import { addManualMenuItem, createManualMealItemSelection } from "@/lib/manualMealSelection";
 import type { MenuItem, Provenance, Station } from "@/types";
 import { computeMealBuild } from "./mealBuilder";
 import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
@@ -80,6 +80,66 @@ test("composition aliases rank as intent without swallowing standalone ingredien
   assert.equal(compositionMatchesSearch(action, "omelet bar"), true);
   assert.equal(compositionMatchesSearch(action, "omelette"), true);
   assert.ok(result.menuItems.some((item) => item.id === "spinach"));
+});
+
+test("Cucina raw egg bases are builder-only while prepared egg dishes stay standalone", () => {
+  const cucina = station("cucina", "Cucina");
+  const rows = [
+    food("eggs", "Eggs", cucina.id, 130, 12),
+    food("egg-whites", "Egg Whites", cucina.id, 70, 14),
+    food("scrambled", "Scrambled Eggs", cucina.id, 190, 13),
+    food("hard-boiled", "Hard Boiled Eggs", cucina.id, 150, 12),
+    food("spinach", "Chopped Spinach", cucina.id, 5, 1),
+    food("black-beans", "Black Beans", cucina.id, 50, 3),
+  ];
+  const result = normalizeStationMenuForMealBuilder(rows, [cucina], "breakfast");
+  const action = result.menuItems.find((item) => item.composition?.conceptId === "omelette");
+  assert.ok(action);
+  assert.equal(result.menuItems.some((item) => item.id === "eggs"), false);
+  assert.equal(result.menuItems.some((item) => item.id === "egg-whites"), false);
+  assert.equal(result.menuItems.some((item) => item.id === "scrambled"), true);
+  assert.equal(result.menuItems.some((item) => item.id === "hard-boiled"), true);
+  assert.deepEqual(result.components.filter((component) => component.category === "base").map((component) => component.name).sort(), ["Egg Whites", "Eggs"]);
+  assert.ok(result.components.some((component) => component.name === "Black Beans"));
+  assert.equal(compositionMatchesSearch(action, "eggs"), true);
+  assert.equal(compositionMatchesSearch(action, "egg whites"), true);
+  assert.equal(compositionMatchesSearch(action, "scrambled eggs"), false);
+  assert.equal(compositionMatchesSearch(action, "hard boiled eggs"), false);
+});
+
+test("opening a builder imports only explicitly registered source components without double-counting", () => {
+  const cucina = station("cucina", "Cucina");
+  const rows = [
+    food("eggs", "Eggs", cucina.id, 130, 12),
+    food("spinach", "Chopped Spinach", cucina.id, 5, 1),
+    food("ham", "Diced Smoked Ham", cucina.id, 30, 5),
+    food("scrambled", "Scrambled Eggs", cucina.id, 190, 13),
+  ];
+  const normalized = normalizeStationMenuForMealBuilder(rows, [cucina], "breakfast");
+  const action = normalized.menuItems.find((item) => item.composition?.conceptId === "omelette")!;
+  const rawBuild = {
+    locationId: "loc-921",
+    items: rows.map((item, index) => ({ id: `raw-${index}`, menuItemId: item.id, quantity: 1 })),
+  };
+  const reconciled = addManualMenuItem(rawBuild, action, normalized.components, "omelette-line");
+  assert.deepEqual(reconciled.items.map((line) => line.menuItemId).sort(), [action.id, "scrambled"]);
+  assert.deepEqual(reconciled.items.find((line) => line.id === "omelette-line")?.componentSelections?.map((choice) => choice.componentId).sort(), normalized.components.map((component) => component.id).sort());
+  const resources = { location: { id: "loc-921", name: "921", type: "dining-hall" as const, universityId: "bentley", provenance }, menuItems: normalized.menuItems, stations: [cucina], components: normalized.components };
+  const computed = computeMealBuild(reconciled, resources);
+  assert.equal(computed.isValid, true);
+  assert.equal(computed.nutrition?.calories, 355);
+});
+
+test("adding an explicit source component to an existing composition updates that composition", () => {
+  const cucina = station("cucina", "Cucina");
+  const rows = [food("eggs", "Eggs", cucina.id, 130, 12), food("spinach", "Chopped Spinach", cucina.id, 5, 1)];
+  const normalized = normalizeStationMenuForMealBuilder(rows, [cucina], "breakfast");
+  const action = normalized.menuItems.find((item) => item.composition?.conceptId === "omelette")!;
+  const eggs = normalized.components.find((component) => component.name === "Eggs")!;
+  const build = { locationId: "loc-921", items: [{ id: "omelette-line", menuItemId: action.id, quantity: 1, componentSelections: [{ componentId: eggs.id, quantity: 1 }] }] };
+  const next = addManualMenuItem(build, rows[1], normalized.components, "unused-line");
+  assert.equal(next.items.length, 1);
+  assert.equal(next.items[0].componentSelections?.some((choice) => normalized.components.find((component) => component.id === choice.componentId)?.name === "Chopped Spinach"), true);
 });
 
 test("category Salad and Deli concepts are created without fabricated source headers", () => {

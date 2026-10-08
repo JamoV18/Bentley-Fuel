@@ -96,6 +96,10 @@ export interface FoodComponent {
   provenance: Provenance;
   isDefault?: boolean;
   maxQuantity?: number;
+  /** Published menu row represented by this composition component. */
+  sourceMenuItemId?: string;
+  /** Registry concept that explicitly admitted this source row. */
+  compositionConceptId?: string;
 }
 
 export type MenuItemKind = "predefined" | "customizable";

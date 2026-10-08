@@ -121,8 +121,8 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
     const end = new Date(year, month - 1, day, 23, 59, 59, 999);
     const repository = browserMealHistoryRepository();
     setEntries(repository.getByDateRange(start, end));
-    setRecentFoods(recentCanonicalFoods(repository.getRecent(80)));
-  }, [selectedDate]);
+    setRecentFoods(recentCanonicalFoods(repository.getRecent(80), 8, stationNames));
+  }, [selectedDate, stationNames]);
 
   useEffect(() => { queueMicrotask(refresh); }, [refresh]);
   useEffect(() => () => {

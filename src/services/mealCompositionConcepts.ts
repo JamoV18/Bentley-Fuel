@@ -31,12 +31,14 @@ interface CompositionGroup {
   pattern: RegExp;
   min: number;
   max: number;
+  /** Source rows in this group are ingredients only, never standalone dishes. */
+  componentOnly?: boolean;
 }
 
 const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const rx = (source: string) => new RegExp(source, "i");
 
-const TOPPING = rx("lettuce|spinach|tomato|onion|pepper|mushroom|broccoli|cucumber|pickle|jalapeno|corn|carrot|cabbage|cilantro|lime|guacamole|pico|kimchi|basil|edamame|cheese|feta|parmesan|sesame|furikake");
+const TOPPING = rx("lettuce|spinach|tomato|onion|pepper|mushroom|broccoli|cucumber|pickle|jalapeno|corn|carrot|cabbage|cilantro|lime|guacamole|pico|kimchi|basil|edamame|beans?|cheese|feta|parmesan|sesame|furikake");
 const PROTEIN = rx("chicken|turkey|ham|bacon|sausage|beef|steak|pork|carnitas|tofu|tempeh|falafel|tuna|egg|beans?|chickpeas?|lentils?|edamame|hummus|crab|picadillo");
 const FILLING_PROTEIN = rx("chicken|turkey|ham|bacon|sausage|beef|steak|pork|carnitas|tofu|tempeh|falafel|tuna|picadillo|mushroom");
 const SAUCE = rx("sauce|salsa|dressing|vinaigrette|ranch|mustard|mayonnaise|mayo|aioli|pesto|crema|sour cream|oil|vinegar|glaze|sriracha");
@@ -45,11 +47,11 @@ const TORTILLA = rx("(?:flour|corn)\\s+tortilla|[0-9]{1,2}[^a-z0-9]+(?:inch\\s+)
 const concepts: MealCompositionConcept[] = [
   {
     id: "omelette", canonicalName: "Omelette", stationPattern: /cucina/i,
-    aliases: ["omelet", "omelette", "omelet bar", "omelette bar"], actionTitle: "Build an omelette",
+    aliases: ["omelet", "omelette", "omelet bar", "omelette bar", "eggs", "egg whites"], actionTitle: "Build an omelette",
     selectionPrompt: "Choose what’s in your omelette", mode: "builder", headerNames: ["Omelet Bar", "Omelette Bar"],
     activationGroups: [rx("^(eggs?|egg whites?|whole eggs?)$"), rx("spinach|tomato|onion|mushroom|pepper|cheese|ham|bacon|sausage|feta|broccoli|jalapeno")],
     groups: [
-      { id: "base", label: "Choose eggs", category: "base", pattern: rx("^(eggs?|egg whites?|whole eggs?)$|omelet"), min: 1, max: 1 },
+      { id: "base", label: "Choose a base", category: "base", pattern: rx("^(eggs?|egg whites?|whole eggs?)$"), min: 1, max: 1, componentOnly: true },
       { id: "protein", label: "Add protein", category: "protein", pattern: rx("ham|bacon|sausage|chicken|turkey"), min: 0, max: 2 },
       { id: "toppings", label: "Add vegetables and cheese", category: "topping", pattern: TOPPING, min: 0, max: 6 },
     ],
@@ -241,6 +243,8 @@ function componentFromItem(concept: MealCompositionConcept, item: MenuItem, cate
     dietaryTags: [...item.dietaryTags],
     provenance: item.provenance,
     maxQuantity: 3,
+    sourceMenuItemId: item.id,
+    compositionConceptId: concept.id,
   };
 }
 
@@ -261,11 +265,12 @@ function buildStructuredConcept(concept: MealCompositionConcept, station: Statio
     id: `${station.id}-${concept.id}-components`, label: "Choose what you had", category: "extra",
     required: true, minSelections: 1, maxSelections: Math.min(12, components.length), componentIds: components.map((component) => component.id),
   };
-  return { components, steps: [step] };
+  return { components, steps: [step], componentOnlyItemIds: new Set<string>() };
 }
 
 function buildConfiguredConcept(concept: MealCompositionConcept, station: Station, stationItems: readonly MenuItem[], headers: readonly MenuItem[]) {
   const used = new Set<string>();
+  const componentOnlyItemIds = new Set<string>();
   const components: FoodComponent[] = [];
   const steps: CustomizationStep[] = [];
   for (const group of concept.groups ?? []) {
@@ -276,6 +281,7 @@ function buildConfiguredConcept(concept: MealCompositionConcept, station: Statio
     });
     if (groupComponents.length === 0) continue;
     matching.forEach((item) => used.add(item.id));
+    if (group.componentOnly) matching.forEach((item) => componentOnlyItemIds.add(item.id));
     components.push(...groupComponents);
     steps.push({
       id: `${station.id}-${concept.id}-${group.id}`, label: group.label, category: group.category,
@@ -284,13 +290,14 @@ function buildConfiguredConcept(concept: MealCompositionConcept, station: Statio
     });
   }
   if (steps.length === 0 || steps.some((step) => step.required && step.componentIds.length < step.minSelections)) return undefined;
-  return { components, steps };
+  return { components, steps, componentOnlyItemIds };
 }
 
 export interface ResolvedCompositionConcepts {
   menuItems: MenuItem[];
   components: FoodComponent[];
   structuralHeaderIds: Set<string>;
+  componentOnlyItemIds: Set<string>;
 }
 
 /** Resolve every active concept against the current date/period snapshot. */
@@ -298,6 +305,7 @@ export function resolveMealCompositionConcepts(items: readonly MenuItem[], stati
   const menuItems: MenuItem[] = [];
   const components: FoodComponent[] = [];
   const structuralHeaderIds = new Set<string>();
+  const componentOnlyItemIds = new Set<string>();
   for (const station of stations) {
     const stationItems = items.filter((item) => item.stationId === station.id);
     if (stationItems.length === 0) continue;
@@ -310,6 +318,7 @@ export function resolveMealCompositionConcepts(items: readonly MenuItem[], stati
         : buildConfiguredConcept(concept, station, stationItems, headers);
       if (!resolved) continue;
       components.push(...resolved.components);
+      resolved.componentOnlyItemIds.forEach((id) => componentOnlyItemIds.add(id));
       menuItems.push({
         id: `composition:${station.id}:${concept.id}`,
         name: concept.canonicalName,
@@ -331,12 +340,13 @@ export function resolveMealCompositionConcepts(items: readonly MenuItem[], stati
       });
     }
   }
-  return { menuItems, components, structuralHeaderIds };
+  return { menuItems, components, structuralHeaderIds, componentOnlyItemIds };
 }
 
 export function compositionMatchesSearch(item: MenuItem, query: string): boolean {
   const value = normalized(query);
   if (!item.composition || !value) return false;
+  if (item.composition.conceptId === "omelette" && /\b(scrambled|hard boiled)\b/.test(value)) return false;
   return [item.composition.actionTitle, item.composition.canonicalName, ...item.composition.searchAliases]
     .some((alias) => normalized(alias).includes(value) || value.includes(normalized(alias)));
 }

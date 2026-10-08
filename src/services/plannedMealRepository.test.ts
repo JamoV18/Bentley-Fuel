@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { PlannedMeal } from "@/types";
+import type { MenuItem, PlannedMeal, Provenance, Station } from "@/types";
 import type { MealBuildResources } from "./mealBuilder";
 import { computeMealBuild } from "./mealBuilder";
 import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
 import { createLocalPlannedMealRepository, fulfilledPlan, historyEntryFromPlan, localDateKey, parseLocalDate, snapshotPlannedMealBuild } from "./plannedMealRepository";
 import { recordsForExactMenuDate } from "./futureMenuAvailability";
+import { createDailyNutritionSnapshot } from "./nutritionAnalytics";
+import { snapshotMealCompositions } from "./mealCompositionSnapshots";
+import { presentMeal } from "./mealPresentation";
+import { normalizeStationMenuForMealBuilder } from "./stationMenuNormalization";
 
 const storage = () => {
   const data = new Map<string, string>();
@@ -86,4 +90,48 @@ test("planned item snapshots remain editable after the published menu changes", 
   assert.equal(afterMenuChange.isValid, true);
   assert.equal(afterMenuChange.lines[0].selection.display?.name, "Top Sirloin Steak");
   assert.equal(afterMenuChange.nutrition?.calories, 800);
+});
+
+test("a planned composed meal stays semantic and enters consumed nutrition exactly once at check-in", () => {
+  const memory = storage();
+  const provenance: Provenance = { dataStatus: "verified", source: { type: "bentley-dining", name: "Published 921 menu" }, confidence: 1 };
+  const cucina: Station = { id: "cucina", name: "Cucina", locationId: "loc-921", mealPeriods: ["breakfast"], provenance };
+  const row = (id: string, name: string, calories: number, protein: number): MenuItem => ({
+    id, name, kind: "predefined", stationId: cucina.id, locationId: "loc-921",
+    nutrition: { calories, protein, carbs: 1, fat: 1 }, serving: { amount: 1, unit: "serving" },
+    allergens: [], dietaryTags: [], availability: ["breakfast"], provenance,
+  });
+  const normalized = normalizeStationMenuForMealBuilder([
+    row("egg-whites", "Egg Whites", 70, 14), row("spinach", "Chopped Spinach", 5, 1), row("ham", "Diced Ham", 30, 5),
+  ], [cucina], "breakfast");
+  const action = normalized.menuItems.find((item) => item.composition?.conceptId === "omelette")!;
+  const build = {
+    locationId: "loc-921",
+    items: [{ id: "omelette-line", menuItemId: action.id, quantity: 1, componentSelections: normalized.components.map((component) => ({ componentId: component.id, quantity: 1 })) }],
+  };
+  const resources: MealBuildResources = {
+    location: { id: "loc-921", name: "921", type: "dining-hall", universityId: "bentley", provenance },
+    stations: [cucina], menuItems: normalized.menuItems, components: normalized.components,
+  };
+  const semanticBuild = snapshotMealCompositions(build, resources);
+  const computed = computeMealBuild(semanticBuild, resources);
+  assert.equal(computed.nutrition?.calories, 105);
+  const plannedBuild = snapshotPlannedMealBuild(computed, "2026-10-08T12:00:00.000Z");
+  const composedPlan = plan({
+    mealSlot: "breakfast", build: plannedBuild, nutrition: computed.nutrition!, source: "self-built",
+  });
+  const plans = createLocalPlannedMealRepository(memory, "profile-1");
+  const history = createLocalMealHistoryRepository(memory);
+  plans.upsert(composedPlan);
+  assert.equal(history.getRecent().length, 0);
+  assert.equal(presentMeal({ ...historyEntryFromPlan(composedPlan, 0.5), completionFraction: undefined }).title, "Omelette");
+
+  const half = historyEntryFromPlan(composedPlan, 0.5, new Date("2026-11-01T13:00:00.000Z"));
+  history.upsert(half);
+  history.upsert(half);
+  plans.upsert(fulfilledPlan(composedPlan, half.id));
+  const day = createDailyNutritionSnapshot(history.getRecent(), undefined, new Date("2026-11-01T13:00:00.000Z"));
+  assert.equal(history.getRecent().length, 1);
+  assert.equal(day.consumed.calories, 52.5);
+  assert.equal(history.getRecent()[0].build.items[0].compositionSnapshot?.components.length, 3);
 });

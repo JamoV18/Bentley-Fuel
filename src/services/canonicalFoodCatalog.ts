@@ -71,6 +71,8 @@ const slug = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[
 
 export function canonicalFoodFromMenuItem(item: MenuItem, stationName?: string): CanonicalFood | undefined {
   if (item.composition || isKnownCompositionHeader(item, stationName)) return undefined;
+  const omeletteRole = cucinaOmeletteRole(item.name, stationName);
+  if (omeletteRole === "base") return undefined;
   const nutrition = item.nutrition ?? item.baseNutrition;
   if (!nutrition) return undefined;
   const serving = item.serving;
@@ -101,7 +103,7 @@ export function canonicalFoodFromMenuItem(item: MenuItem, stationName?: string):
     stationId: item.stationId,
     availability: item.availability,
     availableNow: item.availabilityStatus === "live-verified" || item.availabilityStatus === "verified-snapshot",
-    contextLabel: cucinaOmeletteRole(item.name, stationName) === "add-in" ? "Cucina · Omelette add-in" : undefined,
+    contextLabel: omeletteRole === "add-in" ? "Cucina · Omelette add-in" : undefined,
   };
 }
 
@@ -171,11 +173,17 @@ export function createLoggedFoodSnapshot(food: CanonicalFood, portionUnitId: str
 
 export interface RecentCanonicalFood { foodId: string; snapshot: LoggedFoodSnapshot; uses: number; }
 
-export function recentCanonicalFoods(entries: readonly MealHistoryEntry[], limit = 8): RecentCanonicalFood[] {
+export function recentCanonicalFoods(
+  entries: readonly MealHistoryEntry[],
+  limit = 8,
+  stationNames: Readonly<Record<string, string>> = {},
+): RecentCanonicalFood[] {
   const recent = new Map<string, RecentCanonicalFood>();
   for (const entry of entries) for (const line of entry.build.items) {
     const snapshot = line.foodSnapshot;
     if (!snapshot || isKnownCompositionSnapshot(snapshot)) continue;
+    const stationName = snapshot.stationId ? stationNames[snapshot.stationId] : undefined;
+    if (cucinaOmeletteRole(snapshot.displayName, stationName) === "base") continue;
     const existing = recent.get(snapshot.foodId);
     if (existing) existing.uses += 1;
     else recent.set(snapshot.foodId, { foodId: snapshot.foodId, snapshot, uses: 1 });

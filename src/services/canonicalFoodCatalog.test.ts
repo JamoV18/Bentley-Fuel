@@ -95,6 +95,18 @@ test("Cucina add-ins retain raw identity and gain omelette search context", () =
   assert.equal(result.nutritionReference.nutrition.calories, 7);
 });
 
+test("Cucina raw egg bases are not canonical foods while prepared eggs remain independent", () => {
+  const shared = {
+    locationId: "loc-921", stationId: "cucina", kind: "predefined" as const,
+    allergens: [], dietaryTags: [], nutrition: { calories: 130, protein: 12, carbs: 1, fat: 8 },
+    provenance: { source: { type: "bentley-dining" as const, name: "Bentley Dining" }, dataStatus: "verified" as const, confidence: 1 },
+  };
+  assert.equal(canonicalFoodFromMenuItem({ ...shared, id: "eggs", name: "Eggs" }, "Cucina"), undefined);
+  assert.equal(canonicalFoodFromMenuItem({ ...shared, id: "egg-whites", name: "Egg Whites" }, "Cucina"), undefined);
+  assert.equal(canonicalFoodFromMenuItem({ ...shared, id: "scrambled", name: "Scrambled Eggs" }, "Cucina")?.name, "Scrambled Eggs");
+  assert.equal(canonicalFoodFromMenuItem({ ...shared, id: "hard-boiled", name: "Hard Boiled Eggs" }, "Cucina")?.name, "Hard Boiled Eggs");
+});
+
 test("canonical catalog excludes known structural headers without suppressing real bar foods", () => {
   const base: Pick<MenuItem, "locationId" | "stationId" | "kind" | "allergens" | "dietaryTags" | "provenance"> = {
     locationId: "loc-921", stationId: "cucina", kind: "predefined", allergens: [], dietaryTags: [],
@@ -125,4 +137,21 @@ test("legacy zero-calorie composition headers are not offered as recent foods", 
     } }] },
   };
   assert.deepEqual(recentCanonicalFoods([entry]), []);
+});
+
+test("legacy Cucina egg bases stay out of recents without hiding prepared egg dishes", () => {
+  const snapshot = (displayName: string, foodId: string) => ({
+    foodId, displayName, quantity: 1, portionUnitId: "menu-serving", portionAmount: 1,
+    portionUnit: "serving", portionLabel: "1 serving",
+    nutrition: { calories: 130, protein: 12, carbs: 1, fat: 8 }, source: "bentley-dining" as const,
+    verification: "verified" as const, loggedAt: "2026-10-07T12:00:00.000Z", locationId: "loc-921", stationId: "cucina",
+  });
+  const entry = {
+    id: "legacy-eggs", locationId: "loc-921", selectedAt: "2026-10-07T12:00:00.000Z",
+    build: { locationId: "loc-921", items: [
+      { id: "raw", menuItemId: "eggs", quantity: 1, foodSnapshot: snapshot("Eggs", "eggs") },
+      { id: "prepared", menuItemId: "scrambled", quantity: 1, foodSnapshot: snapshot("Scrambled Eggs", "scrambled") },
+    ] },
+  };
+  assert.deepEqual(recentCanonicalFoods([entry], 8, { cucina: "Cucina" }).map((item) => item.snapshot.displayName), ["Scrambled Eggs"]);
 });

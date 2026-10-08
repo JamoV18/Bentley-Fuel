@@ -36,7 +36,8 @@ function markBreakfastStapleRole(item: MenuItem, breakfastScope: boolean): MenuI
 
 /**
  * Converts structural menu concepts into semantic composition actions while
- * retaining every real published food as an independently searchable item.
+ * retaining real published dishes as independently searchable items. Explicit
+ * component-only rows stay available to their builder but are not dishes.
  */
 export function normalizeStationMenuForMealBuilder(
   items: readonly MenuItem[],
@@ -47,7 +48,7 @@ export function normalizeStationMenuForMealBuilder(
   const breakfastScope = mealPeriod === "breakfast" || (mealPeriod === undefined && isBreakfastScopedMenu(items));
   const compositions = resolveMealCompositionConcepts(items, stations);
   const menuItems = [
-    ...items.filter((item) => !compositions.structuralHeaderIds.has(item.id)),
+    ...items.filter((item) => !compositions.structuralHeaderIds.has(item.id) && !compositions.componentOnlyItemIds.has(item.id)),
     ...compositions.menuItems,
   ]
     .map((item) => markBreakfastStapleRole(item, breakfastScope))

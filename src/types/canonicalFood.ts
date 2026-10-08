@@ -2,7 +2,7 @@ import type { LocationId, StationId } from "./common";
 import type { NutritionFacts } from "./nutrition";
 
 export type FoodPortionFamily = "count" | "volume" | "weight" | "container" | "food-specific";
-export type FoodDataSource = "bentley-dining" | "generic" | "custom";
+export type FoodDataSource = "bentley-dining" | "campus-staple" | "generic" | "custom";
 export type FoodVerificationState = "verified" | "calibrated-estimate" | "unverified-estimate";
 
 export interface FoodPortionUnit {
@@ -52,6 +52,8 @@ export interface CanonicalFood {
   stationId?: StationId;
   availability?: string[];
   availableNow?: boolean;
+  /** Optional source/station context shown beneath search results. */
+  contextLabel?: string;
 }
 
 /** Immutable item-level snapshot stored inside a meal history line. */

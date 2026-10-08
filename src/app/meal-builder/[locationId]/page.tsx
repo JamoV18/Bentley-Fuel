@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import FlowHeader from "@/components/FlowHeader";
 import { formatMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
-import { getDiningProvider } from "@/services";
+import { campusStapleDiningResources, getDiningProvider } from "@/services";
 import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
 import { normalizeStationMenuForMealBuilder } from "@/services/stationMenuNormalization";
@@ -33,7 +33,7 @@ export default async function MealBuilderPage({
   searchParams,
 }: {
   params: Promise<{ locationId: string }>;
-  searchParams: Promise<{ mode?: string; add?: string; date?: string; period?: string }>;
+  searchParams: Promise<{ mode?: string; add?: string; date?: string; period?: string; entryId?: string }>;
 }) {
   const { locationId } = await params;
   const query = await searchParams;
@@ -45,9 +45,12 @@ export default async function MealBuilderPage({
   const isNineTwentyOne = locationId === "loc-921";
   const isLiveMenuLocation = isNineTwentyOne || ADDITIONAL_LIVE_LOCATION_IDS.has(locationId);
   const menuDate = isLiveMenuLocation ? normalizeBentleyMenuDate(query.date) : undefined;
-  const allMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
-  const allStations = await provider.getStations(locationId, menuDate);
-  const usesVerifiedMenu = allMenuItems.some((item) => item.provenance.dataStatus === "verified");
+  const providerMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
+  const providerStations = await provider.getStations(locationId, menuDate);
+  const usesVerifiedMenu = providerMenuItems.some((item) => item.provenance.dataStatus === "verified");
+  const staples = campusStapleDiningResources(locationId);
+  const allMenuItems = [...providerMenuItems, ...staples.menuItems];
+  const allStations = [...providerStations, ...staples.stations];
 
   if (isLiveMenuLocation && !usesVerifiedMenu) {
     const requestedLabel = asMealPeriod(query.period);
@@ -86,6 +89,7 @@ export default async function MealBuilderPage({
     const next = new URLSearchParams();
     if (query.mode) next.set("mode", query.mode);
     if (query.add) next.set("add", query.add);
+    if (query.entryId) next.set("entryId", query.entryId);
     next.set("date", menuDate);
     next.set("period", selectedPeriod);
     redirect(`/meal-builder/${locationId}?${next.toString()}`);
@@ -116,6 +120,7 @@ export default async function MealBuilderPage({
   const periodHref = (period: MealPeriod) => {
     const next = new URLSearchParams();
     if (query.mode === "manual") next.set("mode", "manual");
+    if (query.entryId) next.set("entryId", query.entryId);
     if (menuDate) next.set("date", menuDate);
     next.set("period", period);
     return `/meal-builder/${locationId}?${next.toString()}`;
@@ -127,6 +132,7 @@ export default async function MealBuilderPage({
     content = (
       <ManualMealBuilderClient
         locationId={locationId}
+        editEntryId={query.entryId}
         initialMenuItemId={initialMenuItemId}
         resources={resources}
         isDemo={isDemo}

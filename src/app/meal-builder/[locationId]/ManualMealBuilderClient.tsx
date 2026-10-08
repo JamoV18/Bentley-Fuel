@@ -31,6 +31,7 @@ const completionLabel = (fraction: MealCompletionFraction) => MEAL_COMPLETION_CH
 
 export default function ManualMealBuilderClient({
   locationId,
+  editEntryId,
   initialMenuItemId,
   resources,
   isDemo,
@@ -38,6 +39,7 @@ export default function ManualMealBuilderClient({
   selectedMealPeriod,
 }: {
   locationId: string;
+  editEntryId?: string;
   initialMenuItemId?: string;
   resources: MealBuildResources;
   isDemo: boolean;
@@ -56,6 +58,19 @@ export default function ManualMealBuilderClient({
   const [completionFraction, setCompletionFraction] = useState<MealCompletionFraction>();
   const [beverages, setBeverages] = useState<CampusBeverageSelection[]>([]);
   const [recentBeverages, setRecentBeverages] = useState<CampusBeverageSelection[]>([]);
+
+  useEffect(() => {
+    if (!editEntryId) return;
+    const entry = browserMealHistoryRepository().getRecent(Number.MAX_SAFE_INTEGER).find((candidate) => candidate.id === editEntryId);
+    if (!entry || entry.locationId !== locationId) return;
+    queueMicrotask(() => {
+      setBuild(entry.build);
+      setSavedHistoryId(entry.id);
+      setSavedAt(entry.selectedAt);
+      setBeverages(entry.campusBeverages ?? []);
+      setCompletionFraction(entry.completionFraction);
+    });
+  }, [editEntryId, locationId]);
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const selectedNutrition = useMemo(() => computed.nutrition ? mealNutritionWithBeverages(computed.nutrition, beverages) : undefined, [beverages, computed.nutrition]);
@@ -103,19 +118,19 @@ export default function ManualMealBuilderClient({
     <main className="ff-page ff-manual-builder">
       <FlowHeader backHref={backHref} backLabel={resources.location?.shortName ?? resources.location?.name ?? "Location"} />
 
-      <header className="mt-2 flex flex-wrap items-end justify-between gap-3">
+      <header className="mt-2 grid min-w-0 gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between">
         <div className="max-w-2xl">
           <h1 className="text-2xl font-bold">Build my meal</h1>
           <p className="mt-1 text-sm subtle">Add foods and adjust servings.</p>
         </div>
-        <Link href={recommendationHref} className="secondary inline-flex items-center justify-center">See top meals</Link>
+        <Link href={recommendationHref} className="secondary inline-flex w-fit items-center justify-center">See top meals</Link>
       </header>
 
       {isDemo && <p className="mt-3 border-l-2 border-[var(--ff-warning)] pl-3 text-xs text-[var(--ff-warning)]">Demo menu data · not current official Bentley Dining information.</p>}
       {futureMenu && <p className="mt-5 rounded-xl border border-[var(--ff-border)] bg-[var(--ff-surface-elevated)] px-4 py-3 text-sm text-[var(--ff-text-primary)]">Future menu preview · logging is disabled until this date.</p>}
 
       <div className="mt-4 grid items-start gap-5 xl:grid-cols-[.88fr_1.12fr]">
-        <div className="min-w-0 space-y-5 xl:sticky xl:top-6 xl:self-start">
+        <div className="min-w-0 space-y-5 xl:self-start">
           <section className="border-y border-[var(--ff-divider)] py-3" aria-labelledby="manual-meal-heading">
             <div className="flex items-center justify-between gap-4"><div><h2 id="manual-meal-heading" className="mt-1 text-lg font-bold">Your meal</h2></div></div>
 
@@ -149,7 +164,7 @@ export default function ManualMealBuilderClient({
             {selectedNutrition && <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-[var(--ff-divider)] pt-3">{[["Calories", Math.round(selectedNutrition.calories), "cal"], ["Protein", Math.round(selectedNutrition.protein * 10) / 10, "g"], ["Carbs", Math.round(selectedNutrition.carbs * 10) / 10, "g"], ["Fat", Math.round(selectedNutrition.fat * 10) / 10, "g"]].map(([label, value, unit]) => <div key={label} className="py-2"><dt className="text-xs text-[var(--ff-text-secondary)]">{label}</dt><dd className="mt-1 font-bold text-[var(--ff-text-primary)]">{value}{unit}</dd></div>)}</dl>}
             {locationId === "loc-921" && <CampusBeverageSelector locationId={locationId} value={beverages} onChange={setBeverages} recent={recentBeverages} />}
             {build.items.length > 0 && !computed.isValid && <div className="mt-5 rounded-xl bg-[var(--ff-warning-surface)] p-3 text-sm text-[var(--ff-danger)]"><strong>Meal needs attention.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}</ul></div>}
-            <button type="button" className="primary mt-5 w-full" disabled={futureMenu || !computed.isValid || build.items.length === 0} onClick={saveMeal}><AnimatePresence initial={false} mode="wait"><motion.span key={futureMenu ? "future" : savedHistoryId ? "saved" : "save"} className="inline-flex items-center justify-center gap-2" initial={reduceMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -3 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>{savedHistoryId && !futureMenu && <motion.span initial={reduceMotion ? false : { scale: 0.7 }} animate={{ scale: 1 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 24, mass: 0.55 }} aria-hidden="true">✓</motion.span>}{futureMenu ? "Future menu · preview only" : savedHistoryId ? "Meal saved" : "Save this meal"}</motion.span></AnimatePresence></button>
+            <button type="button" className="primary mt-5 w-full" disabled={futureMenu || !computed.isValid || build.items.length === 0} onClick={saveMeal}><AnimatePresence initial={false} mode="wait"><motion.span key={futureMenu ? "future" : savedHistoryId ? "saved" : "save"} className="inline-flex items-center justify-center gap-2" initial={reduceMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -3 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>{savedHistoryId && !futureMenu && <motion.span initial={reduceMotion ? false : { scale: 0.7 }} animate={{ scale: 1 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 24, mass: 0.55 }} aria-hidden="true">✓</motion.span>}{futureMenu ? "Future menu · preview only" : savedHistoryId ? (editEntryId ? "Meal updated" : "Meal saved") : (editEntryId ? "Update meal" : "Save this meal")}</motion.span></AnimatePresence></button>
             {savedHistoryId && <div className="mt-4 border-t border-[var(--ff-divider)] pt-4">{completionFraction !== undefined ? <div className="flex items-center justify-between gap-3 text-sm"><p><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div> : <button type="button" className="text-sm font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Finished eating? Add a quick check-in</button>}<AnimatePresence initial={false}>{showCompletionCheckIn && <motion.div className="surface-soft mt-3 overflow-hidden p-4" initial={reduceMotion ? false : { opacity: 0, y: -6, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} animate={{ opacity: 1, y: 0, height: "auto", marginTop: 12, paddingTop: 16, paddingBottom: 16 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}><p className="text-sm font-bold">How much did you finish?</p><div className="mt-2 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div><p className="mt-2 text-xs subtle"></p></motion.div>}</AnimatePresence></div>}
           </section>
 

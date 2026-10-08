@@ -9,6 +9,8 @@ import type {
   NutritionFacts,
 } from "@/types";
 import { scaleNutrition } from "./nutrition";
+import { CAMPUS_STAPLE_FOODS } from "./campusStaples";
+import { cucinaOmeletteRole } from "./mealPresentation";
 
 const ounceGrams = 28.3495;
 
@@ -50,7 +52,7 @@ export const GENERIC_CANONICAL_FOODS: readonly CanonicalFood[] = [
 
 const slug = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export function canonicalFoodFromMenuItem(item: MenuItem): CanonicalFood | undefined {
+export function canonicalFoodFromMenuItem(item: MenuItem, stationName?: string): CanonicalFood | undefined {
   const nutrition = item.nutrition ?? item.baseNutrition;
   if (!nutrition) return undefined;
   const serving = item.serving;
@@ -81,14 +83,17 @@ export function canonicalFoodFromMenuItem(item: MenuItem): CanonicalFood | undef
     stationId: item.stationId,
     availability: item.availability,
     availableNow: item.availabilityStatus === "live-verified" || item.availabilityStatus === "verified-snapshot",
+    contextLabel: cucinaOmeletteRole(item.name, stationName) === "add-in" ? "Cucina · Omelette add-in" : undefined,
   };
 }
 
-export function canonicalFoodCatalog(menuItems: readonly MenuItem[]): CanonicalFood[] {
+export function canonicalFoodCatalog(menuItems: readonly MenuItem[], stationNames: Record<string, string> = {}): CanonicalFood[] {
   const byId = new Map<string, CanonicalFood>();
+  const omeletteStations = new Set(menuItems.filter((item) => cucinaOmeletteRole(item.name, stationNames[item.stationId]) === "base").map((item) => item.stationId));
   for (const food of GENERIC_CANONICAL_FOODS) byId.set(food.foodId, food);
+  for (const food of CAMPUS_STAPLE_FOODS) byId.set(food.foodId, food);
   for (const item of menuItems) {
-    const food = canonicalFoodFromMenuItem(item);
+    const food = canonicalFoodFromMenuItem(item, omeletteStations.has(item.stationId) ? stationNames[item.stationId] : undefined);
     if (food) byId.set(food.foodId, food);
   }
   return [...byId.values()];
@@ -178,6 +183,7 @@ export function rankCanonicalFoods(
     let score = exact ? 120 : prefix ? 95 : 70;
     if (food.source === "bentley-dining" && food.availableNow) score += 55;
     if (food.locationId && food.locationId === context.locationId) score += 30;
+    if (food.source === "campus-staple" && food.locationId === context.locationId) score += 30;
     if (context.mealSlot && food.availability?.some((period) => period === context.mealSlot || period === "all-day")) score += 18;
     const use = recentRank.get(food.foodId);
     if (use) score += 35 - use.index + Math.min(15, use.uses * 3);
@@ -188,6 +194,7 @@ export function rankCanonicalFoods(
 
 export function foodSourceLabel(source: CanonicalFood["source"], verification: CanonicalFood["verification"]): string {
   if (source === "custom") return "Custom food";
+  if (source === "campus-staple") return "Campus staple";
   if (source === "bentley-dining" && verification === "verified") return "Bentley verified";
   if (verification === "calibrated-estimate") return "Measured estimate";
   if (verification === "unverified-estimate") return "Estimated portion";

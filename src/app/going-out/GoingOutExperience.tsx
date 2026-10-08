@@ -82,6 +82,7 @@ export default function GoingOutExperience() {
   const [recapDraft, setRecapDraft] = useState<NightOutConsumption[]>([]);
   const [message, setMessage] = useState("");
   const drinkSubmissionLock = useRef(false);
+  const requestedEditHandled = useRef(false);
 
   const loggingEligible = profile ? canLogAlcohol(profile) : false;
   const planningEligible = profile ? canPlanAlcohol(profile) : false;
@@ -227,6 +228,15 @@ export default function GoingOutExperience() {
     setDrinkDraft({ category: detail.category, name: detail.name, quantity: String(detail.quantity), servingOunces: String(servingOunces), abvPercent: String(detail.abvPercent ?? preset.abvPercent), caloriesPerServing: String(caloriesPerServing), mixerCalories: String(detail.mixerCalories ?? 0), day: dateKey(when), time: `${pad(when.getHours())}:${pad(when.getMinutes())}`, estimateStatus: detail.estimateStatus, estimateAdjusted: Math.abs(caloriesPerServing - expectedCalories) > 0.5 });
     setEditingDrinkId(entry.id); setPanel("log"); window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  useEffect(() => {
+    if (requestedEditHandled.current || drinks.length === 0) return;
+    const requestedId = new URLSearchParams(window.location.search).get("edit");
+    if (!requestedId) return;
+    const entry = drinks.find((candidate) => candidate.id === requestedId);
+    if (!entry) return;
+    requestedEditHandled.current = true;
+    queueMicrotask(() => editDrink(entry));
+  }, [drinks]);
   const deleteDrink = (entry: MealHistoryEntry) => {
     browserMealHistoryRepository().remove(entry.id);
     if (profile) refresh(profile);

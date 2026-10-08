@@ -16,12 +16,14 @@ export default async function TodayPage() {
   const hasVerifiedMenuData = menuItems.some((item) => item.provenance.dataStatus === "verified");
   const locationNames = Object.fromEntries(locations.map((location) => [location.id, location.shortName ?? location.name]));
   const itemNames = Object.fromEntries(menuItems.map((item) => [item.id, item.name]));
+  const stationNames = Object.fromEntries(stations.map((station) => [station.id, station.name]));
 
   return (
     <>
       <TodayV2Client
         locationNames={locationNames}
         itemNames={itemNames}
+        stationNames={stationNames}
         itemImageUrls={Object.fromEntries(menuItems.map((item) => [item.id, item.imageUrl]))}
         recommendationData={{ locations, menuItems, stations, components }}
         isDemo={!hasVerifiedMenuData}

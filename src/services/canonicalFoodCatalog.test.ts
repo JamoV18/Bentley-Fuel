@@ -63,3 +63,25 @@ test("campus foods use stable IDs and retain source verification", () => {
   assert.equal(canonical.verification, "verified");
   assert.ok(canonicalFoodCatalog([]).some((candidate) => candidate.foodId === "generic:egg"));
 });
+
+test("921 banana is a location-wide campus staple with generic nutrition", () => {
+  const staple = canonicalFoodCatalog([]).find((candidate) => candidate.foodId === "campus-staple:loc-921:banana")!;
+  assert.equal(staple.source, "campus-staple");
+  assert.equal(staple.locationId, "loc-921");
+  assert.equal(staple.stationId, undefined);
+  assert.equal(staple.contextLabel, "921 staple · generic nutrition");
+  assert.equal(calculateFoodNutrition(staple, "banana", 2).calories, 210);
+  assert.equal(rankCanonicalFoods("banana", canonicalFoodCatalog([]), [], { locationId: "loc-921", mealSlot: "snack" })[0].foodId, staple.foodId);
+});
+
+test("Cucina add-ins retain raw identity and gain omelette search context", () => {
+  const item = {
+    id: "spinach", name: "Chopped Spinach", locationId: "loc-921", stationId: "cucina", kind: "predefined",
+    allergens: [], dietaryTags: [], nutrition: { calories: 7, protein: 1, carbs: 1, fat: 0 },
+    provenance: { source: { type: "bentley-dining", name: "Bentley Dining" }, dataStatus: "verified", confidence: 1 },
+  } as MenuItem;
+  const base = { ...item, id: "eggs", name: "Eggs" };
+  const result = canonicalFoodCatalog([base, item], { cucina: "Cucina" }).find((food) => food.name === "Chopped Spinach")!;
+  assert.equal(result.contextLabel, "Cucina · Omelette add-in");
+  assert.equal(result.nutritionReference.nutrition.calories, 7);
+});

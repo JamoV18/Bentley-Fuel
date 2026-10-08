@@ -55,6 +55,9 @@
 .ff-v2-top-pick { grid-column: 1/-1; margin-top: 4px; }
 .ff-v2-top-pick strong { font-size: 14px; font-weight: 500; display: block; }
 .ff-v2-top-pick small { font-size: 12px; color: var(--ff-text-secondary); }
+.ff-v2-top-pick small { display: block; margin-top: 3px; }
+.ff-v2-context-actions { display: flex; flex-wrap: wrap; gap: 16px; grid-column: 1/-1; }
+.ff-v2-context-actions a { min-height: 40px; display: inline-flex; align-items: center; color: var(--ff-accent-light); font-size: 12px; font-weight: 700; }
 .ff-v2-hero-copy > div:has(.ff-v2-primary-cta) { grid-column: 1/-1; margin-top: 8px; }
 .ff-v2-primary-cta { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 12px 16px; border-radius: var(--ff-radius-button); background: var(--ff-accent); color: var(--ff-on-accent); font-size: 14px; font-weight: 600; transition: background var(--ff-motion-fast); }
 .ff-v2-primary-cta:hover { background: var(--ff-accent-strong); }
@@ -92,6 +95,12 @@
 .ff-v2-meal-copy h3 { font-size: 14px; font-weight: 500; }
 .ff-v2-meal-copy > span, .ff-v2-meal-copy p { font-size: 12px; color: var(--ff-text-secondary); }
 .ff-v2-meal-status { font-size: 12px; color: var(--ff-text-secondary); }
+.ff-meal-menu { position: relative; align-self: start; }
+.ff-meal-menu summary { min-width: 44px; min-height: 44px; display: grid; place-items: center; cursor: pointer; color: var(--ff-text-secondary); list-style: none; }
+.ff-meal-menu summary::-webkit-details-marker { display: none; }
+.ff-meal-menu > div { position: absolute; z-index: 8; right: 0; top: 40px; width: 150px; padding: 6px; border: 1px solid var(--ff-border); border-radius: 10px; background: var(--ff-surface-elevated); box-shadow: var(--ff-shadow-card); }
+.ff-meal-menu a,.ff-meal-menu button { width: 100%; min-height: 40px; display: flex; align-items: center; padding: 8px; text-align: left; font-size: 12px; font-weight: 700; }
+.ff-meal-menu button { color: var(--ff-danger); }
 .ff-v2-empty-title { font-size: 26px; }
 .ff-v2-empty-copy { color: var(--ff-text-secondary); }
 @media(min-width:600px) and (max-width:1099px) {

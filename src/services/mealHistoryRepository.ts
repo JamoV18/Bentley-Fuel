@@ -43,7 +43,7 @@ const validBuild = (value: unknown): value is MealBuild => {
       typeof snapshot.quantity === "number" && Number.isFinite(snapshot.quantity) && snapshot.quantity > 0 &&
       typeof snapshot.portionUnitId === "string" && typeof snapshot.portionAmount === "number" && snapshot.portionAmount > 0 &&
       typeof snapshot.portionUnit === "string" && typeof snapshot.portionLabel === "string" &&
-      (snapshot.source === "bentley-dining" || snapshot.source === "generic" || snapshot.source === "custom") &&
+      (snapshot.source === "bentley-dining" || snapshot.source === "campus-staple" || snapshot.source === "generic" || snapshot.source === "custom") &&
       (snapshot.verification === "verified" || snapshot.verification === "calibrated-estimate" || snapshot.verification === "unverified-estimate") &&
       validIso(snapshot.loggedAt) && validNutrition(snapshot.nutrition) &&
       (snapshot.locationId === undefined || typeof snapshot.locationId === "string") &&

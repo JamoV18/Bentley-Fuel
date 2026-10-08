@@ -79,7 +79,7 @@ function SlotIcon({ done, slot }: { done: boolean; slot: MealLogSlot }) {
   );
 }
 
-export default function LogMealClient({ menuItems, campusAvailable }: { menuItems: MenuItem[]; campusAvailable: boolean }) {
+export default function LogMealClient({ menuItems, stationNames, campusAvailable }: { menuItems: MenuItem[]; stationNames: Record<string, string>; campusAvailable: boolean }) {
   const reduceMotion = useReducedMotion();
   const [selectedDate, setSelectedDate] = useState(todayKey);
   const [entries, setEntries] = useState<MealHistoryEntry[]>([]);
@@ -128,7 +128,7 @@ export default function LogMealClient({ menuItems, campusAvailable }: { menuItem
   }, []);
 
   const progress = useMemo(() => summarizeMealLogProgress(entries), [entries]);
-  const foods = useMemo(() => canonicalFoodCatalog(menuItems), [menuItems]);
+  const foods = useMemo(() => canonicalFoodCatalog(menuItems, stationNames), [menuItems, stationNames]);
   const entriesBySlot = useMemo(() => {
     const result: Record<MealLogSlot, MealHistoryEntry[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
     for (const entry of entries) {

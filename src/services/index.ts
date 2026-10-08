@@ -41,4 +41,6 @@ export * from "./goingOutRecommendation";
 export * from "./drinkLogging";
 export * from "./drinkCatalog";
 export * from "./canonicalFoodCatalog";
+export * from "./campusStaples";
+export * from "./mealPresentation";
 export * from "./canonicalFoodLogging";

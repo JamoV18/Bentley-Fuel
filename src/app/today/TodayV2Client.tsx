@@ -3,12 +3,11 @@
 import "./today-v2.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import AppNav from "@/components/AppNav";
 import MealImage from "@/components/MealImage";
 import ProfileMenu from "@/components/ProfileMenu";
-import SuccessMorphLabel from "@/components/SuccessMorphLabel";
 import { resolveLivingDayState, type CoreMealSlot } from "@/lib/livingDay";
 import {
   browserMealHistoryRepository,
@@ -20,6 +19,7 @@ import {
   MEAL_COMPLETION_CHOICES,
   resolveNutritionPlan,
   scoreResolvedMeals,
+  presentMeal,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type {
@@ -45,7 +45,7 @@ const readable = (value: string) => value.split("-").map((word) => word[0].toUpp
 const localDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const todayKey = () => localDateKey(new Date());
 const primaryItemId = (entry: MealHistoryEntry) => entry.build.items[0]?.menuItemId;
-const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>) => entry.build.items.map((item) => item.display?.name ?? itemNames[item.menuItemId] ?? "Meal item").join(" + ");
+const mealName = (entry: MealHistoryEntry, itemNames: Record<string, string>, stationNames: Record<string, string>, locationNames: Record<string, string>) => presentMeal(entry, { itemNames, stationNames, locationNames }).title;
 const mealImageUrl = (entry: MealHistoryEntry, itemImageUrls: Record<string, string | undefined>) => entry.build.items[0]?.display?.imageUrl ?? itemImageUrls[primaryItemId(entry)];
 
 type TodayRecommendationData = {
@@ -141,12 +141,14 @@ function preferredLocation(
 export default function TodayV2Client({
   locationNames,
   itemNames,
+  stationNames,
   itemImageUrls,
   recommendationData,
   isDemo,
 }: {
   locationNames: Record<string, string>;
   itemNames: Record<string, string>;
+  stationNames: Record<string, string>;
   itemImageUrls: Record<string, string | undefined>;
   recommendationData: TodayRecommendationData;
   isDemo: boolean;
@@ -159,6 +161,7 @@ export default function TodayV2Client({
   const [pending, setPending] = useState<MealHistoryEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [savingCheckIn, setSavingCheckIn] = useState<{ id: string; fraction: MealCompletionFraction }>();
+  const [activeCheckInId, setActiveCheckInId] = useState<string>();
   const [nutritionMode, setNutritionMode] = useState<"remaining" | "consumed">("remaining");
   const [goingOutSettings, setGoingOutSettings] = useState<GoingOutSettings>();
   const [goingOutEvents, setGoingOutEvents] = useState<GoingOutEvent[]>([]);
@@ -299,6 +302,13 @@ export default function TodayV2Client({
     checkInTimer.current = window.setTimeout(finish, 520);
   };
 
+  const deleteEntry = (entry: MealHistoryEntry) => {
+    const label = entry.source === "drink-log" ? "drink" : entry.mealSlot === "snack" ? "snack" : "meal";
+    if (!window.confirm(`Delete this ${label}? This updates Today and History totals.`)) return;
+    browserMealHistoryRepository().remove(entry.id);
+    refresh();
+  };
+
   const changeDay = (amount: number) => {
     setSelectedDate((current) => {
       const next = new Date(current);
@@ -325,7 +335,7 @@ export default function TodayV2Client({
   const recommendationHref = recommendationPeriod && locationPreference.id ? `/meal-builder/${locationPreference.id}?period=${encodeURIComponent(recommendationPeriod)}` : "/dashboard";
 
   const heroEyebrow = livingDay.mode === "late-night" ? "Optional tonight" : "Next best meal";
-  const heroTitle = livingDay.mode === "late-night"
+  const heroTitle = firstPending ? mealName(firstPending, itemNames, stationNames, locationNames) : livingDay.mode === "late-night"
     ? "Still hungry?"
     : `${mealPeriodLabel ?? "Meal"} at ${preferredLocationName}`;
   const heroCta = livingDay.mode === "anticipate" && mealPeriodLabel
@@ -434,9 +444,9 @@ export default function TodayV2Client({
             transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ff-v2-hero-copy">
-              <p className="ff-v2-eyebrow">{heroEyebrow}</p>
+              <p className="ff-v2-eyebrow">{firstPending ? `${readable(inferredCoreMealSlot(firstPending) ?? "meal")} selected` : heroEyebrow}</p>
               <h2>{heroTitle}</h2>
-              {topMealPick && livingDay.mode !== "late-night" && (
+              {firstPending ? (() => { const presentation = presentMeal(firstPending, { itemNames, stationNames, locationNames }); return <div className="ff-v2-top-pick"><strong>{locationNames[firstPending.locationId] ?? firstPending.locationId}</strong>{presentation.details && <small>{presentation.details}</small>}{firstPending.nutrition && <small>{round(firstPending.nutrition.calories)} cal · {round(firstPending.nutrition.protein)}g protein if finished</small>}</div>; })() : topMealPick && livingDay.mode !== "late-night" && (
                 <div className="ff-v2-top-pick" aria-label="Current top meal recommendation">
                   <strong>{topMealPick.name}</strong>
                   <small>
@@ -445,10 +455,10 @@ export default function TodayV2Client({
                   </small>
                 </div>
               )}
-              <motion.div tabIndex={-1} whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}>
-                <Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link>
-              </motion.div>
-              <Link href="/dashboard" className="ff-v2-secondary-link">Change location</Link>
+              {firstPending ? <>
+                {activeCheckInId === firstPending.id ? <div className="ff-v2-confirm-actions" aria-label="How much did you eat?">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" disabled={savingFirstPending} className={savingFirstPending && savingCheckIn?.fraction === choice.fraction ? "is-selected" : undefined} onClick={() => saveCompletion(firstPending.id, choice.fraction)}>{choice.label}</button>)}</div> : <button type="button" className="ff-v2-primary-cta" onClick={() => setActiveCheckInId(firstPending.id)}>Check in <span>→</span></button>}
+                <div className="ff-v2-context-actions"><Link href={`/log-meal?slot=${inferredCoreMealSlot(firstPending) ?? "snack"}&entryId=${encodeURIComponent(firstPending.id)}`}>+ Add item</Link><Link href={`/meal-builder/${firstPending.locationId}?mode=manual&period=${inferredCoreMealSlot(firstPending) ?? "late-night"}&entryId=${encodeURIComponent(firstPending.id)}`}>Edit meal</Link></div>
+              </> : <><motion.div tabIndex={-1} whileTap={reduceMotion ? undefined : { scale: 0.985 }} transition={{ duration: 0.12 }}><Link href={recommendationHref} className="ff-v2-primary-cta">{heroCta} <span>→</span></Link></motion.div><Link href="/dashboard" className="ff-v2-secondary-link">Change location</Link></>}
               {livingDay.mode === "late-night" && <p className="ff-v3-late-note">Only if you’re hungry.</p>}
             </div>
           </motion.section>
@@ -461,45 +471,6 @@ export default function TodayV2Client({
 
         </section>
       )}
-
-      <AnimatePresence initial={false} mode="popLayout">
-        {isToday && firstPending && (
-          <motion.section
-            key={firstPending.id}
-            className="ff-v2-confirm"
-            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={savingFirstPending && !reduceMotion ? { opacity: 1, y: 0, scale: 0.995 } : { opacity: 1, y: 0, scale: 1 }}
-            exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -5, height: 0, marginTop: 0 }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="ff-v2-confirm-media"><MealImage name={mealName(firstPending, itemNames)} imageUrl={mealImageUrl(firstPending, itemImageUrls)} aspect="wide" /></div>
-            <div className="ff-v2-confirm-copy">
-
-              <h2>How much did you actually eat?</h2>
-              <p className="ff-v2-confirm-meal">{mealName(firstPending, itemNames)} · {locationNames[firstPending.locationId] ?? firstPending.locationId}</p>
-              {firstPending.nutrition && <p className="ff-v2-confirm-macros">{round(firstPending.nutrition.calories)} cal · {round(firstPending.nutrition.protein)}g protein if finished</p>}
-              <div className="ff-v2-confirm-actions">
-                {MEAL_COMPLETION_CHOICES.map((choice) => {
-                  const selectedChoice = savingFirstPending && savingCheckIn?.fraction === choice.fraction;
-                  return (
-                    <motion.button
-                      key={choice.label}
-                      type="button"
-                      disabled={savingFirstPending}
-                      className={selectedChoice ? "is-selected" : undefined}
-                      onClick={() => saveCompletion(firstPending.id, choice.fraction)}
-                      whileTap={reduceMotion || savingFirstPending ? undefined : { scale: 0.97 }}
-                    >
-                      <SuccessMorphLabel success={selectedChoice} idleLabel={choice.label} successLabel="Saved" />
-                    </motion.button>
-                  );
-                })}
-              </div>
-
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
 
       </div>
       {isToday && (goingOutSettings?.showOnToday ?? true) && goingOutSettings?.dismissedTodayDate !== todayKey() && (
@@ -526,17 +497,16 @@ export default function TodayV2Client({
             </div>
             {meals.map((entry) => (
               <article key={entry.id} className="ff-v2-meal-row">
-                <MealImage name={mealName(entry, itemNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} />
+                <MealImage name={mealName(entry, itemNames, stationNames, locationNames)} imageUrl={mealImageUrl(entry, itemImageUrls)} />
                 <div className="ff-v2-meal-copy">
-                  <h3>{entry.source === "drink-log" ? mealName(entry, itemNames) : entry.entryKind === "alcohol" ? `Night Out · ${mealName(entry, itemNames)}` : mealName(entry, itemNames)}</h3>
+                  <h3>{entry.source === "drink-log" ? mealName(entry, itemNames, stationNames, locationNames) : entry.entryKind === "alcohol" ? `Night Out · ${mealName(entry, itemNames, stationNames, locationNames)}` : mealName(entry, itemNames, stationNames, locationNames)}</h3>
+                  {presentMeal(entry, { itemNames, stationNames, locationNames }).details && <span>{presentMeal(entry, { itemNames, stationNames, locationNames }).details}</span>}
                   <span>{entry.source === "drink-log" ? `Drink · ${entry.nutritionEstimateStatus ?? "estimated"}` : entry.entryKind === "alcohol" ? `Alcohol · ${entry.nutritionEstimateStatus ?? "estimated"}${entry.timeAccuracy === "date-only" ? " · time approximate" : ""}` : (locationNames[entry.locationId] ?? entry.locationId)}</span>
                   {entry.campusBeverages?.length ? <span>+ {entry.campusBeverages.map((beverage) => beverage.name).join(", ")}</span> : null}
                   {entry.nutrition && <p>{entry.completionFraction === undefined ? `${round(entry.nutrition.calories)} cal · check-in pending` : `${Math.round(entry.nutrition.calories * entry.completionFraction)} cal · ${Math.round(entry.nutrition.protein * entry.completionFraction)}g protein`}</p>}
                   {isToday && entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log" && entry.source !== "night-out" && <Link href={`/log-meal?slot=${slot}&entryId=${encodeURIComponent(entry.id)}`} className="mt-1 inline-block text-xs font-bold text-[var(--ff-accent-light)]">+ Add item</Link>}
                 </div>
-                <div className="ff-v2-meal-status" aria-label={entry.completionFraction === undefined ? "Check-in pending" : `${Math.round(entry.completionFraction * 100)} percent finished`}>
-                  {entry.completionFraction === undefined ? "…" : entry.completionFraction === 1 ? "✓" : `${Math.round(entry.completionFraction * 100)}%`}
-                </div>
+                <details className="ff-meal-menu"><summary aria-label={`Actions for ${mealName(entry, itemNames, stationNames, locationNames)}`}>•••</summary><div>{entry.source === "drink-log" ? <Link href={`/going-out?action=log&edit=${encodeURIComponent(entry.id)}`}>Edit drink</Link> : entry.source === "manual-log" ? <Link href={`/log-meal?slot=${slot}&entryId=${encodeURIComponent(entry.id)}`}>Edit meal</Link> : <Link href={`/meal-builder/${entry.locationId}?mode=manual&period=${slot === "snack" ? "late-night" : slot}&entryId=${encodeURIComponent(entry.id)}`}>Edit meal</Link>}<button type="button" onClick={() => deleteEntry(entry)}>Delete {entry.source === "drink-log" ? "drink" : slot === "snack" ? "snack" : "meal"}</button></div></details>
               </article>
             ))}
           </section>;

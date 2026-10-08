@@ -12,6 +12,7 @@ import type {
 import { scaleNutrition } from "./nutrition";
 import { CAMPUS_STAPLE_FOODS } from "./campusStaples";
 import { cucinaOmeletteRole } from "./mealPresentation";
+import { isKnownCompositionHeader, isKnownCompositionSnapshot } from "./mealCompositionConcepts";
 
 const ounceGrams = 28.3495;
 
@@ -69,6 +70,7 @@ export function canonicalPlanningDiningResources(locationId: string): { stations
 const slug = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export function canonicalFoodFromMenuItem(item: MenuItem, stationName?: string): CanonicalFood | undefined {
+  if (item.composition || isKnownCompositionHeader(item, stationName)) return undefined;
   const nutrition = item.nutrition ?? item.baseNutrition;
   if (!nutrition) return undefined;
   const serving = item.serving;
@@ -173,7 +175,7 @@ export function recentCanonicalFoods(entries: readonly MealHistoryEntry[], limit
   const recent = new Map<string, RecentCanonicalFood>();
   for (const entry of entries) for (const line of entry.build.items) {
     const snapshot = line.foodSnapshot;
-    if (!snapshot) continue;
+    if (!snapshot || isKnownCompositionSnapshot(snapshot)) continue;
     const existing = recent.get(snapshot.foodId);
     if (existing) existing.uses += 1;
     else recent.set(snapshot.foodId, { foodId: snapshot.foodId, snapshot, uses: 1 });

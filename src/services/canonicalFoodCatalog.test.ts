@@ -94,3 +94,35 @@ test("Cucina add-ins retain raw identity and gain omelette search context", () =
   assert.equal(result.contextLabel, "Cucina · Omelette add-in");
   assert.equal(result.nutritionReference.nutrition.calories, 7);
 });
+
+test("canonical catalog excludes known structural headers without suppressing real bar foods", () => {
+  const base: Pick<MenuItem, "locationId" | "stationId" | "kind" | "allergens" | "dietaryTags" | "provenance"> = {
+    locationId: "loc-921", stationId: "cucina", kind: "predefined", allergens: [], dietaryTags: [],
+    provenance: { source: { type: "bentley-dining", name: "Bentley Dining" }, dataStatus: "verified", confidence: 1 },
+  };
+  const header = {
+    ...base, id: "pasta-header", name: "Pasta Bar", ingredients: "Water",
+    serving: { amount: 1, unit: "plate", description: "1 plate" },
+    nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  } as MenuItem;
+  const dessert = {
+    ...base, id: "dessert", name: "Chocolate Oat Bar",
+    serving: { amount: 1, unit: "bar" }, nutrition: { calories: 210, protein: 4, carbs: 31, fat: 8 },
+  } as MenuItem;
+  assert.equal(canonicalFoodFromMenuItem(header, "Cucina"), undefined);
+  assert.equal(canonicalFoodFromMenuItem(header), undefined);
+  assert.equal(canonicalFoodFromMenuItem(dessert, "Cucina")?.name, "Chocolate Oat Bar");
+});
+
+test("legacy zero-calorie composition headers are not offered as recent foods", () => {
+  const entry = {
+    id: "legacy", locationId: "loc-921", selectedAt: "2026-10-07T12:00:00.000Z",
+    build: { locationId: "loc-921", items: [{ id: "line", menuItemId: "old-header", quantity: 1, foodSnapshot: {
+      foodId: "old-header", displayName: "Omelet Bar", quantity: 1, portionUnitId: "menu-serving",
+      portionAmount: 1, portionUnit: "plate", portionLabel: "1 plate",
+      nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 }, source: "bentley-dining" as const,
+      verification: "verified" as const, loggedAt: "2026-10-07T12:00:00.000Z", locationId: "loc-921", stationId: "cucina",
+    } }] },
+  };
+  assert.deepEqual(recentCanonicalFoods([entry]), []);
+});

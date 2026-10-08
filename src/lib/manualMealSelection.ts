@@ -1,7 +1,7 @@
 import type { FoodComponent, MealBuild, MealItemSelection, MenuItem } from "@/types";
 
 const displaySnapshot = (item: MenuItem): MealItemSelection["display"] => ({
-  name: item.name,
+  name: item.composition?.canonicalName ?? item.name,
   imageUrl: item.imageUrl,
   stationId: item.stationId,
 });
@@ -19,6 +19,18 @@ export function createManualMealItemSelection(
 ): MealItemSelection {
   if (item.kind !== "customizable" || !item.customization) {
     return { id: lineId, menuItemId: item.id, quantity: 1, display: displaySnapshot(item) };
+  }
+
+  // Composition builders should open empty so the student explicitly records
+  // what they received. Required steps remain validation rules at save time.
+  if (item.composition) {
+    return {
+      id: lineId,
+      menuItemId: item.id,
+      quantity: 1,
+      componentSelections: [],
+      display: displaySnapshot(item),
+    };
   }
 
   const componentById = new Map(components.map((component) => [component.id, component]));

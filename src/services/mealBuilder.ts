@@ -73,6 +73,17 @@ export function computeMealBuild(build: MealBuild, resources: MealBuildResources
     const issues: MealBuildIssue[] = [];
     const item = itemById.get(selection.menuItemId);
     if (!item) {
+      const composition = selection.compositionSnapshot;
+      if (composition) {
+        if (!Number.isFinite(selection.quantity) || selection.quantity <= 0) issues.push(issue("INVALID_ITEM_QUANTITY", "Item quantity must be finite and greater than zero.", selection.id));
+        const nutrition = issues.length === 0
+          ? scaleNutrition(composition.components.reduce(
+              (total, component) => addNutrition(total, scaleNutrition(component.nutrition, component.quantity)),
+              { calories: 0, protein: 0, carbs: 0, fat: 0 },
+            ), selection.quantity)
+          : undefined;
+        return { selection, nutrition, allergens: [], mayContainAllergens: [], dietaryTags: [], issues };
+      }
       const snapshot = selection.foodSnapshot;
       if (snapshot) {
         if (!Number.isFinite(selection.quantity) || selection.quantity <= 0) issues.push(issue("INVALID_ITEM_QUANTITY", "Item quantity must be finite and greater than zero.", selection.id));

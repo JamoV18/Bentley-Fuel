@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import MealImage from "@/components/MealImage";
 import { addManualMenuItem } from "@/lib/manualMealSelection";
 import type { MealBuildResources } from "@/services";
-import { cucinaOmeletteRole } from "@/services";
+import { compositionMatchesSearch } from "@/services";
 import type { MealBuild, MealPeriod } from "@/types";
 
 const periodAvailable = (periods: readonly MealPeriod[] | undefined, current: MealPeriod) => !periods || periods.length === 0 || periods.includes("all-day") || periods.includes(current);
@@ -15,15 +15,20 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
   const [lastAddedItemId, setLastAddedItemId] = useState<string>();
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
+  const matchesSearch = useCallback((item: MealBuildResources["menuItems"][number]) => !normalizedQuery ||
+    compositionMatchesSearch(item, normalizedQuery) ||
+    `${item.name} ${item.description ?? ""}`.toLowerCase().includes(normalizedQuery), [normalizedQuery]);
   const availableStations = useMemo(() => resources.stations.filter((station) => {
     if (!periodAvailable(station.mealPeriods, mealPeriod)) return false;
     if (!normalizedQuery) return true;
-    return resources.menuItems.some((item) => item.stationId === station.id && periodAvailable(item.availability, mealPeriod) && `${item.name} ${item.description ?? ""}`.toLowerCase().includes(normalizedQuery));
-  }), [mealPeriod, normalizedQuery, resources.menuItems, resources.stations]);
+    return resources.menuItems.some((item) => item.stationId === station.id && periodAvailable(item.availability, mealPeriod) && matchesSearch(item));
+  }), [matchesSearch, mealPeriod, normalizedQuery, resources.menuItems, resources.stations]);
   const addItem = (itemId: string) => {
     const item = resources.menuItems.find((candidate) => candidate.id === itemId);
     if (!item) return;
-    onBuildChange(addManualMenuItem(build, item, resources.components, crypto.randomUUID()));
+    const lineId = crypto.randomUUID();
+    onBuildChange(addManualMenuItem(build, item, resources.components, lineId));
+    if (item.composition) window.setTimeout(() => document.getElementById(`meal-line-${lineId}`)?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" }), 40);
     if (reduceMotion) return;
     setLastAddedItemId(itemId);
     window.setTimeout(() => {
@@ -39,12 +44,9 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
 
       <div className="mt-5 space-y-5">
         {availableStations.map((station) => {
-          const items = resources.menuItems.filter((item) => item.stationId === station.id && periodAvailable(item.availability, mealPeriod) && (!normalizedQuery || `${item.name} ${item.description ?? ""}`.toLowerCase().includes(normalizedQuery))).sort((a, b) => {
-            const hasOmeletteBase = resources.menuItems.some((candidate) => candidate.stationId === station.id && cucinaOmeletteRole(candidate.name, station.name) === "base");
-            const rank = (name: string) => hasOmeletteBase && cucinaOmeletteRole(name, station.name) === "base" ? 0 : hasOmeletteBase && cucinaOmeletteRole(name, station.name) === "add-in" ? 1 : 2;
-            return rank(a.name) - rank(b.name);
-          });
-          const hasOmeletteBase = resources.menuItems.some((candidate) => candidate.stationId === station.id && cucinaOmeletteRole(candidate.name, station.name) === "base");
+          const items = resources.menuItems
+            .filter((item) => item.stationId === station.id && periodAvailable(item.availability, mealPeriod) && matchesSearch(item))
+            .sort((a, b) => Number(Boolean(b.composition && compositionMatchesSearch(b, normalizedQuery))) - Number(Boolean(a.composition && compositionMatchesSearch(a, normalizedQuery))) || Number(Boolean(b.composition)) - Number(Boolean(a.composition)) || a.name.localeCompare(b.name));
           return (
             <section key={station.id} className="border-t border-[var(--ff-divider)] py-3" aria-labelledby={`${station.id}-manual-heading`}>
               <div className="flex items-end justify-between gap-3"><div><h3 id={`${station.id}-manual-heading`} className="text-base font-semibold">{station.name}</h3>{station.description && <p className="mt-1 text-xs subtle">{station.description}</p>}</div><span className="text-xs font-semibold subtle">{items.length} items</span></div>
@@ -57,7 +59,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                     return (
                       <motion.li
                         key={item.id}
-                        className="meal-row"
+                        className={item.composition ? "meal-row rounded-xl bg-[var(--ff-surface-elevated)] px-3" : "meal-row"}
                         initial={false}
                         animate={reduceMotion ? undefined : {
                           backgroundColor: justAdded ? "var(--ff-accent-muted)" : "var(--ff-canvas)",
@@ -67,10 +69,9 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                       >
                         <MealImage name={item.name} imageUrl={item.imageUrl} />
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold leading-tight">{item.name}</p>
-                          {hasOmeletteBase && cucinaOmeletteRole(item.name, station.name) === "base" && <p className="mt-1 text-xs font-bold text-[var(--ff-accent-light)]">Omelette</p>}
-                          {hasOmeletteBase && cucinaOmeletteRole(item.name, station.name) === "add-in" && <p className="mt-1 text-xs subtle">Omelette add-in</p>}
-                          <p className="mt-1 text-xs subtle">{item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein · ${item.nutrition.carbs}g carbs` : "Nutrition shown after adding"}{item.price !== undefined && ` · $${item.price.toFixed(2)}`}</p>
+                          <p className="font-bold leading-tight">{item.composition?.actionTitle ?? item.name}</p>
+                          {item.composition && <p className="mt-1 text-xs font-semibold text-[var(--ff-accent-light)]">{item.composition.mode === "builder" ? "Composed meal" : "Choose actual components"}</p>}
+                          <p className="mt-1 text-xs subtle">{item.composition?.selectionPrompt ?? (item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein · ${item.nutrition.carbs}g carbs` : "Nutrition shown after adding")}{item.price !== undefined && ` · $${item.price.toFixed(2)}`}</p>
                           <AnimatePresence initial={false} mode="wait">
                             {servings > 0 && (
                               <motion.p
@@ -93,7 +94,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                           whileTap={reduceMotion ? undefined : { scale: 0.96 }}
                           transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 30, mass: 0.45 }}
                         >
-                          {item.kind === "customizable" && matchingLines.length > 0 ? "Add another" : "Add"}
+                          {item.composition ? (matchingLines.length > 0 ? "Build another" : "Build") : item.kind === "customizable" && matchingLines.length > 0 ? "Add another" : "Add"}
                         </motion.button>
                       </motion.li>
                     );

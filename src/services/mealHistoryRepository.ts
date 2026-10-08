@@ -36,7 +36,16 @@ const validBuild = (value: unknown): value is MealBuild => {
     const validComponents = line.componentSelections === undefined || (Array.isArray(line.componentSelections) && line.componentSelections.every((selection) =>
       isRecord(selection) && typeof selection.componentId === "string" && typeof selection.quantity === "number" && Number.isFinite(selection.quantity) && selection.quantity > 0,
     ));
-    if (!validComponents || line.foodSnapshot === undefined) return validComponents;
+    const validComposition = line.compositionSnapshot === undefined || (isRecord(line.compositionSnapshot) &&
+      typeof line.compositionSnapshot.conceptId === "string" && typeof line.compositionSnapshot.title === "string" &&
+      (line.compositionSnapshot.mode === "builder" || line.compositionSnapshot.mode === "component_meal") &&
+      Array.isArray(line.compositionSnapshot.components) && line.compositionSnapshot.components.every((component) =>
+        isRecord(component) && typeof component.componentId === "string" && typeof component.name === "string" &&
+        typeof component.quantity === "number" && Number.isFinite(component.quantity) && component.quantity > 0 &&
+        isRecord(component.serving) && typeof component.serving.amount === "number" && component.serving.amount > 0 &&
+        typeof component.serving.unit === "string" && validNutrition(component.nutrition),
+      ));
+    if (!validComponents || !validComposition || line.foodSnapshot === undefined) return validComponents && validComposition;
     const snapshot = line.foodSnapshot;
     return isRecord(snapshot) && typeof snapshot.foodId === "string" && snapshot.foodId.length > 0 &&
       typeof snapshot.displayName === "string" && snapshot.displayName.length > 0 &&

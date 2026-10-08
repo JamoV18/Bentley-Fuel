@@ -2,6 +2,7 @@
 
 import PageHeader from "@/components/PageHeader";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -81,6 +82,7 @@ function SlotIcon({ done, slot }: { done: boolean; slot: MealLogSlot }) {
 
 export default function LogMealClient({ menuItems, stationNames, campusAvailable }: { menuItems: MenuItem[]; stationNames: Record<string, string>; campusAvailable: boolean }) {
   const reduceMotion = useReducedMotion();
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(todayKey);
   const [entries, setEntries] = useState<MealHistoryEntry[]>([]);
   const [recentFoods, setRecentFoods] = useState<ReturnType<typeof recentCanonicalFoods>>([]);
@@ -129,6 +131,7 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
 
   const progress = useMemo(() => summarizeMealLogProgress(entries), [entries]);
   const foods = useMemo(() => canonicalFoodCatalog(menuItems, stationNames), [menuItems, stationNames]);
+  const compositionActions = useMemo(() => menuItems.filter((item) => item.composition), [menuItems]);
   const entriesBySlot = useMemo(() => {
     const result: Record<MealLogSlot, MealHistoryEntry[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
     for (const entry of entries) {
@@ -204,6 +207,12 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
     if (updated) browserMealHistoryRepository().upsert(updated);
     else browserMealHistoryRepository().remove(entry.id);
     refresh();
+  };
+
+  const openComposition = (item: MenuItem) => {
+    const params = new URLSearchParams({ mode: "manual", add: item.id, date: selectedDate });
+    if (activeSlot && activeSlot !== "snack") params.set("period", activeSlot);
+    router.push(`/meal-builder/${item.locationId}?${params.toString()}`);
   };
 
 
@@ -304,7 +313,7 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
               </div>
 
               <div className="mt-5">
-                <CanonicalFoodPicker key={`${targetEntryId ?? "new"}:${editingLineId ?? "add"}:${initialSnapshot?.loggedAt ?? ""}`} foods={foods} recent={recentFoods} locationId={locationId} mealSlot={activeSlot} campusAvailable={campusAvailable} initialSnapshot={initialSnapshot} onAdd={save} actionLabel={editingLineId ? "Save changes" : targetEntryId ? "Add item" : "Add food"} />
+                <CanonicalFoodPicker key={`${targetEntryId ?? "new"}:${editingLineId ?? "add"}:${initialSnapshot?.loggedAt ?? ""}`} foods={foods} recent={recentFoods} compositionActions={targetEntryId ? [] : compositionActions} locationId={locationId} mealSlot={activeSlot} campusAvailable={campusAvailable} initialSnapshot={initialSnapshot} onAdd={save} onChooseComposition={openComposition} actionLabel={editingLineId ? "Save changes" : targetEntryId ? "Add item" : "Add food"} />
               </div>
 
               <details className="surface-soft mt-5 p-4">

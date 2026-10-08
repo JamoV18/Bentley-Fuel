@@ -9,20 +9,23 @@ import {
   foodSourceLabel,
   formatFoodPortion,
   rankCanonicalFoods,
+  compositionMatchesSearch,
   type RecentCanonicalFood,
 } from "@/services";
-import type { CanonicalFood, LoggedFoodSnapshot, MealLogSlot } from "@/types";
+import type { CanonicalFood, LoggedFoodSnapshot, MealLogSlot, MenuItem } from "@/types";
 
 const rounded = (value: number) => Math.round(value * 10) / 10;
 
-export default function CanonicalFoodPicker({ foods, recent, locationId, mealSlot, campusAvailable, initialSnapshot, onAdd, actionLabel = "Add" }: {
+export default function CanonicalFoodPicker({ foods, recent, compositionActions = [], locationId, mealSlot, campusAvailable, initialSnapshot, onAdd, onChooseComposition, actionLabel = "Add" }: {
   foods: readonly CanonicalFood[];
   recent: readonly RecentCanonicalFood[];
+  compositionActions?: readonly MenuItem[];
   locationId?: string;
   mealSlot?: MealLogSlot;
   campusAvailable: boolean;
   initialSnapshot?: LoggedFoodSnapshot;
   onAdd: (snapshot: LoggedFoodSnapshot) => void;
+  onChooseComposition?: (item: MenuItem) => void;
   actionLabel?: string;
 }) {
   const allFoods = useMemo(() => {
@@ -36,6 +39,9 @@ export default function CanonicalFoodPicker({ foods, recent, locationId, mealSlo
   const [portionUnitId, setPortionUnitId] = useState(initialSnapshot?.portionUnitId ?? initialFood?.defaultPortionUnitId ?? "");
   const [quantity, setQuantity] = useState(initialSnapshot?.quantity ?? initialFood?.defaultQuantity ?? 1);
   const results = useMemo(() => rankCanonicalFoods(query, allFoods, recent, { locationId, mealSlot }), [allFoods, locationId, mealSlot, query, recent]);
+  const compositionResults = useMemo(() => query.trim() ? compositionActions
+    .filter((item) => item.locationId === locationId && compositionMatchesSearch(item, query))
+    .slice(0, 4) : [], [compositionActions, locationId, query]);
   const portion = selected?.portions.find((candidate) => candidate.id === portionUnitId);
   const nutrition = selected ? calculateFoodNutrition(selected, portionUnitId, quantity) : undefined;
 
@@ -53,7 +59,8 @@ export default function CanonicalFoodPicker({ foods, recent, locationId, mealSlo
     {!campusAvailable && <p className="rounded-xl bg-[var(--ff-warning-surface)] px-3 py-2 text-xs text-[var(--ff-text-secondary)]">Bentley menu data is currently unavailable. Generic foods and your recent foods are still available.</p>}
 
     {query.trim() && <div className="grid max-h-64 gap-1 overflow-y-auto" role="listbox" aria-label="Food search results">
-      {results.length === 0 ? <p className="p-3 text-sm subtle">No matching foods.</p> : results.map((food) => <button type="button" role="option" aria-selected="false" className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] p-3 text-left" key={food.foodId} onClick={() => choose(food)}><span><strong className="block text-sm">{food.name}</strong><small className="mt-1 block text-xs subtle">{food.contextLabel ?? food.portions.find((item) => item.id === food.defaultPortionUnitId)?.displayName}</small></span><small className="text-right text-xs font-semibold text-[var(--ff-accent-light)]">{foodSourceLabel(food.source, food.verification)}</small></button>)}</div>}
+      {compositionResults.map((item) => <button type="button" role="option" aria-selected="false" className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-accent)] bg-[var(--ff-action-surface)] p-3 text-left" key={item.id} onClick={() => onChooseComposition?.(item)}><span><strong className="block text-sm">{item.composition?.actionTitle}</strong><small className="mt-1 block text-xs subtle">{item.composition?.selectionPrompt}</small></span><small className="text-right text-xs font-semibold text-[var(--ff-accent-light)]">Open builder</small></button>)}
+      {results.length === 0 && compositionResults.length === 0 ? <p className="p-3 text-sm subtle">No matching foods.</p> : results.map((food) => <button type="button" role="option" aria-selected="false" className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] p-3 text-left" key={food.foodId} onClick={() => choose(food)}><span><strong className="block text-sm">{food.name}</strong><small className="mt-1 block text-xs subtle">{food.contextLabel ?? food.portions.find((item) => item.id === food.defaultPortionUnitId)?.displayName}</small></span><small className="text-right text-xs font-semibold text-[var(--ff-accent-light)]">{foodSourceLabel(food.source, food.verification)}</small></button>)}</div>}
 
     {!query.trim() && !selected && recent.length > 0 && <section><p className="eyebrow">Recent foods</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{recent.map((item) => {
       const food = allFoods.find((candidate) => candidate.foodId === item.foodId) ?? canonicalFoodFromSnapshot(item.snapshot);

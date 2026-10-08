@@ -34,23 +34,28 @@ export function presentMeal(
   context: { itemNames?: Record<string, string>; stationNames?: Record<string, string>; locationNames?: Record<string, string> } = {},
 ): MealPresentation {
   const lines = entry.build.items.map((line) => {
-    const name = line.display?.name ?? context.itemNames?.[line.menuItemId] ?? "Meal item";
+    const composition = line.compositionSnapshot;
+    const name = composition?.title ?? line.display?.name ?? context.itemNames?.[line.menuItemId] ?? "Meal item";
     const station = line.display?.stationId ? context.stationNames?.[line.display.stationId] : undefined;
-    return { name, station, role: cucinaOmeletteRole(name, station), quantity: line.quantity };
+    return { name, station, role: cucinaOmeletteRole(name, station), quantity: line.quantity, composition };
   });
-  const omelette = lines.filter((line) => line.role);
-  const hasOmelette = omelette.some((line) => line.role === "base") && omelette.some((line) => line.role === "add-in");
-  const remaining = hasOmelette ? lines.filter((line) => !line.role) : lines;
+  const legacyOmelette = lines.filter((line) => line.role && !line.composition);
+  const hasLegacyOmelette = legacyOmelette.some((line) => line.role === "base") && legacyOmelette.some((line) => line.role === "add-in");
+  const hasOmelette = lines.some((line) => line.composition?.conceptId === "omelette") || hasLegacyOmelette;
+  const remaining = hasLegacyOmelette ? lines.filter((line) => !line.role || line.composition) : lines;
   const names = [
-    ...(hasOmelette ? ["Omelette"] : []),
+    ...(hasLegacyOmelette ? ["Omelette"] : []),
     ...remaining.map((line) => `${line.name}${line.quantity > 1 ? ` ×${line.quantity}` : ""}`),
   ];
   const slot = readable((entry.mealSlot ?? "meal") as MealLogSlot | "meal");
   const location = context.locationNames?.[entry.locationId] ?? entry.locationId;
   const title = names.length <= 3 ? names.join(" + ") : `${slot} at ${location}`;
-  const omeletteDetails = hasOmelette
-    ? `Omelette: ${omelette.filter((line) => line.role === "add-in").map((line) => cleanIngredient(line.name)).join(", ")}`
+  const legacyOmeletteDetails = hasLegacyOmelette
+    ? `Omelette: ${legacyOmelette.filter((line) => line.role === "add-in").map((line) => cleanIngredient(line.name)).join(", ")}`
     : undefined;
+  const compositionDetails = lines.flatMap((line) => line.composition ? [line.composition.components
+    .map((component) => `${cleanIngredient(component.name)}${component.quantity > 1 ? ` ×${component.quantity}` : ""}`)
+    .join(" · ")] : []).filter(Boolean).join(" · ") || undefined;
   const detailNames = names.length > 3 ? names.join(" · ") : undefined;
-  return { title: title || `${slot} at ${location}`, details: [omeletteDetails, detailNames].filter(Boolean).join(" · ") || undefined, hasOmelette };
+  return { title: title || `${slot} at ${location}`, details: [legacyOmeletteDetails, compositionDetails, detailNames].filter(Boolean).join(" · ") || undefined, hasOmelette };
 }

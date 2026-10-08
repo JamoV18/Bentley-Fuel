@@ -34,6 +34,7 @@ import {
   suggestMealItemReplacements,
   mealSlotForBuilderPeriod,
   snapshotPlannedMealBuild,
+  snapshotMealCompositions,
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import type { RecommendationFeedbackIntent } from "@/services";
@@ -228,14 +229,16 @@ export default function MealBuilderClient({
       const existing = planId ? repository.get(planId) : undefined;
       const now = new Date().toISOString();
       const id = existing?.id ?? crypto.randomUUID();
-      repository.upsert({ id, ownerProfileId: profile.id, intendedDate: planningDate, mealSlot, locationId: build.locationId, build: snapshotPlannedMealBuild(computed, now), nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built", status: "planned", createdAt: existing?.createdAt ?? now, updatedAt: now });
+      const savedBuild = snapshotMealCompositions(build, resources);
+      repository.upsert({ id, ownerProfileId: profile.id, intendedDate: planningDate, mealSlot, locationId: build.locationId, build: snapshotPlannedMealBuild(computeMealBuild(savedBuild, resources), now), nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built", status: "planned", createdAt: existing?.createdAt ?? now, updatedAt: now });
       setChooseSuccess(true);
       router.push(`/profile-summary?date=${planningDate}`);
       return;
     }
     const historyId = crypto.randomUUID();
     const now = new Date().toISOString();
-    browserMealHistoryRepository().upsert({ id: historyId, locationId: build.locationId, build, selectedAt: now, nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built" });
+    const savedBuild = snapshotMealCompositions(build, resources);
+    browserMealHistoryRepository().upsert({ id: historyId, locationId: build.locationId, build: savedBuild, selectedAt: now, nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built" });
     setChooseSuccess(true);
     if (reduceMotion) {
       router.push("/today");
@@ -539,7 +542,7 @@ export default function MealBuilderClient({
 
                 <div className="ff-rec-edit-grid">
                   {computed.lines.map((line) => (
-                    <article className="ff-rec-edit-card" key={line.selection.id}>
+                    <article className="ff-rec-edit-card" key={line.selection.id} id={`meal-line-${line.selection.id}`}>
                       <div className="ff-rec-edit-top">
                         <MealImage name={line.item?.name ?? line.selection.menuItemId} imageUrl={line.item?.imageUrl} />
                         <div><h3>{line.item?.name ?? line.selection.menuItemId}</h3><p>{line.station?.name} · {portionSummary(line.item, line.selection)}{line.nutrition && ` · ${macroSummary(line.nutrition)}`}</p></div>

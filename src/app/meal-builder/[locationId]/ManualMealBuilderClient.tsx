@@ -24,6 +24,7 @@ import {
   recentCampusBeverages,
   mealSlotForBuilderPeriod,
   snapshotPlannedMealBuild,
+  snapshotMealCompositions,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { MealBuildResources } from "@/services";
@@ -98,6 +99,9 @@ export default function ManualMealBuilderClient({
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const selectedNutrition = useMemo(() => computed.nutrition ? mealNutritionWithBeverages(computed.nutrition, beverages) : undefined, [beverages, computed.nutrition]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
+  const soleComposition = build.items.length === 1
+    ? resources.menuItems.find((item) => item.id === build.items[0].menuItemId)?.composition
+    : undefined;
   const isPlanning = Boolean(planningDate);
   const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
   const backHref = isPlanning ? `/profile-summary?date=${planningDate}` : `/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
@@ -111,8 +115,9 @@ export default function ManualMealBuilderClient({
 
   useEffect(() => {
     if (isPlanning || !savedHistoryId || !savedAt || !computed.isValid || !selectedNutrition || build.items.length === 0) return;
-    browserMealHistoryRepository().upsert({ id: savedHistoryId, locationId: build.locationId, build, selectedAt: savedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built" });
-  }, [beverages, build, computed.isValid, isPlanning, savedAt, savedHistoryId, selectedNutrition]);
+    const savedBuild = snapshotMealCompositions(build, resources);
+    browserMealHistoryRepository().upsert({ id: savedHistoryId, locationId: build.locationId, build: savedBuild, selectedAt: savedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built" });
+  }, [beverages, build, computed.isValid, isPlanning, resources, savedAt, savedHistoryId, selectedNutrition]);
 
   useEffect(() => {
     const recent = recentCampusBeverages(browserMealHistoryRepository().getRecent(40));
@@ -129,7 +134,8 @@ export default function ManualMealBuilderClient({
       const existing = planId ? repository.get(planId) : undefined;
       const now = new Date().toISOString();
       const id = existing?.id ?? savedPlanId ?? crypto.randomUUID();
-      const plannedBuild = snapshotPlannedMealBuild(computed, now);
+      const savedBuild = snapshotMealCompositions(build, resources);
+      const plannedBuild = snapshotPlannedMealBuild(computeMealBuild(savedBuild, resources), now);
       repository.upsert({ id, ownerProfileId: profile.id, intendedDate: planningDate, mealSlot, locationId: build.locationId, build: plannedBuild, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built", status: "planned", createdAt: existing?.createdAt ?? now, updatedAt: now });
       setSavedPlanId(id);
       router.push(`/profile-summary?date=${planningDate}`);
@@ -137,7 +143,8 @@ export default function ManualMealBuilderClient({
     }
     const id = savedHistoryId ?? crypto.randomUUID();
     const selectedAt = savedAt ?? new Date().toISOString();
-    browserMealHistoryRepository().upsert({ id, locationId: build.locationId, build, selectedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built" });
+    const savedBuild = snapshotMealCompositions(build, resources);
+    browserMealHistoryRepository().upsert({ id, locationId: build.locationId, build: savedBuild, selectedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built" });
     setSavedHistoryId(id); setSavedAt(selectedAt);
   };
 
@@ -181,6 +188,7 @@ export default function ManualMealBuilderClient({
                     <motion.article
                       layout="position"
                       key={line.selection.id}
+                      id={`meal-line-${line.selection.id}`}
                       className="border-t border-[var(--ff-divider)] py-3"
                       initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.992 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -194,7 +202,7 @@ export default function ManualMealBuilderClient({
                       style={{ transformOrigin: "50% 0%" }}
                     >
                       <div className="flex gap-3"><MealImage name={line.item?.name ?? line.selection.display?.name ?? line.selection.foodSnapshot?.displayName ?? line.selection.menuItemId} imageUrl={line.item?.imageUrl ?? line.selection.display?.imageUrl} /><div className="min-w-0 flex-1"><div className="flex justify-between gap-3"><div><h3 className="font-bold leading-tight">{line.item?.name ?? line.selection.display?.name ?? line.selection.foodSnapshot?.displayName ?? line.selection.menuItemId}</h3><p className="mt-1 text-xs subtle">{line.station?.name ?? (line.selection.foodSnapshot ? "Saved plan" : "")}{line.nutrition && ` · ${line.nutrition.calories} cal · ${line.nutrition.protein}g protein`}</p></div><button type="button" className="min-h-11 text-xs font-semibold text-[var(--ff-danger)]" onClick={() => setBuild(removeMealItem(build, line.selection.id))}>Remove</button></div><div className="mt-3 flex items-center gap-3"><button type="button" className="secondary px-3 py-2 disabled:opacity-40" disabled={line.selection.quantity <= 1} onClick={() => setBuild(adjustMealItemQuantity(build, line.selection.id, -1))}>−</button><AnimatePresence initial={false} mode="wait"><motion.span key={line.selection.quantity} className="inline-block min-w-20 text-sm font-bold" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }}>{line.selection.quantity} serving{line.selection.quantity === 1 ? "" : "s"}</motion.span></AnimatePresence><button type="button" className="secondary px-3 py-2" onClick={() => setBuild(adjustMealItemQuantity(build, line.selection.id, 1))}>+</button></div></div></div>
-                      {line.item?.kind === "customizable" && <div className="mt-4 space-y-4 border-t border-[var(--ff-divider)] pt-4">{line.item.customization?.map((step) => { const stepTotal = (line.selection.componentSelections ?? []).filter((choice) => step.componentIds.includes(choice.componentId)).reduce((sum, choice) => sum + choice.quantity, 0); return <fieldset key={step.id}><legend className="font-bold">{step.label} <span className="text-xs font-normal subtle">({step.minSelections}–{step.maxSelections})</span></legend><div className="mt-2 space-y-2">{step.componentIds.map((id) => { const component = resources.components.find((candidate) => candidate.id === id); const quantity = (line.selection.componentSelections ?? []).filter((choice) => choice.componentId === id).reduce((sum, choice) => sum + choice.quantity, 0); const atComponentMax = quantity >= (component?.maxQuantity ?? step.maxSelections); const atStepMax = stepTotal >= step.maxSelections; const canReplaceSingle = step.maxSelections === 1 && quantity === 0; return <div key={id} className="flex items-center justify-between gap-2 text-sm"><span>{component?.name ?? id}</span><span className="flex items-center gap-2"><button type="button" className="chip disabled:opacity-40" disabled={quantity === 0 || stepTotal - 1 < step.minSelections} onClick={() => changeComponent(line.selection.id, step, id, -1)}>−</button><strong>{quantity}</strong><button type="button" className="chip disabled:opacity-40" disabled={atComponentMax || (atStepMax && !canReplaceSingle)} onClick={() => changeComponent(line.selection.id, step, id, 1)}>+</button></span></div>; })}</div></fieldset>; })}</div>}
+                      {line.item?.kind === "customizable" && <div className="mt-4 space-y-4 border-t border-[var(--ff-divider)] pt-4">{line.item.composition && <div><p className="font-bold">{line.item.composition.selectionPrompt}</p><p className="mt-1 text-xs subtle">Tap ingredients below. Nutrition updates as you choose.</p></div>}{line.item.customization?.map((step) => { const stepTotal = (line.selection.componentSelections ?? []).filter((choice) => step.componentIds.includes(choice.componentId)).reduce((sum, choice) => sum + choice.quantity, 0); return <fieldset key={step.id}><legend className="font-bold">{step.label} <span className="text-xs font-normal subtle">({step.minSelections}–{step.maxSelections})</span></legend><div className="mt-2 space-y-2">{step.componentIds.map((id) => { const component = resources.components.find((candidate) => candidate.id === id); const quantity = (line.selection.componentSelections ?? []).filter((choice) => choice.componentId === id).reduce((sum, choice) => sum + choice.quantity, 0); const atComponentMax = quantity >= (component?.maxQuantity ?? step.maxSelections); const atStepMax = stepTotal >= step.maxSelections; const canReplaceSingle = step.maxSelections === 1 && quantity === 0; return <div key={id} className="flex items-center justify-between gap-2 text-sm"><span>{component?.name ?? id}{component && <small className="ml-2 subtle">{component.nutrition.calories} cal</small>}</span><span className="flex items-center gap-2"><button type="button" className="chip disabled:opacity-40" disabled={quantity === 0 || stepTotal - 1 < step.minSelections} onClick={() => changeComponent(line.selection.id, step, id, -1)}>−</button><strong>{quantity}</strong><button type="button" className="chip disabled:opacity-40" disabled={atComponentMax || (atStepMax && !canReplaceSingle)} onClick={() => changeComponent(line.selection.id, step, id, 1)}>+</button></span></div>; })}</div></fieldset>; })}</div>}
                     </motion.article>
                   ))}
                 </AnimatePresence>
@@ -204,7 +212,7 @@ export default function ManualMealBuilderClient({
             {selectedNutrition && <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-[var(--ff-divider)] pt-3">{[["Calories", Math.round(selectedNutrition.calories), "cal"], ["Protein", Math.round(selectedNutrition.protein * 10) / 10, "g"], ["Carbs", Math.round(selectedNutrition.carbs * 10) / 10, "g"], ["Fat", Math.round(selectedNutrition.fat * 10) / 10, "g"]].map(([label, value, unit]) => <div key={label} className="py-2"><dt className="text-xs text-[var(--ff-text-secondary)]">{label}</dt><dd className="mt-1 font-bold text-[var(--ff-text-primary)]">{value}{unit}</dd></div>)}</dl>}
             {locationId === "loc-921" && <CampusBeverageSelector locationId={locationId} value={beverages} onChange={setBeverages} recent={recentBeverages} />}
             {build.items.length > 0 && !computed.isValid && <div className="mt-5 rounded-xl bg-[var(--ff-warning-surface)] p-3 text-sm text-[var(--ff-danger)]"><strong>Meal needs attention.</strong><ul className="mt-1 list-disc pl-5">{computed.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}</ul></div>}
-            <button type="button" className="primary mt-5 w-full" disabled={(!isPlanning && futureMenu) || !computed.isValid || build.items.length === 0} onClick={saveMeal}>{isPlanning ? (planId || savedPlanId ? "Update plan" : "Plan this meal") : futureMenu ? "Future menu · preview only" : savedHistoryId ? (editEntryId ? "Meal updated" : "Meal saved") : (editEntryId ? "Update meal" : "Save this meal")}</button>
+            <button type="button" className="primary mt-5 w-full" disabled={(!isPlanning && futureMenu) || !computed.isValid || build.items.length === 0} onClick={saveMeal}>{isPlanning ? (planId || savedPlanId ? "Update plan" : soleComposition ? `Plan ${soleComposition.canonicalName.toLowerCase()}` : "Plan this meal") : futureMenu ? "Future menu · preview only" : savedHistoryId ? (editEntryId ? "Meal updated" : "Meal saved") : editEntryId ? "Update meal" : soleComposition ? `Add ${soleComposition.canonicalName.toLowerCase()}` : "Save this meal"}</button>
             {!isPlanning && savedHistoryId && <div className="mt-4 border-t border-[var(--ff-divider)] pt-4">{completionFraction !== undefined ? <div className="flex items-center justify-between gap-3 text-sm"><p><strong>Finished:</strong> {completionLabel(completionFraction)}</p><button type="button" className="font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Change</button></div> : <button type="button" className="text-sm font-bold text-[var(--ff-accent-light)] underline" onClick={() => setShowCompletionCheckIn(true)}>Finished eating? Add a quick check-in</button>}<AnimatePresence initial={false}>{showCompletionCheckIn && <motion.div className="surface-soft mt-3 overflow-hidden p-4" initial={reduceMotion ? false : { opacity: 0, y: -6, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} animate={{ opacity: 1, y: 0, height: "auto", marginTop: 12, paddingTop: 16, paddingBottom: 16 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}><p className="text-sm font-bold">How much did you finish?</p><div className="mt-2 flex flex-wrap gap-2">{MEAL_COMPLETION_CHOICES.map((choice) => <button key={choice.label} type="button" className="chip" onClick={() => saveCompletion(choice.fraction)}>{choice.label}</button>)}</div></motion.div>}</AnimatePresence></div>}
           </section>
 

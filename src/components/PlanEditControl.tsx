@@ -143,23 +143,23 @@ export default function PlanEditControl({
                         onClick={() => setIntensity(option.value)}
                       >
                         <span className="block text-sm font-bold">{option.label}</span>
-                        <span className={`mt-1 block text-[11px] font-medium ${option.value === "extreme" ? "text-red-700" : "subtle"}`}>{option.note}</span>
+                        <span className={`mt-1 block text-[11px] font-medium ${option.value === "extreme" ? "text-[var(--ff-danger)]" : "subtle"}`}>{option.note}</span>
                       </button>
                     ))}
                   </div>
                 </fieldset>
               ) : (
-                <div className="rounded-2xl bg-black/[.025] p-4 text-sm">
+                <div className="rounded-lg bg-[var(--ff-surface-elevated)] p-4 text-sm">
                   <p className="font-bold">Current goal: {profile.primaryGoal.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ")}</p>
                   <p className="mt-1 subtle">Intensity applies to weight-loss goals.</p>
                 </div>
               )}
             </motion.div>
 
-            {intensity === "extreme" && weightLossPlan && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">Extreme is an aggressive setting and is not recommended without qualified guidance.</p>}
-            {message && <p className="mt-3 text-sm font-semibold text-red-700">{message}</p>}
+            {intensity === "extreme" && weightLossPlan && <p className="mt-4 rounded-xl bg-[var(--ff-warning-surface)] p-3 text-sm font-semibold text-[var(--ff-danger)]">Extreme is an aggressive setting and is not recommended without qualified guidance.</p>}
+            {message && <p className="mt-3 text-sm font-semibold text-[var(--ff-danger)]">{message}</p>}
 
-            <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-black/[.06] pt-4">
+            <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[var(--ff-divider)] pt-4">
               <button type="button" className="secondary" onClick={cancelEditing} disabled={saved}>Cancel</button>
               <button type="button" className="primary" onClick={save} disabled={saved}>
                 <SuccessMorphLabel success={saved} idleLabel="Save plan" successLabel="Plan saved" />
@@ -169,7 +169,7 @@ export default function PlanEditControl({
         )}
       </AnimatePresence>
 
-      {!editing && message && <motion.p initial={reduceMotion ? false : { opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} className="mt-2 text-right text-xs font-bold text-emerald-800">{message}</motion.p>}
+      {!editing && message && <motion.p initial={reduceMotion ? false : { opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} className="mt-2 text-right text-xs font-bold text-[var(--ff-accent-light)]">{message}</motion.p>}
     </section>
   );
 }

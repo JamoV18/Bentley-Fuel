@@ -2,6 +2,8 @@ import type { FoodComponentId, LocationId, MealPeriod, MenuItemId, StationId } f
 import type { MealBuild } from "./meal";
 import type { Allergen, DietaryTag, NutritionFacts } from "./nutrition";
 import type { RemainingMacros, UserProfile } from "./user";
+import type { GoingOutRecommendationContext } from "./goingOut";
+import type { CampusBeverageSelection } from "./beverage";
 
 /**
  * Dietary patterns that Falcon Fuel treats as hard eligibility constraints.
@@ -78,7 +80,20 @@ export interface MealHistoryEntry {
   explicitFeedback?: MealExplicitFeedback;
   /** Explicit daily-log slot when known; older/recommended meals can infer from time. */
   mealSlot?: MealLogSlot;
-  source?: "recommended" | "self-built" | "manual-log";
+  source?: "recommended" | "self-built" | "manual-log" | "night-out" | "drink-log";
+  /** Optional meal-level beverages, already included in the nutrition snapshot. */
+  campusBeverages?: CampusBeverageSelection[];
+  /** Keeps alcohol entries visibly distinct from food in Today and History. */
+  entryKind?: "food" | "alcohol" | "beverage";
+  /** Sensitive records are scoped to the profile that created them on this device. */
+  ownerProfileId?: string;
+  sourceEventId?: string;
+  sourceRecordId?: string;
+  nutritionEstimateStatus?: "verified" | "estimated" | "approximate";
+  standardDrinks?: number;
+  timeAccuracy?: "exact" | "date-only";
+  /** Calculation snapshot for a directly logged drink. */
+  drinkDetails?: import("./goingOut").NightOutConsumption;
 }
 
 /** Deliberate recommendation/editor behaviors stored separately from meal history. */
@@ -131,6 +146,8 @@ export interface RecommendationContext {
   progressivePreferences?: readonly ProgressivePreferenceAnswer[];
   /** Menu items that should not be resurfaced for this recommendation occasion. */
   excludeMenuItemIds?: readonly MenuItemId[];
+  /** Optional event signal. It can only add a small boost among eligible meals. */
+  goingOut?: GoingOutRecommendationContext;
 }
 
 export type RecommendationEligibilityIssueCode =

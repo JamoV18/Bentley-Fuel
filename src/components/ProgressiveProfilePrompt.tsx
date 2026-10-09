@@ -33,7 +33,7 @@ export default function ProgressiveProfilePrompt() {
   }, []);
 
   if (!prompt) return savedLabel ? (
-    <aside className="mt-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/75 px-4 py-3 text-sm font-semibold text-emerald-950">{savedLabel}</aside>
+    <aside className="mt-3 rounded-lg border border-[var(--ff-border)] bg-[var(--ff-surface-elevated)] px-4 py-3 text-sm font-semibold text-[var(--ff-text-primary)]">{savedLabel}</aside>
   ) : null;
 
   const answer = (response: ProgressivePreferenceResponse) => {
@@ -56,18 +56,18 @@ export default function ProgressiveProfilePrompt() {
   };
 
   return (
-    <aside className="mt-3 rounded-2xl border border-emerald-900/10 bg-white/90 p-4 shadow-[0_8px_28px_rgba(9,63,47,.05)]" aria-label="Personalization question">
+    <aside className="my-3 border-y border-[var(--ff-divider)] py-3" aria-label="Personalization question">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
-          <p className="text-[10px] font-bold uppercase tracking-[.12em] text-emerald-800">Meal preference</p>
-          <p className="mt-1 text-base font-bold text-emerald-950">{prompt.question}</p>
+          <p className="text-xs text-[var(--ff-text-secondary)]">Meal preference</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--ff-text-primary)]">{prompt.question}</p>
           <p className="mt-1 text-xs leading-relaxed subtle">Based on {prompt.evidenceCount} positive meal choices. Affects meal preferences only; targets and dietary restrictions stay unchanged.</p>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" className="primary text-sm" onClick={() => answer("favor")}>Yes, favor it</button>
         <button type="button" className="secondary text-sm" onClick={() => answer("neutral")}>Don’t assume that</button>
-        <button type="button" className="px-3 py-2 text-sm font-bold text-black/55" onClick={() => answer("later")}>Ask later</button>
+        <button type="button" className="min-h-11 px-3 py-2 text-sm font-semibold text-[var(--ff-text-secondary)]" onClick={() => answer("later")}>Ask later</button>
       </div>
     </aside>
   );

@@ -66,11 +66,13 @@ export function buildInstitutionalAnalyticsContribution(
   interactions: readonly RecommendationInteraction[],
 ): InstitutionalAnalyticsContribution {
   if (!participantKey.trim()) throw new Error("Institutional analytics contribution requires an opaque participant key.");
+  // Sensitive Going Out consumption never enters even aggregate university-facing reports.
+  const reportableHistory = history.filter((entry) => entry.entryKind !== "alcohol" && entry.source !== "night-out" && entry.source !== "drink-log");
 
   const locationCounts = new Map<LocationId, number>();
   let mealCheckIns = 0;
   let confirmedConsumedMeals = 0;
-  history.forEach((entry) => {
+  reportableHistory.forEach((entry) => {
     if (entry.completionFraction !== undefined) mealCheckIns += 1;
     if (entry.completionFraction !== undefined && entry.completionFraction > 0) {
       confirmedConsumedMeals += 1;
@@ -84,7 +86,7 @@ export function buildInstitutionalAnalyticsContribution(
     chosenMeals: interactions.filter((event) => event.kind === "meal-chosen").length,
     itemRemovals: interactions.filter((event) => event.kind === "item-removed").length,
     acceptedReplacements: interactions.filter((event) => event.kind === "replacement-accepted").length,
-    savedMeals: history.length,
+    savedMeals: reportableHistory.length,
     mealCheckIns,
     confirmedConsumedMeals,
     locations: [...locationCounts.entries()]

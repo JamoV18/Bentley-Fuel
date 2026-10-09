@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import type { UserProfile, WeightObservation } from "@/types";
 
@@ -25,6 +25,8 @@ export default function BklitWeightProgressChart({
 }) {
   const reduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(360);
   const unit = unitSystem === "metric" ? "kg" : "lb";
 
   const series = useMemo(() => {
@@ -39,13 +41,24 @@ export default function BklitWeightProgressChart({
     return [synthetic, ...recorded];
   }, [observations, initialWeightKg, startDate]);
 
+  const hasSeries = series.length > 0;
+  useEffect(() => {
+    const element = chartRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0) setChartWidth(Math.round(entry.contentRect.width));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [hasSeries]);
+
   if (series.length === 0) {
-    return <div className="mt-5 rounded-2xl border border-emerald-900/[.06] bg-emerald-50/60 p-5"><p className="font-bold text-emerald-950">Progress chart</p><p className="mt-1 text-sm subtle">Log a weight below to start your progress line.</p></div>;
+    return <div className="mt-5 rounded-lg border border-[var(--ff-border)] bg-[var(--ff-surface-elevated)] p-5"><p className="font-bold text-[var(--ff-text-primary)]">Progress chart</p><p className="mt-1 text-sm subtle">Log a weight below to start your progress line.</p></div>;
   }
 
-  const width = 820;
-  const height = 286;
-  const padLeft = 58;
+  const width = chartWidth;
+  const height = 208;
+  const padLeft = 42;
   const padRight = 26;
   const padTop = 28;
   const padBottom = 42;
@@ -80,7 +93,12 @@ export default function BklitWeightProgressChart({
   const animateUpdate = animationKey > 0 && !reduceMotion;
   const change = last.value - first.value;
   const yTicks = [0, 1, 2, 3].map((step) => max - (step / 3) * span);
-  const xLabels = series.length === 1 ? [0] : Array.from(new Set([0, Math.floor((series.length - 1) / 2), series.length - 1]));
+  const xLabels = (series.length === 1 ? [0] : Array.from(new Set([0, Math.floor((series.length - 1) / 2), series.length - 1])))
+    .sort((a, b) => coordinates[a].x - coordinates[b].x)
+    .reduce<number[]>((labels, index) => {
+      if (!labels.length || coordinates[index].x - coordinates[labels[labels.length - 1]].x >= 64) labels.push(index);
+      return labels;
+    }, []);
 
   const chooseNearest = (clientX: number, target: SVGSVGElement) => {
     const bounds = target.getBoundingClientRect();
@@ -105,26 +123,26 @@ export default function BklitWeightProgressChart({
           <p className="mt-1 text-xs subtle">Only weights you record are used.</p>
         </div>
         <div className="flex gap-5 text-right">
-          <div><p className="text-[10px] font-bold uppercase tracking-wide subtle">Current</p><p className="mt-1 text-lg font-bold text-emerald-950">{round1(last.value)} {unit}</p></div>
-          {targetValue !== undefined && <div><p className="text-[10px] font-bold uppercase tracking-wide subtle">Target</p><p className="mt-1 text-lg font-bold text-emerald-800">{round1(targetValue)} {unit}</p></div>}
+          <div><p className="text-xs font-bold normal-case subtle">Current</p><p className="mt-1 text-lg font-bold text-[var(--ff-text-primary)]">{round1(last.value)} {unit}</p></div>
+          {targetValue !== undefined && <div><p className="text-xs font-bold normal-case subtle">Target</p><p className="mt-1 text-lg font-bold text-[var(--ff-accent-light)]">{round1(targetValue)} {unit}</p></div>}
         </div>
       </div>
 
-      <div className="relative mt-4" onMouseLeave={() => setActiveIndex(null)}>
+      <div ref={chartRef} className="relative mt-4" onMouseLeave={() => setActiveIndex(null)}>
         {active && (
           <div
-            className="pointer-events-none absolute top-1 z-20 min-w-36 -translate-x-1/2 rounded-xl border border-white/70 bg-emerald-950/94 px-3 py-2.5 text-white shadow-xl backdrop-blur"
-            style={{ left: `${tooltipLeft}%` }}
+            className="pointer-events-none absolute top-1 z-20 w-36 -translate-x-1/2 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-strong)] px-3 py-2.5 text-white shadow-xl backdrop-blur"
+            style={{ left: `clamp(72px, ${tooltipLeft}%, calc(100% - 72px))` }}
           >
-            <p className="text-[11px] font-semibold text-white/65">{new Date(active.point.recordedAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
+            <p className="text-[11px] font-semibold text-[var(--ff-text-secondary)]">{new Date(active.point.recordedAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
             <p className="mt-0.5 text-base font-bold">{round1(active.value)} {unit}</p>
-            {active.point.id === "plan-start" && <p className="mt-1 text-[10px] font-semibold text-white/55">Plan start</p>}
+            {active.point.id === "plan-start" && <p className="mt-1 text-xs font-semibold text-[var(--ff-text-secondary)]">Plan start</p>}
           </div>
         )}
 
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="h-72 w-full touch-none overflow-visible text-emerald-700 outline-none"
+          className="h-52 w-full touch-none overflow-visible text-[var(--ff-accent-light)] outline-none"
           role="img"
           aria-label="Interactive weight progress chart. Use left and right arrow keys to inspect recorded weights."
           tabIndex={0}
@@ -188,15 +206,15 @@ export default function BklitWeightProgressChart({
 
           {xLabels.map((index) => {
             const point = coordinates[index];
-            return <text key={point.point.id} x={point.x} y={height - 10} textAnchor={index === 0 ? "start" : index === series.length - 1 ? "end" : "middle"} fill="var(--ff-text-secondary)" fontSize="11" fontWeight="600">{new Date(point.point.recordedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</text>;
+            return <text key={point.point.id} x={point.x} y={height - 10} textAnchor={point.x < width / 3 ? "start" : point.x > width * 2 / 3 ? "end" : "middle"} fill="var(--ff-text-secondary)" fontSize="11" fontWeight="600">{new Date(point.point.recordedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</text>;
           })}
         </svg>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-black/[.05] pt-3 text-xs subtle">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--ff-divider)] pt-3 text-xs subtle">
         <span>{series.length} recorded {series.length === 1 ? "point" : "points"}</span>
-        <span className={`font-semibold ${change === 0 ? "text-black/50" : "text-emerald-800"}`}>{change > 0 ? "+" : ""}{round1(change)} {unit} since first point</span>
-        {targetValue !== undefined && <span className="font-semibold text-emerald-800">Dashed line = target</span>}
+        <span className={`font-semibold ${change === 0 ? "text-[var(--ff-text-secondary)]" : "text-[var(--ff-accent-light)]"}`}>{change > 0 ? "+" : ""}{round1(change)} {unit} since first point</span>
+        {targetValue !== undefined && <span className="font-semibold text-[var(--ff-accent-light)]">Dashed line = target</span>}
       </div>
     </div>
   );

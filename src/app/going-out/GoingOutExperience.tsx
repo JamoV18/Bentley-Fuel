@@ -1,0 +1,363 @@
+"use client";
+
+import "./going-out.css";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AppNav from "@/components/AppNav";
+import DrinkIllustration from "@/components/DrinkIllustration";
+import PageHeader from "@/components/PageHeader";
+import {
+  browserGoingOutRepository,
+  browserMealHistoryRepository,
+  addPendingDirectDrink,
+  canLogAlcohol,
+  canPlanAlcohol,
+  createDirectDrinkHistoryEntries,
+  createDirectDrinkHistoryEntry,
+  DIRECT_DRINK_PRESETS,
+  directDrinkEntries,
+  directDrinkNutrition,
+  drinkPresetFor,
+  estimatedDrinkCaloriesPerServing,
+  formattedDrinkServing,
+  pendingDirectDrinkCalories,
+  quickAlcoholEstimate,
+  restorePendingDirectDrinks,
+  servingAmountToOunces,
+  servingOuncesToAmount,
+  setPendingDirectDrinkQuantity,
+  syncNightOutNutrition,
+} from "@/services";
+import { browserProfileRepository } from "@/services/profileRepository";
+import type { AlcoholForecast, GoingOutEvent, GoingOutSettings, MealHistoryEntry, NightOutCategory, NightOutConsumption, UserProfile } from "@/types";
+import type { PendingDirectDrink } from "@/services";
+
+const pad = (value: number) => String(value).padStart(2, "0");
+const dateKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+const todayKey = () => dateKey(new Date());
+const tomorrowKey = () => { const date = new Date(); date.setDate(date.getDate() + 1); return dateKey(date); };
+const prettyDate = (key: string) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" }).format(new Date(`${key}T12:00:00`));
+const nowTime = () => `${pad(new Date().getHours())}:${pad(new Date().getMinutes())}`;
+const combineLocal = (day: string, time: string) => {
+  const [year, month, date] = day.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const value = new Date(year, month - 1, date, hour, minute);
+  return Number.isNaN(value.getTime()) ? "" : value.toISOString();
+};
+const numberOrZero = (value: string) => Number.isFinite(Number(value)) ? Number(value) : 0;
+const entryDate = (entry: MealHistoryEntry) => dateKey(new Date(entry.eatenAt ?? entry.selectedAt));
+const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const occasionLabels = { "dinner-out": "Dinner out", "social-gathering": "Social gathering", "late-night-food": "Late-night food", other: "Another occasion" } as const;
+const forecastLabels: Record<AlcoholForecast, string> = { none: "None expected", unsure: "Not sure", "1-2": "About 1–2", "3-4": "About 3–4", "5-plus": "5 or more" };
+const pendingStorageKey = (profileId: string) => `falcon-fuel.pending-drinks.v1:${profileId}`;
+const pendingTime = (consumedAt: string) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(consumedAt));
+type Panel = "log" | "plan" | null;
+type Occasion = keyof typeof occasionLabels;
+
+const draftFor = (category: NightOutCategory, day = todayKey()) => {
+  const preset = drinkPresetFor(category);
+  return { category, name: preset.label, quantity: "1", servingOunces: String(preset.servingOunces), abvPercent: String(preset.abvPercent), caloriesPerServing: String(preset.caloriesPerServing), mixerCalories: "0", day, time: nowTime(), estimateStatus: preset.estimateStatus, estimateAdjusted: false };
+};
+
+export default function GoingOutExperience() {
+  const [profile, setProfile] = useState<UserProfile | null>();
+  const [settings, setSettings] = useState<GoingOutSettings>();
+  const [events, setEvents] = useState<GoingOutEvent[]>([]);
+  const [drinks, setDrinks] = useState<MealHistoryEntry[]>([]);
+  const [panel, setPanel] = useState<Panel>(null);
+  const [drinkDraft, setDrinkDraft] = useState(() => draftFor("wine"));
+  const [pendingDrinks, setPendingDrinks] = useState<PendingDirectDrink[]>([]);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
+  const [isSubmittingDrinks, setIsSubmittingDrinks] = useState(false);
+  const [editingDrinkId, setEditingDrinkId] = useState<string>();
+  const [planDateChoice, setPlanDateChoice] = useState<"today" | "tomorrow" | "choose">("today");
+  const [planDate, setPlanDate] = useState(todayKey);
+  const [occasion, setOccasion] = useState<Occasion>("dinner-out");
+  const [forecast, setForecast] = useState<AlcoholForecast | "">("");
+  const [foodNote, setFoodNote] = useState("");
+  const [editingPlanId, setEditingPlanId] = useState<string>();
+  const [customDays, setCustomDays] = useState<number[]>([]);
+  const [pattern, setPattern] = useState<"fri-sat" | "weekends" | "custom" | "none">("none");
+  const [recapEventId, setRecapEventId] = useState<string>();
+  const [recapDraft, setRecapDraft] = useState<NightOutConsumption[]>([]);
+  const [message, setMessage] = useState("");
+  const drinkSubmissionLock = useRef(false);
+  const requestedEditHandled = useRef(false);
+
+  const loggingEligible = profile ? canLogAlcohol(profile) : false;
+  const planningEligible = profile ? canPlanAlcohol(profile) : false;
+  const refresh = useCallback((activeProfile: UserProfile) => {
+    const repository = browserGoingOutRepository(activeProfile);
+    const nextSettings = repository.getSettings();
+    setSettings(nextSettings);
+    setEvents(repository.listEvents());
+    setDrinks(directDrinkEntries(browserMealHistoryRepository().getRecent(Number.MAX_SAFE_INTEGER), activeProfile.id));
+    const days = nextSettings.usualHigherDays ?? [];
+    setCustomDays(days);
+    setPattern(days.length === 0 ? "none" : days.length === 2 && days.includes(5) && days.includes(6) ? "fri-sat" : days.length === 2 && days.includes(0) && days.includes(6) ? "weekends" : "custom");
+  }, []);
+
+  useEffect(() => {
+    const current = browserProfileRepository().get();
+    queueMicrotask(() => {
+      setProfile(current);
+      if (!current) return;
+      refresh(current);
+      const requested = new URLSearchParams(window.location.search).get("action");
+      const requestedDay = new URLSearchParams(window.location.search).get("day");
+      if (requested === "log") setPanel("log");
+      if (requested === "plan") setPanel("plan");
+      setDrinkDraft(draftFor(canLogAlcohol(current) ? "wine" : "nonalcoholic", requestedDay && /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) ? requestedDay : todayKey()));
+      setPendingDrinks(restorePendingDirectDrinks(current, window.sessionStorage.getItem(pendingStorageKey(current.id))));
+      setPendingLoaded(true);
+    });
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!profile || !pendingLoaded) return;
+    const key = pendingStorageKey(profile.id);
+    if (pendingDrinks.length === 0) window.sessionStorage.removeItem(key);
+    else window.sessionStorage.setItem(key, JSON.stringify(pendingDrinks));
+  }, [pendingDrinks, pendingLoaded, profile]);
+
+  const numericDraft = useMemo(() => ({
+    category: drinkDraft.category,
+    name: drinkDraft.name,
+    quantity: numberOrZero(drinkDraft.quantity),
+    servingOunces: numberOrZero(drinkDraft.servingOunces),
+    abvPercent: numberOrZero(drinkDraft.abvPercent),
+    caloriesPerServing: drinkDraft.caloriesPerServing === "" ? undefined : numberOrZero(drinkDraft.caloriesPerServing),
+    mixerCalories: drinkDraft.mixerCalories === "" ? undefined : numberOrZero(drinkDraft.mixerCalories),
+    consumedAt: combineLocal(drinkDraft.day, drinkDraft.time),
+    estimateStatus: drinkDraft.estimateStatus,
+  }), [drinkDraft]);
+  const preview = useMemo(() => directDrinkNutrition(numericDraft), [numericDraft]);
+  const activePreset = useMemo(() => drinkPresetFor(drinkDraft.category), [drinkDraft.category]);
+  const displayedServingAmount = servingOuncesToAmount(activePreset, numberOrZero(drinkDraft.servingOunces));
+  const pendingCalories = useMemo(() => pendingDirectDrinkCalories(pendingDrinks), [pendingDrinks]);
+  const pendingCount = pendingDrinks.reduce((total, item) => total + item.draft.quantity, 0);
+
+  const chooseDrink = (category: NightOutCategory) => {
+    setDrinkDraft(draftFor(category, drinkDraft.day));
+    setEditingDrinkId(undefined);
+  };
+  const changeQuantity = (delta: number) => {
+    setDrinkDraft((current) => ({
+      ...current,
+      quantity: String(Math.max(1, Math.floor(numberOrZero(current.quantity)) + delta)),
+    }));
+  };
+  const updateServingAmount = (value: string) => {
+    setDrinkDraft((current) => {
+      const preset = drinkPresetFor(current.category);
+      const servingOunces = servingAmountToOunces(preset, numberOrZero(value));
+      return {
+        ...current,
+        servingOunces: String(servingOunces),
+        caloriesPerServing: current.estimateAdjusted
+          ? current.caloriesPerServing
+          : String(estimatedDrinkCaloriesPerServing(current.category, servingOunces)),
+      };
+    });
+  };
+  const resetEstimate = () => {
+    const preset = drinkPresetFor(drinkDraft.category);
+    setDrinkDraft((current) => ({ ...current, servingOunces: String(preset.servingOunces), abvPercent: String(preset.abvPercent), caloriesPerServing: String(preset.caloriesPerServing), estimateStatus: preset.estimateStatus, estimateAdjusted: false }));
+  };
+  const addDrinkToList = () => {
+    if (!profile) return;
+    try {
+      const next = addPendingDirectDrink(profile, pendingDrinks, numericDraft);
+      setPendingDrinks(next);
+      setDrinkDraft((current) => ({ ...current, quantity: "1" }));
+      setMessage("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Check the drink details and try again.");
+    }
+  };
+  const saveDrinkEdit = () => {
+    if (!profile) return;
+    try {
+      const entry = createDirectDrinkHistoryEntry(profile, numericDraft, { id: editingDrinkId });
+      browserMealHistoryRepository().upsert(entry);
+      refresh(profile);
+      setMessage("Drink updated in your daily log.");
+      setEditingDrinkId(undefined);
+      setDrinkDraft(draftFor(loggingEligible ? "wine" : "nonalcoholic", drinkDraft.day));
+      setPanel(null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Check the drink details and try again.");
+    }
+  };
+  const changePendingQuantity = (id: string, delta: number) => {
+    setPendingDrinks((current) => {
+      const item = current.find((candidate) => candidate.id === id);
+      if (!item) return current;
+      return setPendingDirectDrinkQuantity(current, id, item.draft.quantity + delta);
+    });
+  };
+  const removePendingDrink = (id: string) => {
+    setPendingDrinks((current) => current.filter((item) => item.id !== id));
+  };
+  const logPendingDrinks = () => {
+    if (!profile || pendingDrinks.length === 0 || drinkSubmissionLock.current) return;
+    drinkSubmissionLock.current = true;
+    setIsSubmittingDrinks(true);
+    try {
+      const entries = createDirectDrinkHistoryEntries(profile, pendingDrinks);
+      browserMealHistoryRepository().upsertMany(entries);
+      window.sessionStorage.removeItem(pendingStorageKey(profile.id));
+      setPendingDrinks([]);
+      refresh(profile);
+      setMessage(`${pendingCount} ${pendingCount === 1 ? "drink" : "drinks"} added to your daily log.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Your drinks were not saved. Your list is still here so you can try again.");
+    } finally {
+      drinkSubmissionLock.current = false;
+      setIsSubmittingDrinks(false);
+    }
+  };
+  const editDrink = (entry: MealHistoryEntry) => {
+    const detail = entry.drinkDetails;
+    if (!detail) return;
+    const when = new Date(detail.consumedAt ?? entry.eatenAt ?? entry.selectedAt);
+    const preset = drinkPresetFor(detail.category);
+    const servingOunces = detail.servingOunces ?? preset.servingOunces;
+    const caloriesPerServing = detail.nutrition.calories / detail.quantity;
+    const expectedCalories = estimatedDrinkCaloriesPerServing(detail.category, servingOunces);
+    setDrinkDraft({ category: detail.category, name: detail.name, quantity: String(detail.quantity), servingOunces: String(servingOunces), abvPercent: String(detail.abvPercent ?? preset.abvPercent), caloriesPerServing: String(caloriesPerServing), mixerCalories: String(detail.mixerCalories ?? 0), day: dateKey(when), time: `${pad(when.getHours())}:${pad(when.getMinutes())}`, estimateStatus: detail.estimateStatus, estimateAdjusted: Math.abs(caloriesPerServing - expectedCalories) > 0.5 });
+    setEditingDrinkId(entry.id); setPanel("log"); window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  useEffect(() => {
+    if (requestedEditHandled.current || drinks.length === 0) return;
+    const requestedId = new URLSearchParams(window.location.search).get("edit");
+    if (!requestedId) return;
+    const entry = drinks.find((candidate) => candidate.id === requestedId);
+    if (!entry) return;
+    requestedEditHandled.current = true;
+    queueMicrotask(() => editDrink(entry));
+  }, [drinks]);
+  const deleteDrink = (entry: MealHistoryEntry) => {
+    browserMealHistoryRepository().remove(entry.id);
+    if (profile) refresh(profile);
+    setMessage("Drink removed from your daily log.");
+  };
+
+  const savePlan = () => {
+    if (!profile || !settings) return;
+    const repository = browserGoingOutRepository(profile);
+    const existing = editingPlanId ? repository.getEvent(editingPlanId) : undefined;
+    const chosenDate = planDateChoice === "today" ? todayKey() : planDateChoice === "tomorrow" ? tomorrowKey() : planDate;
+    const now = new Date().toISOString();
+    repository.saveSettings({ ...settings, enabled: true, updatedAt: now });
+    repository.upsertEvent({ id: existing?.id ?? crypto.randomUUID(), ownerProfileId: profile.id, eventDate: chosenDate, planKind: occasion === "late-night-food" ? "late-night" : "social", occasion, alcoholForecast: planningEligible && forecast ? forecast : undefined, expectedFoodNote: foodNote.trim() || undefined, status: existing?.status ?? "planned", ignoredForRecommendations: existing?.ignoredForRecommendations, actualConsumption: existing?.actualConsumption, createdAt: existing?.createdAt ?? now, updatedAt: now });
+    refresh(profile); setPanel(null); setEditingPlanId(undefined); setFoodNote(""); setForecast("");
+    setMessage("Night out planned. Nothing has been logged as consumed.");
+  };
+  const editPlan = (event: GoingOutEvent) => {
+    setEditingPlanId(event.id); setPlanDate(event.eventDate); setPlanDateChoice("choose");
+    setOccasion(event.occasion ?? (event.planKind === "late-night" ? "late-night-food" : "social-gathering"));
+    setForecast(event.alcoholForecast ?? ""); setFoodNote(event.expectedFoodNote ?? ""); setPanel("plan"); window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const deletePlan = (event: GoingOutEvent) => {
+    if (!profile) return;
+    browserMealHistoryRepository().removeBySourceEventId(event.id, profile.id);
+    browserGoingOutRepository(profile).removeEvent(event.id); refresh(profile); setMessage("Plan removed.");
+  };
+
+  const savePattern = (nextPattern: typeof pattern) => {
+    if (!profile || !settings) return;
+    const days = nextPattern === "fri-sat" ? [5, 6] : nextPattern === "weekends" ? [0, 6] : nextPattern === "none" ? [] : customDays;
+    const next = { ...settings, enabled: days.length > 0 || settings.enabled, usualHigherDays: days, updatedAt: new Date().toISOString() };
+    browserGoingOutRepository(profile).saveSettings(next); setSettings(next); setPattern(nextPattern); setCustomDays(days);
+    setMessage(days.length ? "Usual days saved. They can only add a small meal-fit signal." : "No regular pattern saved.");
+  };
+  const toggleDay = (day: number) => setCustomDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort());
+
+  const beginRecap = (event: GoingOutEvent) => {
+    const linked = drinks.filter((entry) => entryDate(entry) === event.eventDate && entry.drinkDetails).map((entry) => ({ ...entry.drinkDetails!, sourceHistoryEntryId: entry.id }));
+    const existingUnlinked = (event.actualConsumption ?? []).filter((entry) => !entry.sourceHistoryEntryId);
+    setRecapDraft([...linked, ...existingUnlinked]); setRecapEventId(event.id);
+  };
+  const addRecapEstimate = (category: Exclude<NightOutCategory, "custom" | "nonalcoholic">) => {
+    const estimate = quickAlcoholEstimate(category, 1);
+    setRecapDraft((current) => [...current, { id: crypto.randomUUID(), name: estimate.name, category, quantity: 1, approximateDate: events.find((event) => event.id === recapEventId)?.eventDate ?? todayKey(), timeAccuracy: "date-only", nutrition: estimate.nutrition, standardDrinks: estimate.standardDrinks, estimateStatus: estimate.estimateStatus, calculationMethod: estimate.calculationMethod }]);
+  };
+  const saveRecap = (event: GoingOutEvent, status: GoingOutEvent["status"], actual = recapDraft) => {
+    if (!profile) return;
+    const updated = { ...event, status, actualConsumption: actual, updatedAt: new Date().toISOString() };
+    browserGoingOutRepository(profile).upsertEvent(updated); syncNightOutNutrition(updated, browserMealHistoryRepository());
+    refresh(profile); setRecapEventId(undefined); setRecapDraft([]);
+    setMessage(status === "recap-skipped" ? "Recap skipped. No consumption was assumed." : "Recap saved. Drinks already in your log were not counted twice.");
+  };
+
+  if (profile === undefined) return <main className="ff-page"><p className="subtle">Loading Going Out…</p></main>;
+  if (!profile) return <main className="ff-page"><PageHeader title="Going Out" /><p className="mt-5">Create a profile before using this feature.</p><Link className="primary mt-5 inline-flex" href="/onboarding">Build my plan</Link></main>;
+  const categories = DIRECT_DRINK_PRESETS.filter((preset) => loggingEligible || preset.category === "nonalcoholic");
+  const upcoming = events.filter((event) => event.status === "planned" && event.eventDate >= todayKey()).sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+  return <main className="ff-page ff-going-out">
+    <PageHeader title="Going Out" description="Track drinks and plan around your social life." />
+    <AppNav />
+
+    <section className="ff-go-actions" aria-label="Going Out actions">
+      <button type="button" className="ff-go-action ff-go-action-log" onClick={() => setPanel(panel === "log" ? null : "log")}><DrinkIllustration category={loggingEligible ? "cocktail" : "nonalcoholic"} className="ff-go-action-art" /><span><small>Already had something?</small><strong>Log a drink</strong><em>{loggingEligible ? "Record what you actually drank." : "Record a nonalcoholic beverage."}</em></span><b>→</b></button>
+      <button type="button" className="ff-go-action ff-go-action-plan" onClick={() => setPanel(panel === "plan" ? null : "plan")}><span className="ff-plan-emblem" aria-hidden="true"><i>FRI</i><i>+</i></span><span><small>Going out tonight?</small><strong>Plan a night out</strong><em>Tell Falcon Fuel about an upcoming occasion.</em></span><b>→</b></button>
+    </section>
+
+    {message && <p className="ff-outlook-message" role="status">{message}</p>}
+
+    {panel === "log" && <section className="ff-drink-flow" aria-labelledby="drink-flow-heading">
+      <div className="ff-flow-heading"><div><p className="eyebrow">Actual consumption</p><h2 id="drink-flow-heading">{editingDrinkId ? "Edit your drink" : "What did you drink?"}</h2><p>{editingDrinkId ? "Update the saved details below." : "Choose a type, check the serving, and add it to your list."}</p></div><button type="button" onClick={() => { setPanel(null); setEditingDrinkId(undefined); }}>Close</button></div>
+      <div className="ff-drink-tiles">{categories.map((preset) => <button type="button" key={preset.category} aria-pressed={drinkDraft.category === preset.category} onClick={() => chooseDrink(preset.category)}><DrinkIllustration category={preset.category} /><strong>{preset.label}</strong><span>{preset.servingLabel} · ~{preset.caloriesPerServing} cal</span></button>)}</div>
+      <div className="ff-drink-editor">
+        <div className="ff-editor-copy"><DrinkIllustration category={drinkDraft.category} /><div><p className="eyebrow">Ready to add</p><h3>{drinkDraft.name}</h3><p>{formattedDrinkServing(drinkDraft.category, numericDraft.servingOunces)} · Estimated {Math.round(numericDraft.caloriesPerServing ?? 0)} calories{drinkDraft.category === "cocktail" ? " · varies by preparation" : ""}</p></div></div>
+        <div className="ff-drink-primary">
+          <span id="drink-quantity-label">Quantity</span>
+          <div className="ff-drink-stepper" role="group" aria-labelledby="drink-quantity-label">
+            <button type="button" aria-label="Decrease quantity" disabled={numberOrZero(drinkDraft.quantity) <= 1} onClick={() => changeQuantity(-1)}>−</button>
+            <output aria-live="polite">{drinkDraft.quantity}</output>
+            <button type="button" aria-label="Increase quantity" onClick={() => changeQuantity(1)}>+</button>
+          </div>
+        </div>
+        <details className="ff-drink-details">
+          <summary>Adjust estimate</summary>
+          <p>Reference estimates vary by beverage and preparation. Change these only when your serving was different.</p>
+          <div className="ff-editor-fields">
+            <label className="field">Serving size ({activePreset.servingUnit})<input type="number" min="0.1" step={activePreset.servingUnit === "mL" ? "10" : "0.1"} value={Math.round(displayedServingAmount * 10) / 10} onChange={(e) => updateServingAmount(e.target.value)} /></label>
+            {drinkDraft.category !== "nonalcoholic" && <label className="field">ABV %<input type="number" min="0" max="100" step="0.1" value={drinkDraft.abvPercent} onChange={(e) => setDrinkDraft((current) => ({ ...current, abvPercent: e.target.value, estimateAdjusted: true }))} /></label>}
+            <label className="field">Estimated calories per serving<input type="number" min="0" value={drinkDraft.caloriesPerServing} onChange={(e) => setDrinkDraft((current) => ({ ...current, caloriesPerServing: e.target.value, estimateAdjusted: true }))} /></label>
+          </div>
+          <button type="button" className="ff-reset-estimate" onClick={resetEstimate}>Use default estimate</button>
+        </details>
+        <details className="ff-drink-details ff-drink-timing">
+          <summary>Date and time</summary>
+          <div className="ff-editor-fields"><label className="field">Day<input type="date" value={drinkDraft.day} onChange={(e) => setDrinkDraft((current) => ({ ...current, day: e.target.value }))} /></label><label className="field">Time<input type="time" value={drinkDraft.time} onChange={(e) => setDrinkDraft((current) => ({ ...current, time: e.target.value }))} /></label></div>
+        </details>
+        <div className="ff-drink-review"><span><strong>{Math.round(preview.nutrition.calories)} estimated calories</strong><small>{drinkDraft.category !== "nonalcoholic" ? `About ${preview.standardDrinks.toFixed(1)} standard drinks. Estimates vary by beverage and preparation.` : "This estimate will be included in your daily total."}</small></span><button type="button" className="primary" onClick={editingDrinkId ? saveDrinkEdit : addDrinkToList}>{editingDrinkId ? "Save changes" : "+ Add to list"}</button></div>
+      </div>
+      {!editingDrinkId && <section className="ff-pending-drinks" aria-labelledby="pending-drinks-heading">
+        <div className="ff-pending-heading"><div><p className="eyebrow">Batch entry</p><h3 id="pending-drinks-heading">Drinks to log</h3></div><span aria-live="polite">{pendingCount} {pendingCount === 1 ? "drink" : "drinks"}</span></div>
+        {pendingDrinks.length === 0 ? <div className="ff-pending-empty"><p>Your list is empty.</p><span>Add a drink above. Nothing counts toward nutrition until you log the list.</span></div> : <div className="ff-pending-list">{pendingDrinks.map((item) => {
+          const itemCalories = directDrinkNutrition(item.draft).nutrition.calories;
+          return <article key={item.id}>
+            <DrinkIllustration category={item.draft.category} />
+            <div className="ff-pending-copy"><strong>{item.draft.name}</strong><span>{formattedDrinkServing(item.draft.category, item.draft.servingOunces)} · {pendingTime(item.draft.consumedAt)}</span><small>{Math.round(itemCalories)} estimated calories</small></div>
+            <div className="ff-pending-controls"><span id={`pending-quantity-${item.id}`}>Quantity</span><div className="ff-drink-stepper" role="group" aria-labelledby={`pending-quantity-${item.id}`}><button type="button" aria-label={`Decrease ${item.draft.name} quantity`} disabled={item.draft.quantity <= 1} onClick={() => changePendingQuantity(item.id, -1)}>−</button><output aria-live="polite">{item.draft.quantity}</output><button type="button" aria-label={`Increase ${item.draft.name} quantity`} onClick={() => changePendingQuantity(item.id, 1)}>+</button></div><button type="button" className="ff-pending-remove" onClick={() => removePendingDrink(item.id)}>Remove</button></div>
+          </article>;
+        })}</div>}
+        <div className="ff-pending-submit"><span><small>Cumulative estimate</small><strong>{Math.round(pendingCalories)} calories</strong></span><button type="button" className="primary" disabled={pendingDrinks.length === 0 || isSubmittingDrinks} onClick={logPendingDrinks}>{isSubmittingDrinks ? "Logging…" : pendingCount > 0 ? `Log ${pendingCount} ${pendingCount === 1 ? "drink" : "drinks"}` : "Log drinks"}</button></div>
+      </section>}
+    </section>}
+
+    {panel === "plan" && <section className="ff-plan-flow" aria-labelledby="plan-flow-heading"><div className="ff-flow-heading"><div><p className="eyebrow">Upcoming occasion</p><h2 id="plan-flow-heading">Plan a night out</h2><p>A plan can slightly improve meal fit. It never adds calories or logs a drink.</p></div><button type="button" onClick={() => setPanel(null)}>Close</button></div><fieldset><legend>When?</legend><div className="ff-choice-row"><button type="button" aria-pressed={planDateChoice === "today"} onClick={() => setPlanDateChoice("today")}>Tonight</button><button type="button" aria-pressed={planDateChoice === "tomorrow"} onClick={() => setPlanDateChoice("tomorrow")}>Tomorrow</button><button type="button" aria-pressed={planDateChoice === "choose"} onClick={() => setPlanDateChoice("choose")}>Choose a date</button></div>{planDateChoice === "choose" && <label className="field ff-date-field">Date<input type="date" value={planDate} onChange={(e) => setPlanDate(e.target.value)} /></label>}</fieldset><fieldset><legend>What are you planning?</legend><div className="ff-occasion-grid">{(Object.keys(occasionLabels) as Occasion[]).map((value) => <button type="button" key={value} aria-pressed={occasion === value} onClick={() => setOccasion(value)}><span aria-hidden="true">{value === "dinner-out" ? "◇" : value === "social-gathering" ? "◎" : value === "late-night-food" ? "☾" : "+"}</span>{occasionLabels[value]}</button>)}</div></fieldset>{planningEligible && <fieldset><legend>Expected beverages <span>Optional</span></legend><div className="ff-choice-row">{(Object.keys(forecastLabels) as AlcoholForecast[]).map((value) => <button type="button" key={value} aria-pressed={forecast === value} onClick={() => setForecast(forecast === value ? "" : value)}>{forecastLabels[value]}</button>)}</div></fieldset>}<label className="field">Food plans <span>Optional</span><input value={foodNote} onChange={(e) => setFoodNote(e.target.value)} placeholder="Dinner reservation, late-night pizza…" /></label><div className="ff-plan-summary"><span><small>Your plan</small><strong>{prettyDate(planDateChoice === "today" ? todayKey() : planDateChoice === "tomorrow" ? tomorrowKey() : planDate)} — {occasionLabels[occasion].toLowerCase()} planned.</strong><em>Falcon Fuel may give suitable meals a small positive ranking boost. Your calorie target stays the same.</em></span><button type="button" className="primary" onClick={savePlan}>{editingPlanId ? "Update plan" : "Save plan"}</button></div></section>}
+
+    <section className="ff-outlook-events" aria-labelledby="upcoming-heading"><div className="ff-outlook-section-head"><div><p className="eyebrow">Coming up</p><h2 id="upcoming-heading">Upcoming plans</h2></div><span>{upcoming.length || "None yet"}</span></div>{upcoming.length === 0 ? <div className="ff-outlook-empty"><strong>Planning something this weekend?</strong><p>Add a date and occasion. No calorie math is required.</p><button type="button" onClick={() => setPanel("plan")}>Plan a night out →</button></div> : <div className="ff-event-list">{upcoming.map((event) => <article className="ff-outlook-event" key={event.id}><div><p className="eyebrow">{prettyDate(event.eventDate)}</p><h3>{occasionLabels[event.occasion ?? (event.planKind === "late-night" ? "late-night-food" : "social-gathering")]}</h3><p>{event.expectedFoodNote || "No food details added"}{event.alcoholForecast ? ` · ${forecastLabels[event.alcoholForecast]} drinks expected` : ""}</p></div><div className="ff-outlook-event-actions"><button type="button" onClick={() => editPlan(event)}>Edit plan</button>{planningEligible && <button type="button" onClick={() => beginRecap(event)}>Review night</button>}<button type="button" className="is-danger" onClick={() => deletePlan(event)}>Delete</button></div>{recapEventId === event.id && <div className="ff-recap-panel"><h4>Review what you drank</h4><p>Drinks already in your daily log are included automatically and will not be counted twice.</p>{recapDraft.length > 0 && <div className="ff-recap-list">{recapDraft.map((entry) => <div key={entry.id}><span><strong>{entry.name}</strong><small>{entry.sourceHistoryEntryId ? "Already logged" : `${Math.round(entry.nutrition.calories)} cal estimate`}</small></span>{!entry.sourceHistoryEntryId && <button type="button" onClick={() => setRecapDraft((current) => current.filter((row) => row.id !== entry.id))}>Remove</button>}</div>)}</div>}<div className="ff-recap-add">{(["beer", "hard-seltzer", "wine", "wine-bottle", "spirits", "cocktail"] as const).map((category) => <button type="button" key={category} onClick={() => addRecapEstimate(category)}>+ {drinkPresetFor(category).label}</button>)}</div><div className="ff-recap-actions"><button type="button" className="primary" onClick={() => saveRecap(event, "recap-completed")}>Save recap</button><button type="button" className="secondary" onClick={() => saveRecap(event, "recap-completed", [])}>I had none</button><button type="button" className="secondary" onClick={() => saveRecap(event, "recap-skipped", [])}>Skip</button><button type="button" onClick={() => setRecapEventId(undefined)}>Cancel</button></div></div>}</article>)}</div>}</section>
+
+    <section className="ff-recent-drinks" aria-labelledby="recent-drinks-heading"><div className="ff-outlook-section-head"><div><p className="eyebrow">Actually consumed</p><h2 id="recent-drinks-heading">Recent drinks</h2></div>{drinks.length > 0 && <button type="button" onClick={() => setPanel("log")}>Log another →</button>}</div>{drinks.length === 0 ? <div className="ff-outlook-empty"><strong>Nothing logged yet.</strong><p>Plans stay separate until you add something you actually drank.</p></div> : <div className="ff-recent-list">{drinks.slice(0, 6).map((entry) => <article key={entry.id}><DrinkIllustration category={entry.drinkDetails?.category ?? "custom"} /><div><strong>{entry.drinkDetails?.name}</strong><span>{new Date(entry.eatenAt ?? entry.selectedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {Math.round(entry.nutrition?.calories ?? 0)} cal · {entry.nutritionEstimateStatus}</span></div><button type="button" onClick={() => editDrink(entry)}>Edit</button><button type="button" className="is-danger" onClick={() => deleteDrink(entry)}>Delete</button></article>)}</div>}</section>
+
+    <section className="ff-usual-days" aria-labelledby="usual-days-heading"><div><p className="eyebrow">Optional routine</p><h2 id="usual-days-heading">Are there days when you usually eat more or go out?</h2><p>We&apos;ll keep your usual plans in mind when suggesting meals. Your calorie target does not change.</p></div><div className="ff-pattern-options"><button type="button" aria-pressed={pattern === "fri-sat"} onClick={() => savePattern("fri-sat")}>Friday and Saturday</button><button type="button" aria-pressed={pattern === "weekends"} onClick={() => savePattern("weekends")}>Weekends</button><button type="button" aria-pressed={pattern === "custom"} onClick={() => setPattern("custom")}>Choose my days</button><button type="button" aria-pressed={pattern === "none"} onClick={() => savePattern("none")}>No regular pattern</button></div>{pattern === "custom" && <div className="ff-day-picker">{weekdayLabels.map((label, day) => <button type="button" key={label} aria-pressed={customDays.includes(day)} onClick={() => toggleDay(day)}>{label}</button>)}<button type="button" className="ff-save-days" onClick={() => savePattern("custom")}>Save days</button></div>}</section>
+
+    <section className="ff-outlook-privacy"><strong>Private on this device</strong><p>Plans and drink records stay in this browser and are excluded from Bentley-facing analytics. A U.S. standard drink is about 14 g of pure alcohol; the amount in a glass, bottle, can, or cocktail can vary. Never drive after drinking.</p><Link href="/profile">Manage Going Out settings →</Link></section>
+  </main>;
+}

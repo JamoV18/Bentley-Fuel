@@ -20,6 +20,7 @@ export interface DiningMenuSnapshot {
 
 export interface DiningSnapshotRepository {
   get(outletKey: string, menuDate: string): Promise<DiningMenuSnapshot | undefined>;
+  getCurrentPublished(outletKey: string): Promise<DiningMenuSnapshot | undefined>;
   set(snapshot: DiningMenuSnapshot): Promise<void>;
 }
 
@@ -42,6 +43,10 @@ type ProcessWithBuiltinModule = typeof process & {
 
 function key(outletKey: string, menuDate: string): string {
   return `dining-snapshot:v1:${outletKey}:${menuDate}`;
+}
+
+function currentPublishedKey(outletKey: string): string {
+  return `dining-snapshot:v1:${outletKey}:current-published`;
 }
 
 function localPersistenceEnabled(): boolean {
@@ -71,6 +76,11 @@ function localSnapshotPath(outletKey: string, menuDate: string): string {
   return `${localSnapshotDirectory()}/${safeOutlet}-${safeDate}.json`;
 }
 
+function localCurrentPublishedPath(outletKey: string): string {
+  const safeOutlet = outletKey.replace(/[^a-z0-9_-]+/gi, "-");
+  return `${localSnapshotDirectory()}/${safeOutlet}-current-published.json`;
+}
+
 function validSnapshot(value: unknown, outletKey: string, menuDate: string): DiningMenuSnapshot | undefined {
   if (!value || typeof value !== "object") return undefined;
   const snapshot = value as DiningMenuSnapshot;
@@ -85,6 +95,17 @@ async function readLocalSnapshot(outletKey: string, menuDate: string): Promise<D
   try {
     const raw = await fs.readFile(localSnapshotPath(outletKey, menuDate), "utf8");
     return validSnapshot(JSON.parse(raw), outletKey, menuDate);
+  } catch {
+    return undefined;
+  }
+}
+
+async function readLocalCurrentPublished(outletKey: string): Promise<DiningMenuSnapshot | undefined> {
+  const fs = nodeFsPromises();
+  if (!fs) return undefined;
+  try {
+    const raw = JSON.parse(await fs.readFile(localCurrentPublishedPath(outletKey), "utf8")) as DiningMenuSnapshot;
+    return raw.outletKey === outletKey && raw.publicationSource === "trusted-browser-sync" && raw.schemaVersion === 1 ? raw : undefined;
   } catch {
     return undefined;
   }
@@ -106,6 +127,9 @@ async function writeLocalSnapshot(snapshot: DiningMenuSnapshot): Promise<void> {
   try {
     await fs.mkdir(localSnapshotDirectory(), { recursive: true });
     await fs.writeFile(localSnapshotPath(snapshot.outletKey, snapshot.menuDate), JSON.stringify(snapshot), "utf8");
+    if (snapshot.publicationSource === "trusted-browser-sync") {
+      await fs.writeFile(localCurrentPublishedPath(snapshot.outletKey), JSON.stringify(snapshot), "utf8");
+    }
   } catch (error) {
     console.warn(JSON.stringify({
       event: "dining-local-snapshot-write-failed",
@@ -124,17 +148,24 @@ async function writeLocalSnapshot(snapshot: DiningMenuSnapshot): Promise<void> {
  */
 export class MemoryDiningSnapshotRepository implements DiningSnapshotRepository {
   private readonly store = new Map<string, DiningMenuSnapshot>();
+  private readonly currentPublished = new Map<string, DiningMenuSnapshot>();
 
   async get(outletKey: string, menuDate: string): Promise<DiningMenuSnapshot | undefined> {
     return this.store.get(key(outletKey, menuDate));
   }
 
+  async getCurrentPublished(outletKey: string): Promise<DiningMenuSnapshot | undefined> {
+    return this.currentPublished.get(outletKey);
+  }
+
   async set(snapshot: DiningMenuSnapshot): Promise<void> {
     this.store.set(key(snapshot.outletKey, snapshot.menuDate), snapshot);
+    if (snapshot.publicationSource === "trusted-browser-sync") this.currentPublished.set(snapshot.outletKey, snapshot);
   }
 
   clear(): void {
     this.store.clear();
+    this.currentPublished.clear();
   }
 }
 
@@ -172,6 +203,31 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
     return undefined;
   }
 
+  async getCurrentPublished(outletKey: string): Promise<DiningMenuSnapshot | undefined> {
+    const cacheKey = currentPublishedKey(outletKey);
+    try {
+      const cached = await getCache().get(cacheKey) as DiningMenuSnapshot | null | undefined;
+      if (cached?.outletKey === outletKey && cached.publicationSource === "trusted-browser-sync") {
+        await this.memory.set(cached);
+        developmentSharedSnapshots()?.set(cacheKey, cached);
+        return cached;
+      }
+    } catch {
+      // Local development and non-Vercel CI do not provide the Runtime Cache context.
+    }
+    const shared = developmentSharedSnapshots()?.get(cacheKey);
+    if (shared) return shared;
+    const inMemory = await this.memory.getCurrentPublished(outletKey);
+    if (inMemory) return inMemory;
+    const local = await readLocalCurrentPublished(outletKey);
+    if (local) {
+      await this.memory.set(local);
+      developmentSharedSnapshots()?.set(cacheKey, local);
+      return local;
+    }
+    return undefined;
+  }
+
   async set(snapshot: DiningMenuSnapshot): Promise<void> {
     const cacheKey = key(snapshot.outletKey, snapshot.menuDate);
     await this.memory.set(snapshot);
@@ -192,12 +248,19 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
     try {
       const cache = getCache();
       const existing = await cache.get(cacheKey) as DiningMenuSnapshot | null | undefined;
-      if (existing?.contentHash === snapshot.contentHash && existing?.publicationSource === snapshot.publicationSource) return;
-      await cache.set(cacheKey, snapshot, {
-        ttl: SNAPSHOT_TTL_SECONDS,
-        tags: [`dining:${snapshot.outletKey}`, `dining-date:${snapshot.menuDate}`],
-        name: `Falcon Fuel ${snapshot.outletName} ${snapshot.menuDate}`,
-      });
+      if (existing?.contentHash !== snapshot.contentHash || existing?.publicationSource !== snapshot.publicationSource) {
+        await cache.set(cacheKey, snapshot, {
+          ttl: SNAPSHOT_TTL_SECONDS,
+          tags: [`dining:${snapshot.outletKey}`, `dining-date:${snapshot.menuDate}`],
+          name: `Falcon Fuel ${snapshot.outletName} ${snapshot.menuDate}`,
+        });
+      }
+      if (snapshot.publicationSource === "trusted-browser-sync") {
+        await cache.set(currentPublishedKey(snapshot.outletKey), snapshot, {
+          tags: [`dining:${snapshot.outletKey}`, "dining:operator-published"],
+          name: `Falcon Fuel current published ${snapshot.outletName}`,
+        });
+      }
     } catch {
       // Development uses the shared-global + local-file layers above; tests use explicit memory repositories.
     }

@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createLocalActivityCheckInRepository } from "./activityCheckIn";
+import { createDirectDrinkHistoryEntry } from "./drinkLogging";
 import { createLocalMealHistoryRepository } from "./mealHistoryRepository";
 import { createUserProfile } from "./profileRepository";
 import { createLocalProgressiveProfileRepository } from "./progressiveProfile";
 import { createLocalProgressRepository } from "./progressRepository";
+import { createLocalPlannedMealRepository } from "./plannedMealRepository";
 import {
   FALCON_FUEL_USER_DATA_KEYS,
   createLocalUserDataRepository,
@@ -76,6 +78,12 @@ const seedPortableData = (storage: MemoryStorage) => {
     evidenceCount: 3,
     answeredAt: "2026-08-31T18:00:00.000Z",
   });
+  createLocalPlannedMealRepository(storage, created.id).upsert({
+    id: "plan-1", ownerProfileId: created.id, intendedDate: "2026-09-02", mealSlot: "lunch", locationId: "loc-921",
+    build: { locationId: "loc-921", items: [{ id: "planned-line", menuItemId: "item-1", quantity: 1 }] },
+    nutrition: { calories: 500, protein: 30, carbs: 55, fat: 18 }, source: "recommended", status: "planned",
+    createdAt: "2026-08-31T19:00:00.000Z", updatedAt: "2026-08-31T19:00:00.000Z",
+  });
   return created;
 };
 
@@ -101,6 +109,8 @@ test("export keeps profile, meals, progress, reviews, preferences, and recommend
   assert.equal(exported.recommendationInteractions[0].kind, "meal-chosen");
   assert.equal(data.summary().progressivePreferenceCount, 1);
   assert.equal(data.summary().recommendationInteractionCount, 1);
+  assert.equal(exported.plannedMeals?.length, 1);
+  assert.equal(data.summary().plannedMealCount, 1);
 });
 
 test("export preserves the raw stored profile instead of serializing read-time derived targets", () => {
@@ -147,7 +157,50 @@ test("a valid export can be previewed and restored exactly without generating ex
   assert.deepEqual(restored.activityCheckIns, exported.activityCheckIns);
   assert.deepEqual(restored.progressivePreferences, exported.progressivePreferences);
   assert.deepEqual(restored.recommendationInteractions, exported.recommendationInteractions);
+  assert.deepEqual(restored.plannedMeals, exported.plannedMeals);
   assert.equal(target.getItem("unrelated-app-key"), "keep-me");
+});
+
+test("age-19 exports preserve retrospective alcohol logs but cannot import future alcohol planning", () => {
+  const storage = new MemoryStorage();
+  const age19Profile = createUserProfile({
+    primaryGoal: "maintain-weight",
+    goals: ["maintain-weight"],
+    dietaryPreferences: [],
+    allergensToAvoid: [],
+    breakfastPreferences: [],
+    unitSystem: "us",
+    behavioralGoals: [],
+    metrics: { age: 19 },
+  });
+  storage.setItem("bentley-fuel.profile.v1", JSON.stringify(age19Profile));
+  createLocalMealHistoryRepository(storage).upsert(createDirectDrinkHistoryEntry(
+    age19Profile,
+    { category: "beer", name: "Beer", quantity: 1, servingOunces: 12, abvPercent: 5, caloriesPerServing: 150, consumedAt: "2026-10-06T20:00:00.000Z", estimateStatus: "approximate" },
+    { id: "age-19-beer", now: "2026-10-06T20:01:00.000Z" },
+  ));
+
+  const exported = createLocalUserDataRepository(storage).exportData();
+  assert.equal(previewFalconFuelUserDataImport(exported).valid, true);
+
+  const age17Export = { ...exported, profile: { ...age19Profile, metrics: { age: 17 } } };
+  const age17Preview = previewFalconFuelUserDataImport(age17Export);
+  assert.equal(age17Preview.valid, false);
+  assert.match(age17Preview.errors.join(" "), /18 or older/i);
+
+  const futureAlcoholPlan = {
+    id: "age-19-plan",
+    ownerProfileId: age19Profile.id,
+    eventDate: "2026-10-09",
+    planKind: "social" as const,
+    alcoholForecast: "1-2" as const,
+    status: "planned" as const,
+    createdAt: "2026-10-06T12:00:00.000Z",
+    updatedAt: "2026-10-06T12:00:00.000Z",
+  };
+  const planningPreview = previewFalconFuelUserDataImport({ ...exported, goingOutEvents: [futureAlcoholPlan] });
+  assert.equal(planningPreview.valid, false);
+  assert.match(planningPreview.errors.join(" "), /21 or older/i);
 });
 
 test("invalid or duplicate records are rejected before any Falcon Fuel key is changed", () => {

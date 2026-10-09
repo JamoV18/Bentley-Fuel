@@ -38,6 +38,19 @@ test("pending meals mark saved-meal check-ins incomplete without judging the day
   assert.equal(snapshot.allSavedMealsConfirmed, false);
 });
 
+test("direct drinks add calories without pretending to be completed meals", () => {
+  const drink = {
+    ...meal("drink", "2026-10-06T20:00:00.000Z", 1),
+    source: "drink-log" as const,
+    entryKind: "alcohol" as const,
+    nutrition: { calories: 150, protein: 0, carbs: 0, fat: 0 },
+  };
+  const snapshot = createDailyNutritionSnapshot([drink], targets, new Date("2026-10-06T12:00:00"));
+  assert.equal(snapshot.consumed.calories, 150);
+  assert.equal(snapshot.confirmedMeals, 0);
+  assert.equal(snapshot.allSavedMealsConfirmed, false);
+});
+
 test("weekly summary averages confirmed consumption and reports check-in coverage", () => {
   const summary = summarizeWeek([
     meal("mon", "2026-08-17T16:00:00.000Z", 1),

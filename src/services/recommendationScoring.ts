@@ -4,6 +4,7 @@ import { mealBuildSimilarity, scoreMealHistory, type MealHistoryScore } from "./
 import { assessBreakfastRoutine, breakfastRepetitionPenaltyMultiplier } from "./breakfastRoutine";
 import { mealDietQualityPenalty } from "./recommendationDietQuality";
 import { inferMenuItemMealRole, mealCoherenceScore } from "./recommendationMealQuality";
+import { goingOutRecommendationAdjustment } from "./goingOutRecommendation";
 import type { Macros, MealCandidate, PrimaryGoal, RecommendationContext } from "@/types";
 
 export type NutritionScoringMode = "daily-targets" | "goal-only";
@@ -30,6 +31,8 @@ export interface NutritionScoreBreakdown {
   softPreferenceBonus?: number;
   /** Bounded positive fit for an explicit breakfast routine selected during onboarding. */
   breakfastRoutineBonus?: number;
+  /** Positive-only, maximum three-point event-context boost. */
+  goingOutAdjustment?: number;
   behavior: MealHistoryScore;
   mode: NutritionScoringMode;
 }
@@ -485,12 +488,19 @@ export function scoreResolvedMeals(
       const energyOvershootPenalty = goalOnlyReference === undefined
         ? 0
         : goalOnlyEnergyOvershootPenalty(computed.nutrition!.calories, goalOnlyReference);
+      const goingOutAdjustment = goingOutRecommendationAdjustment({
+        context: context.goingOut,
+        nutrition: computed.nutrition!,
+        stationCount: new Set(mealStations.map((station) => station.id)).size,
+        mealTarget: target,
+        goalOnlyCalorieReference: goalOnlyReference,
+      });
 
       const nutritionTotal = roundScore(targetFit === undefined
         ? (energyReferenceFit ?? 0) * 0.55 + goalAlignment * 0.45 + coherenceAdjustment + softPreferenceBonus + breakfastRoutineBonus - penalty - dietQualityPenalty - compositionPenalty - energyOvershootPenalty
         : targetFit * 0.80 + goalAlignment * 0.20 + coherenceAdjustment + softPreferenceBonus + breakfastRoutineBonus - penalty - dietQualityPenalty - compositionPenalty);
       const behavior = adjustHistoryBehaviorForBreakfast(scoreMealHistory(candidate, context.recentHistory ?? []), context);
-      const total = roundScore(nutritionTotal + behavior.totalAdjustment);
+      const total = roundScore(nutritionTotal + behavior.totalAdjustment + goingOutAdjustment);
       return {
         candidate,
         computed,
@@ -507,6 +517,7 @@ export function scoreResolvedMeals(
           mealCoherence,
           softPreferenceBonus,
           breakfastRoutineBonus,
+          goingOutAdjustment,
           behavior,
           mode,
         },

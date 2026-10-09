@@ -104,7 +104,31 @@ export function canonicalFoodFromMenuItem(item: MenuItem, stationName?: string):
     availability: item.availability,
     availableNow: item.availabilityStatus === "live-verified" || item.availabilityStatus === "verified-snapshot",
     contextLabel: omeletteRole === "add-in" ? "Cucina · Omelette add-in" : undefined,
+    quickAddEligible: Boolean(
+      serving
+      && Number.isFinite(serving.amount)
+      && serving.amount > 0
+      && (serving.description?.trim() || serving.unit.trim()),
+    ),
   };
+}
+
+/**
+ * Quick Add is deliberately stricter than normal food selection. A food may be
+ * searchable with an estimated fallback serving, but one-tap logging is only
+ * safe when its default portion is explicit and its nutrition can be computed.
+ */
+export function canQuickAddCanonicalFood(food: CanonicalFood): boolean {
+  if (food.quickAddEligible === false || !Number.isFinite(food.defaultQuantity) || food.defaultQuantity <= 0) return false;
+  const selected = food.portions.find((candidate) => candidate.id === food.defaultPortionUnitId);
+  if (!selected || !Number.isFinite(selected.amount) || selected.amount <= 0 || !Number.isFinite(selected.step) || selected.step <= 0) return false;
+  if (!selected.unit.trim() || !selected.displayName.trim()) return false;
+  try {
+    const nutrition = calculateFoodNutrition(food, food.defaultPortionUnitId, food.defaultQuantity);
+    return [nutrition.calories, nutrition.protein, nutrition.carbs, nutrition.fat].every(Number.isFinite);
+  } catch {
+    return false;
+  }
 }
 
 export function canonicalFoodCatalog(menuItems: readonly MenuItem[], stationNames: Record<string, string> = {}): CanonicalFood[] {

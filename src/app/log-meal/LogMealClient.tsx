@@ -96,6 +96,7 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
   const [removedEntry, setRemovedEntry] = useState<MealHistoryEntry>();
   const [error, setError] = useState("");
   const [savedSlot, setSavedSlot] = useState<MealLogSlot | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const successTimer = useRef<number | null>(null);
   const quickOpenHandled = useRef(false);
   const dialogRef = useRef<HTMLElement>(null);
@@ -168,12 +169,18 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
     const entryId = params.get("entryId") ?? undefined;
     const lineId = params.get("lineId") ?? undefined;
     const requestedDate = params.get("date");
+    const requestedLocation = params.get("location");
+    const requestedSearch = params.get("q") ?? "";
+    const requestedTime = params.get("time");
     const target = entryId ? browserMealHistoryRepository().getRecent(500).find((entry) => entry.id === entryId) : undefined;
     const targetDate = target ? localDateKey(new Date(target.eatenAt ?? target.selectedAt)) : undefined;
     const nextDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : targetDate;
     queueMicrotask(() => {
       if (nextDate) setSelectedDate(nextDate);
+      setSearchQuery(requestedSearch);
       if (requestedSlot && LOG_SLOTS.includes(requestedSlot as MealLogSlot)) openForm(requestedSlot as MealLogSlot, entryId, lineId, params.get("manage") === "1", nextDate);
+      if (requestedLocation && LOCATIONS.some((location) => location.value === requestedLocation)) setLocationId(requestedLocation);
+      if (requestedTime && /^\d{2}:\d{2}$/.test(requestedTime)) setTime(requestedTime);
     });
   }, [openForm]);
 
@@ -250,17 +257,35 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
     return eatenAt;
   };
 
-  const openMenuBrowse = () => {
+  const returnToSearch = (query: string) => {
+    const params = new URLSearchParams({ date: selectedDate });
+    if (activeSlot) params.set("slot", activeSlot);
+    if (locationId) params.set("location", locationId);
+    if (time) params.set("time", time);
+    if (query.trim()) params.set("q", query.trim());
+    if (targetEntryId) params.set("entryId", targetEntryId);
+    if (managingEntry) params.set("manage", "1");
+    return `/log-meal?${params.toString()}`;
+  };
+
+  const openMenuBrowse = (query: string) => {
     if (!activeSlot || locationId === "Other / off campus" || !loggingTime()) return;
     const params = new URLSearchParams({ mode: "manual", intent: "log", date: selectedDate, time, slot: activeSlot, period: activeSlot === "snack" ? "late-night" : activeSlot });
     if (targetEntryId) params.set("entryId", targetEntryId);
+    if (query.trim()) params.set("search", query.trim());
+    params.set("returnTo", returnToSearch(query));
+    params.set("draft", crypto.randomUUID());
     router.push(`/meal-builder/${locationId}?${params.toString()}`);
   };
 
   const openComposition = (item: MenuItem) => {
     if (!loggingTime()) return;
     const params = new URLSearchParams({ mode: "manual", intent: "log", add: item.id, date: selectedDate, time, ...(activeSlot ? { slot: activeSlot } : {}) });
-    if (activeSlot && activeSlot !== "snack") params.set("period", activeSlot);
+    const publishedPeriod = item.availability?.find((period) => period !== "all-day");
+    if (publishedPeriod) params.set("period", publishedPeriod);
+    else if (activeSlot && activeSlot !== "snack") params.set("period", activeSlot);
+    params.set("returnTo", returnToSearch(searchQuery));
+    params.set("draft", crypto.randomUUID());
     router.push(`/meal-builder/${item.locationId}?${params.toString()}`);
   };
 
@@ -364,7 +389,7 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
               </div>
 
               <div className="mt-5">
-                {managingEntry && activeEntry && !editingLineId ? <section className="grid gap-3" aria-labelledby="meal-items-heading"><div><p className="eyebrow">Saved meal</p><h3 id="meal-items-heading" className="mt-1 text-base font-bold">Meal items</h3></div>{activeEntry.build.items.map((line) => <div key={line.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-3 py-2"><span className="min-w-0 truncate text-sm font-semibold">{line.foodSnapshot?.displayName ?? line.display?.name ?? "Meal item"}</span><span className="flex shrink-0 gap-3">{line.foodSnapshot && <button type="button" className="text-xs font-bold text-[var(--ff-accent-light)]" onClick={() => openForm(activeSlot, activeEntry.id, line.id)}>Edit</button>}<button type="button" className="text-xs font-bold text-[var(--ff-danger)]" onClick={() => removeLine(activeEntry, line.id)}>Remove</button></span></div>)}<button type="button" className="secondary mt-1 w-full" onClick={() => setManagingEntry(false)}>+ Add another item</button></section> : <CanonicalFoodPicker key={`${targetEntryId ?? "new"}:${editingLineId ?? "add"}:${initialSnapshot?.loggedAt ?? ""}`} foods={foods} recent={recentFoods} compositionActions={targetEntryId ? [] : compositionActions} locationId={locationId} mealSlot={activeSlot} campusAvailable={campusAvailable} initialSnapshot={initialSnapshot} onAdd={save} onChooseComposition={openComposition} onBrowseMenu={openMenuBrowse} actionLabel={editingLineId ? "Save changes" : targetEntryId ? "Add item" : "Add food"} />}
+                {managingEntry && activeEntry && !editingLineId ? <section className="grid gap-3" aria-labelledby="meal-items-heading"><div><p className="eyebrow">Saved meal</p><h3 id="meal-items-heading" className="mt-1 text-base font-bold">Meal items</h3></div>{activeEntry.build.items.map((line) => <div key={line.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-3 py-2"><span className="min-w-0 truncate text-sm font-semibold">{line.foodSnapshot?.displayName ?? line.display?.name ?? "Meal item"}</span><span className="flex shrink-0 gap-3">{line.foodSnapshot && <button type="button" className="text-xs font-bold text-[var(--ff-accent-light)]" onClick={() => openForm(activeSlot, activeEntry.id, line.id)}>Edit</button>}<button type="button" className="text-xs font-bold text-[var(--ff-danger)]" onClick={() => removeLine(activeEntry, line.id)}>Remove</button></span></div>)}<button type="button" className="secondary mt-1 w-full" onClick={() => setManagingEntry(false)}>+ Add another item</button></section> : <CanonicalFoodPicker key={`${targetEntryId ?? "new"}:${editingLineId ?? "add"}:${initialSnapshot?.loggedAt ?? ""}`} foods={foods} recent={recentFoods} compositionActions={targetEntryId ? [] : compositionActions} locationId={locationId} mealSlot={activeSlot} campusAvailable={campusAvailable} initialSnapshot={initialSnapshot} initialQuery={searchQuery} onQueryChange={setSearchQuery} onAdd={save} onChooseComposition={openComposition} onBrowseMenu={openMenuBrowse} actionLabel={editingLineId ? "Save changes" : targetEntryId ? "Add item" : "Add food"} />}
               </div>
 
               <details className="surface-soft mt-5 p-4">

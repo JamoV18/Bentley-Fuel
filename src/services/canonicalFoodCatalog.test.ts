@@ -5,6 +5,7 @@ import {
   CAMPUS_SERVING_CALIBRATIONS,
   GENERIC_CANONICAL_FOODS,
   calculateFoodNutrition,
+  canQuickAddCanonicalFood,
   canonicalFoodCatalog,
   canonicalFoodFromMenuItem,
   canonicalPlanningDiningResources,
@@ -63,6 +64,20 @@ test("campus foods use stable IDs and retain source verification", () => {
   assert.equal(canonical.foodId, "bentley:loc-921:station-grill:roasted-chicken");
   assert.equal(canonical.verification, "verified");
   assert.ok(canonicalFoodCatalog([]).some((candidate) => candidate.foodId === "generic:egg"));
+});
+
+test("Quick Add requires an explicit, computable default portion", () => {
+  assert.equal(canQuickAddCanonicalFood(food("generic:banana")), true);
+  const shared = {
+    locationId: "loc-921", stationId: "cucina", kind: "predefined" as const,
+    allergens: [], dietaryTags: [], nutrition: { calories: 130, protein: 12, carbs: 1, fat: 8 },
+    provenance: { source: { type: "bentley-dining" as const, name: "Bentley Dining" }, dataStatus: "verified" as const, confidence: 1 },
+  };
+  const scrambled = canonicalFoodFromMenuItem({ ...shared, id: "scrambled", name: "Scrambled Eggs", serving: { amount: 2, unit: "eggs", description: "2 eggs" } }, "Cucina")!;
+  const unknownPortion = canonicalFoodFromMenuItem({ ...shared, id: "mystery", name: "Chef Special" }, "Cucina")!;
+  assert.equal(canQuickAddCanonicalFood(scrambled), true);
+  assert.equal(canQuickAddCanonicalFood(unknownPortion), false);
+  assert.equal(canonicalFoodFromMenuItem({ ...shared, id: "eggs", name: "Eggs", serving: { amount: 1, unit: "serving" } }, "Cucina"), undefined);
 });
 
 test("921 banana is a location-wide campus staple with generic nutrition", () => {

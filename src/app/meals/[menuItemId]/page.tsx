@@ -11,6 +11,12 @@ const readable = (value: string) => value.split("-").map((word, index) => index 
 const readableAllergen = (value: string) => value.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 const servingText = (serving: ServingSize) => serving.description ?? `${serving.amount} ${serving.unit}${serving.amount === 1 ? "" : "s"}`;
 const liveDateFromId = (id: string) => id.match(/^doc-921-(\d{4}-\d{2}-\d{2})-/)?.[1];
+const safeMealBuilderReturn = (value: string | undefined) => value && value.startsWith("/meal-builder/") && !value.startsWith("//") ? value : undefined;
+const withRequestedItem = (href: string, itemId: string) => {
+  const url = new URL(href, "https://falcon-fuel.local");
+  url.searchParams.set("add", itemId);
+  return `${url.pathname}${url.search}`;
+};
 const optionalNutrition: Array<[keyof NutritionFacts, string, string]> = [
   ["fiber", "Fiber", "g"], ["sugar", "Sugar", "g"], ["addedSugar", "Added sugar", "g"], ["saturatedFat", "Saturated fat", "g"], ["transFat", "Trans fat", "g"], ["cholesterol", "Cholesterol", "mg"], ["sodium", "Sodium", "mg"], ["potassium", "Potassium", "mg"], ["calcium", "Calcium", "mg"], ["iron", "Iron", "mg"], ["vitaminD", "Vitamin D", "µg"],
 ];
@@ -20,7 +26,7 @@ export default async function MealPage({
   searchParams,
 }: {
   params: Promise<{ menuItemId: string }>;
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; returnTo?: string }>;
 }) {
   const { menuItemId } = await params;
   const query = await searchParams;
@@ -36,10 +42,13 @@ export default async function MealPage({
   const possibleCustomizableAllergens = [...new Set([...item.allergens, ...(item.mayContainAllergens ?? [])])];
   const menuDate = query.date ?? liveDateFromId(item.id);
   const dateQuery = menuDate ? `?date=${encodeURIComponent(menuDate)}` : "";
-  const backHref = location ? `/locations/${location.id}${dateQuery}` : "/dashboard";
+  const returnTo = safeMealBuilderReturn(query.returnTo);
+  const backHref = returnTo ?? (location ? `/locations/${location.id}${dateQuery}` : "/dashboard");
   const backLabel = location ? (location.shortName ?? location.name) : "All locations";
-  const addHref = location
-    ? `/meal-builder/${location.id}?mode=manual&add=${encodeURIComponent(item.id)}${menuDate ? `&date=${encodeURIComponent(menuDate)}` : ""}`
+  const addHref = returnTo
+    ? withRequestedItem(returnTo, item.id)
+    : location
+      ? `/meal-builder/${location.id}?mode=manual&add=${encodeURIComponent(item.id)}${menuDate ? `&date=${encodeURIComponent(menuDate)}` : ""}`
     : undefined;
   const isVerified = item.provenance.dataStatus === "verified";
 

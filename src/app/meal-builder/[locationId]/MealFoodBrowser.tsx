@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import MealImage from "@/components/MealImage";
@@ -10,11 +11,15 @@ import type { MealBuild, MealPeriod } from "@/types";
 
 const periodAvailable = (periods: readonly MealPeriod[] | undefined, current: MealPeriod) => !periods || periods.length === 0 || periods.includes("all-day") || periods.includes(current);
 
-export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildChange, embedded = false }: { build: MealBuild; resources: MealBuildResources; mealPeriod: MealPeriod; onBuildChange(build: MealBuild): void; embedded?: boolean }) {
+export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildChange, embedded = false, query: controlledQuery, stationFilter: controlledStationFilter, onQueryChange, onStationFilterChange, returnHref }: { build: MealBuild; resources: MealBuildResources; mealPeriod: MealPeriod; onBuildChange(build: MealBuild): void; embedded?: boolean; query?: string; stationFilter?: string; onQueryChange?: (value: string) => void; onStationFilterChange?: (value: string) => void; returnHref?: string }) {
   const reduceMotion = useReducedMotion();
   const [lastAddedItemId, setLastAddedItemId] = useState<string>();
-  const [query, setQuery] = useState("");
-  const [stationFilter, setStationFilter] = useState("all");
+  const [localQuery, setLocalQuery] = useState("");
+  const [localStationFilter, setLocalStationFilter] = useState("all");
+  const query = controlledQuery ?? localQuery;
+  const stationFilter = controlledStationFilter ?? localStationFilter;
+  const setQuery = onQueryChange ?? setLocalQuery;
+  const setStationFilter = onStationFilterChange ?? setLocalStationFilter;
   const normalizedQuery = query.trim().toLowerCase();
   const matchesSearch = useCallback((item: MealBuildResources["menuItems"][number]) => !normalizedQuery ||
     compositionMatchesSearch(item, normalizedQuery) ||
@@ -94,6 +99,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                               </motion.p>
                             )}
                           </AnimatePresence>
+                          {!item.composition && returnHref && !item.id.startsWith("campus-staple:") && !item.id.startsWith("generic:") && <Link href={`/meals/${encodeURIComponent(item.id)}?returnTo=${encodeURIComponent(returnHref)}`} className="mt-1.5 inline-block text-xs font-bold text-[var(--ff-accent-light)]">Details</Link>}
                         </div>
                         <motion.button
                           type="button"

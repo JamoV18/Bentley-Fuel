@@ -17,6 +17,7 @@ const periodMatches = (periods: readonly MealPeriod[] | undefined, period: MealP
 const asMealPeriod = (value: string | undefined): MealPeriod | undefined => PERIOD_ORDER.includes(value as MealPeriod) ? value as MealPeriod : undefined;
 const LOG_SLOTS: MealLogSlot[] = ["breakfast", "lunch", "dinner", "snack"];
 const asMealLogSlot = (value: string | undefined): MealLogSlot | undefined => LOG_SLOTS.includes(value as MealLogSlot) ? value as MealLogSlot : undefined;
+const safeInternalReturnHref = (value: string | undefined) => value && value.startsWith("/") && !value.startsWith("//") ? value : undefined;
 
 function currentBentleyMealPeriod(): MealPeriod {
   const hour = Number(new Intl.DateTimeFormat("en-US", {
@@ -35,7 +36,7 @@ export default async function MealBuilderPage({
   searchParams,
 }: {
   params: Promise<{ locationId: string }>;
-  searchParams: Promise<{ mode?: string; manual?: string; intent?: string; time?: string; slot?: string; add?: string; date?: string; period?: string; entryId?: string; planId?: string }>;
+  searchParams: Promise<{ mode?: string; manual?: string; intent?: string; time?: string; slot?: string; add?: string; date?: string; period?: string; entryId?: string; planId?: string; returnTo?: string; draft?: string; search?: string }>;
 }) {
   const { locationId } = await params;
   const query = await searchParams;
@@ -109,6 +110,9 @@ export default async function MealBuilderPage({
     if (query.intent) next.set("intent", query.intent);
     if (query.time) next.set("time", query.time);
     if (query.slot) next.set("slot", query.slot);
+    if (query.returnTo) next.set("returnTo", query.returnTo);
+    if (query.draft) next.set("draft", query.draft);
+    if (query.search) next.set("search", query.search);
     next.set("date", menuDate);
     next.set("period", selectedPeriod);
     redirect(`/meal-builder/${locationId}?${next.toString()}`);
@@ -145,12 +149,18 @@ export default async function MealBuilderPage({
     if (query.intent) next.set("intent", query.intent);
     if (query.time) next.set("time", query.time);
     if (query.slot) next.set("slot", query.slot);
+    if (query.returnTo) next.set("returnTo", query.returnTo);
+    if (query.draft) next.set("draft", query.draft);
+    if (query.search) next.set("search", query.search);
     if (menuDate) next.set("date", menuDate);
     next.set("period", period);
     return `/meal-builder/${locationId}?${next.toString()}`;
   };
 
   let content: React.ReactNode;
+  const currentParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) if (value) currentParams.set(key, value);
+  const currentHref = `/meal-builder/${locationId}${currentParams.size ? `?${currentParams.toString()}` : ""}`;
   if (query.mode === "manual" || (isPlanning && query.manual === "1")) {
     const initialMenuItemId = query.add && menuItems.some((item) => item.id === query.add) ? query.add : undefined;
     content = (
@@ -167,6 +177,10 @@ export default async function MealBuilderPage({
         isDemo={isDemo}
         menuDate={menuDate}
         selectedMealPeriod={selectedPeriod}
+        returnHref={safeInternalReturnHref(query.returnTo)}
+        draftKey={query.draft}
+        initialSearch={query.search}
+        currentHref={currentHref}
       />
     );
   } else {

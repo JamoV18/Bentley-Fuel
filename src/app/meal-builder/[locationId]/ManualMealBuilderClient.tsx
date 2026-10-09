@@ -11,6 +11,7 @@ import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { createManualMealItemSelection } from "@/lib/manualMealSelection";
 import { getMealOrderReference } from "@/lib/mealOrderReference";
+import { parseMealBuilderDraft, serializeMealBuilderDraft } from "@/lib/mealBuilderDraft";
 import {
   adjustMealItemQuantity,
   browserMealHistoryRepository,
@@ -53,6 +54,10 @@ export default function ManualMealBuilderClient({
   isDemo,
   menuDate,
   selectedMealPeriod,
+  returnHref,
+  draftKey,
+  initialSearch = "",
+  currentHref,
 }: {
   locationId: string;
   editEntryId?: string;
@@ -66,6 +71,10 @@ export default function ManualMealBuilderClient({
   isDemo: boolean;
   menuDate?: string;
   selectedMealPeriod?: MealPeriod;
+  returnHref?: string;
+  draftKey?: string;
+  initialSearch?: string;
+  currentHref?: string;
 }) {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
@@ -81,6 +90,10 @@ export default function ManualMealBuilderClient({
   const [completionFraction, setCompletionFraction] = useState<MealCompletionFraction>();
   const [beverages, setBeverages] = useState<CampusBeverageSelection[]>([]);
   const [recentBeverages, setRecentBeverages] = useState<CampusBeverageSelection[]>([]);
+  const [browserQuery, setBrowserQuery] = useState(initialSearch);
+  const [stationFilter, setStationFilter] = useState("all");
+  const [draftHydrated, setDraftHydrated] = useState(!draftKey);
+  const draftStorageKey = draftKey ? `falcon-fuel:meal-builder-draft:v1:${draftKey}` : undefined;
 
   useEffect(() => {
     if (!editEntryId) return;
@@ -107,6 +120,46 @@ export default function ManualMealBuilderClient({
     });
   }, [locationId, planId]);
 
+  useEffect(() => {
+    if (!draftStorageKey) return;
+    let restoredBuild: MealBuild | undefined;
+    let restoredQuery: string | undefined;
+    let restoredStation: string | undefined;
+    let restoredScroll = 0;
+    try {
+      const raw = window.sessionStorage.getItem(draftStorageKey);
+      if (raw) {
+        const draft = parseMealBuilderDraft(raw, locationId);
+        if (draft) {
+          const requestedItem = initialMenuItemId ? resources.menuItems.find((candidate) => candidate.id === initialMenuItemId) : undefined;
+          restoredBuild = requestedItem && !draft.build.items.some((line) => line.menuItemId === requestedItem.id)
+            ? { ...draft.build, items: [...draft.build.items, createManualMealItemSelection(requestedItem, resources.components, crypto.randomUUID())] }
+            : draft.build;
+          restoredQuery = draft.query;
+          restoredStation = draft.stationFilter;
+          restoredScroll = draft.scrollY;
+        }
+      }
+    } catch {
+      window.sessionStorage.removeItem(draftStorageKey);
+    }
+    queueMicrotask(() => {
+      if (restoredBuild) setBuild(restoredBuild);
+      if (restoredQuery !== undefined) setBrowserQuery(restoredQuery);
+      if (restoredStation !== undefined) setStationFilter(restoredStation);
+      if (restoredScroll > 0) window.requestAnimationFrame(() => window.scrollTo({ top: restoredScroll, behavior: "auto" }));
+      setDraftHydrated(true);
+    });
+  }, [draftStorageKey, initialMenuItemId, locationId, resources.components, resources.menuItems]);
+
+  useEffect(() => {
+    if (!draftStorageKey || !draftHydrated) return;
+    const persist = () => window.sessionStorage.setItem(draftStorageKey, serializeMealBuilderDraft(build, browserQuery, stationFilter, window.scrollY));
+    persist();
+    window.addEventListener("pagehide", persist);
+    return () => window.removeEventListener("pagehide", persist);
+  }, [browserQuery, build, draftHydrated, draftStorageKey, stationFilter]);
+
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const selectedNutrition = useMemo(() => computed.nutrition ? mealNutritionWithBeverages(computed.nutrition, beverages) : undefined, [beverages, computed.nutrition]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
@@ -121,7 +174,7 @@ export default function ManualMealBuilderClient({
   if (retrospectiveDate) retrospectiveBackParams.set("date", retrospectiveDate);
   if (retrospectiveSlot) retrospectiveBackParams.set("slot", retrospectiveSlot);
   if (editEntryId) { retrospectiveBackParams.set("entryId", editEntryId); retrospectiveBackParams.set("manage", "1"); }
-  const backHref = isPlanning ? `/profile-summary?date=${planningDate}` : isRetrospectiveFlow ? `/log-meal?${retrospectiveBackParams.toString()}` : `/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
+  const backHref = returnHref ?? (isPlanning ? `/profile-summary?date=${planningDate}` : isRetrospectiveFlow ? `/log-meal?${retrospectiveBackParams.toString()}` : `/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`);
   const recommendationParams = new URLSearchParams();
   if (menuDate) recommendationParams.set("date", menuDate);
   if (selectedMealPeriod) recommendationParams.set("period", selectedMealPeriod);
@@ -157,6 +210,7 @@ export default function ManualMealBuilderClient({
       const plannedBuild = snapshotPlannedMealBuild(computeMealBuild(savedBuild, resources), now);
       repository.upsert({ id, ownerProfileId: profile.id, intendedDate: planningDate, mealSlot, locationId: build.locationId, build: plannedBuild, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built", status: "planned", createdAt: existing?.createdAt ?? now, updatedAt: now });
       setSavedPlanId(id);
+      if (draftStorageKey) window.sessionStorage.removeItem(draftStorageKey);
       router.push(`/profile-summary?date=${planningDate}`);
       return;
     }
@@ -186,7 +240,8 @@ export default function ManualMealBuilderClient({
       } : {}),
     });
     setSavedHistoryId(id); setSavedAt(selectedAt);
-    if (isRetrospectiveLog && retrospectiveDate) router.push(`/log-meal?date=${retrospectiveDate}`);
+    if (draftStorageKey) window.sessionStorage.removeItem(draftStorageKey);
+    if (isRetrospectiveLog && retrospectiveDate) router.push(returnHref ?? `/log-meal?date=${retrospectiveDate}`);
   };
 
   const saveCompletion = (fraction: MealCompletionFraction) => {
@@ -261,7 +316,7 @@ export default function ManualMealBuilderClient({
         </div>
 
         <div className="min-w-0">
-          <MealFoodBrowser embedded build={build} resources={resources} mealPeriod={mealPeriod} onBuildChange={setBuild} />
+          <MealFoodBrowser embedded build={build} resources={resources} mealPeriod={mealPeriod} onBuildChange={setBuild} query={browserQuery} stationFilter={stationFilter} onQueryChange={setBrowserQuery} onStationFilterChange={setStationFilter} returnHref={currentHref} />
         </div>
       </div>
 

@@ -60,6 +60,7 @@ const MENU_V1_URL = (locationId: string, date: string, periodId: string) =>
 
 const LIVE_PREFIX = "doc-campus-";
 const LIVE_ID = /^doc-campus-([a-z0-9-]+)-(\d{4}-\d{2}-\d{2})-/;
+const TRUSTED_921_ID = /^trusted-921-(\d{4}-\d{2}-\d{2})-/;
 const LIVE_SOURCE_URL = "https://dineoncampus.com/bentley/whats-on-the-menu";
 const LIVE_CACHE_TTL_MS = 5 * 60 * 1000;
 const DISCOVERY_TTL_MS = 30 * 60 * 1000;
@@ -73,9 +74,13 @@ type LiveIdReference = { target: ReliableDineOnCampusOutletTarget; date: string 
 
 function liveIdReference(id: string | undefined): LiveIdReference | undefined {
   const match = id?.match(LIVE_ID);
-  if (!match) return undefined;
-  const target = RELIABLE_DINE_ON_CAMPUS_OUTLETS.find((entry) => entry.key === match[1]);
-  return target ? { target, date: match[2] } : undefined;
+  if (match) {
+    const target = RELIABLE_DINE_ON_CAMPUS_OUTLETS.find((entry) => entry.key === match[1]);
+    return target ? { target, date: match[2] } : undefined;
+  }
+  const trusted = id?.match(TRUSTED_921_ID);
+  const target = trusted ? RELIABLE_DINE_ON_CAMPUS_OUTLETS.find((entry) => entry.key === "921") : undefined;
+  return target && trusted ? { target, date: trusted[1] } : undefined;
 }
 
 function availabilityProvenance(date: string, outletName: string, note?: string): Provenance {
@@ -168,7 +173,7 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
     }
     const [fallbackStations, results] = await Promise.all([
       this.fallback.getStations(undefined, date),
-      Promise.all(RELIABLE_DINE_ON_CAMPUS_OUTLETS.map((outlet) => this.getOutletDate(outlet, menuDate))),
+      Promise.all(RELIABLE_DINE_ON_CAMPUS_OUTLETS.map((outlet) => this.getPublishedOrCachedOutletDate(outlet, menuDate))),
     ]);
     return [
       ...fallbackStations.filter((station) => !LIVE_LOCATION_IDS.has(station.locationId)),
@@ -193,7 +198,7 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
     }
     const [fallbackItems, results] = await Promise.all([
       this.fallback.getMenuItems(query),
-      Promise.all(RELIABLE_DINE_ON_CAMPUS_OUTLETS.map((outlet) => this.getOutletDate(outlet, menuDate))),
+      Promise.all(RELIABLE_DINE_ON_CAMPUS_OUTLETS.map((outlet) => this.getPublishedOrCachedOutletDate(outlet, menuDate))),
     ]);
     return filterMenuItems([
       ...fallbackItems.filter((item) => !LIVE_LOCATION_IDS.has(item.locationId)),
@@ -221,6 +226,18 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
     const promise = discoverBentleyDineOnCampusOutlets(this.transport);
     this.discoveryCache = { expiresAt: now + DISCOVERY_TTL_MS, promise };
     return promise;
+  }
+
+  /**
+   * Aggregate consumers (Today, History, and canonical search) must be instant
+   * reads. They combine already-published or same-date cached data and leave
+   * upstream discovery/retries to explicit location reads and refreshAll().
+   */
+  private async getPublishedOrCachedOutletDate(target: ReliableDineOnCampusOutletTarget, date: string): Promise<LiveDateData | undefined> {
+    const published = await this.snapshots.getCurrentPublished(target.key);
+    if (published) return snapshotView(published);
+    const exact = await this.snapshots.get(target.key, date);
+    return exact ? snapshotView(exact) : undefined;
   }
 
   private async getOutletDate(target: ReliableDineOnCampusOutletTarget, date: string, force = false): Promise<LiveDateData | undefined> {

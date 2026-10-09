@@ -54,6 +54,8 @@ export interface CanonicalFood {
   availableNow?: boolean;
   /** Optional source/station context shown beneath search results. */
   contextLabel?: string;
+  /** Whether the default portion is explicit enough to save without review. */
+  quickAddEligible?: boolean;
 }
 
 /** Immutable item-level snapshot stored inside a meal history line. */

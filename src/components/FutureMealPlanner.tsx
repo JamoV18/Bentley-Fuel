@@ -51,7 +51,7 @@ export default function FutureMealPlanner({ profile }: { profile: UserProfile })
     if (removedPlan.intendedDate === selectedDate) refresh();
   };
 
-  return <section className="surface mb-5 p-4 sm:p-5" aria-labelledby="future-meals-heading">
+  return <section className="surface mb-5 min-w-0 overflow-x-hidden p-4 sm:p-5" aria-labelledby="future-meals-heading">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow">Meal planning</p><h2 id="future-meals-heading" className="mt-1 text-xl font-bold">{heading(selectedDate)}</h2></div></div>
     <div className="mt-4 flex gap-2 overflow-x-auto pb-2" aria-label="Choose planning date">
       {days.map((date, index) => { const key = localDateKey(date); return <button type="button" key={key} aria-pressed={selectedDate === key} className={selectedDate === key ? "rounded-full bg-[var(--ff-accent)] px-4 py-2 text-sm font-bold text-white" : "shrink-0 rounded-full border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-4 py-2 text-sm font-bold"} onClick={() => chooseDate(key)}>{chipLabel(date, index)}</button>; })}

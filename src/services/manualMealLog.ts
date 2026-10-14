@@ -90,7 +90,7 @@ export function inferMealLogSlot(entry: MealHistoryEntry): MealLogSlot {
  * Snacks are optional and never required for a complete day.
  */
 export function summarizeMealLogProgress(entries: readonly MealHistoryEntry[]): MealLogDayProgress {
-  const consumed = entries.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0);
+  const consumed = entries.filter((entry) => entry.completionFraction !== undefined && entry.completionFraction > 0 && entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log" && entry.source !== "night-out");
   const slots = consumed.map(inferMealLogSlot);
   const breakfast = slots.includes("breakfast");
   const lunch = slots.includes("lunch");

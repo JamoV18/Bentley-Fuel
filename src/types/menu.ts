@@ -96,10 +96,26 @@ export interface FoodComponent {
   provenance: Provenance;
   isDefault?: boolean;
   maxQuantity?: number;
+  /** Published menu row represented by this composition component. */
+  sourceMenuItemId?: string;
+  /** Registry concept that explicitly admitted this source row. */
+  compositionConceptId?: string;
 }
 
 export type MenuItemKind = "predefined" | "customizable";
 export type MenuItemMealRole = "main" | "side" | "snack" | "drink" | "dessert";
+export type MealCompositionMode = "builder" | "component_meal";
+
+/** Semantic metadata for a menu concept whose nutrition comes from selected foods. */
+export interface MealCompositionMetadata {
+  conceptId: string;
+  canonicalName: string;
+  mode: MealCompositionMode;
+  searchAliases: string[];
+  actionTitle: string;
+  selectionPrompt: string;
+  sourceHeaderItemIds: string[];
+}
 
 export interface CustomizationStep {
   id: string;
@@ -133,6 +149,8 @@ export interface MenuItem {
   availability?: MealPeriod[];
   imageUrl?: string;
   popular?: boolean;
+  /** Present only on Falcon Fuel composition actions, never on source food rows. */
+  composition?: MealCompositionMetadata;
   /** Backwards-compatible overall provenance. New live data also records field-level provenance below. */
   provenance: Provenance;
   /** Date-scoped truth that this item is actually offered by the campus source. */

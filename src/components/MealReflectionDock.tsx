@@ -26,6 +26,7 @@ export default function MealReflectionDock({ locationNames, itemNames }: { locat
     const cutoff = Date.now() - REFLECTION_WINDOW_MS;
     const next = browserMealHistoryRepository().getRecent(12).find((entry) =>
       entry.id !== dismissedId &&
+      entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log" &&
       entry.completionFraction !== undefined && entry.completionFraction > 0 &&
       entry.reflectionRecordedAt === undefined &&
       mealTime(entry) >= cutoff,

@@ -23,6 +23,7 @@ import {
   buildNutritionOutlook,
   buildWeeklyFocus,
   resolveNutritionPlan,
+  presentMeal,
   summarizeMonth,
   summarizeWeek,
 } from "@/services";
@@ -31,7 +32,11 @@ import type { MealHistoryEntry, RecommendationInteraction, UserProfile, WeightOb
 
 type Range = "week" | "month";
 const mealTime = (entry: MealHistoryEntry) => new Date(entry.eatenAt ?? entry.selectedAt);
-const nameFor = (entry: MealHistoryEntry, names: Record<string, string>) => entry.build.items.map((item) => item.display?.name ?? names[item.menuItemId] ?? "Meal item").join(" + ");
+const dateKey = (entry: MealHistoryEntry) => {
+  const date = mealTime(entry);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+const nameFor = (entry: MealHistoryEntry, names: Record<string, string>, stations: Record<string, string>, locations: Record<string, string>) => presentMeal(entry, { itemNames: names, stationNames: stations, locationNames: locations }).title;
 const imageFor = (entry: MealHistoryEntry, urls: Record<string, string | undefined>) => entry.build.items[0]?.display?.imageUrl ?? urls[entry.build.items[0]?.menuItemId];
 
 function storyFor(report: ReturnType<typeof buildLatestCompletedWeeklyNutritionReport>, locations: Record<string, string>) {
@@ -109,6 +114,14 @@ export default function HistoryV2Client({ locationNames, stationNames, itemNames
     <PageHeader title="History" />
     <AppNav />
 
+    <section className="ff-history-overview" aria-label="Nutrition averages and consistency">
+      <div className="ff-history-section-head"><div><p className="eyebrow">Evidence</p><h2>Nutrition averages</h2></div><div className="ff-history-range">{(["week","month"] as Range[]).map((value)=><button type="button" aria-pressed={range === value} key={value} className={range===value?"is-active":undefined} onClick={()=>setRange(value)}>{value === "week" ? "This week" : "This month"}</button>)}</div></div>
+      <div className="ff-history-grid">
+        <div className="ff-history-panel"><div className="ff-history-kpis"><div className="ff-history-kpi"><span>Avg recorded calories</span><strong>{Math.round(period.averageConfirmedConsumption.calories)}</strong></div><div className="ff-history-kpi"><span>Avg recorded protein</span><strong>{Math.round(period.averageConfirmedConsumption.protein)}g</strong></div><div className="ff-history-kpi"><span>Complete days</span><strong>{period.daysWithAllSavedMealsConfirmed}</strong></div></div><p>Confirmed meals only. Missing logs are not counted as zero.</p></div>
+        <HistoryConsistencyHeatmap history={history} anchor={anchor} />
+      </div>
+    </section>
+
     <motion.section className="ff-history-story" initial={reduceMotion ? false : {opacity:0,y:8}} animate={{opacity:1,y:0}} transition={reduceMotion ? {duration:0}:{duration:.35,ease:[.22,1,.36,1]}}>
       <p className="eyebrow">Last completed week</p><h2>{story.title}</h2><p>{story.copy}</p><span className="ff-history-confidence">{confidenceText(report)}</span>
       <div className="ff-history-facts">
@@ -121,16 +134,10 @@ export default function HistoryV2Client({ locationNames, stationNames, itemNames
     <WeeklyFocusPanel focus={focus} />
     <details className="ff-disclosure"><summary>Weekly report</summary><WeeklyNutritionReportPanel report={report} locationNames={locationNames} /></details>
 
-    <details className="ff-disclosure"><summary>Nutrition averages & consistency</summary>
-      <div className="ff-history-section-head"><div><p className="eyebrow">Evidence</p><h2>Nutrition averages</h2></div><div className="ff-history-range">{(["week","month"] as Range[]).map((value)=><button type="button" aria-pressed={range === value} key={value} className={range===value?"is-active":undefined} onClick={()=>setRange(value)}>{value === "week" ? "This week" : "This month"}</button>)}</div></div>
-      <div className="ff-history-grid">
-        <div className="ff-history-panel"><div className="ff-history-kpis"><div className="ff-history-kpi"><span>Avg recorded calories</span><strong>{Math.round(period.averageConfirmedConsumption.calories)}</strong></div><div className="ff-history-kpi"><span>Avg recorded protein</span><strong>{Math.round(period.averageConfirmedConsumption.protein)}g</strong></div><div className="ff-history-kpi"><span>Complete days</span><strong>{period.daysWithAllSavedMealsConfirmed}</strong></div></div><p>Confirmed meals only. Missing logs are not counted as zero.</p></div>
-        <HistoryConsistencyHeatmap history={history} anchor={anchor} />
-      </div>
-    </details>
+
 
     <section className="ff-history-section"><div className="ff-history-section-head"><div><p className="eyebrow">Longer view</p><h2>Long-term trends</h2></div><button type="button" aria-expanded={deep} className="ff-history-detail-button" onClick={()=>setDeep((v)=>!v)}>{deep ? "Hide trends" : "Show trends"}</button></div>{deep && insights && patterns && <motion.div initial={reduceMotion?false:{opacity:0,y:5}} animate={{opacity:1,y:0}}><NutritionOutlookPanel outlook={outlook}/><HistoryInsightsPanel insights={insights} locationNames={locationNames} unitSystem={profile.unitSystem}/><DeepNutritionPatternsPanel analysis={patterns} locationNames={locationNames} stationNames={stationNames}/></motion.div>}</section>
 
-    <section className="ff-history-section"><div className="ff-history-section-head"><div><p className="eyebrow">Timeline</p><h2>Recent meals</h2></div></div>{recent.length===0?<div className="ff-history-empty">No meals logged yet.</div>:<div className="ff-history-meals">{recent.map((entry)=><article className="ff-history-meal" key={entry.id}><MealImage name={nameFor(entry,itemNames)} imageUrl={imageFor(entry,itemImageUrls)}/><div><h3>{nameFor(entry,itemNames)}</h3><p>{locationNames[entry.locationId] ?? entry.locationId} · {mealTime(entry).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</p></div><span>{entry.completionFraction === undefined ? "Pending" : entry.explicitFeedback === "like" ? "Loved" : entry.explicitFeedback === "dislike" ? "Skip" : `${Math.round(entry.completionFraction*100)}%`}</span></article>)}</div>}</section>
+    <section className="ff-history-section"><div className="ff-history-section-head"><div><p className="eyebrow">Timeline</p><h2>Recent nutrition</h2></div></div>{recent.length===0?<div className="ff-history-empty">No nutrition logged yet.</div>:<div className="ff-history-meals">{recent.map((entry)=>{const presentation=presentMeal(entry,{itemNames,stationNames,locationNames});return <article className="ff-history-meal" key={entry.id}><MealImage name={nameFor(entry,itemNames,stationNames,locationNames)} imageUrl={imageFor(entry,itemImageUrls)}/><div><h3>{entry.source === "drink-log" ? presentation.title : entry.entryKind === "alcohol" ? `Night Out · ${presentation.title}` : presentation.title}</h3>{presentation.details&&<p>{presentation.details}</p>}<p>{entry.source === "drink-log" ? `${entry.entryKind === "alcohol" ? "Drink" : "Beverage"} · ${entry.nutritionEstimateStatus ?? "estimated"}` : entry.entryKind === "alcohol" ? `Night Out recap · ${entry.nutritionEstimateStatus ?? "estimated"}${entry.timeAccuracy === "date-only" ? " · time approximate" : ""}` : (locationNames[entry.locationId] ?? entry.locationId)} · {mealTime(entry).toLocaleString([], {month:"short",day:"numeric",hour:entry.timeAccuracy === "date-only" ? undefined : "numeric",minute:entry.timeAccuracy === "date-only" ? undefined : "2-digit"})}</p>{entry.campusBeverages?.length ? <p>Includes {entry.campusBeverages.map((beverage)=>beverage.name).join(", ")}</p> : null}<Link href={`/today?date=${dateKey(entry)}`} className="mt-1 inline-block text-xs font-bold text-[var(--ff-accent-light)]">View day →</Link></div><span>{entry.entryKind === "alcohol" || entry.entryKind === "beverage" ? `${Math.round(entry.nutrition?.calories ?? 0)} cal` : entry.completionFraction === undefined ? "Pending" : entry.explicitFeedback === "like" ? "Loved" : entry.explicitFeedback === "dislike" ? "Skip" : `${Math.round(entry.completionFraction*100)}%`}</span></article>})}</div>}</section>
   </main>;
 }

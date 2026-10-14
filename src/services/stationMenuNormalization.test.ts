@@ -38,7 +38,7 @@ const item = (
   ...overrides,
 });
 
-test("deli ingredient rows become one configurable sandwich/wrap instead of standalone bread", () => {
+test("deli ingredient rows produce one configurable sandwich while remaining standalone foods", () => {
   const deli = station("deli", "Deli");
   const rows = [
     item("bread", "Multigrain Bread", deli.id, { calories: 140, protein: 5, carbs: 27, fat: 2 }),
@@ -49,9 +49,9 @@ test("deli ingredient rows become one configurable sandwich/wrap instead of stan
   ];
 
   const result = normalizeStationMenuForMealBuilder(rows, [deli]);
-  assert.equal(result.menuItems.some((entry) => entry.id === "bread"), false);
-  assert.equal(result.menuItems.some((entry) => entry.id === "vegan-crab"), false);
-  const assembly = result.menuItems.find((entry) => entry.name === "Deli Sandwich / Wrap");
+  assert.equal(result.menuItems.some((entry) => entry.id === "bread"), true);
+  assert.equal(result.menuItems.some((entry) => entry.id === "vegan-crab"), true);
+  const assembly = result.menuItems.find((entry) => entry.name === "Sandwich");
   assert.ok(assembly);
   assert.equal(assembly?.kind, "customizable");
   assert.equal(assembly?.mealRole, "main");
@@ -71,7 +71,7 @@ test("true composed deli items remain available alongside the build-your-own opt
 
   const result = normalizeStationMenuForMealBuilder(rows, [deli]);
   assert.ok(result.menuItems.some((entry) => entry.id === "sandwich"));
-  assert.ok(result.menuItems.some((entry) => entry.name === "Deli Sandwich / Wrap"));
+  assert.ok(result.menuItems.some((entry) => entry.name === "Sandwich"));
 });
 
 test("salad-bar ingredient rows become a configurable salad when greens and protein exist", () => {
@@ -84,10 +84,10 @@ test("salad-bar ingredient rows become a configurable salad when greens and prot
   ];
 
   const result = normalizeStationMenuForMealBuilder(rows, [salad]);
-  const assembly = result.menuItems.find((entry) => entry.name === "Salad Bar Salad");
+  const assembly = result.menuItems.find((entry) => entry.name === "Salad");
   assert.ok(assembly);
-  assert.equal(result.menuItems.some((entry) => entry.id === "romaine"), false);
-  assert.equal(result.menuItems.some((entry) => entry.id === "chicken"), false);
+  assert.equal(result.menuItems.some((entry) => entry.id === "romaine"), true);
+  assert.equal(result.menuItems.some((entry) => entry.id === "chicken"), true);
   assert.ok(assembly?.customization?.some((step) => step.label === "Choose greens"));
   assert.ok(assembly?.customization?.some((step) => step.label === "Choose a protein"));
 });

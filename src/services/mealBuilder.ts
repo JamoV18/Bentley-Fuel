@@ -73,6 +73,25 @@ export function computeMealBuild(build: MealBuild, resources: MealBuildResources
     const issues: MealBuildIssue[] = [];
     const item = itemById.get(selection.menuItemId);
     if (!item) {
+      const composition = selection.compositionSnapshot;
+      if (composition) {
+        if (!Number.isFinite(selection.quantity) || selection.quantity <= 0) issues.push(issue("INVALID_ITEM_QUANTITY", "Item quantity must be finite and greater than zero.", selection.id));
+        const nutrition = issues.length === 0
+          ? scaleNutrition(composition.components.reduce(
+              (total, component) => addNutrition(total, scaleNutrition(component.nutrition, component.quantity)),
+              { calories: 0, protein: 0, carbs: 0, fat: 0 },
+            ), selection.quantity)
+          : undefined;
+        return { selection, nutrition, allergens: [], mayContainAllergens: [], dietaryTags: [], issues };
+      }
+      const snapshot = selection.foodSnapshot;
+      if (snapshot) {
+        if (!Number.isFinite(selection.quantity) || selection.quantity <= 0) issues.push(issue("INVALID_ITEM_QUANTITY", "Item quantity must be finite and greater than zero.", selection.id));
+        const nutrition = issues.length === 0 && snapshot.quantity > 0
+          ? scaleNutrition(snapshot.nutrition, selection.quantity / snapshot.quantity)
+          : undefined;
+        return { selection, nutrition, allergens: [], mayContainAllergens: [], dietaryTags: [], issues };
+      }
       issues.push(issue("MENU_ITEM_NOT_FOUND", `Menu item "${selection.menuItemId}" could not be resolved.`, selection.id));
       return { selection, allergens: [], mayContainAllergens: [], dietaryTags: [], issues };
     }

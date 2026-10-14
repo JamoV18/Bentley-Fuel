@@ -8,6 +8,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import FlowHeader from "@/components/FlowHeader";
 import MealImage from "@/components/MealImage";
 import SuccessMorphLabel from "@/components/SuccessMorphLabel";
+import CampusBeverageSelector from "@/components/CampusBeverageSelector";
 import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { currentMealPeriodForHour } from "@/lib/currentMealPeriod";
 import { getMealOrderReference } from "@/lib/mealOrderReference";
@@ -16,6 +17,10 @@ import {
   adjustMealItemQuantity,
   browserMealHistoryRepository,
   browserProgressRepository,
+  browserGoingOutRepository,
+  browserPlannedMealRepository,
+  mealNutritionWithBeverages,
+  recentCampusBeverages,
   computeMealBuild,
   createDailyNutritionSnapshot,
   editComponentInStep,
@@ -27,17 +32,21 @@ import {
   scoreResolvedMeals,
   setComponentSelections,
   suggestMealItemReplacements,
+  mealSlotForBuilderPeriod,
+  snapshotPlannedMealBuild,
+  snapshotMealCompositions,
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import type { RecommendationFeedbackIntent } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
-import type { CustomizationStep, MealBuild, MealPeriod, NutritionPlanSnapshot, RecommendationContext } from "@/types";
+import type { CampusBeverageSelection, CustomizationStep, MealBuild, MealPeriod, NutritionPlanSnapshot, RecommendationContext } from "@/types";
 import MealFoodBrowser from "./MealFoodBrowser";
 import RecommendationWhyPanel from "./RecommendationWhyPanel";
 
 const readable = (value: string) => value.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const goalLabel = (goal: RecommendationContext["profile"]["primaryGoal"]) => readable(goal).toLowerCase();
 const sameLocalDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const localDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const compactMacro = (value: number) => Math.round(value * 10) / 10;
 const macroSummary = (nutrition: { calories: number; protein: number; carbs: number } | undefined, quantity = 1) => nutrition
   ? `${Math.round(nutrition.calories * quantity)} cal · ${compactMacro(nutrition.protein * quantity)}g protein · ${compactMacro(nutrition.carbs * quantity)}g carbs`
@@ -61,9 +70,13 @@ function reasonsFor(ranked: RankedMealCandidate | undefined, context: Recommenda
   else if (context.profile.primaryGoal === "lose-weight") reasons.push(`${nutrition.protein}g protein with ${nutrition.calories} calories.`);
   if ((ranked.score.softPreferenceBonus ?? 0) >= 3) reasons.push("Matches eating preferences you selected in your profile.");
   else if ((ranked.score.mealCoherence ?? 0) >= 86) reasons.push(ranked.candidate.stationIds.length <= 2 ? "Pairs complementary foods without unnecessary station hopping." : "Combines complementary foods into a more natural meal.");
+  const goingOutReason = (ranked.score.goingOutAdjustment ?? 0) > 0
+    ? context.goingOut?.planKind === "late-night" ? "Your late evening plan gave this already balanced, convenient meal a small ranking boost." : "Your social plan gave this already balanced meal a small ranking boost."
+    : undefined;
+  if (goingOutReason) reasons.push(goingOutReason);
   if (ranked.score.behavior.preferenceBoost >= 3) reasons.push("Similar to meals you have responded well to before.");
   else if ((context.recentHistory?.length ?? 0) > 0 && ranked.score.behavior.repetitionPenalty === 0) reasons.push("Adds some variety from your recent meals.");
-  return reasons.slice(0, 3);
+  return goingOutReason ? [goingOutReason, ...reasons.filter((reason) => reason !== goingOutReason)].slice(0, 3) : reasons.slice(0, 3);
 }
 
 type RecommendationState = "loading" | "ready" | "missing-profile" | "no-candidates";
@@ -75,12 +88,18 @@ export default function MealBuilderClient({
   isDemo,
   menuDate,
   selectedMealPeriod,
+  planId,
+  planningDate,
+  futureMenuAvailable = true,
 }: {
   fallbackBuild: MealBuild;
   resources: MealBuildResources;
   isDemo: boolean;
   menuDate?: string;
   selectedMealPeriod?: MealPeriod;
+  planId?: string;
+  planningDate?: string;
+  futureMenuAvailable?: boolean;
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -99,21 +118,39 @@ export default function MealBuilderClient({
   const [chooseSuccess, setChooseSuccess] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string>();
   const [feedbackMessage, setFeedbackMessage] = useState<string>();
+  const [beverages, setBeverages] = useState<CampusBeverageSelection[]>([]);
+  const [recentBeverages, setRecentBeverages] = useState<CampusBeverageSelection[]>([]);
+  const [ignoreGoingOut, setIgnoreGoingOut] = useState(false);
+  const isPlanning = Boolean(planningDate);
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
+  const selectedNutrition = useMemo(() => computed.nutrition ? mealNutritionWithBeverages(computed.nutrition, beverages) : undefined, [beverages, computed.nutrition]);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
   const activeRanking = rankings[recommendationIndex];
   const reasons = useMemo(() => reasonsFor(activeRanking, recommendationContext), [activeRanking, recommendationContext]);
   const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
-  const backHref = `/locations/${build.locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
-  const manualParams = new URLSearchParams({ mode: "manual" });
+  const backHref = isPlanning ? `/profile-summary?date=${planningDate}` : `/locations/${build.locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
+  const manualParams = new URLSearchParams(isPlanning ? { mode: "plan", manual: "1" } : { mode: "manual" });
   if (menuDate) manualParams.set("date", menuDate);
   if (selectedMealPeriod) manualParams.set("period", selectedMealPeriod);
+  if (planId) manualParams.set("planId", planId);
   const manualHref = `/meal-builder/${build.locationId}?${manualParams.toString()}`;
 
   useEffect(() => () => {
     if (chooseTimerRef.current !== null) window.clearTimeout(chooseTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (!planId) return;
+    const profile = browserProfileRepository().get();
+    const plan = profile ? browserPlannedMealRepository(profile.id).get(planId) : undefined;
+    if (!plan) return;
+    queueMicrotask(() => {
+      setBuild(plan.build);
+      setBeverages(plan.campusBeverages ?? []);
+      setEdited(true);
+    });
+  }, [planId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,7 +163,8 @@ export default function MealBuilderClient({
     const now = new Date();
     const planningDate = menuDate ? new Date(`${menuDate}T12:00:00`) : now;
     const historyRepository = browserMealHistoryRepository();
-    const recentHistory = historyRepository.getRecent(12);
+    const recentHistory = historyRepository.getRecent(24).filter((entry) => entry.entryKind !== "alcohol").slice(0, 12);
+    const latestBeverages = recentCampusBeverages(historyRepository.getRecent(40));
     const start = new Date(planningDate.getFullYear(), planningDate.getMonth(), planningDate.getDate());
     const end = new Date(planningDate.getFullYear(), planningDate.getMonth(), planningDate.getDate() + 1, 0, 0, 0, -1);
     const dayEntries = futureMenu ? [] : historyRepository.getByDateRange(start, end);
@@ -137,7 +175,8 @@ export default function MealBuilderClient({
     const dailySnapshot = createDailyNutritionSnapshot(dayEntries, activeTargets, planningDate);
     const recommendationProfile = { ...profile, primaryGoal: plan.phase === "maintenance" ? "maintain-weight" as const : profile.primaryGoal, dailyTargets: activeTargets };
     const remainingMacros = futureMenu || !sameLocalDay(planningDate, now) ? activeTargets : dailySnapshot.remaining;
-    const baseContext: RecommendationContext = { profile: recommendationProfile, locationId: fallbackBuild.locationId, mealPeriod, remainingMacros, recentHistory };
+    const goingOut = ignoreGoingOut ? undefined : browserGoingOutRepository(profile).recommendationContextFor(localDateKey(planningDate));
+    const baseContext: RecommendationContext = { profile: recommendationProfile, locationId: fallbackBuild.locationId, mealPeriod, remainingMacros, recentHistory, goingOut };
     let context: RecommendationContext = { ...baseContext, excludeMenuItemIds: excludedMenuItemIds };
     const generationOptions = { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 10, requireMain: true };
     let candidates = generateMealCandidatesFromResources(resources.menuItems, resources.stations, resources.components, context, generationOptions);
@@ -149,18 +188,20 @@ export default function MealBuilderClient({
     queueMicrotask(() => {
       if (cancelled) return;
       setRecommendationContext(context);
+      setRecentBeverages(latestBeverages);
       setRecommendationPlan(plan);
       setRankings(ranked);
       setRecommendationIndex(0);
-      setEdited(false);
       setUpdateMessage(undefined);
       setFeedbackMessage(undefined);
+      if (planId) { setRecommendationState("ready"); return; }
+      setEdited(false);
       if (ranked.length === 0) { setRecommendationState("no-candidates"); return; }
       setBuild(ranked[0].candidate.build);
       setRecommendationState("ready");
     });
     return () => { cancelled = true; };
-  }, [fallbackBuild.locationId, futureMenu, mealPeriod, menuDate, resources]);
+  }, [fallbackBuild.locationId, futureMenu, ignoreGoingOut, mealPeriod, menuDate, planId, resources]);
 
   const markEdited = () => {
     setEdited(true);
@@ -179,10 +220,25 @@ export default function MealBuilderClient({
   };
 
   const chooseMeal = () => {
-    if (futureMenu || !computed.isValid || !computed.nutrition || chooseSuccess) return;
+    if ((!isPlanning && futureMenu) || !computed.isValid || !selectedNutrition || chooseSuccess) return;
+    if (isPlanning && planningDate) {
+      const profile = browserProfileRepository().get();
+      const mealSlot = mealSlotForBuilderPeriod(selectedMealPeriod);
+      if (!profile || !mealSlot) return;
+      const repository = browserPlannedMealRepository(profile.id);
+      const existing = planId ? repository.get(planId) : undefined;
+      const now = new Date().toISOString();
+      const id = existing?.id ?? crypto.randomUUID();
+      const savedBuild = snapshotMealCompositions(build, resources);
+      repository.upsert({ id, ownerProfileId: profile.id, intendedDate: planningDate, mealSlot, locationId: build.locationId, build: snapshotPlannedMealBuild(computeMealBuild(savedBuild, resources), now), nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built", status: "planned", createdAt: existing?.createdAt ?? now, updatedAt: now });
+      setChooseSuccess(true);
+      router.push(`/profile-summary?date=${planningDate}`);
+      return;
+    }
     const historyId = crypto.randomUUID();
     const now = new Date().toISOString();
-    browserMealHistoryRepository().upsert({ id: historyId, locationId: build.locationId, build, selectedAt: now, nutrition: computed.nutrition, source: recommendationState === "ready" ? "recommended" : "self-built" });
+    const savedBuild = snapshotMealCompositions(build, resources);
+    browserMealHistoryRepository().upsert({ id: historyId, locationId: build.locationId, build: savedBuild, selectedAt: now, nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built" });
     setChooseSuccess(true);
     if (reduceMotion) {
       router.push("/today");
@@ -248,7 +304,7 @@ export default function MealBuilderClient({
   const stationCount = new Set(orderReference.lines.map((line) => line.stationName)).size;
   const supportingFacts = [
     ...reasons,
-    computed.nutrition ? `${Math.round(computed.nutrition.calories)} calories with ${compactMacro(computed.nutrition.protein)}g protein.` : undefined,
+    selectedNutrition ? `${Math.round(selectedNutrition.calories)} calories with ${compactMacro(selectedNutrition.protein)}g protein.` : undefined,
     orderReference.lines.length > 0 ? `${stationCount} station${stationCount === 1 ? "" : "s"} to collect the full meal.` : undefined,
   ].filter((reason): reason is string => Boolean(reason));
   const reasonCards = edited
@@ -261,7 +317,7 @@ export default function MealBuilderClient({
 
       <header className="ff-rec-header">
         <div>
-          <p className="ff-rec-kicker">{locationLabel} · {readable(mealPeriod)}</p>
+          <p className="ff-rec-kicker">{locationLabel}{recommendationState !== "loading" && ` · ${readable(mealPeriod)}`}</p>
           <h1>{personalized ? "Your top meals." : recommendationState === "loading" ? "Finding meals…" : "Build a complete meal."}</h1>
 
           {recommendationState === "missing-profile" && <p>Complete your profile to turn the example meal into a recommendation based on your goals and dietary needs.</p>}
@@ -270,14 +326,15 @@ export default function MealBuilderClient({
       </header>
 
       {isDemo && <p className="ff-rec-note is-warning">Demo menu data · not current official Bentley Dining information.</p>}
-      {futureMenu && <p className="ff-rec-note">Future menu preview · you can inspect the recommendation now, but logging stays disabled until that menu date.</p>}
+      {futureMenu && !isPlanning && <p className="ff-rec-note">Future menu preview · you can inspect the recommendation now, but logging stays disabled until that menu date.</p>}
+      {isPlanning && !futureMenuAvailable && <p className="ff-rec-note">The 921 menu for this date is not available yet. Plan with campus staples or build from the foods currently available here.</p>}
 
       {recommendationState === "loading" ? (
-        <motion.section className="ff-rec-loading" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+        <section className="ff-rec-loading">
           <p className="ff-rec-eyebrow">Ranking the menu</p>
           <strong>Checking the menu…</strong>
           <p>Matching your goals and dietary restrictions.</p>
-        </motion.section>
+        </section>
       ) : recommendationState === "no-candidates" ? (
         <section className="ff-rec-empty">
           <p className="ff-rec-eyebrow">No complete match</p>
@@ -350,7 +407,7 @@ export default function MealBuilderClient({
                   <p className="ff-rec-eyebrow">{edited ? "Your adjusted meal" : personalized ? "Selected meal" : "Example complete meal"}</p>
                   {personalized && <span>Rank #{recommendationIndex + 1}</span>}
                 </div>
-                <h2 id="candidate-heading" className="ff-rec-selected-title">{selectedMealName}</h2>
+                <motion.h2 key={selectedMealName} id="candidate-heading" className="ff-rec-selected-title" initial={reduceMotion ? false : { opacity: .4, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : .18 }}>{selectedMealName}</motion.h2>
 
                 {updateMessage && (
                   <motion.p
@@ -364,32 +421,35 @@ export default function MealBuilderClient({
                   </motion.p>
                 )}
 
-{computed.nutrition && (edited || !personalized) && (
+{selectedNutrition && (
                   <dl className="ff-rec-macros">
-                    {[["Calories", Math.round(computed.nutrition.calories), "cal"], ["Protein", compactMacro(computed.nutrition.protein), "g"], ["Carbs", compactMacro(computed.nutrition.carbs), "g"], ["Fat", compactMacro(computed.nutrition.fat), "g"]].map(([label, value, unit]) => (
+                    {[["Calories", Math.round(selectedNutrition.calories), "cal"], ["Protein", compactMacro(selectedNutrition.protein), "g"], ["Carbs", compactMacro(selectedNutrition.carbs), "g"], ["Fat", compactMacro(selectedNutrition.fat), "g"]].map(([label, value, unit]) => (
                       <div className="ff-rec-macro" key={label}>
                         <dt>{label}</dt>
-                        <dd>{value}{unit}</dd>
+                        <dd>{value}<small>{unit}</small></dd>
                       </div>
                     ))}
                   </dl>
                 )}
 
+                {build.locationId === "loc-921" && <CampusBeverageSelector locationId={build.locationId} value={beverages} onChange={setBeverages} recent={recentBeverages} />}
+
                 <div className="ff-rec-actions">
                   <motion.button
                     type="button"
                     className="ff-rec-primary"
-                    disabled={futureMenu || !computed.isValid || !computed.nutrition || chooseSuccess}
+                    disabled={(!isPlanning && futureMenu) || !computed.isValid || !selectedNutrition || chooseSuccess}
                     onClick={chooseMeal}
                     animate={chooseSuccess && !reduceMotion ? { scale: [1, .985, 1.012, 1] } : { scale: 1 }}
                     transition={reduceMotion ? { duration: 0 } : { duration: .34, times: [0, .28, .68, 1], ease: [0.22, 1, 0.36, 1] }}
                   >
-                    <SuccessMorphLabel success={chooseSuccess} idleLabel={futureMenu ? "Future menu · preview only" : "Choose this meal"} successLabel="Meal selected" />
+                    <SuccessMorphLabel success={chooseSuccess} idleLabel={isPlanning ? (planId ? "Update plan" : "Plan this meal") : futureMenu ? "Future menu · preview only" : "Choose this meal"} successLabel={isPlanning ? "Meal planned" : "Meal selected"} />
                     <span className="ff-rec-primary-arrow" aria-hidden="true">→</span>
                   </motion.button>
                   <div className="ff-rec-secondary-row">
                     <button type="button" className="ff-rec-text-button" onClick={() => setCustomizing((value) => !value)}>{customizing ? "Done adjusting" : "Make a change"}</button>
                     <Link href={manualHref}>Build something different</Link>
+                    {!isPlanning && <Link href="/profile-summary?focus=future">Plan for later</Link>}
                   </div>
                 </div>
 
@@ -402,6 +462,7 @@ export default function MealBuilderClient({
                       <button type="button" onClick={() => respondToRecommendation("different")}>Show another</button>
                     </div>
                     {feedbackMessage && <p className="ff-rec-feedback-note" role="status" aria-live="polite">{feedbackMessage}</p>}
+                    {recommendationContext?.goingOut && <button type="button" className="ff-rec-text-button" onClick={() => { setIgnoreGoingOut(true); setFeedbackMessage("Using normal recommendations for this meal. Your saved plan stays unchanged."); }}>Ignore social plan for this meal</button>}
                   </div>
                 )}
               </div>
@@ -481,7 +542,7 @@ export default function MealBuilderClient({
 
                 <div className="ff-rec-edit-grid">
                   {computed.lines.map((line) => (
-                    <article className="ff-rec-edit-card" key={line.selection.id}>
+                    <article className="ff-rec-edit-card" key={line.selection.id} id={`meal-line-${line.selection.id}`}>
                       <div className="ff-rec-edit-top">
                         <MealImage name={line.item?.name ?? line.selection.menuItemId} imageUrl={line.item?.imageUrl} />
                         <div><h3>{line.item?.name ?? line.selection.menuItemId}</h3><p>{line.station?.name} · {portionSummary(line.item, line.selection)}{line.nutrition && ` · ${macroSummary(line.nutrition)}`}</p></div>

@@ -108,6 +108,64 @@ test("same-date verified snapshot survives an upstream outage but an older date 
   assert.equal(nextDay.length, 0);
 });
 
+test("operator-published 921 snapshot remains usable across an upstream 403 until replaced", async () => {
+  const snapshots = new MemoryDiningSnapshotRepository();
+  const provenance = { dataStatus: "verified" as const, source: { type: "bentley-dining" as const, name: "Bentley Dining" }, confidence: 1 };
+  await snapshots.set({
+    schemaVersion: 1,
+    outletKey: "921",
+    outletName: "The 921",
+    stableLocationId: LOCATION_IDS.nineTwentyOne,
+    upstreamLocationId: "921-id",
+    menuDate: "2026-09-14",
+    retrievedAt: "2026-09-14T12:00:00Z",
+    verifiedAt: "2026-09-14T12:00:00Z",
+    publicationSource: "trusted-browser-sync",
+    sourceApiVersions: [],
+    contentHash: "manual-921",
+    stations: [{ id: "trusted-921-2026-09-14-station-flame", name: "Flame", locationId: LOCATION_IDS.nineTwentyOne, mealPeriods: ["lunch"], provenance }],
+    items: [{ id: "trusted-921-2026-09-14-item-flame-grilled-chicken-1", name: "Grilled Chicken", kind: "predefined", stationId: "trusted-921-2026-09-14-station-flame", locationId: LOCATION_IDS.nineTwentyOne, nutrition: { calories: 190, protein: 35, carbs: 2, fat: 4 }, allergens: [], dietaryTags: [], availability: ["lunch"], menuDate: "2026-09-14", provenance }],
+  });
+  const blockedFetch = (async () => new Response("blocked", { status: 403, headers: { server: "cloudflare" } })) as typeof fetch;
+  const provider = new ReliableDineOnCampusProvider({ transport: new DineOnCampusTransport({ fetchImpl: blockedFetch, maxAttempts: 1 }), snapshots });
+  const refresh = await provider.refreshAll("2026-09-15");
+  assert.deepEqual(refresh.find((result) => result.outletKey === "921"), { outletKey: "921", source: "snapshot", itemCount: 1 });
+  const items = await provider.getMenuItems({ locationId: LOCATION_IDS.nineTwentyOne, date: "2026-09-15", mealPeriod: "lunch" });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].name, "Grilled Chicken");
+  assert.equal(items[0].availabilityStatus, "verified-snapshot");
+  assert.equal(items[0].menuDate, "2026-09-14");
+  assert.equal((await provider.getMenuItem("trusted-921-2026-09-14-item-flame-grilled-chicken-1"))?.name, "Grilled Chicken");
+  assert.equal((await provider.getStation("trusted-921-2026-09-14-station-flame"))?.name, "Flame");
+});
+
+test("aggregate menu reads use published snapshots without starting upstream retries", async () => {
+  const snapshots = new MemoryDiningSnapshotRepository();
+  const provenance = { dataStatus: "verified" as const, source: { type: "bentley-dining" as const, name: "Bentley Dining" }, confidence: 1 };
+  await snapshots.set({
+    schemaVersion: 1,
+    outletKey: "921",
+    outletName: "The 921",
+    stableLocationId: LOCATION_IDS.nineTwentyOne,
+    upstreamLocationId: "921-id",
+    menuDate: "2026-09-14",
+    retrievedAt: "2026-09-14T12:00:00Z",
+    verifiedAt: "2026-09-14T12:00:00Z",
+    publicationSource: "trusted-browser-sync",
+    sourceApiVersions: [],
+    contentHash: "published-921",
+    stations: [{ id: "station-921", name: "Flame", locationId: LOCATION_IDS.nineTwentyOne, mealPeriods: ["lunch"], provenance }],
+    items: [{ id: "item-921", name: "Published Chicken", kind: "predefined", stationId: "station-921", locationId: LOCATION_IDS.nineTwentyOne, nutrition: { calories: 190, protein: 35, carbs: 2, fat: 4 }, allergens: [], dietaryTags: [], availability: ["lunch"], menuDate: "2026-09-14", provenance }],
+  });
+  let transportCalls = 0;
+  const blockedFetch = (async () => { transportCalls += 1; return new Response("blocked", { status: 403 }); }) as typeof fetch;
+  const provider = new ReliableDineOnCampusProvider({ transport: new DineOnCampusTransport({ fetchImpl: blockedFetch, maxAttempts: 3 }), snapshots });
+  const [items, stations] = await Promise.all([provider.getMenuItems(), provider.getStations()]);
+  assert.equal(items.some((item) => item.name === "Published Chicken"), true);
+  assert.equal(stations.some((station) => station.name === "Flame"), true);
+  assert.equal(transportCalls, 0);
+});
+
 test("snapshot repository is date scoped even when a prior verified record exists", async () => {
   const snapshots = new MemoryDiningSnapshotRepository();
   const prior: DiningMenuSnapshot = {

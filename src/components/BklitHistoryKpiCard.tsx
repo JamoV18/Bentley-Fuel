@@ -30,16 +30,16 @@ export default function BklitHistoryKpiCard({ label, value, unit = "", values, c
   const latest = points[points.length - 1];
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-emerald-900/[.06] bg-gradient-to-b from-emerald-50/75 to-white p-3.5 shadow-[0_6px_18px_rgba(20,45,34,.035)]">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--ff-border)] bg-[var(--ff-surface)] p-3.5 shadow-[0_6px_18px_rgba(20,45,34,.035)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-emerald-900/58">{label}</p>
-          <p className="mt-1 text-2xl font-bold tracking-[-0.035em] text-emerald-950">{round(value)}{unit}</p>
+          <p className="text-[11px] font-semibold text-[var(--ff-text-primary)]/58">{label}</p>
+          <p className="mt-1 text-2xl font-bold tracking-[-0.035em] text-[var(--ff-text-primary)]">{round(value)}{unit}</p>
         </div>
-        <span className="shrink-0 rounded-full bg-white/80 px-2 py-1 text-[9px] font-bold uppercase tracking-[.08em] text-emerald-800/65 shadow-sm">{context}</span>
+        <span className="shrink-0 rounded-full bg-[var(--ff-surface-elevated)] px-2 py-1 text-xs font-bold normal-case text-[var(--ff-accent-light)]/65 shadow-sm">{context}</span>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="mt-2 h-12 w-full overflow-visible text-emerald-700" aria-hidden="true">
+      <svg viewBox={`0 0 ${width} ${height}`} className="mt-2 h-12 w-full overflow-visible text-[var(--ff-accent-light)]" aria-hidden="true">
         <defs>
           <linearGradient id={`history-kpi-${label.replace(/\s+/g, "-").toLowerCase()}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="currentColor" stopOpacity="0.13" />

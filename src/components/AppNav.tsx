@@ -44,6 +44,7 @@ export default function AppNav({
 
   const navigation = (
     <nav className="app-nav" aria-label="Falcon Fuel app navigation">
+      <Link className="app-nav-brand" href="/today" aria-label="Falcon Fuel home"><span aria-hidden="true">F</span><span>Falcon Fuel<small>Bentley nutrition</small></span></Link>
       {items.map((item) => {
         const active = item.href === "/dashboard" ? isEatFlow : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
@@ -65,6 +66,7 @@ export default function AppNav({
             )}
             <motion.span
               className="app-nav-content relative z-10 inline-flex items-center justify-center"
+              tabIndex={-1}
               whileTap={reduceMotion ? undefined : { scale: 0.97 }}
               transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
             >

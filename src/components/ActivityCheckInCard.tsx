@@ -66,7 +66,7 @@ export default function ActivityCheckInCard({
       <section id="activity-check-in" className="surface mt-5 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="eyebrow">Activity check-in</p><h2 className="mt-1 text-xl font-bold">{saved ? "Activity confirmed" : `${readable(currentLevel)} is current`}</h2></div>
-          <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">Every 2 weeks</span>
+          <span className="rounded-full bg-[var(--ff-surface-elevated)] px-3 py-1.5 text-xs font-bold text-[var(--ff-accent-light)]">Every 2 weeks</span>
         </div>
         <p className="mt-2 text-sm subtle">Next review {dateLabel(status.nextDueAt)}. Changes require your confirmation.</p>
       </section>
@@ -110,9 +110,9 @@ export default function ActivityCheckInCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="eyebrow">Two-week activity check-in</p>
-          <h2 className="mt-1 text-2xl font-bold">Does {readable(currentLevel).toLowerCase()} still fit your routine?</h2>
+          <h2 className="mt-1 text-lg font-bold">Does {readable(currentLevel).toLowerCase()} still fit your routine?</h2>
         </div>
-        <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800">Review due</span>
+        <span className="rounded-full bg-[var(--ff-warning-surface)] px-3 py-1.5 text-xs font-bold text-[var(--ff-warning)]">Review due</span>
       </div>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed subtle">Changing activity may change your calorie targets. Review the impact before confirming.</p>
 
@@ -136,17 +136,17 @@ export default function ActivityCheckInCard({
       </div>
 
       {levelChanged && (
-        <div className="mt-5 rounded-2xl border border-emerald-900/10 bg-emerald-50/45 p-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2"><div><p className="eyebrow">Impact preview</p><h3 className="mt-1 text-lg font-bold">Nothing changes until you confirm</h3></div><span className="text-xs font-bold text-emerald-800">{readable(currentLevel)} → {readable(selectedLevel)}</span></div>
+        <div className="mt-5 rounded-lg border border-[var(--ff-border)] bg-[var(--ff-surface-elevated)] p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><div><p className="eyebrow">Impact preview</p><h3 className="mt-1 text-lg font-bold">Nothing changes until you confirm</h3></div><span className="text-xs font-bold text-[var(--ff-accent-light)]">{readable(currentLevel)} → {readable(selectedLevel)}</span></div>
           {preview?.currentMaintenanceCalories !== undefined && preview.proposedMaintenanceCalories !== undefined ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl bg-white/80 p-3"><p className="text-[10px] font-bold uppercase tracking-wide subtle">Estimated maintenance</p><p className="mt-1 text-lg font-bold">{Math.round(preview.currentMaintenanceCalories).toLocaleString()} → {Math.round(preview.proposedMaintenanceCalories).toLocaleString()} cal/day</p><p className="mt-1 text-xs subtle">{calorieDelta(preview.currentMaintenanceCalories, preview.proposedMaintenanceCalories)}</p></div>
-              <div className="rounded-xl bg-white/80 p-3"><p className="text-[10px] font-bold uppercase tracking-wide subtle">Current daily plan</p>{preview.currentPlanCalories !== undefined && preview.proposedPlanCalories !== undefined ? <><p className="mt-1 text-lg font-bold">{Math.round(preview.currentPlanCalories).toLocaleString()} → {Math.round(preview.proposedPlanCalories).toLocaleString()} cal/day</p><p className="mt-1 text-xs subtle">{calorieDelta(preview.currentPlanCalories, preview.proposedPlanCalories)}</p></> : <p className="mt-1 text-sm subtle">No individualized daily calorie target is currently available.</p>}</div>
+              <div className="rounded-xl bg-[var(--ff-surface-elevated)] p-3"><p className="text-xs font-bold normal-case subtle">Estimated maintenance</p><p className="mt-1 text-lg font-bold">{Math.round(preview.currentMaintenanceCalories).toLocaleString()} → {Math.round(preview.proposedMaintenanceCalories).toLocaleString()} cal/day</p><p className="mt-1 text-xs subtle">{calorieDelta(preview.currentMaintenanceCalories, preview.proposedMaintenanceCalories)}</p></div>
+              <div className="rounded-xl bg-[var(--ff-surface-elevated)] p-3"><p className="text-xs font-bold normal-case subtle">Current daily plan</p>{preview.currentPlanCalories !== undefined && preview.proposedPlanCalories !== undefined ? <><p className="mt-1 text-lg font-bold">{Math.round(preview.currentPlanCalories).toLocaleString()} → {Math.round(preview.proposedPlanCalories).toLocaleString()} cal/day</p><p className="mt-1 text-xs subtle">{calorieDelta(preview.currentPlanCalories, preview.proposedPlanCalories)}</p></> : <p className="mt-1 text-sm subtle">No individualized daily calorie target is currently available.</p>}</div>
             </div>
           ) : (
             <p className="mt-3 text-sm subtle">Falcon Fuel can save the confirmed activity level, but there is not enough supported body information to calculate a new maintenance estimate right now.</p>
           )}
-          {preview?.currentPlanCalories === preview?.proposedPlanCalories && preview?.currentPlanCalories !== undefined && preview.currentMaintenanceCalories !== preview.proposedMaintenanceCalories && <p className="mt-3 text-xs font-semibold text-emerald-900/70">Your stored daily target stays unchanged; this review only updates the maintenance estimate until that target is edited or replaced.</p>}
+          {preview?.currentPlanCalories === preview?.proposedPlanCalories && preview?.currentPlanCalories !== undefined && preview.currentMaintenanceCalories !== preview.proposedMaintenanceCalories && <p className="mt-3 text-xs font-semibold text-[var(--ff-text-primary)]/70">Your stored daily target stays unchanged; this review only updates the maintenance estimate until that target is edited or replaced.</p>}
         </div>
       )}
 

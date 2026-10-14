@@ -43,14 +43,15 @@ export function summarizeDailyNutrition(
 
   for (const entry of history) {
     if (!sameLocalCalendarDay(mealOccurredAt(entry), day)) continue;
+    const countsAsMeal = entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log" && entry.source !== "night-out";
     if (entry.completionFraction === undefined || !entry.nutrition) {
-      unconfirmedMeals += 1;
+      if (countsAsMeal) unconfirmedMeals += 1;
       continue;
     }
 
     const consumed = scaleNutrition(entry.nutrition, entry.completionFraction * (entry.portionScale ?? 1));
     nutrition = nutrition ? addNutrition(nutrition, consumed) : consumed;
-    confirmedMeals += 1;
+    if (countsAsMeal) confirmedMeals += 1;
   }
 
   return {

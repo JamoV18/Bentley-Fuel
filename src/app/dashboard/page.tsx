@@ -4,6 +4,8 @@ import FirstRunDiningChoice from "@/components/FirstRunDiningChoice";
 import LocationChoiceCard from "@/components/LocationChoiceCard";
 import { getDiningProvider } from "@/services";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const provider = getDiningProvider();
   const locations = await provider.getLocations();
@@ -15,16 +17,16 @@ export default async function DashboardPage() {
   return (
     <>
       <FirstRunDiningChoice locations={locations.map((location) => ({ id: location.id, name: location.name, shortName: location.shortName, building: location.building }))} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 sm:py-12">
+      <main className="ff-page">
         <PageHeader title="Choose a location" />
 
         <AppNav />
         {provider.dataStatus === "mock" && (
-          <p className="mt-5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+          <p className="mt-3 border-l-2 border-[var(--ff-warning)] pl-3 text-xs text-[var(--ff-warning)]">
             Live DineOnCampus integration is enabled for the 921. Other campus locations still contain demo menu data until their official sources are connected.
           </p>
         )}
-        <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="ff-location-list">
           {cards.map(({ location, stationCount }) => (
             <LocationChoiceCard
               key={location.id}

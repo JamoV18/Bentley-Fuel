@@ -80,7 +80,7 @@ export function createDailyNutritionSnapshot(
     confirmedMeals: summary.confirmedMeals,
     pendingMeals: summary.unconfirmedMeals,
     meals,
-    allSavedMealsConfirmed: meals.length > 0 && summary.unconfirmedMeals === 0,
+    allSavedMealsConfirmed: summary.confirmedMeals > 0 && summary.unconfirmedMeals === 0,
   };
 }
 

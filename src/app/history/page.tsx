@@ -1,4 +1,6 @@
 import { getDiningProvider } from "@/services";
+
+export const dynamic = "force-dynamic";
 import HistoryV2Client from "./HistoryV2Client";
 
 export default async function HistoryPage() {

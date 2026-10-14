@@ -172,6 +172,7 @@ test("publishing writes the trusted same-date snapshot repository", async () => 
   assert.equal(stored?.publicationSource, "trusted-browser-sync");
   assert.equal(stored?.items.length, 3);
   assert.equal(await repository.get("921", "2026-09-13"), undefined);
+  assert.equal((await repository.getCurrentPublished("921"))?.contentHash, result.snapshot.contentHash);
 });
 
 test("rendered-page capture maps published macros, ingredients and dietary tags", () => {

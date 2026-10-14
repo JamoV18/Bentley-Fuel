@@ -25,12 +25,12 @@ export default function ActivityReviewDueBanner() {
   if (!due) return null;
 
   return (
-    <aside className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3" aria-label="Activity review due">
+    <aside className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--ff-warning)] bg-[var(--ff-warning-surface)] px-4 py-3" aria-label="Activity review due">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[.1em] text-amber-800">Two-week activity review due</p>
-        <p className="mt-1 text-sm font-medium text-amber-950">Confirm whether your routine still matches your activity level before Falcon Fuel changes any derived plan.</p>
+        <p className="text-xs font-bold normal-case text-[var(--ff-warning)]">Two-week activity review due</p>
+        <p className="mt-1 text-sm font-medium text-[var(--ff-warning)]">Confirm whether your routine still matches your activity level before Falcon Fuel changes any derived plan.</p>
       </div>
-      <Link href="/profile-summary#activity-check-in" className="rounded-full bg-amber-900 px-4 py-2 text-sm font-bold text-white">Review activity</Link>
+      <Link href="/profile-summary#activity-check-in" className="rounded-full bg-[var(--ff-warning-surface)] px-4 py-2 text-sm font-bold text-white">Review activity</Link>
     </aside>
   );
 }

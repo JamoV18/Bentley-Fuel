@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import FlowHeader from "@/components/FlowHeader";
-import { formatMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
+import { formatMenuDate, isBentleyMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
 import { campusStapleDiningResources, canonicalPlanningDiningResources, getDiningProvider, recordsForExactMenuDate } from "@/services";
 import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
@@ -41,6 +41,7 @@ export default async function MealBuilderPage({
   const { locationId } = await params;
   const query = await searchParams;
   const isPlanning = query.mode === "plan";
+  const isRetrospectiveLogging = !isPlanning && query.intent === "log";
   installDineOnCampusServerFetchHeaders();
   const provider = getDiningProvider();
   const location = await provider.getLocation(locationId);
@@ -48,7 +49,11 @@ export default async function MealBuilderPage({
 
   const isNineTwentyOne = locationId === "loc-921";
   const isLiveMenuLocation = isNineTwentyOne || ADDITIONAL_LIVE_LOCATION_IDS.has(locationId);
-  const menuDate = isLiveMenuLocation ? normalizeBentleyMenuDate(query.date) : undefined;
+  const menuDate = isLiveMenuLocation
+    ? isRetrospectiveLogging && isBentleyMenuDate(query.date)
+      ? query.date
+      : normalizeBentleyMenuDate(query.date)
+    : undefined;
   const rawProviderMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
   const rawProviderStations = await provider.getStations(locationId, menuDate);
   // The reliable provider intentionally serves the most recently published
@@ -169,9 +174,9 @@ export default async function MealBuilderPage({
         editEntryId={query.entryId}
         planId={query.planId}
         planningDate={isPlanning ? menuDate : undefined}
-        retrospectiveDate={!isPlanning && query.intent === "log" ? menuDate : undefined}
-        retrospectiveTime={!isPlanning && query.intent === "log" ? query.time : undefined}
-        retrospectiveSlot={!isPlanning && query.intent === "log" ? asMealLogSlot(query.slot) : undefined}
+        retrospectiveDate={isRetrospectiveLogging ? menuDate : undefined}
+        retrospectiveTime={isRetrospectiveLogging ? query.time : undefined}
+        retrospectiveSlot={isRetrospectiveLogging ? asMealLogSlot(query.slot) : undefined}
         initialMenuItemId={initialMenuItemId}
         resources={resources}
         isDemo={isDemo}

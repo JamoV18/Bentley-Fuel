@@ -81,7 +81,7 @@ export default function ManualMealBuilderClient({
   const [mealPeriod] = useState(() => selectedMealPeriod ?? currentMealPeriodForHour(new Date().getHours()));
   const [build, setBuild] = useState<MealBuild>(() => {
     const item = initialMenuItemId ? resources.menuItems.find((candidate) => candidate.id === initialMenuItemId) : undefined;
-    return { locationId, items: item ? [createManualMealItemSelection(item, resources.components, crypto.randomUUID())] : [] };
+    return { locationId, items: item ? [createManualMealItemSelection(item, resources.components, `initial:${item.id}`)] : [] };
   });
   const [savedHistoryId, setSavedHistoryId] = useState<string>();
   const [savedPlanId, setSavedPlanId] = useState<string>();

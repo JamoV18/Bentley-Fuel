@@ -1,0 +1,9 @@
+R1: Nov 4 query returns Nov 3 trusted menu as verified-snapshot
+R2: DOM-captured milk ingredient has allergens [] and passes milk-avoidance eligibility
+R3: saturated-fat-first payload maps total fat to 2 instead of 8
+R4: removing one of two foods leaves fiber=10 and sodium=200 (expected 5 and 100), calories correctly=100
+R5: replacing verified food with estimate retains verified meal status
+R6: same food/station on next date gets different canonical food ID
+R7: composition snapshot loses known fiber/sodium when summed from macro-only zero
+R8: planned meal validator accepts malformed nested foodSnapshot
+All eight observed behaviors reproduced without external calls.

@@ -90,6 +90,8 @@ export interface FoodComponent {
   category: ComponentCategory;
   serving: ServingSize;
   nutrition: NutritionFacts;
+  /** Explicit per-allergen source exclusions. Empty or missing means unknown. */
+  sourceFreeFrom?: Allergen[];
   allergens: Allergen[];
   mayContainAllergens?: Allergen[];
   dietaryTags: DietaryTag[];
@@ -142,6 +144,8 @@ export interface MenuItem {
   baseNutrition?: NutritionFacts;
   customization?: CustomizationStep[];
   mealRole?: MenuItemMealRole;
+  /** Explicit per-allergen source exclusions. Empty or missing means unknown. */
+  sourceFreeFrom?: Allergen[];
   allergens: Allergen[];
   mayContainAllergens?: Allergen[];
   dietaryTags: DietaryTag[];

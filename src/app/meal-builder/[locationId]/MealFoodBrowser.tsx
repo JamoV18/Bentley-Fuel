@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { allergenCoverageLabel } from "@/services/allergenEvidence";
 import MealImage from "@/components/MealImage";
 import { addManualMenuItem } from "@/lib/manualMealSelection";
 import type { MealBuildResources } from "@/services";
@@ -83,6 +84,7 @@ export default function MealFoodBrowser({ build, resources, mealPeriod, onBuildC
                         <MealImage name={item.name} imageUrl={item.imageUrl} />
                         <div className="min-w-0 flex-1">
                           <p className="font-bold leading-tight">{item.composition?.actionTitle ?? item.name}</p>
+                          <p className="mt-1 text-xs subtle">{allergenCoverageLabel(item)}</p>
                           {item.composition && <p className="mt-1 text-xs font-semibold text-[var(--ff-accent-light)]">{item.composition.mode === "builder" ? "Composed meal" : "Choose actual components"}</p>}
                           <p className="mt-1 text-xs subtle">{item.composition?.selectionPrompt ?? (item.kind === "customizable" ? "Configure after adding" : item.nutrition ? `${item.nutrition.calories} cal · ${item.nutrition.protein}g protein · ${item.nutrition.carbs}g carbs` : "Nutrition shown after adding")}{item.price !== undefined && ` · $${item.price.toFixed(2)}`}</p>
                           <AnimatePresence initial={false} mode="wait">

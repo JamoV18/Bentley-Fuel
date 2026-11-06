@@ -1,12 +1,12 @@
+import { mergeAllergenEvidence, sourceDeclarations } from "./allergenEvidence";
 import { LOCATION_IDS } from "@/data/mock/locations";
 import type { DietaryTag, MealPeriod, MenuItem, NutritionFacts, Provenance, Station } from "@/types";
 import {
   categoryItems,
   cleanText,
   extractCategories,
-  mapAllergens,
+  apiAllergenEvidence,
   mapDietaryTags,
-  mapMayContainAllergens,
   mapNutrition,
   mergePeriodCategories,
   normalized,
@@ -59,6 +59,7 @@ export interface DomNutritionPanel {
   calories?: number | null;
   nutrients?: Record<string, DomNutritionValue>;
   ingredients?: string;
+  allergenStatements?: string[];
 }
 
 export interface DomCapturedItem {
@@ -171,6 +172,7 @@ function parseDomNutrition(value: unknown): DomNutritionPanel | null {
     servingSize: typeof row.servingSize === "string" ? row.servingSize.trim() : undefined,
     calories: typeof row.calories === "number" && Number.isFinite(row.calories) ? row.calories : row.calories === null ? null : undefined,
     nutrients,
+    allergenStatements: Array.isArray(row.allergenStatements) ? row.allergenStatements.filter((v): v is string => typeof v === "string") : [],
     ingredients: typeof row.ingredients === "string" ? row.ingredients.trim() : undefined,
   };
 }
@@ -401,8 +403,6 @@ function buildApiSnapshot(capture: ApiBrowser921Capture, verifiedAt: string) {
         const id = existing?.id ?? `trusted-921-${capture.menuDate}-item-${slug(stationName)}-${slug(name)}-${officialId || index + 1}`;
         const portion = cleanText(rawItem.portion ?? rawItem.serving_size ?? rawItem.serving);
         const nutrition = mapNutrition(rawItem) ?? existing?.nutrition;
-        const allergens = mapAllergens(rawItem);
-        const mayContainAllergens = mapMayContainAllergens(rawItem);
         const dietaryTags = mapDietaryTags(rawItem);
         items.set(mergeKey, {
           id,
@@ -414,8 +414,7 @@ function buildApiSnapshot(capture: ApiBrowser921Capture, verifiedAt: string) {
           locationId: LOCATION_IDS.nineTwentyOne,
           nutrition,
           serving: portion ? { amount: 1, unit: "serving", description: portion } : existing?.serving,
-          allergens: allergens.length > 0 ? allergens : existing?.allergens ?? [],
-          mayContainAllergens: mayContainAllergens.length > 0 ? mayContainAllergens : existing?.mayContainAllergens,
+          ...mergeAllergenEvidence(apiAllergenEvidence(rawItem), existing),
           dietaryTags: dietaryTags.length > 0 ? dietaryTags : existing?.dietaryTags ?? [],
           availability: [...availability],
           imageUrl: cleanText(rawItem.image_url ?? rawItem.imageUrl ?? rawItem.image) ?? existing?.imageUrl,
@@ -493,8 +492,7 @@ function buildDomSnapshot(capture: DomBrowser921Capture, verifiedAt: string) {
           locationId: LOCATION_IDS.nineTwentyOne,
           nutrition: nutrition ?? existing?.nutrition,
           serving: servingDescription ? { amount: 1, unit: "serving", description: servingDescription } : existing?.serving,
-          allergens: existing?.allergens ?? [],
-          mayContainAllergens: existing?.mayContainAllergens,
+          ...mergeAllergenEvidence(sourceDeclarations([...(rawItem.dietary ?? []), ...(rawItem.nutrition?.allergenStatements ?? [])], rawItem.nutrition?.ingredients), existing),
           dietaryTags: dietaryTags.length > 0 ? dietaryTags : existing?.dietaryTags ?? [],
           availability: [...availability],
           provenance,

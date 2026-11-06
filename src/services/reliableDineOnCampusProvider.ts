@@ -1,3 +1,4 @@
+import { mergeAllergenEvidence } from "./allergenEvidence";
 import { LOCATION_IDS } from "@/data/mock/locations";
 import type {
   DataStatus,
@@ -28,9 +29,8 @@ import {
   cleanText,
   describePeriods,
   extractCategories,
-  mapAllergens,
+  apiAllergenEvidence,
   mapDietaryTags,
-  mapMayContainAllergens,
   mapNutrition,
   mergePeriodCategories,
   normalized,
@@ -352,8 +352,7 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
             locationId: target.locationId,
             nutrition,
             serving: portion ? { amount: 1, unit: "serving", description: portion } : existing?.serving,
-            allergens: mapAllergens(rawItem).length > 0 ? mapAllergens(rawItem) : existing?.allergens ?? [],
-            mayContainAllergens: mapMayContainAllergens(rawItem).length > 0 ? mapMayContainAllergens(rawItem) : existing?.mayContainAllergens,
+            ...mergeAllergenEvidence(apiAllergenEvidence(rawItem), existing),
             dietaryTags: mapDietaryTags(rawItem).length > 0 ? mapDietaryTags(rawItem) : existing?.dietaryTags ?? [],
             availability: [...availability],
             imageUrl: cleanText(rawItem.image_url ?? rawItem.imageUrl ?? rawItem.image) ?? existing?.imageUrl,

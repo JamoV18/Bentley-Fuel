@@ -605,7 +605,7 @@ export default function MealBuilderClient({
             )}
           </AnimatePresence>
 
-          {computed.isValid && (computed.allergens.length > 0 || computed.mayContainAllergens.length > 0) && (
+          {computed.isValid && (
             <section className="ff-rec-allergen">
               <h2>Allergen information for selected foods</h2>
               {computed.allergens.length > 0 && <p><strong>Contains:</strong> {computed.allergens.map(readable).join(", ")}</p>}

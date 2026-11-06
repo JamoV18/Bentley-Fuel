@@ -154,7 +154,10 @@ test("Blue Chip generator emits nutritionally distinct customizable variants", a
 });
 
 test("allergen restrictions shape customizable variants instead of rejecting the whole builder", async () => {
-  const candidates = await generateMealCandidates(new MockDiningProvider(), context("loc-dana", { allergensToAvoid: ["soy", "milk", "wheat"] }, "lunch"), { maxCandidates: 20 });
+  const provider = new MockDiningProvider({ ...mockDiningDataset, components: mockDiningDataset.components.map((c) => ({
+    ...c, sourceFreeFrom: (["soy", "milk", "wheat"] as const).filter((a) => !c.allergens.includes(a) && !c.mayContainAllergens?.includes(a)),
+  })) });
+  const candidates = await generateMealCandidates(provider, context("loc-dana", { allergensToAvoid: ["soy", "milk", "wheat"] }, "lunch"), { maxCandidates: 20 });
   const custom = candidates.filter((candidate) => candidate.build.items.some((line) => line.menuItemId === "item-brito-build-your-own"));
   assert.ok(custom.length > 0);
   for (const candidate of custom) {

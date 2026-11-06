@@ -1,3 +1,4 @@
+import { allergenConflict, restrictions } from "./allergenEvidence";
 import type {
   FoodComponent,
   HardDietaryRestriction,
@@ -64,22 +65,11 @@ export function assessMenuItemEligibility(
     };
   }
 
-  for (const allergen of context.profile.allergensToAvoid) {
-    if (item.allergens.includes(allergen)) {
-      issues.push(
-        issue("ALLERGEN_CONFLICT", `${item.name} contains an allergen the student avoids.`, {
-          menuItemId: item.id,
-          allergen,
-        }),
-      );
-    } else if (item.mayContainAllergens?.includes(allergen)) {
-      issues.push(
-        issue("ALLERGEN_CROSS_CONTACT", `${item.name} may contain an allergen the student avoids.`, {
-          menuItemId: item.id,
-          allergen,
-        }),
-      );
-    }
+  for (const allergen of restrictions(context.profile)) {
+    const code = allergenConflict(item, allergen);
+    if (code) issues.push(issue(code, code === "ALLERGEN_UNKNOWN"
+      ? "The source does not establish this food's status for " + allergen + "."
+      : "This food has a source or ingredient warning for " + allergen + ".", { menuItemId: item.id, allergen }));
   }
 
   for (const restriction of hardDietaryRestrictions(context)) {

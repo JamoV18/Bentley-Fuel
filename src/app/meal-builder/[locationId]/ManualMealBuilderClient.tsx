@@ -320,7 +320,7 @@ export default function ManualMealBuilderClient({
         </div>
       </div>
 
-      {computed.isValid && (computed.allergens.length > 0 || computed.mayContainAllergens.length > 0) && <section className="mt-6 rounded-lg border border-[var(--ff-warning)] bg-[var(--ff-warning-surface)] p-5"><h2 className="text-xl font-bold">Allergen information for selected foods</h2>{computed.allergens.length > 0 && <p className="mt-3"><strong>Contains:</strong> {computed.allergens.map(readable).join(", ")}</p>}{computed.mayContainAllergens.length > 0 && <p className="mt-2"><strong>May contain:</strong> {computed.mayContainAllergens.map(readable).join(", ")}</p>}<p className="mt-4 text-sm leading-relaxed text-[var(--ff-warning)]/75">{ALLERGEN_DISCLAIMER}</p></section>}
+      {computed.isValid && <section className="mt-6 rounded-lg border border-[var(--ff-warning)] bg-[var(--ff-warning-surface)] p-5"><h2 className="text-xl font-bold">Allergen information for selected foods</h2>{computed.allergens.length > 0 && <p className="mt-3"><strong>Contains:</strong> {computed.allergens.map(readable).join(", ")}</p>}{computed.mayContainAllergens.length > 0 && <p className="mt-2"><strong>May contain:</strong> {computed.mayContainAllergens.map(readable).join(", ")}</p>}<p className="mt-4 text-sm leading-relaxed text-[var(--ff-warning)]/75">{ALLERGEN_DISCLAIMER}</p></section>}
     </main>
   );
 }

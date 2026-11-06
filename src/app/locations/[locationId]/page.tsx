@@ -1,3 +1,4 @@
+import { allergenCoverageLabel } from "@/services/allergenEvidence";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import FlowHeader from "@/components/FlowHeader";
@@ -143,6 +144,7 @@ export default async function LocationPage({
 
                           </div>
                           {item.availability?.length ? <p className="mt-1.5 text-[11px] font-semibold text-[var(--ff-accent-light)]">{item.availability.map(readable).join(" · ")}</p> : null}
+                          <p className="mt-1 text-xs subtle">{allergenCoverageLabel(item)}</p>
                           {item.nutrition
                             ? <p className="mt-2 text-xs font-semibold text-[var(--ff-text-secondary)]">{item.nutrition.calories} cal · {item.nutrition.protein}g protein · {item.nutrition.carbs}g carbs</p>
                             : item.provenance.dataStatus === "verified"

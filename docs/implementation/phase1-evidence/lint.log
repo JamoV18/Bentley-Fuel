@@ -1,0 +1,10 @@
+
+> bentley-fuel@0.1.0 lint
+> eslint
+
+
+/Users/jamesonvelez/Documents/ChatGPT/Falcon Fuel/phase1/src/services/mockDiningProvider.ts
+  42:46  warning  '_date' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)
+

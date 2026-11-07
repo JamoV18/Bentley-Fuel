@@ -1,0 +1,10 @@
+Falcon Fuel — mock dataset report
+==================================
+Counts: { locations: 7, stations: 14, components: 38, menuItems: 32 }
+OK: true
+No integrity issues found. ✅
+
+Sample Blue Chip build (brown rice, double chicken, black beans, guac, cheese):
+  Macros: { calories: 1030, protein: 87, carbs: 73, fat: 52 }
+  Allergens: [ 'milk' ]
+  Shared dietary tags: [ 'gluten-free' ]

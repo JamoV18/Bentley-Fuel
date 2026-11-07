@@ -1,0 +1,48 @@
+
+> bentley-fuel@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.4.5 (webpack)
+✓ Running next.config.ts took 22ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.6s
+  Running TypeScript ...
+  Finished TypeScript in 2.8s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/11) ...
+  Generating static pages using 9 workers (2/11) 
+  Generating static pages using 9 workers (5/11) 
+  Generating static pages using 9 workers (8/11) 
+✓ Generating static pages using 9 workers (11/11) in 443ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin/921-sync
+├ ƒ /admin/sign-in
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/dining/health
+├ ƒ /api/dining/published/921
+├ ƒ /api/dining/refresh
+├ ƒ /api/dining/sync/921
+├ ƒ /dashboard
+├ ○ /data-privacy
+├ ○ /going-out
+├ ƒ /history
+├ ƒ /locations/[locationId]
+├ ƒ /log-meal
+├ ƒ /meal-builder/[locationId]
+├ ƒ /meals/[menuItemId]
+├ ○ /methodology
+├ ○ /onboarding
+├ ○ /profile
+├ ○ /profile-summary
+└ ƒ /today
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

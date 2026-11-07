@@ -51,6 +51,9 @@ export interface CanonicalFood {
   locationId?: LocationId;
   stationId?: StationId;
   availability?: string[];
+  /** Source menu evidence; historical log snapshots deliberately omit these. */
+  menuDate?: string;
+  availabilityStatus?: import("./menu").AvailabilityVerificationStatus;
   availableNow?: boolean;
   /** Optional source/station context shown beneath search results. */
   contextLabel?: string;

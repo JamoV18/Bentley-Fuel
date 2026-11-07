@@ -18,7 +18,8 @@ const CAPTURE_921_SCRIPT = String.raw`(async()=>{
     const clean=value=>String(value??"").replace(/\s+/g," ").trim();
     const slug=value=>clean(value).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
     const dateMatch=location.pathname.match(/\/(\d{4}-\d{2}-\d{2})\//);
-    const menuDate=dateMatch?dateMatch[1]:new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    if(!dateMatch)throw new Error("Choose a dated Bentley menu before capturing it.");
+    const menuDate=dateMatch[1];
     const activeLocation=document.querySelector('[data-location-id][aria-selected="true"]');
     const upstreamLocationId=activeLocation?.getAttribute("data-location-id")||fallback;
 

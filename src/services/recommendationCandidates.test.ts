@@ -311,3 +311,8 @@ test("candidate generation rejects duplicate dense side categories but keeps mix
   assert.ok(!idSets.some((ids) => ids.has(breadA.id) && ids.has(breadB.id)));
   assert.ok(idSets.some((ids) => ids.has(main.id) && ids.has(breadA.id) && ids.has(vegetable.id)));
 });
+
+test("unknown component exclusions cannot create a restricted customized recommendation", async () => {
+  const candidates = await generateMealCandidates(new MockDiningProvider(), context("loc-dana", { allergensToAvoid: ["milk"] }, "lunch"));
+  assert.equal(candidates.some((candidate) => candidate.build.items.some((line) => line.menuItemId === "item-brito-build-your-own")), false);
+});

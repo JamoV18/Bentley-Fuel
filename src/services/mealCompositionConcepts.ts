@@ -334,6 +334,8 @@ export function resolveMealCompositionConcepts(items: readonly MenuItem[], stati
         mealRole: "main",
         allergens: [], dietaryTags: [], availability: periodsFor(stationItems),
         provenance: provenanceFor(station, concept),
+        menuDate: station.menuDate,
+        availabilityStatus: station.availabilityStatus,
         composition: {
           conceptId: concept.id, canonicalName: concept.canonicalName, mode: concept.mode,
           searchAliases: [...concept.aliases], actionTitle: concept.actionTitle,

@@ -131,6 +131,8 @@ export interface RecommendationInteraction {
 
 /** Inputs known before candidate generation/ranking begins. */
 export interface RecommendationContext {
+  /** Explicit campus service date for a future or historical request. */
+  menuDate?: string;
   profile: UserProfile;
   /** One physical dining location is the boundary for a recommended meal. */
   locationId: LocationId;

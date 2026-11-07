@@ -1,3 +1,4 @@
+import { isBentleyMenuDate } from "@/lib/bentleyDiningDate";
 import { mergeAllergenEvidence, sourceDeclarations } from "./allergenEvidence";
 import { LOCATION_IDS } from "@/data/mock/locations";
 import type { DietaryTag, MealPeriod, MenuItem, NutritionFacts, Provenance, Station } from "@/types";
@@ -124,7 +125,7 @@ function validDateAndTimestamp(root: JsonRecord) {
   const menuDate = typeof root.menuDate === "string" ? root.menuDate : "";
   const capturedAt = typeof root.capturedAt === "string" ? root.capturedAt : "";
   const upstreamLocationId = typeof root.upstreamLocationId === "string" ? root.upstreamLocationId.trim() : "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(menuDate)) throw new Error("Capture is missing a valid YYYY-MM-DD menu date.");
+  if (!isBentleyMenuDate(menuDate)) throw new Error("Capture is missing a valid YYYY-MM-DD menu date.");
   if (!capturedAt || Number.isNaN(Date.parse(capturedAt))) throw new Error("Capture is missing a valid capture timestamp.");
   if (!upstreamLocationId) throw new Error("Capture is missing the 921 upstream location ID.");
   if (!Array.isArray(root.periods) || root.periods.length === 0) throw new Error("Capture contains no meal periods.");
@@ -358,8 +359,11 @@ function buildApiSnapshot(capture: ApiBrowser921Capture, verifiedAt: string) {
 
   for (const period of capture.periods) {
     const mealPeriod = periodFromName(period.name);
-    const normalizedPeriod: MealPeriod = mealPeriod ?? "all-day";
-    if (!mealPeriod) issues.push({ severity: "warning", code: "UNKNOWN_PERIOD", mealPeriod: period.name, message: `Could not classify “${period.name}”; imported it as all-day.` });
+    if (!mealPeriod) {
+      issues.push({ severity: "warning", code: "UNKNOWN_PERIOD", mealPeriod: period.name, message: "Unrecognized period; omitted from verified availability." });
+      continue;
+    }
+    const normalizedPeriod: MealPeriod = mealPeriod;
     if (period.v4?.payload !== undefined) sourceVersions.add("v4");
     if (period.v1?.payload !== undefined) sourceVersions.add("v1");
     const categories = mergePeriodCategories(
@@ -442,8 +446,11 @@ function buildDomSnapshot(capture: DomBrowser921Capture, verifiedAt: string) {
 
   for (const period of capture.periods) {
     const mealPeriod = periodFromName(period.name);
-    const normalizedPeriod: MealPeriod = mealPeriod ?? "all-day";
-    if (!mealPeriod) issues.push({ severity: "warning", code: "UNKNOWN_PERIOD", mealPeriod: period.name, message: `Could not classify “${period.name}”; imported it as all-day.` });
+    if (!mealPeriod) {
+      issues.push({ severity: "warning", code: "UNKNOWN_PERIOD", mealPeriod: period.name, message: "Unrecognized period; omitted from verified availability." });
+      continue;
+    }
+    const normalizedPeriod: MealPeriod = mealPeriod;
     if (period.categories.length === 0) {
       issues.push({ severity: "error", code: "EMPTY_PERIOD", mealPeriod: period.name, message: `${period.name} captured zero stations/items. Publish is blocked so Falcon Fuel cannot silently serve an incomplete 921 day.` });
       periodItemCounts[normalizedPeriod] = 0;

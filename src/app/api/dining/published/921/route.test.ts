@@ -37,3 +37,23 @@ test("public published-menu endpoint does not expose server-ingested cache rows"
   assert.equal(response.status, 404);
   resetDiningSnapshotsForTests();
 });
+
+test("published reads are date-specific, validate calendar dates, and do not republish historical records", async () => {
+  const repository = new MemoryDiningSnapshotRepository();
+  const make = (menuDate: string) => build921BrowserSnapshot({schemaVersion:1,source:"dineoncampus-browser-dom",menuDate,capturedAt:menuDate+"T12:00:00Z",upstreamLocationId:"921",periods:[{name:"Lunch",categories:[{name:"Station",items:[{name:"Rice"}]}]}]}).snapshot;
+  await repository.set(make("2026-11-03"));
+  await repository.set(make("2026-11-04"));
+  setDiningSnapshotRepository(repository);
+  try {
+    const old = await GET(new Request("http://localhost/api/dining/published/921?date=2026-11-03"));
+    assert.equal(old.status,200);
+    assert.equal((await old.json()).menuDate,"2026-11-03");
+    assert.equal((await repository.getCurrentPublished("921"))?.menuDate,"2026-11-04");
+    const latest = await (await GET(new Request("http://localhost/api/dining/published/921"))).json();
+    assert.equal(latest.view,"last-publication");
+    assert.equal(latest.availabilityVerified,false);
+    assert.equal(latest.menuDate,"2026-11-04");
+    assert.equal((await GET(new Request("http://localhost/api/dining/published/921?date=2026-11-05"))).status,404);
+    for (const date of ["2026-02-30","junk",""]) assert.equal((await GET(new Request("http://localhost/api/dining/published/921?date="+date))).status,400);
+  } finally { resetDiningSnapshotsForTests(); }
+});

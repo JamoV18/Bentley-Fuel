@@ -1,3 +1,5 @@
+import { getDiningSnapshotRepository } from "@/services/diningSnapshotRepository";
+import { outletsForLocation } from "@/services/dineOnCampusDiscovery";
 import { allergenCoverageLabel } from "@/services/allergenEvidence";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -28,6 +30,7 @@ export default async function LocationPage({
 
   const allItems = view.sections.flatMap((section) => section.menuItems);
   const hasLiveMenu = isLiveMenuLocation && allItems.some((item) => item.provenance.dataStatus === "verified");
+  const lastPublications = isLiveMenuLocation ? (await Promise.all(outletsForLocation(locationId).map((outlet) => getDiningSnapshotRepository().getCurrentPublished(outlet.key)))).filter((snapshot) => snapshot && snapshot.menuDate !== menuDate) : [];
   const today = bentleyMenuDate();
   const tomorrow = shiftMenuDate(today, 1);
   const maxDate = shiftMenuDate(today, 31);
@@ -78,6 +81,16 @@ export default async function LocationPage({
         </section>
       )}
 
+      {lastPublications.map((snapshot) => snapshot && (
+        <details key={snapshot.outletKey} className="surface mt-5 p-4">
+          <summary>Last publication: {snapshot.outletName} · {snapshot.menuDate}</summary>
+          <p className="mt-2 text-sm subtle">Historical information only. This does not verify availability for {menuDate}.</p>
+          <ul className="mt-3 space-y-2">{snapshot.items.map((item) => <li key={item.id}>
+            {item.name} · {item.availability?.join(", ") || "Period unknown"}
+            <p className="text-xs subtle">{allergenCoverageLabel(item)}</p>
+          </li>)}</ul>
+        </details>
+      ))}
       {hasLiveMenu ? (
         <p className="mt-5 rounded-xl border border-[var(--ff-border)] bg-[var(--ff-surface-elevated)] px-4 py-3 text-sm text-[var(--ff-text-primary)]">
           Source: Bentley Dining / DineOnCampus · {menuDate ? formatMenuDate(menuDate) : "this date"}. Details shown as published.

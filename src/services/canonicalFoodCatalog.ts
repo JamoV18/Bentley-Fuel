@@ -1,3 +1,4 @@
+import { publishedFor } from "./diningAvailability";
 import type {
   CanonicalFood,
   FoodPortionUnit,
@@ -102,7 +103,8 @@ export function canonicalFoodFromMenuItem(item: MenuItem, stationName?: string):
     locationId: item.locationId,
     stationId: item.stationId,
     availability: item.availability,
-    availableNow: item.availabilityStatus === "live-verified" || item.availabilityStatus === "verified-snapshot",
+    menuDate: item.menuDate,
+    availabilityStatus: item.availabilityStatus,
     contextLabel: omeletteRole === "add-in" ? "Cucina · Omelette add-in" : undefined,
     quickAddEligible: Boolean(
       serving
@@ -219,7 +221,7 @@ export function rankCanonicalFoods(
   query: string,
   foods: readonly CanonicalFood[],
   recent: readonly RecentCanonicalFood[],
-  context: { locationId?: string; mealSlot?: MealLogSlot } = {},
+  context: { locationId?: string; mealSlot?: MealLogSlot; menuDate?: string } = {},
 ): CanonicalFood[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [];
@@ -231,7 +233,7 @@ export function rankCanonicalFoods(
     const includes = names.some((value) => value.includes(normalized));
     if (!exact && !prefix && !includes) return [];
     let score = exact ? 120 : prefix ? 95 : 70;
-    if (food.source === "bentley-dining" && food.availableNow) score += 55;
+    if (food.source === "bentley-dining" && publishedFor({ ...food, availability: food.availability as MenuItem["availability"] }, context.menuDate, context.mealSlot === "snack" ? undefined : context.mealSlot)) score += 55;
     if (food.locationId && food.locationId === context.locationId) score += 30;
     if (food.source === "campus-staple" && food.locationId === context.locationId) score += 30;
     if (context.mealSlot && food.availability?.some((period) => period === context.mealSlot || period === "all-day")) score += 18;
@@ -245,7 +247,7 @@ export function rankCanonicalFoods(
 export function foodSourceLabel(source: CanonicalFood["source"], verification: CanonicalFood["verification"]): string {
   if (source === "custom") return "Custom food";
   if (source === "campus-staple") return "Campus staple";
-  if (source === "bentley-dining" && verification === "verified") return "Bentley verified";
+  if (source === "bentley-dining" && verification === "verified") return "Bentley nutrition source";
   if (verification === "calibrated-estimate") return "Measured estimate";
   if (verification === "unverified-estimate") return "Estimated portion";
   return "Generic nutrition data";

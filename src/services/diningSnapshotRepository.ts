@@ -158,8 +158,12 @@ export class MemoryDiningSnapshotRepository implements DiningSnapshotRepository 
     return this.currentPublished.get(outletKey);
   }
 
-  async set(snapshot: DiningMenuSnapshot): Promise<void> {
+  rememberDated(snapshot: DiningMenuSnapshot): void {
     this.store.set(key(snapshot.outletKey, snapshot.menuDate), snapshot);
+  }
+
+  async set(snapshot: DiningMenuSnapshot): Promise<void> {
+    this.rememberDated(snapshot);
     if (snapshot.publicationSource === "trusted-browser-sync") this.currentPublished.set(snapshot.outletKey, snapshot);
   }
 
@@ -177,7 +181,7 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
     try {
       const cached = await getCache().get(cacheKey) as DiningMenuSnapshot | null | undefined;
       if (cached?.menuDate === menuDate && cached.outletKey === outletKey) {
-        await this.memory.set(cached);
+        this.memory.rememberDated(cached);
         developmentSharedSnapshots()?.set(cacheKey, cached);
         return cached;
       }
@@ -187,7 +191,7 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
 
     const shared = developmentSharedSnapshots()?.get(cacheKey);
     if (shared) {
-      await this.memory.set(shared);
+      this.memory.rememberDated(shared);
       return shared;
     }
 
@@ -196,7 +200,7 @@ export class RuntimeCacheDiningSnapshotRepository implements DiningSnapshotRepos
 
     const local = await readLocalSnapshot(outletKey, menuDate);
     if (local) {
-      await this.memory.set(local);
+      this.memory.rememberDated(local);
       developmentSharedSnapshots()?.set(cacheKey, local);
       return local;
     }

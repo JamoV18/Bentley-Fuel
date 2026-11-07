@@ -1,11 +1,14 @@
 import { getDiningSnapshotRepository } from "@/services/diningSnapshotRepository";
-import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
+import { bentleyMenuDate, isBentleyMenuDate } from "@/lib/bentleyDiningDate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const requestedDate = new URL(request.url).searchParams.get("date");
+  if (requestedDate !== null && !isBentleyMenuDate(requestedDate)) {
+    return Response.json({ ok: false, error: "invalid-menu-date" }, { status: 400 });
+  }
   const repository = getDiningSnapshotRepository();
   const snapshot = requestedDate
     ? await repository.get("921", requestedDate)
@@ -18,9 +21,7 @@ export async function GET(request: Request) {
     });
   }
 
-  if (!requestedDate && !(await repository.getCurrentPublished("921"))) await repository.set(snapshot);
-
-  return Response.json({ ok: true, snapshot }, {
+  return Response.json({ ok: true, availabilityVerified: false, view: requestedDate ? "dated-publication" : "last-publication", menuDate: snapshot.menuDate, snapshot }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

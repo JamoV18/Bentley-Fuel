@@ -101,14 +101,15 @@ function snapshotView(snapshot: DiningMenuSnapshot): LiveDateData {
   const suffix = ` Served from the last successfully verified ${snapshot.menuDate} publication retrieved at ${snapshot.verifiedAt}.`;
   return {
     source: "snapshot",
-    stations: snapshot.stations.map((station) => ({
+    stations: snapshot.stations.filter((station) => !station.menuDate || station.menuDate === snapshot.menuDate).map((station) => ({
       ...station,
+      menuDate: snapshot.menuDate,
       availabilityStatus: "verified-snapshot",
       availabilityProvenance: station.availabilityProvenance
         ? { ...station.availabilityProvenance, notes: `${station.availabilityProvenance.notes ?? ""}${suffix}`.trim() }
         : station.availabilityProvenance,
     })),
-    items: snapshot.items.map((item) => ({
+    items: snapshot.items.filter((item) => item.menuDate === snapshot.menuDate && item.availability?.length).map((item) => ({
       ...item,
       availabilityStatus: "verified-snapshot",
       availabilityProvenance: item.availabilityProvenance
@@ -124,7 +125,7 @@ function filterMenuItems(items: MenuItem[], query: MenuItemQuery): MenuItem[] {
     if (query.stationId && item.stationId !== query.stationId) return false;
     if (query.kind && item.kind !== query.kind) return false;
     if (query.mealPeriod) {
-      const periods = item.availability ?? ["all-day"];
+      const periods = item.availability ?? [];
       if (!periods.includes(query.mealPeriod) && !periods.includes("all-day")) return false;
     }
     return true;
@@ -234,16 +235,22 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
    * upstream discovery/retries to explicit location reads and refreshAll().
    */
   private async getPublishedOrCachedOutletDate(target: ReliableDineOnCampusOutletTarget, date: string): Promise<LiveDateData | undefined> {
-    const published = await this.snapshots.getCurrentPublished(target.key);
-    if (published) return snapshotView(published);
-    const exact = await this.snapshots.get(target.key, date);
-    return exact ? snapshotView(exact) : undefined;
+    const snapshot = await this.exactSnapshot(target, date);
+    return snapshot ? snapshotView(snapshot) : undefined;
+  }
+
+  private async exactSnapshot(target: ReliableDineOnCampusOutletTarget, date: string) {
+    const dated = await this.snapshots.get(target.key, date);
+    if (dated?.menuDate === date) return dated;
+    // A dated cache entry may expire before the last-publication pointer.
+    const last = await this.snapshots.getCurrentPublished(target.key);
+    return last?.menuDate === date ? last : undefined;
   }
 
   private async getOutletDate(target: ReliableDineOnCampusOutletTarget, date: string, force = false): Promise<LiveDateData | undefined> {
     if (!force) {
-      const published = await this.snapshots.getCurrentPublished(target.key);
-      if (published) return snapshotView(published);
+      const published = await this.exactSnapshot(target, date);
+      if (published?.publicationSource === "trusted-browser-sync") return snapshotView(published);
     }
     const cacheKey = `${target.key}::${date}`;
     const now = Date.now();
@@ -258,13 +265,8 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
   }
 
   private async snapshotFallback(target: ReliableDineOnCampusOutletTarget, date: string, failureReason: string): Promise<LiveDateData | undefined> {
-    const exactSnapshot = await this.snapshots.get(target.key, date);
-    const currentPublished = await this.snapshots.getCurrentPublished(target.key);
-    if (exactSnapshot?.publicationSource === "trusted-browser-sync" && currentPublished?.contentHash !== exactSnapshot.contentHash) {
-      await this.snapshots.set(exactSnapshot);
-    }
-    const snapshot = currentPublished ?? exactSnapshot;
-    if (!snapshot || (snapshot.menuDate !== date && snapshot.publicationSource !== "trusted-browser-sync")) {
+    const snapshot = await this.exactSnapshot(target, date);
+    if (!snapshot) {
       recordDiningIngestion({ outletKey: target.key, menuDate: date, stableLocationId: target.locationId, outletName: target.name, latestFailureReason: failureReason, servingSnapshot: false, stationCount: 0, itemCount: 0 });
       return undefined;
     }
@@ -294,7 +296,8 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
     if (v1PeriodsResult.ok) sourceVersions.add("v1");
 
     const periodMenus = await Promise.all(periods.map(async (period) => {
-      const mealPeriod = periodFromName(period.name) ?? "all-day";
+      const mealPeriod = periodFromName(period.name);
+      if (!mealPeriod) return { mealPeriod, categories: [] };
       const [v4, v1] = await Promise.all([
         period.v4Id ? this.transport.getJson(MENU_V4_URL(locationId, date, period.v4Id), { kind: "menu", apiVersion: "v4", outletKey: target.key, upstreamLocationId: locationId, menuDate: date, periodId: period.v4Id, periodName: period.name }) : Promise.resolve(undefined),
         period.v1Id ? this.transport.getJson(MENU_V1_URL(locationId, date, period.v1Id), { kind: "menu", apiVersion: "v1", outletKey: target.key, upstreamLocationId: locationId, menuDate: date, periodId: period.v1Id, periodName: period.name }) : Promise.resolve(undefined),
@@ -307,6 +310,7 @@ export class ReliableDineOnCampusProvider implements DiningDataProvider {
 
     const publishedAt = new Date().toISOString();
     for (const { mealPeriod, categories } of periodMenus) {
+      if (!mealPeriod) continue;
       for (const category of categories) {
         const stationName = stationDisplayName(target, category);
         const stationId = `${LIVE_PREFIX}${target.key}-${date}-station-${slug(target.slug)}-${slug(stationName)}`;

@@ -17,12 +17,13 @@ import type { CanonicalFood, LoggedFoodSnapshot, MealLogSlot, MenuItem } from "@
 
 const rounded = (value: number) => Math.round(value * 10) / 10;
 
-export default function CanonicalFoodPicker({ foods, recent, compositionActions = [], locationId, mealSlot, campusAvailable, initialSnapshot, initialQuery = "", onQueryChange, onAdd, onChooseComposition, onBrowseMenu, actionLabel = "Add" }: {
+export default function CanonicalFoodPicker({ foods, recent, compositionActions = [], locationId, mealSlot, menuDate, campusAvailable, initialSnapshot, initialQuery = "", onQueryChange, onAdd, onChooseComposition, onBrowseMenu, actionLabel = "Add" }: {
   foods: readonly CanonicalFood[];
   recent: readonly RecentCanonicalFood[];
   compositionActions?: readonly MenuItem[];
   locationId?: string;
   mealSlot?: MealLogSlot;
+  menuDate?: string;
   campusAvailable: boolean;
   initialSnapshot?: LoggedFoodSnapshot;
   initialQuery?: string;
@@ -42,7 +43,7 @@ export default function CanonicalFoodPicker({ foods, recent, compositionActions 
   const [selected, setSelected] = useState<CanonicalFood | undefined>(initialFood);
   const [portionUnitId, setPortionUnitId] = useState(initialSnapshot?.portionUnitId ?? initialFood?.defaultPortionUnitId ?? "");
   const [quantity, setQuantity] = useState(initialSnapshot?.quantity ?? initialFood?.defaultQuantity ?? 1);
-  const results = useMemo(() => rankCanonicalFoods(query, allFoods, recent, { locationId, mealSlot }), [allFoods, locationId, mealSlot, query, recent]);
+  const results = useMemo(() => rankCanonicalFoods(query, allFoods, recent, { locationId, mealSlot, menuDate }), [allFoods, locationId, mealSlot, menuDate, query, recent]);
   const compositionResults = useMemo(() => query.trim() ? compositionActions
     .filter((item) => item.locationId === locationId && compositionMatchesSearch(item, query))
     .slice(0, 4) : [], [compositionActions, locationId, query]);
@@ -66,8 +67,9 @@ export default function CanonicalFoodPicker({ foods, recent, compositionActions 
     <label className="field">What did you eat?
       <input autoFocus value={query} onChange={(event) => { updateQuery(event.target.value); setSelected(undefined); }} placeholder="Search eggs, rice, chicken…" autoComplete="off" />
     </label>
+    <p className="text-xs subtle">Logging a food does not verify allergen suitability. Allergen information may be incomplete; check menu details and confirm with dining staff.</p>
     {!selected && onBrowseMenu && <button type="button" className="justify-self-start text-sm font-bold text-[var(--ff-accent-light)]" onClick={() => onBrowseMenu(query)}>Browse the menu by station →</button>}
-    {!campusAvailable && <p className="rounded-xl bg-[var(--ff-warning-surface)] px-3 py-2 text-xs text-[var(--ff-text-secondary)]">Bentley menu data is currently unavailable. Generic foods and your recent foods are still available.</p>}
+    {!campusAvailable && <p className="rounded-xl bg-[var(--ff-warning-surface)] px-3 py-2 text-xs text-[var(--ff-text-secondary)]">Bentley menu data is unavailable for this date. Generic foods and your recent foods are still available.</p>}
 
     {query.trim() && <section className="grid max-h-64 gap-1 overflow-y-auto" aria-label="Food search results">
       {compositionResults.map((item) => <button type="button" className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-accent)] bg-[var(--ff-action-surface)] p-3 text-left" key={item.id} onClick={() => onChooseComposition?.(item)}><span><strong className="block text-sm">{item.composition?.actionTitle}</strong><small className="mt-1 block text-xs subtle">{item.composition?.selectionPrompt}</small></span><small className="text-right text-xs font-semibold text-[var(--ff-accent-light)]">Open builder</small></button>)}

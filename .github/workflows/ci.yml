@@ -12,6 +12,12 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        timezone: [UTC, America/New_York]
+    env:
+      TZ: ${{ matrix.timezone }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -27,11 +33,6 @@ jobs:
 
       - name: Run tests
         run: npm test
-
-      - name: Campus date and restriction regression checks (New York)
-        run: node --import tsx --test src/services/diningAvailability.test.ts src/services/allergenEvidence.test.ts src/app/api/dining/published/921/route.test.ts
-        env:
-          TZ: America/New_York
 
       - name: Typecheck
         run: npm run typecheck

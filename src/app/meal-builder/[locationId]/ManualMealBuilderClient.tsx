@@ -1,5 +1,6 @@
 "use client";
 
+import { savedMealEstimateStatus } from "@/services/canonicalFoodLogging";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -78,7 +79,8 @@ export default function ManualMealBuilderClient({
 }) {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
-  const [mealPeriod] = useState(() => selectedMealPeriod ?? currentMealPeriodForHour(new Date().getHours()));
+  const [defaultMealPeriod] = useState(() => currentMealPeriodForHour(new Date().getHours()));
+  const mealPeriod = selectedMealPeriod ?? defaultMealPeriod;
   const [build, setBuild] = useState<MealBuild>(() => {
     const item = initialMenuItemId ? resources.menuItems.find((candidate) => candidate.id === initialMenuItemId) : undefined;
     return { locationId, items: item ? [createManualMealItemSelection(item, resources.components, `initial:${item.id}`)] : [] };
@@ -162,6 +164,7 @@ export default function ManualMealBuilderClient({
 
   const computed = useMemo(() => computeMealBuild(build, resources), [build, resources]);
   const selectedNutrition = useMemo(() => computed.nutrition ? mealNutritionWithBeverages(computed.nutrition, beverages) : undefined, [beverages, computed.nutrition]);
+  const nutritionEstimateStatus = computed.lines.some((line) => line.item) ? "estimated" : savedMealEstimateStatus(build.items, beverages);
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
   const soleComposition = build.items.length === 1
     ? resources.menuItems.find((item) => item.id === build.items[0].menuItemId)?.composition
@@ -169,14 +172,15 @@ export default function ManualMealBuilderClient({
   const isPlanning = Boolean(planningDate);
   const isRetrospectiveFlow = Boolean(retrospectiveDate);
   const isRetrospectiveLog = Boolean(retrospectiveDate && !editEntryId);
-  const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
+  const intentDate = planningDate ?? retrospectiveDate ?? menuDate;
+  const futureMenu = Boolean(intentDate && intentDate > bentleyMenuDate());
   const retrospectiveBackParams = new URLSearchParams();
   if (retrospectiveDate) retrospectiveBackParams.set("date", retrospectiveDate);
   if (retrospectiveSlot) retrospectiveBackParams.set("slot", retrospectiveSlot);
   if (editEntryId) { retrospectiveBackParams.set("entryId", editEntryId); retrospectiveBackParams.set("manage", "1"); }
   const backHref = returnHref ?? (isPlanning ? `/profile-summary?date=${planningDate}` : isRetrospectiveFlow ? `/log-meal?${retrospectiveBackParams.toString()}` : `/locations/${locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`);
   const recommendationParams = new URLSearchParams();
-  if (menuDate) recommendationParams.set("date", menuDate);
+  if (intentDate) recommendationParams.set("date", intentDate);
   if (selectedMealPeriod) recommendationParams.set("period", selectedMealPeriod);
   if (isPlanning) recommendationParams.set("mode", "plan");
   if (planId) recommendationParams.set("planId", planId);
@@ -188,8 +192,8 @@ export default function ManualMealBuilderClient({
     const savedBuild = snapshotMealCompositions(build, resources);
     const repository = browserMealHistoryRepository();
     const existing = repository.getRecent(Number.MAX_SAFE_INTEGER).find((entry) => entry.id === savedHistoryId);
-    repository.upsert({ ...existing, id: savedHistoryId, locationId: build.locationId, build: savedBuild, selectedAt: savedAt, nutrition: selectedNutrition, campusBeverages: beverages, source: existing?.source ?? "self-built" });
-  }, [beverages, build, computed.isValid, isPlanning, resources, savedAt, savedHistoryId, selectedNutrition]);
+    repository.upsert({ ...existing, id: savedHistoryId, locationId: build.locationId, build: savedBuild, selectedAt: savedAt, nutrition: selectedNutrition, nutritionEstimateStatus, campusBeverages: beverages, source: existing?.source ?? "self-built" });
+  }, [beverages, build, computed.isValid, isPlanning, nutritionEstimateStatus, resources, savedAt, savedHistoryId, selectedNutrition]);
 
   useEffect(() => {
     const recent = recentCampusBeverages(browserMealHistoryRepository().getRecent(40));
@@ -200,7 +204,7 @@ export default function ManualMealBuilderClient({
     if ((!isPlanning && futureMenu) || !computed.isValid || !selectedNutrition || build.items.length === 0) return;
     if (isPlanning && planningDate) {
       const profile = browserProfileRepository().get();
-      const mealSlot = mealSlotForBuilderPeriod(selectedMealPeriod);
+      const mealSlot = mealSlotForBuilderPeriod(mealPeriod);
       if (!profile || !mealSlot) return;
       const repository = browserPlannedMealRepository(profile.id);
       const existing = planId ? repository.get(planId) : undefined;
@@ -229,13 +233,14 @@ export default function ManualMealBuilderClient({
       build: savedBuild,
       selectedAt,
       nutrition: selectedNutrition,
+      nutritionEstimateStatus,
       campusBeverages: beverages,
       source: existing?.source ?? "self-built",
       ...(isRetrospectiveLog ? {
         eatenAt: selectedAt,
         completionFraction: 1 as MealCompletionFraction,
         completionRecordedAt: new Date().toISOString(),
-        mealSlot: retrospectiveSlot ?? mealSlotForBuilderPeriod(selectedMealPeriod),
+        mealSlot: retrospectiveSlot ?? mealSlotForBuilderPeriod(mealPeriod),
         entryKind: "food" as const,
       } : {}),
     });

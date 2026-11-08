@@ -7,6 +7,6 @@ test("meal-builder periods map to stable daily history slots", () => {
   assert.equal(mealSlotForBuilderPeriod("lunch"), "lunch");
   assert.equal(mealSlotForBuilderPeriod("dinner"), "dinner");
   assert.equal(mealSlotForBuilderPeriod("late-night"), "snack");
-  assert.equal(mealSlotForBuilderPeriod("brunch"), undefined);
+  assert.equal(mealSlotForBuilderPeriod("brunch"), "lunch");
   assert.equal(mealSlotForBuilderPeriod(undefined), undefined);
 });

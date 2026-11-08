@@ -104,7 +104,8 @@ export default function MealBuilderClient({
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const chooseTimerRef = useRef<number | null>(null);
-  const [mealPeriod] = useState(() => selectedMealPeriod ?? currentMealPeriodForHour(new Date().getHours()));
+  const [defaultMealPeriod] = useState(() => currentMealPeriodForHour(new Date().getHours()));
+  const mealPeriod = selectedMealPeriod ?? defaultMealPeriod;
   const [build, setBuild] = useState(fallbackBuild);
   const [customizing, setCustomizing] = useState(false);
   const [edited, setEdited] = useState(false);
@@ -128,10 +129,11 @@ export default function MealBuilderClient({
   const orderReference = useMemo(() => getMealOrderReference(computed, resources.components), [computed, resources.components]);
   const activeRanking = rankings[recommendationIndex];
   const reasons = useMemo(() => reasonsFor(activeRanking, recommendationContext), [activeRanking, recommendationContext]);
-  const futureMenu = Boolean(menuDate && menuDate > bentleyMenuDate());
+  const intentDate = planningDate ?? menuDate;
+  const futureMenu = Boolean(intentDate && intentDate > bentleyMenuDate());
   const backHref = isPlanning ? `/profile-summary?date=${planningDate}` : `/locations/${build.locationId}${menuDate ? `?date=${encodeURIComponent(menuDate)}` : ""}`;
   const manualParams = new URLSearchParams(isPlanning ? { mode: "plan", manual: "1" } : { mode: "manual" });
-  if (menuDate) manualParams.set("date", menuDate);
+  if (intentDate) manualParams.set("date", intentDate);
   if (selectedMealPeriod) manualParams.set("period", selectedMealPeriod);
   if (planId) manualParams.set("planId", planId);
   const manualHref = `/meal-builder/${build.locationId}?${manualParams.toString()}`;
@@ -161,7 +163,7 @@ export default function MealBuilderClient({
     }
 
     const now = new Date();
-    const planningDate = menuDate ? new Date(`${menuDate}T12:00:00`) : now;
+    const planningDate = intentDate ? new Date(`${intentDate}T12:00:00`) : now;
     const historyRepository = browserMealHistoryRepository();
     const recentHistory = historyRepository.getRecent(24).filter((entry) => entry.entryKind !== "alcohol").slice(0, 12);
     const latestBeverages = recentCampusBeverages(historyRepository.getRecent(40));
@@ -201,7 +203,7 @@ export default function MealBuilderClient({
       setRecommendationState("ready");
     });
     return () => { cancelled = true; };
-  }, [fallbackBuild.locationId, futureMenu, ignoreGoingOut, mealPeriod, menuDate, planId, resources]);
+  }, [fallbackBuild.locationId, futureMenu, ignoreGoingOut, intentDate, mealPeriod, menuDate, planId, resources]);
 
   const markEdited = () => {
     setEdited(true);
@@ -223,7 +225,7 @@ export default function MealBuilderClient({
     if ((!isPlanning && futureMenu) || !computed.isValid || !selectedNutrition || chooseSuccess) return;
     if (isPlanning && planningDate) {
       const profile = browserProfileRepository().get();
-      const mealSlot = mealSlotForBuilderPeriod(selectedMealPeriod);
+      const mealSlot = mealSlotForBuilderPeriod(mealPeriod);
       if (!profile || !mealSlot) return;
       const repository = browserPlannedMealRepository(profile.id);
       const existing = planId ? repository.get(planId) : undefined;
@@ -327,7 +329,7 @@ export default function MealBuilderClient({
 
       {isDemo && <p className="ff-rec-note is-warning">Demo menu data · not current official Bentley Dining information.</p>}
       {futureMenu && !isPlanning && <p className="ff-rec-note">Future menu preview · you can inspect the recommendation now, but logging stays disabled until that menu date.</p>}
-      {isPlanning && !futureMenuAvailable && <p className="ff-rec-note">The 921 menu for this date is not available yet. Plan with campus staples or build from the foods currently available here.</p>}
+      {isPlanning && !futureMenuAvailable && <p className="ff-rec-note">The {locationLabel} menu for this date is not verified. Plan with reference foods; availability may change.</p>}
 
       {recommendationState === "loading" ? (
         <section className="ff-rec-loading">

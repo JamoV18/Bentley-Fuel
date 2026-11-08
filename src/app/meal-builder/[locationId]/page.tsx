@@ -1,13 +1,14 @@
+import { resolveMealBuilderIntent } from "@/services/mealBuilderIntent";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import FlowHeader from "@/components/FlowHeader";
-import { formatMenuDate, isBentleyMenuDate, normalizeBentleyMenuDate } from "@/lib/bentleyDiningDate";
+import { formatMenuDate } from "@/lib/bentleyDiningDate";
 import { getPhase6ExampleMeal } from "@/lib/phase6ExampleMeal";
 import { campusStapleDiningResources, canonicalPlanningDiningResources, getDiningProvider, recordsForExactMenuDate } from "@/services";
 import { ADDITIONAL_LIVE_LOCATION_IDS } from "@/services/dineOnCampusLocationTargets";
 import { installDineOnCampusServerFetchHeaders } from "@/services/dineOnCampusServerFetch";
 import { normalizeStationMenuForMealBuilder } from "@/services/stationMenuNormalization";
-import type { MealBuild, MealLogSlot, MealPeriod } from "@/types";
+import type { MealBuild, MealPeriod } from "@/types";
 import ManualMealBuilderClient from "./ManualMealBuilderClient";
 import MealBuilderClient from "./MealBuilderClient";
 
@@ -15,8 +16,6 @@ const PERIOD_ORDER: MealPeriod[] = ["breakfast", "brunch", "lunch", "dinner", "l
 const readablePeriod = (period: MealPeriod) => period.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 const periodMatches = (periods: readonly MealPeriod[] | undefined, period: MealPeriod) => !periods || periods.length === 0 || periods.includes("all-day") || periods.includes(period);
 const asMealPeriod = (value: string | undefined): MealPeriod | undefined => PERIOD_ORDER.includes(value as MealPeriod) ? value as MealPeriod : undefined;
-const LOG_SLOTS: MealLogSlot[] = ["breakfast", "lunch", "dinner", "snack"];
-const asMealLogSlot = (value: string | undefined): MealLogSlot | undefined => LOG_SLOTS.includes(value as MealLogSlot) ? value as MealLogSlot : undefined;
 const safeInternalReturnHref = (value: string | undefined) => value && value.startsWith("/") && !value.startsWith("//") ? value : undefined;
 
 function currentBentleyMealPeriod(): MealPeriod {
@@ -40,8 +39,9 @@ export default async function MealBuilderPage({
 }) {
   const { locationId } = await params;
   const query = await searchParams;
-  const isPlanning = query.mode === "plan";
-  const isRetrospectiveLogging = !isPlanning && query.intent === "log";
+  const intent = resolveMealBuilderIntent(query);
+  const isPlanning = intent.kind === "plan";
+  const isRetrospectiveLogging = intent.kind === "log";
   installDineOnCampusServerFetchHeaders();
   const provider = getDiningProvider();
   const location = await provider.getLocation(locationId);
@@ -49,11 +49,7 @@ export default async function MealBuilderPage({
 
   const isNineTwentyOne = locationId === "loc-921";
   const isLiveMenuLocation = isNineTwentyOne || ADDITIONAL_LIVE_LOCATION_IDS.has(locationId);
-  const menuDate = isLiveMenuLocation
-    ? isRetrospectiveLogging && isBentleyMenuDate(query.date)
-      ? query.date
-      : normalizeBentleyMenuDate(query.date)
-    : undefined;
+  const menuDate = isLiveMenuLocation ? intent.date : undefined;
   const rawProviderMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
   const rawProviderStations = await provider.getStations(locationId, menuDate);
   const providerMenuItems = isPlanning && isLiveMenuLocation && menuDate
@@ -62,7 +58,7 @@ export default async function MealBuilderPage({
   const providerStations = isPlanning && isLiveMenuLocation && menuDate
     ? recordsForExactMenuDate(rawProviderStations, menuDate)
     : rawProviderStations;
-  const requestedPeriod = asMealPeriod(query.period);
+  const requestedPeriod = intent.period;
   const usesVerifiedMenu = providerMenuItems.some((item) => item.menuDate === menuDate && item.provenance.dataStatus === "verified" && (!requestedPeriod || item.availability?.some((p) => p === requestedPeriod || p === "all-day")));
   const staples = campusStapleDiningResources(locationId);
   const canonical = isPlanning ? canonicalPlanningDiningResources(locationId) : { menuItems: [], stations: [] };
@@ -153,7 +149,7 @@ export default async function MealBuilderPage({
     if (query.returnTo) next.set("returnTo", query.returnTo);
     if (query.draft) next.set("draft", query.draft);
     if (query.search) next.set("search", query.search);
-    if (menuDate) next.set("date", menuDate);
+    next.set("date", intent.date);
     next.set("period", period);
     return `/meal-builder/${locationId}?${next.toString()}`;
   };
@@ -162,17 +158,17 @@ export default async function MealBuilderPage({
   const currentParams = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) if (value) currentParams.set(key, value);
   const currentHref = `/meal-builder/${locationId}${currentParams.size ? `?${currentParams.toString()}` : ""}`;
-  if (query.mode === "manual" || (isPlanning && query.manual === "1")) {
+  if (isRetrospectiveLogging || query.mode === "manual" || (isPlanning && query.manual === "1")) {
     const initialMenuItemId = query.add && menuItems.some((item) => item.id === query.add) ? query.add : undefined;
     content = (
       <ManualMealBuilderClient
         locationId={locationId}
         editEntryId={query.entryId}
         planId={query.planId}
-        planningDate={isPlanning ? menuDate : undefined}
-        retrospectiveDate={isRetrospectiveLogging ? menuDate : undefined}
+        planningDate={isPlanning ? intent.date : undefined}
+        retrospectiveDate={isRetrospectiveLogging ? intent.date : undefined}
         retrospectiveTime={isRetrospectiveLogging ? query.time : undefined}
-        retrospectiveSlot={isRetrospectiveLogging ? asMealLogSlot(query.slot) : undefined}
+        retrospectiveSlot={intent.kind === "log" ? intent.slot : undefined}
         initialMenuItemId={initialMenuItemId}
         resources={resources}
         isDemo={isDemo}
@@ -199,7 +195,7 @@ export default async function MealBuilderPage({
         menuDate={menuDate}
         selectedMealPeriod={selectedPeriod}
         planId={query.planId}
-        planningDate={isPlanning ? menuDate : undefined}
+        planningDate={isPlanning ? intent.date : undefined}
         futureMenuAvailable={usesVerifiedMenu}
       />
     );

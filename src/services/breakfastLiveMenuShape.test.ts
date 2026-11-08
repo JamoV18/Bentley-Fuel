@@ -130,7 +130,7 @@ test("realistic all-day staples beat strata-style breakfast for an explicit rout
 });
 
 test("an explicit eggs routine never overrides an egg-allergy hard constraint", () => {
-  const allergenItems = liveShapeItems.map((item) => item.id === "eggs" ? { ...item, allergens: ["eggs" as const] } : item);
+  const allergenItems = liveShapeItems.map((item) => item.id === "eggs" ? { ...item, allergens: ["eggs" as const] } : { ...item, sourceFreeFrom: ["eggs" as const] });
   const restrictedContext: RecommendationContext = {
     ...context,
     profile: { ...profile, allergensToAvoid: ["eggs"] },

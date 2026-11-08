@@ -1,3 +1,4 @@
+import { allergenConflict, restrictions } from "./allergenEvidence";
 import type { DiningDataProvider } from "./diningProvider";
 import { assessMenuItemEligibility } from "./recommendationEligibility";
 import { dietQualityPriority, shouldHardExcludeForDietQuality } from "./recommendationDietQuality";
@@ -44,8 +45,7 @@ const stationAvailable = (station: Station, context: RecommendationContext): boo
 const componentHardEligible = (component: FoodComponent, context: RecommendationContext): boolean => {
   const disliked = new Set(context.profile.dislikedComponentIds ?? []);
   if (disliked.has(component.id)) return false;
-  if (context.profile.allergensToAvoid.some((allergen) => component.allergens.includes(allergen))) return false;
-  if (context.profile.allergensToAvoid.some((allergen) => component.mayContainAllergens?.includes(allergen))) return false;
+  if (restrictions(context.profile).some((a) => allergenConflict(component, a))) return false;
 
   const hardDietary = new Set(
     context.profile.dietaryPreferences.filter((tag) =>

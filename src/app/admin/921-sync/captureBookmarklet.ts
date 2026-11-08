@@ -1,5 +1,5 @@
 const FALLBACK_921_ID = "6a63fc9b4b5736c5a8d6332b";
-export const CAPTURE_921_VERSION = "2026-09-17.3";
+export const CAPTURE_921_VERSION = "2026-11-06.1";
 
 /**
  * One-time bookmark setup: copy this string into a browser bookmark's URL.
@@ -18,7 +18,8 @@ const CAPTURE_921_SCRIPT = String.raw`(async()=>{
     const clean=value=>String(value??"").replace(/\s+/g," ").trim();
     const slug=value=>clean(value).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
     const dateMatch=location.pathname.match(/\/(\d{4}-\d{2}-\d{2})\//);
-    const menuDate=dateMatch?dateMatch[1]:new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    if(!dateMatch)throw new Error("Choose a dated Bentley menu before capturing it.");
+    const menuDate=dateMatch[1];
     const activeLocation=document.querySelector('[data-location-id][aria-selected="true"]');
     const upstreamLocationId=activeLocation?.getAttribute("data-location-id")||fallback;
 
@@ -118,11 +119,13 @@ const CAPTURE_921_SCRIPT = String.raw`(async()=>{
         if(key)nutrients[key]={raw,value:parseNumber(raw)};
       });
       let ingredients="";
+      const allergenStatements=[];
       [...modal.querySelectorAll("p")].forEach(node=>{
         const value=clean(node.textContent);
+        if(/^(?:contains?|may contain|allergens?|free from)\s*:/i.test(value))allergenStatements.push(value);
         if(/^Ingredients:/i.test(value))ingredients=value.replace(/^Ingredients:\s*/i,"");
       });
-      return {title,servingSize:servingLine?servingLine.replace(/^Serving size:\s*/i,""):"",calories,nutrients,ingredients};
+      return {title,servingSize:servingLine?servingLine.replace(/^Serving size:\s*/i,""):"",calories,nutrients,ingredients,allergenStatements};
     };
 
     const closeNutrition=async()=>{

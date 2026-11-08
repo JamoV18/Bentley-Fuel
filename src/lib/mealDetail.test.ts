@@ -1,3 +1,4 @@
+import { allergenCoverageLabel } from "@/services/allergenEvidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MockDiningProvider } from "../services/mockDiningProvider.ts";
@@ -5,7 +6,6 @@ import { mockDiningDataset } from "../data/mock/index.ts";
 import {
   getDisplayDietaryTags,
   getMealDetail,
-  shouldShowAllergenGuidance,
 } from "./mealDetail.ts";
 
 const provider = new MockDiningProvider();
@@ -89,7 +89,7 @@ test("customizable aggregate tags are hidden and allergy guidance remains visibl
   assert.ok(detail);
 
   assert.deepEqual(getDisplayDietaryTags(detail.item), []);
-  assert.equal(shouldShowAllergenGuidance(detail.item), true);
+  assert.match(allergenCoverageLabel(detail.item), /incomplete/);
 });
 
 test("allergy-sensitive predefined tags trigger guidance without known allergens", async () => {
@@ -97,5 +97,5 @@ test("allergy-sensitive predefined tags trigger guidance without known allergens
   assert.ok(detail);
   assert.deepEqual(detail.item.allergens, []);
   assert.ok(getDisplayDietaryTags(detail.item).includes("gluten-free"));
-  assert.equal(shouldShowAllergenGuidance(detail.item), true);
+  assert.match(allergenCoverageLabel(detail.item), /incomplete/);
 });

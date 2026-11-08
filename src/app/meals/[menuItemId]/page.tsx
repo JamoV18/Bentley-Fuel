@@ -1,8 +1,10 @@
+import { bentleyMenuDate } from "@/lib/bentleyDiningDate";
+import { allergenCoverageLabel } from "@/services/allergenEvidence";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import FlowHeader from "@/components/FlowHeader";
 import MealImage from "@/components/MealImage";
-import { getDisplayDietaryTags, getMealDetail, shouldShowAllergenGuidance } from "@/lib/mealDetail";
+import { getDisplayDietaryTags, getMealDetail } from "@/lib/mealDetail";
 import { getDiningProvider } from "@/services";
 import { ALLERGEN_DISCLAIMER } from "@/types";
 import type { FoodComponent, NutritionFacts, ServingSize } from "@/types";
@@ -38,9 +40,8 @@ export default async function MealPage({
   const componentById = new Map(components.map((component) => [component.id, component]));
   const extraNutrition = item.nutrition ? optionalNutrition.filter(([key]) => item.nutrition?.[key] !== undefined) : [];
   const dietaryTags = getDisplayDietaryTags(item);
-  const showsAllergenGuidance = shouldShowAllergenGuidance(item);
   const possibleCustomizableAllergens = [...new Set([...item.allergens, ...(item.mayContainAllergens ?? [])])];
-  const menuDate = query.date ?? liveDateFromId(item.id);
+  const menuDate = item.menuDate ?? liveDateFromId(item.id) ?? query.date;
   const dateQuery = menuDate ? `?date=${encodeURIComponent(menuDate)}` : "";
   const returnTo = safeMealBuilderReturn(query.returnTo);
   const backHref = returnTo ?? (location ? `/locations/${location.id}${dateQuery}` : "/dashboard");
@@ -48,7 +49,7 @@ export default async function MealPage({
   const addHref = returnTo
     ? withRequestedItem(returnTo, item.id)
     : location
-      ? `/meal-builder/${location.id}?mode=manual&add=${encodeURIComponent(item.id)}${menuDate ? `&date=${encodeURIComponent(menuDate)}` : ""}`
+      ? `/meal-builder/${location.id}?mode=manual&add=${encodeURIComponent(item.id)}${menuDate ? `&date=${encodeURIComponent(menuDate)}${menuDate < bentleyMenuDate() ? "&intent=log" : ""}` : ""}`
     : undefined;
   const isVerified = item.provenance.dataStatus === "verified";
 
@@ -72,7 +73,7 @@ export default async function MealPage({
 
       {isVerified ? (
         <p className="mt-5 rounded-xl border border-[var(--ff-border)] bg-[var(--ff-surface-elevated)] px-4 py-3 text-sm text-[var(--ff-text-primary)]">
-          Source: Bentley Dining / DineOnCampus. Missing nutrition is not estimated.
+          Source: Bentley Dining / DineOnCampus{item.menuDate ? " · menu published for " + item.menuDate : ""}. Missing nutrition is not estimated.
         </p>
       ) : (
         <p className="mt-5 rounded-xl border border-[var(--ff-warning)] bg-[var(--ff-warning-surface)] px-4 py-3 text-sm text-[var(--ff-warning)]">Demo menu data · not current official Bentley Dining information.</p>
@@ -109,7 +110,7 @@ export default async function MealPage({
 
         {dietaryTags.length > 0 && <section className="surface p-5 sm:p-6"><h2 className="text-xl font-bold">Dietary notes</h2><ul className="mt-4 flex flex-wrap gap-2">{dietaryTags.map((tag) => <li key={tag} className="rounded-full bg-[var(--ff-surface-elevated)] px-3 py-1.5 text-sm font-semibold text-[var(--ff-text-primary)]">{readable(tag)}</li>)}</ul></section>}
 
-        {showsAllergenGuidance && <section className="rounded-lg border border-[var(--ff-warning)] bg-[var(--ff-warning-surface)] p-5 sm:p-6 lg:col-span-2"><h2 className="text-xl font-bold">Allergen information</h2>{item.kind === "customizable" ? possibleCustomizableAllergens.length > 0 && <p className="mt-3"><strong>Possible allergens among available choices:</strong> {possibleCustomizableAllergens.map(readableAllergen).join(", ")}</p> : <>{item.allergens.length > 0 && <p className="mt-3"><strong>Contains:</strong> {item.allergens.map(readableAllergen).join(", ")}</p>}{(item.mayContainAllergens?.length ?? 0) > 0 && <p className="mt-2"><strong>May contain:</strong> {item.mayContainAllergens?.map(readableAllergen).join(", ")}</p>}</>}<p className="mt-4 text-sm leading-relaxed text-[var(--ff-warning)]/75">{ALLERGEN_DISCLAIMER}</p></section>}
+        <section className="rounded-lg border border-[var(--ff-warning)] bg-[var(--ff-warning-surface)] p-5 sm:p-6 lg:col-span-2"><h2 className="text-xl font-bold">Allergen information</h2>{item.kind === "customizable" ? possibleCustomizableAllergens.length > 0 && <p className="mt-3"><strong>Possible allergens among available choices:</strong> {possibleCustomizableAllergens.map(readableAllergen).join(", ")}</p> : <>{item.allergens.length > 0 && <p className="mt-3"><strong>Contains:</strong> {item.allergens.map(readableAllergen).join(", ")}</p>}{(item.mayContainAllergens?.length ?? 0) > 0 && <p className="mt-2"><strong>May contain:</strong> {item.mayContainAllergens?.map(readableAllergen).join(", ")}</p>}</>}<p className="mt-4 text-sm leading-relaxed text-[var(--ff-warning)]/75">{allergenCoverageLabel(item)} {ALLERGEN_DISCLAIMER}</p></section>
       </div>
     </main>
   );

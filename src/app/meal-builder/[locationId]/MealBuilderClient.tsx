@@ -176,7 +176,7 @@ export default function MealBuilderClient({
     const recommendationProfile = { ...profile, primaryGoal: plan.phase === "maintenance" ? "maintain-weight" as const : profile.primaryGoal, dailyTargets: activeTargets };
     const remainingMacros = futureMenu || !sameLocalDay(planningDate, now) ? activeTargets : dailySnapshot.remaining;
     const goingOut = ignoreGoingOut ? undefined : browserGoingOutRepository(profile).recommendationContextFor(localDateKey(planningDate));
-    const baseContext: RecommendationContext = { profile: recommendationProfile, locationId: fallbackBuild.locationId, mealPeriod, remainingMacros, recentHistory, goingOut };
+    const baseContext: RecommendationContext = { profile: recommendationProfile, locationId: fallbackBuild.locationId, menuDate, mealPeriod, remainingMacros, recentHistory, goingOut };
     let context: RecommendationContext = { ...baseContext, excludeMenuItemIds: excludedMenuItemIds };
     const generationOptions = { maxItemsPerMeal: 3, maxCandidates: 60, maxCustomVariantsPerItem: 10, requireMain: true };
     let candidates = generateMealCandidatesFromResources(resources.menuItems, resources.stations, resources.components, context, generationOptions);
@@ -605,7 +605,7 @@ export default function MealBuilderClient({
             )}
           </AnimatePresence>
 
-          {computed.isValid && (computed.allergens.length > 0 || computed.mayContainAllergens.length > 0) && (
+          {computed.isValid && (
             <section className="ff-rec-allergen">
               <h2>Allergen information for selected foods</h2>
               {computed.allergens.length > 0 && <p><strong>Contains:</strong> {computed.allergens.map(readable).join(", ")}</p>}

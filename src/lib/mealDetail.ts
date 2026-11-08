@@ -9,22 +9,9 @@ import type {
   Station,
 } from "@/types";
 
-const ALLERGY_SENSITIVE_DIETARY_TAGS: ReadonlySet<DietaryTag> = new Set([
-  "gluten-free",
-  "made-without-gluten",
-  "dairy-free",
-]);
-
 /** Aggregate tags on customizable items describe the option set, not a finished meal. */
 export function getDisplayDietaryTags(item: MenuItem): DietaryTag[] {
   return item.kind === "predefined" ? item.dietaryTags : [];
-}
-
-/** Safety guidance accompanies allergen data and allergy-relevant dietary labels. */
-export function shouldShowAllergenGuidance(item: MenuItem): boolean {
-  return item.allergens.length > 0
-    || (item.mayContainAllergens?.length ?? 0) > 0
-    || getDisplayDietaryTags(item).some((tag) => ALLERGY_SENSITIVE_DIETARY_TAGS.has(tag));
 }
 
 export interface MealDetail {

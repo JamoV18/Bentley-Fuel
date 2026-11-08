@@ -134,7 +134,7 @@ test("when same-role entree substitutes exist, replacement suggestions stay in t
 test("hard allergen restrictions shape replacement suggestions", () => {
   const build: MealBuild = { locationId: LOCATION_IDS.market, items: [] };
   const dairyFreeContext = context({ profile: profile({ allergensToAvoid: ["milk"] }) });
-  const suggestions = suggestMealItemReplacements(build, turkey, turkeyNutrition, resources, dairyFreeContext, { maxSuggestions: 5 });
+  const suggestions = suggestMealItemReplacements(build, turkey, turkeyNutrition, { ...resources, menuItems: resources.menuItems.map((item) => ({ ...item, sourceFreeFrom: ["milk" as const] })) }, dairyFreeContext, { maxSuggestions: 5 });
   assert.ok(suggestions.length > 0);
   assert.ok(suggestions.every((suggestion) => {
     const item = marketItems.find((candidate) => candidate.id === suggestion.menuItemId);

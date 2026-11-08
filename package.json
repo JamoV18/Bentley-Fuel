@@ -8,7 +8,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "node scripts/run-tests.mjs",
     "typecheck": "tsc --noEmit",
     "validate:data": "tsx scripts/validate-mock-data.ts",
     "audit:recommendations": "tsx scripts/audit-recommendations.ts",
@@ -18,7 +18,7 @@
   "dependencies": {
     "@vercel/functions": "^3.9.7",
     "motion": "^13.1.1",
-    "next": "16.3.0",
+    "next": "16.4.5",
     "next-auth": "5.0.0-beta.32",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -29,7 +29,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.0",
+    "eslint-config-next": "16.4.5",
     "tailwindcss": "^4",
     "tsx": "^4.20.3",
     "typescript": "^5"

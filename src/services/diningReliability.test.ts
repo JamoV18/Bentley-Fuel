@@ -108,7 +108,7 @@ test("same-date verified snapshot survives an upstream outage but an older date 
   assert.equal(nextDay.length, 0);
 });
 
-test("operator-published 921 snapshot remains usable across an upstream 403 until replaced", async () => {
+test("operator-published 921 snapshot stays available as history without leaking into another day or period", async () => {
   const snapshots = new MemoryDiningSnapshotRepository();
   const provenance = { dataStatus: "verified" as const, source: { type: "bentley-dining" as const, name: "Bentley Dining" }, confidence: 1 };
   await snapshots.set({
@@ -129,8 +129,14 @@ test("operator-published 921 snapshot remains usable across an upstream 403 unti
   const blockedFetch = (async () => new Response("blocked", { status: 403, headers: { server: "cloudflare" } })) as typeof fetch;
   const provider = new ReliableDineOnCampusProvider({ transport: new DineOnCampusTransport({ fetchImpl: blockedFetch, maxAttempts: 1 }), snapshots });
   const refresh = await provider.refreshAll("2026-09-15");
-  assert.deepEqual(refresh.find((result) => result.outletKey === "921"), { outletKey: "921", source: "snapshot", itemCount: 1 });
-  const items = await provider.getMenuItems({ locationId: LOCATION_IDS.nineTwentyOne, date: "2026-09-15", mealPeriod: "lunch" });
+  assert.deepEqual(refresh.find((result) => result.outletKey === "921"), { outletKey: "921", source: "unavailable", itemCount: 0 });
+  for (const date of ["2026-09-13", "2026-09-15"]) {
+    assert.deepEqual(await provider.getMenuItems({ locationId: LOCATION_IDS.nineTwentyOne, date, mealPeriod: "lunch" }), []);
+    assert.equal((await provider.getMenuItems({ date })).some((item) => item.name === "Grilled Chicken"), false);
+  }
+  assert.deepEqual(await provider.getMenuItems({ locationId: LOCATION_IDS.nineTwentyOne, date: "2026-09-14", mealPeriod: "dinner" }), []);
+  assert.equal((await snapshots.getCurrentPublished("921"))?.menuDate, "2026-09-14");
+  const items = await provider.getMenuItems({ locationId: LOCATION_IDS.nineTwentyOne, date: "2026-09-14", mealPeriod: "lunch" });
   assert.equal(items.length, 1);
   assert.equal(items[0].name, "Grilled Chicken");
   assert.equal(items[0].availabilityStatus, "verified-snapshot");
@@ -160,7 +166,7 @@ test("aggregate menu reads use published snapshots without starting upstream ret
   let transportCalls = 0;
   const blockedFetch = (async () => { transportCalls += 1; return new Response("blocked", { status: 403 }); }) as typeof fetch;
   const provider = new ReliableDineOnCampusProvider({ transport: new DineOnCampusTransport({ fetchImpl: blockedFetch, maxAttempts: 3 }), snapshots });
-  const [items, stations] = await Promise.all([provider.getMenuItems(), provider.getStations()]);
+  const [items, stations] = await Promise.all([provider.getMenuItems({ date: "2026-09-14" }), provider.getStations(undefined, "2026-09-14")]);
   assert.equal(items.some((item) => item.name === "Published Chicken"), true);
   assert.equal(stations.some((station) => station.name === "Flame"), true);
   assert.equal(transportCalls, 0);

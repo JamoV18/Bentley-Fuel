@@ -234,3 +234,13 @@ test("editing a composed history record updates the same record and keeps compon
   assert.equal(saved[0].build.items[0].quantity, 2);
   assert.equal(saved[0].build.items[0].compositionSnapshot?.components[0].nutrition.calories, 130);
 });
+
+test("composition actions retain their station's dated availability evidence", () => {
+  const cucina = {...station("cucina", "Cucina"),menuDate:"2026-11-04",availabilityStatus:"verified-snapshot" as const};
+  const rows = [header("omelet-header","Omelet Bar",cucina.id), food("eggs","Eggs",cucina.id,130,12), food("spinach","Chopped Spinach",cucina.id,5,1), food("tomato","Chopped Tomatoes",cucina.id,10)];
+  const result = normalizeStationMenuForMealBuilder(rows,[cucina],"lunch");
+  const action=result.menuItems.find((item)=>item.composition);
+  assert.ok(action);
+  assert.equal(action.menuDate,cucina.menuDate);
+  assert.equal(action.availabilityStatus,"verified-snapshot");
+});

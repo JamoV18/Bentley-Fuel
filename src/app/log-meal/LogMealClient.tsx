@@ -80,10 +80,14 @@ function SlotIcon({ done, slot }: { done: boolean; slot: MealLogSlot }) {
   );
 }
 
-export default function LogMealClient({ menuItems, stationNames, campusAvailable }: { menuItems: MenuItem[]; stationNames: Record<string, string>; campusAvailable: boolean }) {
+export default function LogMealClient({ menuItems, stationNames, campusAvailable, menuDate }: { menuDate: string; menuItems: MenuItem[]; stationNames: Record<string, string>; campusAvailable: boolean }) {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState(todayKey);
+  const [selectedDate, setSelectedDate] = useState(menuDate);
+  const changeMenuDate = (date: string) => {
+    setSelectedDate(date);
+    router.replace("/log-meal?date=" + encodeURIComponent(date), { scroll: false });
+  };
   const [entries, setEntries] = useState<MealHistoryEntry[]>([]);
   const [recentFoods, setRecentFoods] = useState<ReturnType<typeof recentCanonicalFoods>>([]);
   const [activeSlot, setActiveSlot] = useState<MealLogSlot | null>(null);
@@ -133,8 +137,8 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
   }, []);
 
   const progress = useMemo(() => summarizeMealLogProgress(entries), [entries]);
-  const foods = useMemo(() => canonicalFoodCatalog(menuItems, stationNames), [menuItems, stationNames]);
-  const compositionActions = useMemo(() => menuItems.filter((item) => item.composition), [menuItems]);
+  const foods = useMemo(() => canonicalFoodCatalog(menuItems.filter((item) => !item.menuDate || item.menuDate === selectedDate), stationNames), [menuItems, stationNames, selectedDate]);
+  const compositionActions = useMemo(() => menuItems.filter((item) => item.composition && (!item.menuDate || item.menuDate === selectedDate)), [menuItems, selectedDate]);
   const entriesBySlot = useMemo(() => {
     const result: Record<MealLogSlot, MealHistoryEntry[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
     for (const entry of entries) {
@@ -297,7 +301,7 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
 
       <div className="ff-log-toolbar">
         <p>{progress.completedCoreMeals}/3 meals logged</p>
-        <label className="field">Date<input type="date" value={selectedDate} max={todayKey()} onChange={(event) => { setSelectedDate(event.target.value || todayKey()); setActiveSlot(null); }} /></label>
+        <label className="field">Date<input type="date" value={selectedDate} max={todayKey()} onChange={(event) => { changeMenuDate(event.target.value || todayKey()); setActiveSlot(null); }} /></label>
       </div>
 
       {removedEntry && <div className="fixed bottom-24 left-1/2 z-[120] flex w-[min(92vw,28rem)] -translate-x-1/2 items-center justify-between gap-4 rounded-2xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-4 py-3 shadow-xl" role="status"><span className="text-sm font-semibold">Item removed.</span><button type="button" className="text-sm font-bold text-[var(--ff-accent-light)]" onClick={undoRemove}>Undo</button></div>}
@@ -389,7 +393,7 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
               </div>
 
               <div className="mt-5">
-                {managingEntry && activeEntry && !editingLineId ? <section className="grid gap-3" aria-labelledby="meal-items-heading"><div><p className="eyebrow">Saved meal</p><h3 id="meal-items-heading" className="mt-1 text-base font-bold">Meal items</h3></div>{activeEntry.build.items.map((line) => <div key={line.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-3 py-2"><span className="min-w-0 truncate text-sm font-semibold">{line.foodSnapshot?.displayName ?? line.display?.name ?? "Meal item"}</span><span className="flex shrink-0 gap-3">{line.foodSnapshot && <button type="button" className="text-xs font-bold text-[var(--ff-accent-light)]" onClick={() => openForm(activeSlot, activeEntry.id, line.id)}>Edit</button>}<button type="button" className="text-xs font-bold text-[var(--ff-danger)]" onClick={() => removeLine(activeEntry, line.id)}>Remove</button></span></div>)}<button type="button" className="secondary mt-1 w-full" onClick={() => setManagingEntry(false)}>+ Add another item</button></section> : <CanonicalFoodPicker key={`${targetEntryId ?? "new"}:${editingLineId ?? "add"}:${initialSnapshot?.loggedAt ?? ""}`} foods={foods} recent={recentFoods} compositionActions={targetEntryId ? [] : compositionActions} locationId={locationId} mealSlot={activeSlot} campusAvailable={campusAvailable} initialSnapshot={initialSnapshot} initialQuery={searchQuery} onQueryChange={setSearchQuery} onAdd={save} onChooseComposition={openComposition} onBrowseMenu={openMenuBrowse} actionLabel={editingLineId ? "Save changes" : targetEntryId ? "Add item" : "Add food"} />}
+                {managingEntry && activeEntry && !editingLineId ? <section className="grid gap-3" aria-labelledby="meal-items-heading"><div><p className="eyebrow">Saved meal</p><h3 id="meal-items-heading" className="mt-1 text-base font-bold">Meal items</h3></div>{activeEntry.build.items.map((line) => <div key={line.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ff-divider)] bg-[var(--ff-surface-elevated)] px-3 py-2"><span className="min-w-0 truncate text-sm font-semibold">{line.foodSnapshot?.displayName ?? line.display?.name ?? "Meal item"}</span><span className="flex shrink-0 gap-3">{line.foodSnapshot && <button type="button" className="text-xs font-bold text-[var(--ff-accent-light)]" onClick={() => openForm(activeSlot, activeEntry.id, line.id)}>Edit</button>}<button type="button" className="text-xs font-bold text-[var(--ff-danger)]" onClick={() => removeLine(activeEntry, line.id)}>Remove</button></span></div>)}<button type="button" className="secondary mt-1 w-full" onClick={() => setManagingEntry(false)}>+ Add another item</button></section> : <CanonicalFoodPicker key={`${targetEntryId ?? "new"}:${editingLineId ?? "add"}:${initialSnapshot?.loggedAt ?? ""}`} foods={foods} recent={recentFoods} compositionActions={targetEntryId ? [] : compositionActions} locationId={locationId} mealSlot={activeSlot} menuDate={selectedDate} campusAvailable={campusAvailable && menuDate === selectedDate} initialSnapshot={initialSnapshot} initialQuery={searchQuery} onQueryChange={setSearchQuery} onAdd={save} onChooseComposition={openComposition} onBrowseMenu={openMenuBrowse} actionLabel={editingLineId ? "Save changes" : targetEntryId ? "Add item" : "Add food"} />}
               </div>
 
               <details className="surface-soft mt-5 p-4">
@@ -399,7 +403,7 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
                   <select value={activeSlot} onChange={(event) => setActiveSlot(event.target.value as MealLogSlot)}>{LOG_SLOTS.map((slot) => <option key={slot} value={slot}>{slot[0].toUpperCase() + slot.slice(1)}</option>)}</select>
                 </label>
                 <label className="field">Date
-                  <input type="date" value={selectedDate} max={todayKey()} onChange={(event) => setSelectedDate(event.target.value || todayKey())} />
+                  <input type="date" value={selectedDate} max={todayKey()} onChange={(event) => changeMenuDate(event.target.value || todayKey())} />
                 </label>
                 <label className="field">Where?
                   <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>{LOCATIONS.map((location) => <option key={location.value} value={location.value}>{location.label}</option>)}</select>

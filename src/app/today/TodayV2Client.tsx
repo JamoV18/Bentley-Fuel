@@ -1,5 +1,7 @@
 "use client";
 
+import { bentleyDiningHour, bentleyMenuDate } from "@/lib/bentleyDiningDate";
+
 import "./today-v2.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -222,7 +224,7 @@ export default function TodayV2Client({
   const plan = useMemo(() => profile ? resolveNutritionPlan(profile, selectedDate, latestWeightKg ?? profile.metrics?.weightKg) : undefined, [profile, selectedDate, latestWeightKg]);
   const snapshot = useMemo(() => createDailyNutritionSnapshot(entries, plan?.activeTargets ?? profile?.dailyTargets, selectedDate), [entries, plan?.activeTargets, profile?.dailyTargets, selectedDate]);
   const now = new Date();
-  const hour = now.getHours();
+  const hour = bentleyDiningHour(now);
   const livingDay = resolveLivingDayState(snapshot.meals, hour);
   const recommendationPeriod = livingDay.recommendationPeriod;
   const preferenceMealSlot = recommendationPeriod === "breakfast" || recommendationPeriod === "lunch" || recommendationPeriod === "dinner" ? recommendationPeriod : undefined;
@@ -258,6 +260,7 @@ export default function TodayV2Client({
     const baseContext: RecommendationContext = {
       profile: recommendationProfile,
       locationId: locationPreference.id,
+      menuDate: bentleyMenuDate(),
       mealPeriod: recommendationPeriod,
       remainingMacros: snapshot.remaining ?? activeTargets,
       recentHistory: recentEntries.filter((entry) => entry.entryKind !== "alcohol" && entry.entryKind !== "beverage" && entry.source !== "drink-log").slice(0, 12),

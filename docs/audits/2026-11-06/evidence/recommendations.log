@@ -1,0 +1,144 @@
+Falcon Fuel — deterministic recommendation audit
+===============================================
+921 Dining · 2026-11-04 · lunch
+Source mode: deterministic-development-fixture
+Audit rows: 13; scoreable rows: 13 (100%); stations: 7
+Inferred roles: main=11, side=1, snack=1, drink=0, dessert=0
+
+Maintenance · controlled daily targets
+--------------------------------------
+Candidates: 60; ranked valid meals: 60
+#1 Chicken Teriyaki Stir-Fry + Vegetable Tikka Masala
+   1000 cal · 46g P · 134g C · 30g F · score 73.4 · fit 91.5 · coherence 96.4 · 1 station(s)
+   anchor: Chicken Teriyaki Stir-Fry; stations: Global Kitchen
+#2 Grilled Chicken Sandwich + Vegetable Tikka Masala
+   910 cal · 62g P · 99g C · 28g F · score 70 · fit 85.1 · coherence 93.8 · 2 station(s)
+   anchor: Grilled Chicken Sandwich; stations: The Grill | Global Kitchen
+#3 Chicken Caesar Salad
+   450 cal · 50g P · 8g C · 26g F · score 66.1 · fit 58.1 · coherence 91 · 1 station(s)
+   anchor: Chicken Caesar Salad; stations: Deli & Greens
+#4 Grilled Salmon with Quinoa & Broccoli + Vegetable Tikka Masala
+   940 cal · 50g P · 100g C · 38g F · score 68.3 · fit 84.6 · coherence 92.8 · 2 station(s)
+   anchor: Grilled Salmon with Quinoa & Broccoli; stations: Delicious Without | Global Kitchen
+#5 Herb-Roasted Tofu Buddha Bowl + Vegetable Tikka Masala
+   910 cal · 32g P · 118g C · 34g F · score 68.2 · fit 86.2 · coherence 92.8 · 2 station(s)
+   anchor: Herb-Roasted Tofu Buddha Bowl; stations: Delicious Without | Global Kitchen
+#6 Herb-Roasted Chicken with Vegetables + Vegetable Tikka Masala
+   860 cal · 52g P · 84g C · 34g F · score 66.9 · fit 82.4 · coherence 92.8 · 2 station(s)
+   anchor: Herb-Roasted Chicken with Vegetables; stations: Home | Global Kitchen
+   Flags: none
+
+Weight loss · controlled daily targets
+--------------------------------------
+Candidates: 60; ranked valid meals: 60
+#1 Chicken Caesar Salad
+   450 cal · 50g P · 8g C · 26g F · score 81.4 · fit 69.8 · coherence 91 · 1 station(s)
+   anchor: Chicken Caesar Salad; stations: Deli & Greens
+#2 Grilled Chicken Sandwich
+   430 cal · 50g P · 33g C · 10g F · score 80 · fit 67.4 · coherence 91 · 1 station(s)
+   anchor: Grilled Chicken Sandwich; stations: The Grill
+#3 Grilled Salmon with Quinoa & Broccoli
+   460 cal · 38g P · 34g C · 20g F · score 75.9 · fit 66.6 · coherence 91 · 1 station(s)
+   anchor: Grilled Salmon with Quinoa & Broccoli; stations: Delicious Without
+#4 Chicken Teriyaki Stir-Fry
+   520 cal · 34g P · 68g C · 12g F · score 74.6 · fit 67.3 · coherence 91 · 1 station(s)
+   anchor: Chicken Teriyaki Stir-Fry; stations: Global Kitchen
+#5 Herb-Roasted Chicken with Vegetables
+   380 cal · 40g P · 18g C · 16g F · score 72.8 · fit 59.9 · coherence 91 · 1 station(s)
+   anchor: Herb-Roasted Chicken with Vegetables; stations: Home
+#6 Cheese Pizza (2 slices)
+   560 cal · 24g P · 72g C · 20g F · score 71.3 · fit 66.5 · coherence 91 · 1 station(s)
+   anchor: Cheese Pizza (2 slices); stations: Pizza & Pasta
+   [WARNING] WEAK_TARGET_FIT: #1 target/reference fit is 69.8/100.
+
+Build muscle · controlled daily targets
+---------------------------------------
+Candidates: 60; ranked valid meals: 60
+#1 Grilled Chicken Sandwich + Vegetable Tikka Masala
+   1150 cal · 68g P · 132g C · 37g F · score 77.2 · fit 90.2 · coherence 93.8 · 2 station(s)
+   anchor: Grilled Chicken Sandwich; stations: The Grill | Global Kitchen
+#2 Herb-Roasted Chicken with Vegetables + Vegetable Tikka Masala
+   1100 cal · 58g P · 117g C · 43g F · score 71.9 · fit 87 · coherence 92.8 · 2 station(s)
+   anchor: Herb-Roasted Chicken with Vegetables; stations: Home | Global Kitchen
+#3 Chicken Teriyaki Stir-Fry + Vegetable Tikka Masala
+   1000 cal · 46g P · 134g C · 30g F · score 69.9 · fit 85.6 · coherence 96.4 · 1 station(s)
+   anchor: Chicken Teriyaki Stir-Fry; stations: Global Kitchen
+#4 Grilled Salmon with Quinoa & Broccoli + Vegetable Tikka Masala
+   1180 cal · 56g P · 133g C · 47g F · score 69.6 · fit 84.6 · coherence 92.8 · 2 station(s)
+   anchor: Grilled Salmon with Quinoa & Broccoli; stations: Delicious Without | Global Kitchen
+#5 Chicken Caesar Salad + Vegetable Tikka Masala
+   1170 cal · 68g P · 107g C · 53g F · score 68.5 · fit 80.3 · coherence 92.8 · 2 station(s)
+   anchor: Chicken Caesar Salad; stations: Deli & Greens | Global Kitchen
+#6 Grilled Chicken Sandwich + Vegetable Tikka Masala
+   910 cal · 62g P · 99g C · 28g F · score 76.4 · fit 90.5 · coherence 93.8 · 2 station(s)
+   anchor: Grilled Chicken Sandwich; stations: The Grill | Global Kitchen
+   [INFO] NEAR_DUPLICATE_ALTERNATIVES: At least two Top Matches are 100% structurally similar.
+
+Athletic performance · controlled daily targets
+-----------------------------------------------
+Candidates: 60; ranked valid meals: 60
+#1 Chicken Teriyaki Stir-Fry + Vegetable Tikka Masala
+   1240 cal · 52g P · 167g C · 39g F · score 73.3 · fit 86.6 · coherence 96.4 · 1 station(s)
+   anchor: Chicken Teriyaki Stir-Fry; stations: Global Kitchen
+#2 Grilled Chicken Sandwich + Vegetable Tikka Masala
+   1150 cal · 68g P · 132g C · 37g F · score 65.8 · fit 76.7 · coherence 93.8 · 2 station(s)
+   anchor: Grilled Chicken Sandwich; stations: The Grill | Global Kitchen
+#3 Grilled Salmon with Quinoa & Broccoli + Vegetable Tikka Masala
+   1180 cal · 56g P · 133g C · 47g F · score 65.8 · fit 80 · coherence 92.8 · 2 station(s)
+   anchor: Grilled Salmon with Quinoa & Broccoli; stations: Delicious Without | Global Kitchen
+#4 Herb-Roasted Chicken with Vegetables + Vegetable Tikka Masala
+   1100 cal · 58g P · 117g C · 43g F · score 65.2 · fit 79.1 · coherence 92.8 · 2 station(s)
+   anchor: Herb-Roasted Chicken with Vegetables; stations: Home | Global Kitchen
+#5 Turkey Club Wrap + Vegetable Tikka Masala
+   1200 cal · 48g P · 139g C · 49g F · score 64.9 · fit 80 · coherence 93.8 · 2 station(s)
+   anchor: Turkey Club Wrap; stations: Deli & Greens | Global Kitchen
+#6 Chicken Caesar Salad
+   450 cal · 50g P · 8g C · 26g F · score 61.2 · fit 54.5 · coherence 91 · 1 station(s)
+   anchor: Chicken Caesar Salad; stations: Deli & Greens
+   Flags: none
+
+Maintenance · constrained remaining-day budget
+----------------------------------------------
+Candidates: 60; ranked valid meals: 60
+#1 Cheese Pizza (2 slices)
+   560 cal · 24g P · 72g C · 20g F · score 78.9 · fit 82 · coherence 91 · 1 station(s)
+   anchor: Cheese Pizza (2 slices); stations: Pizza & Pasta
+#2 Chicken Teriyaki Stir-Fry
+   520 cal · 34g P · 68g C · 12g F · score 77.8 · fit 78 · coherence 91 · 1 station(s)
+   anchor: Chicken Teriyaki Stir-Fry; stations: Global Kitchen
+#3 Grilled Salmon with Quinoa & Broccoli
+   460 cal · 38g P · 34g C · 20g F · score 77.6 · fit 73.5 · coherence 91 · 1 station(s)
+   anchor: Grilled Salmon with Quinoa & Broccoli; stations: Delicious Without
+#4 Turkey Club Wrap
+   480 cal · 30g P · 40g C · 22g F · score 70.1 · fit 70.4 · coherence 91 · 1 station(s)
+   anchor: Turkey Club Wrap; stations: Deli & Greens
+#5 Herb-Roasted Chicken with Vegetables
+   380 cal · 40g P · 18g C · 16g F · score 70 · fit 62.4 · coherence 91 · 1 station(s)
+   anchor: Herb-Roasted Chicken with Vegetables; stations: Home
+#6 Grilled Chicken Sandwich
+   430 cal · 50g P · 33g C · 10g F · score 69.2 · fit 65 · coherence 91 · 1 station(s)
+   anchor: Grilled Chicken Sandwich; stations: The Grill
+   Flags: none
+
+Athletic performance · no individualized targets
+------------------------------------------------
+Candidates: 60; ranked valid meals: 60
+#1 Chicken Teriyaki Stir-Fry
+   520 cal · 34g P · 68g C · 12g F · score 67.9 · fit 74.3 · coherence 91 · 1 station(s)
+   anchor: Chicken Teriyaki Stir-Fry; stations: Global Kitchen
+#2 Grilled Chicken Sandwich
+   430 cal · 50g P · 33g C · 10g F · score 66.5 · fit 61.4 · coherence 91 · 1 station(s)
+   anchor: Grilled Chicken Sandwich; stations: The Grill
+#3 Cheese Pizza (2 slices)
+   560 cal · 24g P · 72g C · 20g F · score 66.1 · fit 80 · coherence 91 · 1 station(s)
+   anchor: Cheese Pizza (2 slices); stations: Pizza & Pasta
+#4 Chicken Caesar Salad
+   450 cal · 50g P · 8g C · 26g F · score 64.4 · fit 64.3 · coherence 91 · 1 station(s)
+   anchor: Chicken Caesar Salad; stations: Deli & Greens
+#5 Grilled Salmon with Quinoa & Broccoli
+   460 cal · 38g P · 34g C · 20g F · score 62.3 · fit 65.7 · coherence 91 · 1 station(s)
+   anchor: Grilled Salmon with Quinoa & Broccoli; stations: Delicious Without
+#6 Classic Cheeseburger
+   540 cal · 32g P · 34g C · 30g F · score 62 · fit 77.1 · coherence 85.3 · 1 station(s)
+   anchor: Classic Cheeseburger; stations: The Grill
+   Flags: none

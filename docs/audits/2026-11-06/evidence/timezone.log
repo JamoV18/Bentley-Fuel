@@ -1,0 +1,18 @@
+✔ deep analysis stays locked until four usable weeks exist (5.60075ms)
+✔ four usable weeks unlock cross-signal location, timing, and station patterns (2.717917ms)
+✔ pending or zero-consumption meals do not become positive cross-signal evidence (1.839958ms)
+✔ replacement follow-through is summarized only after repeated edit evidence (1.804375ms)
+✔ a few isolated recommendation edits are not promoted into a pattern (2.403583ms)
+✔ one meal is not enough to create a broad learned taste preference (3.391209ms)
+✔ repeated successful choices teach protein cuisine and station patterns without exact-item matching (0.381833ms)
+✔ meal-time learning keeps breakfast habits more influential at breakfast than dinner (0.692417ms)
+✔ repeated finished meal size teaches a bounded portion-pattern preference (0.205083ms)
+✔ broad learned preference joins exact history scoring but remains inside the existing behavior ceiling (0.699208ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 133.087916

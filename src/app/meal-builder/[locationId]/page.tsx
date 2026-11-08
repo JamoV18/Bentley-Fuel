@@ -56,17 +56,14 @@ export default async function MealBuilderPage({
     : undefined;
   const rawProviderMenuItems = await provider.getMenuItems({ locationId, date: menuDate });
   const rawProviderStations = await provider.getStations(locationId, menuDate);
-  // The reliable provider intentionally serves the most recently published
-  // snapshot when upstream dining is unavailable. That is correct for current
-  // dining, but a future plan must never present that older snapshot as the
-  // requested day's menu.
   const providerMenuItems = isPlanning && isLiveMenuLocation && menuDate
     ? recordsForExactMenuDate(rawProviderMenuItems, menuDate)
     : rawProviderMenuItems;
   const providerStations = isPlanning && isLiveMenuLocation && menuDate
     ? recordsForExactMenuDate(rawProviderStations, menuDate)
     : rawProviderStations;
-  const usesVerifiedMenu = providerMenuItems.some((item) => item.provenance.dataStatus === "verified");
+  const requestedPeriod = asMealPeriod(query.period);
+  const usesVerifiedMenu = providerMenuItems.some((item) => item.menuDate === menuDate && item.provenance.dataStatus === "verified" && (!requestedPeriod || item.availability?.some((p) => p === requestedPeriod || p === "all-day")));
   const staples = campusStapleDiningResources(locationId);
   const canonical = isPlanning ? canonicalPlanningDiningResources(locationId) : { menuItems: [], stations: [] };
   const allMenuItems = [...providerMenuItems, ...staples.menuItems, ...canonical.menuItems];
@@ -94,11 +91,10 @@ export default async function MealBuilderPage({
   }
 
   const availablePeriods = PERIOD_ORDER.filter((period) => allMenuItems.some((item) => periodMatches(item.availability, period) && item.availability?.includes(period)));
-  const requestedPeriod = asMealPeriod(query.period);
   const initialRawItem = query.add ? allMenuItems.find((item) => item.id === query.add) : undefined;
   const initialItemPeriod = initialRawItem?.availability?.find((period) => period !== "all-day" && PERIOD_ORDER.includes(period));
 
-  let selectedPeriod = requestedPeriod && (availablePeriods.includes(requestedPeriod) || isPlanning) ? requestedPeriod : undefined;
+  let selectedPeriod = requestedPeriod;
   if (!selectedPeriod && initialItemPeriod && availablePeriods.includes(initialItemPeriod)) selectedPeriod = initialItemPeriod;
   if (!selectedPeriod && isLiveMenuLocation && availablePeriods.length > 0) {
     const clockPeriod = currentBentleyMealPeriod();

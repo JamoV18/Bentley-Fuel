@@ -1,0 +1,129 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@vercel/cli-config": {
+      "name": "@vercel/cli-config",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "zod"
+      ],
+      "effects": [
+        "@vercel/oidc"
+      ],
+      "range": "<=0.3.5",
+      "nodes": [
+        "node_modules/@vercel/cli-config"
+      ],
+      "fixAvailable": true
+    },
+    "@vercel/functions": {
+      "name": "@vercel/functions",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "@vercel/oidc"
+      ],
+      "effects": [],
+      "range": "3.6.2 - 3.10.5",
+      "nodes": [
+        "node_modules/@vercel/functions"
+      ],
+      "fixAvailable": true
+    },
+    "@vercel/oidc": {
+      "name": "@vercel/oidc",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@vercel/cli-config"
+      ],
+      "effects": [
+        "@vercel/functions"
+      ],
+      "range": "3.6.0 - 4.0.5",
+      "nodes": [
+        "node_modules/@vercel/oidc"
+      ],
+      "fixAvailable": true
+    },
+    "source-map-js": {
+      "name": "source-map-js",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1241209,
+          "name": "source-map-js",
+          "dependency": "source-map-js",
+          "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+          "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+          "severity": "high",
+          "cwe": [
+            "CWE-1284"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": ">=1.0.0 <1.2.2"
+        }
+      ],
+      "effects": [],
+      "range": "1.0.0 - 1.2.1",
+      "nodes": [
+        "node_modules/source-map-js"
+      ],
+      "fixAvailable": true
+    },
+    "zod": {
+      "name": "zod",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1243066,
+          "name": "zod",
+          "dependency": "zod",
+          "title": "Zod can exhaust memory while validating oversized constrained collections",
+          "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+          "severity": "high",
+          "cwe": [
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<4.6.6"
+        }
+      ],
+      "effects": [
+        "@vercel/cli-config"
+      ],
+      "range": "<4.6.6",
+      "nodes": [
+        "node_modules/@vercel/cli-config/node_modules/zod"
+      ],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 5,
+      "critical": 0,
+      "total": 5
+    },
+    "dependencies": {
+      "prod": 53,
+      "dev": 413,
+      "optional": 121,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 503
+    }
+  }
+}

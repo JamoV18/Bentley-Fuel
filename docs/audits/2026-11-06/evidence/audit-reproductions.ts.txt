@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { MemoryDiningSnapshotRepository } from './src/services/diningSnapshotRepository';
+import { ReliableDineOnCampusProvider } from './src/services/reliableDineOnCampusProvider';
+import { build921BrowserSnapshot } from './src/services/manual921Sync';
+import { mapNutrition } from './src/services/dineOnCampusParsing';
+import { canonicalFoodFromMenuItem, canonicalFoodFromSnapshot, convertFoodPortionQuantity, GENERIC_CANONICAL_FOODS } from './src/services/canonicalFoodCatalog';
+import { createCanonicalFoodMealHistoryEntry, appendCanonicalFoodToMeal, removeCanonicalFoodFromMeal, updateCanonicalFoodInMeal } from './src/services/canonicalFoodLogging';
+import { assessMenuItemEligibility } from './src/services/recommendationEligibility';
+import { computeMealBuild } from './src/services/mealBuilder';
+import { isValidPlannedMeal } from './src/services/plannedMealRepository';
+
+async function main() {
+const capture = {schemaVersion:1,source:'dineoncampus-browser-dom',menuDate:'2026-11-03',capturedAt:'2026-11-03T12:00:00Z',upstreamLocationId:'test-921',periods:[{name:'Lunch',categories:[{name:'Test Station',items:[{name:'Milk-based meal',portion:'1 bowl',nutrition:{calories:200,ingredients:'Milk, rice',nutrients:{'Protein (g)':{value:10},'Total Carbohydrates (g)':{value:20},'Total Fat (g)':{value:8}}}}]}]}]};
+const {snapshot} = build921BrowserSnapshot(capture);
+const repo = new MemoryDiningSnapshotRepository(); await repo.set(snapshot);
+const provider = new ReliableDineOnCampusProvider({snapshots:repo});
+const items = await provider.getMenuItems({locationId:'loc-921',date:'2026-11-04'});
+assert.equal(items[0].menuDate,'2026-11-03');
+console.log('R1: Nov 4 query returns Nov 3 trusted menu as',items[0].availabilityStatus);
+const context:any = {locationId:'loc-921',mealPeriod:'lunch',profile:{allergensToAvoid:['milk'],dietaryPreferences:[]}};
+assert.equal(assessMenuItemEligibility(items[0],context).isEligible,true);
+console.log('R2: DOM-captured milk ingredient has allergens',JSON.stringify(items[0].allergens),'and passes milk-avoidance eligibility');
+const facts=mapNutrition({calories:200,protein:10,carbs:20,nutrients:[{name:'Saturated Fat',value:2},{name:'Total Fat',value:8}]});
+assert.equal(facts?.fat,2); console.log('R3: saturated-fat-first payload maps total fat to',facts?.fat,'instead of 8');
+const s:any={foodId:'a',displayName:'A',quantity:1,portionUnitId:'serving',portionAmount:1,portionUnit:'serving',portionLabel:'1 serving',source:'generic',verification:'verified',loggedAt:'2026-11-04T12:00:00Z',nutrition:{calories:100,protein:10,carbs:10,fat:2,fiber:5,sodium:100}};
+const entry=createCanonicalFoodMealHistoryEntry({id:'entry',snapshot:s,slot:'lunch',eatenAt:new Date(s.loggedAt),locationId:'loc-921',lineId:'a'});
+const two=appendCanonicalFoodToMeal(entry,{...s,foodId:'b'},'b');
+const removed=removeCanonicalFoodFromMeal(two,'a')!;
+assert.equal(removed.nutrition?.fiber,10); assert.equal(removed.nutrition?.calories,100);
+console.log('R4: removing one of two foods leaves fiber=10 and sodium=200 (expected 5 and 100), calories correctly=100');
+const edited=updateCanonicalFoodInMeal(entry,'a',{...s,verification:'unverified-estimate'});
+assert.equal(edited.nutritionEstimateStatus,'verified'); console.log('R5: replacing verified food with estimate retains verified meal status');
+const canonicalA=canonicalFoodFromMenuItem(items[0])!;
+const canonicalB=canonicalFoodFromMenuItem({...items[0],stationId:items[0].stationId.replace('2026-11-03','2026-11-04')})!;
+assert.notEqual(canonicalA.foodId,canonicalB.foodId); console.log('R6: same food/station on next date gets different canonical food ID');
+const comp:any={locationId:'loc-921',items:[{id:'line',menuItemId:'missing',quantity:1,compositionSnapshot:{conceptId:'test',title:'test',mode:'builder',components:[{componentId:'c',name:'c',quantity:1,nutrition:s.nutrition}]}}]};
+const computed=computeMealBuild(comp,{location:{id:'loc-921'} as any,menuItems:[],stations:[],components:[]});
+assert.equal(computed.nutrition?.fiber,undefined); console.log('R7: composition snapshot loses known fiber/sodium when summed from macro-only zero');
+const badPlan:any={id:'p',ownerProfileId:'u',locationId:'loc-921',intendedDate:'2026-11-04',mealSlot:'lunch',build:{locationId:'loc-921',items:[{id:'l',menuItemId:'x',quantity:1,foodSnapshot:{bad:true}}]},nutrition:s.nutrition,source:'canonical',status:'planned',createdAt:s.loggedAt,updatedAt:s.loggedAt};
+assert.equal(isValidPlannedMeal(badPlan),true);console.log('R8: planned meal validator accepts malformed nested foodSnapshot');
+console.log('All eight observed behaviors reproduced without external calls.');
+}
+main();

@@ -1,3 +1,4 @@
+import { ingredientWarnings } from "./allergenEvidence";
 import type {
   ComponentCategory,
   CustomizationStep,
@@ -239,7 +240,8 @@ function componentFromItem(concept: MealCompositionConcept, item: MenuItem, cate
     serving: item.serving ?? { amount: 1, unit: "serving", description: "1 published serving" },
     nutrition: item.nutrition,
     allergens: [...item.allergens],
-    mayContainAllergens: item.mayContainAllergens ? [...item.mayContainAllergens] : undefined,
+    sourceFreeFrom: item.sourceFreeFrom,
+    mayContainAllergens: [...new Set([...(item.mayContainAllergens ?? []), ...ingredientWarnings(item.ingredients)])],
     dietaryTags: [...item.dietaryTags],
     provenance: item.provenance,
     maxQuantity: 3,
@@ -332,6 +334,8 @@ export function resolveMealCompositionConcepts(items: readonly MenuItem[], stati
         mealRole: "main",
         allergens: [], dietaryTags: [], availability: periodsFor(stationItems),
         provenance: provenanceFor(station, concept),
+        menuDate: station.menuDate,
+        availabilityStatus: station.availabilityStatus,
         composition: {
           conceptId: concept.id, canonicalName: concept.canonicalName, mode: concept.mode,
           searchAliases: [...concept.aliases], actionTitle: concept.actionTitle,

@@ -1,3 +1,4 @@
+import { mergeAllergenEvidence, sourceDeclarations } from "./allergenEvidence";
 import type { Allergen, DietaryTag, MealPeriod, NutritionFacts } from "@/types";
 
 export type JsonRecord = Record<string, unknown>;
@@ -124,11 +125,21 @@ function allergensFromValues(values: string[]): Allergen[] {
 }
 
 export function mapAllergens(item: JsonRecord): Allergen[] {
-  return allergensFromValues(filterRows(item).filter((filter) => normalized(text(filter.type)).includes("allergen") && !isMayContainFilter(filter)).map(allergenName));
+  return allergensFromValues(filterRows(item).filter((filter) => normalized(text(filter.type)).includes("allergen") && !isMayContainFilter(filter) && !/free/.test(allergenName(filter))).map(allergenName));
 }
 
 export function mapMayContainAllergens(item: JsonRecord): Allergen[] {
   return allergensFromValues(filterRows(item).filter(isMayContainFilter).map(allergenName));
+}
+
+export function apiAllergenEvidence(item: JsonRecord) {
+  const labels = filterRows(item).filter((row) => !isMayContainFilter(row)).map((row) => text(row.name ?? row.label));
+  const warnings = sourceDeclarations(labels, cleanText(item.ingredients ?? item.ingredient_statement));
+  return mergeAllergenEvidence({
+    allergens: [...new Set([...mapAllergens(item), ...warnings.allergens])],
+    mayContainAllergens: [...new Set([...mapMayContainAllergens(item), ...(warnings.mayContainAllergens ?? [])])],
+    sourceFreeFrom: warnings.sourceFreeFrom,
+  });
 }
 
 export function mapDietaryTags(item: JsonRecord): DietaryTag[] {
@@ -240,7 +251,10 @@ export function mergePeriodCategories(primary: JsonRecord[], richer: JsonRecord[
     const richerCategory = richerByStation.get(stationKey); if (!richerCategory) return category;
     const richerItems = new Map(categoryItems(richerCategory).map((item) => [itemKey(stationName, item), item] as const));
     const seenItems = new Set<string>();
-    const items = categoryItems(category).map((item) => { const key = itemKey(stationName, item); seenItems.add(key); return { ...item, ...(richerItems.get(key) ?? {}) }; });
+    const items = categoryItems(category).map((item) => { const key = itemKey(stationName, item); seenItems.add(key); const rich = richerItems.get(key);
+      if (!rich) return item;
+      return { ...item, ...rich, filters: [...filterRows(item), ...filterRows(rich)],
+        ingredients: [cleanText(item.ingredients ?? item.ingredient_statement), cleanText(rich.ingredients ?? rich.ingredient_statement)].filter(Boolean).join("; ") }; });
     for (const richItem of categoryItems(richerCategory)) { const key = itemKey(stationName, richItem); if (!seenItems.has(key)) items.push(richItem); }
     return { ...richerCategory, ...category, items };
   });

@@ -1,3 +1,5 @@
+import { publishedFor } from "./diningAvailability";
+import { allergenConflict, restrictions } from "./allergenEvidence";
 import type {
   FoodComponent,
   HardDietaryRestriction,
@@ -48,7 +50,8 @@ export function assessMenuItemEligibility(
     );
   }
 
-  if (!periodMatches(item, context)) {
+  const datedOffering = Boolean(item.menuDate) || ["live-verified", "verified-snapshot", "stale", "unavailable"].includes(item.availabilityStatus ?? "");
+  if (!periodMatches(item, context) || (datedOffering && !publishedFor(item, context.menuDate, context.mealPeriod))) {
     issues.push(
       issue("MEAL_PERIOD_UNAVAILABLE", `${item.name} is not available during this meal period.`, {
         menuItemId: item.id,
@@ -57,6 +60,16 @@ export function assessMenuItemEligibility(
   }
 
   if (item.kind === "customizable") {
+    // An empty assembly base can be checked through its selected components.
+    // A base with food/nutrition needs its own exclusion evidence.
+    const base = item.baseNutrition;
+    const emptyBase = base && base.calories === 0 && base.protein === 0 && base.carbs === 0 && base.fat === 0 && Object.values(base).every((value) => value === 0);
+    if (!emptyBase || item.ingredients) {
+      for (const allergen of restrictions(context.profile)) {
+        const code = allergenConflict(item, allergen);
+        if (code) issues.push(issue(code, "The unremovable base lacks compatible allergen evidence.", { menuItemId: item.id, allergen }));
+      }
+    }
     return {
       isEligible: issues.length === 0,
       requiresConfiguration: true,
@@ -64,22 +77,11 @@ export function assessMenuItemEligibility(
     };
   }
 
-  for (const allergen of context.profile.allergensToAvoid) {
-    if (item.allergens.includes(allergen)) {
-      issues.push(
-        issue("ALLERGEN_CONFLICT", `${item.name} contains an allergen the student avoids.`, {
-          menuItemId: item.id,
-          allergen,
-        }),
-      );
-    } else if (item.mayContainAllergens?.includes(allergen)) {
-      issues.push(
-        issue("ALLERGEN_CROSS_CONTACT", `${item.name} may contain an allergen the student avoids.`, {
-          menuItemId: item.id,
-          allergen,
-        }),
-      );
-    }
+  for (const allergen of restrictions(context.profile)) {
+    const code = allergenConflict(item, allergen);
+    if (code) issues.push(issue(code, code === "ALLERGEN_UNKNOWN"
+      ? "The source does not establish this food's status for " + allergen + "."
+      : "This food has a source or ingredient warning for " + allergen + ".", { menuItemId: item.id, allergen }));
   }
 
   for (const restriction of hardDietaryRestrictions(context)) {

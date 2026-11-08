@@ -56,3 +56,10 @@ export function formatMenuDate(value: string): string {
     timeZone: "UTC",
   }).format(date);
 }
+
+/** Campus clock, independent of the student's browser timezone. */
+export function bentleyDiningHour(now = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: BENTLEY_TIME_ZONE, hour: "2-digit", hourCycle: "h23",
+  }).format(now));
+}

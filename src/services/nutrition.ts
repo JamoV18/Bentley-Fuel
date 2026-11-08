@@ -1,3 +1,4 @@
+import { EMPTY_NUTRITION } from "@/types";
 import type { Allergen, ComponentSelection, DietaryTag, FoodComponent, FoodComponentId, NutritionFacts } from "@/types";
 
 export type { ComponentSelection } from "@/types";
@@ -19,7 +20,7 @@ export function scaleNutrition(nutrition: NutritionFacts, quantity: number): Nut
     throw new RangeError("Component quantity must be a finite, non-negative number.");
   }
   return Object.fromEntries(
-    presentNutrientKeys(nutrition).map((key) => [key, (nutrition[key] ?? 0) * quantity]),
+    presentNutrientKeys(nutrition).filter((key) => REQUIRED_NUTRIENT_KEYS.includes(key) || nutrition[key] !== undefined).map((key) => [key, (nutrition[key] ?? 0) * quantity]),
   ) as unknown as NutritionFacts;
 }
 
@@ -29,6 +30,11 @@ export function addNutrition(left: NutritionFacts, right: NutritionFacts): Nutri
       .filter((key) => REQUIRED_NUTRIENT_KEYS.includes(key) || (left[key] !== undefined && right[key] !== undefined))
       .map((key) => [key, (left[key] ?? 0) + (right[key] ?? 0)]),
   ) as unknown as NutritionFacts;
+}
+
+/** Sum actual contributors; an empty set is a known zero, not missing data. */
+export function sumNutrition(records: readonly NutritionFacts[]): NutritionFacts {
+  return records.length ? records.slice(1).reduce(addNutrition, { ...records[0] }) : { ...EMPTY_NUTRITION };
 }
 
 export function computeBuild(
@@ -52,10 +58,13 @@ export function computeBuild(
       return { component, quantity };
     });
 
-  const nutrition = selectedComponents.reduce(
-    (total, { component, quantity }) => addNutrition(total, scaleNutrition(component.nutrition, quantity)),
-    { ...baseNutrition },
-  );
+  // An explicitly empty assembly base contributes no food. A nonempty base
+  // still propagates unknown optional nutrients like every other contributor.
+  const emptyBase = Object.values(baseNutrition).every((value) => value === 0);
+  const nutrition = sumNutrition([
+    ...(emptyBase ? [] : [baseNutrition]),
+    ...selectedComponents.map(({ component, quantity }) => scaleNutrition(component.nutrition, quantity)),
+  ]);
   const allergens = new Set<Allergen>();
   const mayContainAllergens = new Set<Allergen>();
   for (const { component } of selectedComponents) {

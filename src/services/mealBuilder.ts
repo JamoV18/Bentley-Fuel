@@ -1,5 +1,5 @@
 import type { DiningDataProvider } from "./diningProvider";
-import { addNutrition, computeBuild, scaleNutrition } from "./nutrition";
+import { computeBuild, scaleNutrition, sumNutrition } from "./nutrition";
 import type {
   Allergen, DietaryTag, FoodComponent, Location, MealBuild,
   MealItemSelection, MenuItem, NutritionFacts, Station,
@@ -77,10 +77,7 @@ export function computeMealBuild(build: MealBuild, resources: MealBuildResources
       if (composition) {
         if (!Number.isFinite(selection.quantity) || selection.quantity <= 0) issues.push(issue("INVALID_ITEM_QUANTITY", "Item quantity must be finite and greater than zero.", selection.id));
         const nutrition = issues.length === 0
-          ? scaleNutrition(composition.components.reduce(
-              (total, component) => addNutrition(total, scaleNutrition(component.nutrition, component.quantity)),
-              { calories: 0, protein: 0, carbs: 0, fat: 0 },
-            ), selection.quantity)
+          ? scaleNutrition(sumNutrition(composition.components.map((component) => scaleNutrition(component.nutrition, component.quantity))), selection.quantity)
           : undefined;
         return { selection, nutrition, allergens: [], mayContainAllergens: [], dietaryTags: [], issues };
       }
@@ -151,7 +148,7 @@ export function computeMealBuild(build: MealBuild, resources: MealBuildResources
   const mayContainAllergens = isValid ? [...new Set(lines.flatMap((line) => line.mayContainAllergens))].filter((allergen) => !definite.has(allergen)) : [];
   return {
     build, location: resources.location, lines,
-    nutrition: isValid ? lines.slice(1).reduce((total, line) => addNutrition(total, line.nutrition!), lines[0].nutrition!) : undefined,
+    nutrition: isValid ? sumNutrition(lines.map((line) => line.nutrition!)) : undefined,
     allergens, mayContainAllergens,
     dietaryTags: isValid ? intersect(lines.map((line) => line.dietaryTags)) : [],
     issues, isValid,

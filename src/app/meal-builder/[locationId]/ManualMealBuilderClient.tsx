@@ -26,7 +26,7 @@ import {
   recentCampusBeverages,
   mealSlotForBuilderPeriod,
   snapshotPlannedMealBuild,
-  snapshotMealCompositions,
+  snapshotMealForHistory,
 } from "@/services";
 import { browserProfileRepository } from "@/services/profileRepository";
 import type { MealBuildResources } from "@/services";
@@ -189,7 +189,7 @@ export default function ManualMealBuilderClient({
 
   useEffect(() => {
     if (isPlanning || !savedHistoryId || !savedAt || !computed.isValid || !selectedNutrition || build.items.length === 0) return;
-    const savedBuild = snapshotMealCompositions(build, resources);
+    const savedBuild = snapshotMealForHistory(build, resources);
     const repository = browserMealHistoryRepository();
     const existing = repository.getRecent(Number.MAX_SAFE_INTEGER).find((entry) => entry.id === savedHistoryId);
     repository.upsert({ ...existing, id: savedHistoryId, locationId: build.locationId, build: savedBuild, selectedAt: savedAt, nutrition: selectedNutrition, nutritionEstimateStatus, campusBeverages: beverages, source: existing?.source ?? "self-built" });
@@ -210,7 +210,7 @@ export default function ManualMealBuilderClient({
       const existing = planId ? repository.get(planId) : undefined;
       const now = new Date().toISOString();
       const id = existing?.id ?? savedPlanId ?? crypto.randomUUID();
-      const savedBuild = snapshotMealCompositions(build, resources);
+      const savedBuild = snapshotMealForHistory(build, resources);
       const plannedBuild = snapshotPlannedMealBuild(computeMealBuild(savedBuild, resources), now);
       repository.upsert({ id, ownerProfileId: profile.id, intendedDate: planningDate, mealSlot, locationId: build.locationId, build: plannedBuild, nutrition: selectedNutrition, campusBeverages: beverages, source: "self-built", status: "planned", createdAt: existing?.createdAt ?? now, updatedAt: now });
       setSavedPlanId(id);
@@ -223,7 +223,7 @@ export default function ManualMealBuilderClient({
       ? localDateTime(retrospectiveDate, retrospectiveTime && /^\d{2}:\d{2}$/.test(retrospectiveTime) ? retrospectiveTime : "12:00")
       : undefined;
     const selectedAt = savedAt ?? retrospectiveAt?.toISOString() ?? new Date().toISOString();
-    const savedBuild = snapshotMealCompositions(build, resources);
+    const savedBuild = snapshotMealForHistory(build, resources);
     const repository = browserMealHistoryRepository();
     const existing = editEntryId ? repository.getRecent(Number.MAX_SAFE_INTEGER).find((entry) => entry.id === editEntryId) : undefined;
     repository.upsert({

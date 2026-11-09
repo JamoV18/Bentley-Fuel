@@ -1,5 +1,6 @@
 import type { MealBuild } from "@/types";
-import type { MealBuildResources } from "./mealBuilder";
+import { computeMealBuild, type MealBuildResources } from "./mealBuilder";
+import { snapshotPlannedMealBuild } from "./plannedMealRepository";
 
 /** Capture the real selected component foods behind every semantic composition. */
 export function snapshotMealCompositions(build: MealBuild, resources: MealBuildResources): MealBuild {
@@ -36,5 +37,22 @@ export function snapshotMealCompositions(build: MealBuild, resources: MealBuildR
         },
       };
     }),
+  };
+}
+
+/** Keep saved line nutrition consistent with the edited build and its aggregate. */
+export function snapshotMealForHistory(build: MealBuild, resources: MealBuildResources, capturedAt = new Date().toISOString()): MealBuild {
+  const computed = computeMealBuild(snapshotMealCompositions(build, resources), resources);
+  if (!computed.isValid) throw new Error("Resolve the meal's food details before saving.");
+  const captured = snapshotPlannedMealBuild(computed, capturedAt);
+  return {
+    ...captured,
+    items: captured.items.map((line, index) => ({
+      ...line,
+      // Menu availability provenance does not certify nutrient/portion accuracy.
+      foodSnapshot: line.foodSnapshot && computed.lines[index].item
+        ? { ...line.foodSnapshot, verification: "unverified-estimate" }
+        : line.foodSnapshot,
+    })),
   };
 }

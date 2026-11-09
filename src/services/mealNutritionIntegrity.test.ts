@@ -44,3 +44,24 @@ test("edited lines, beverages, served portions and check-in fractions contribute
   assert.equal(summarizeDailyNutrition([{ ...edited, completionFraction: undefined }], now).nutrition.calories, 0);
   assert.equal(summarizeDailyNutrition([edited], new Date(2026, 10, 7, 12)).nutrition.calories, 0);
 });
+
+test("manual builder saves refreshed lines so a later canonical edit cannot restore old totals", async () => {
+  const { snapshotMealForHistory } = await import("./mealCompositionSnapshots");
+  const food = { ...createLoggedFoodSnapshot(GENERIC_CANONICAL_FOODS[0], GENERIC_CANONICAL_FOODS[0].defaultPortionUnitId, 1), nutrition: panel, verification: "verified" as const };
+  const original = createCanonicalFoodMealHistoryEntry({ id: "edited", snapshot: food, slot: "lunch", eatenAt: new Date(2026, 10, 6, 12), locationId: "test", lineId: "one" });
+  const build = { ...original.build, items: [{ ...original.build.items[0], quantity: 2 }] };
+  const resources = { location: { ...locations[0], id: "test" }, stations: [], components: [], menuItems: [] };
+  const saved = snapshotMealForHistory(build, resources);
+  assert.equal(saved.items[0].foodSnapshot?.quantity, 2);
+  assert.deepEqual(saved.items[0].foodSnapshot?.nutrition, scaleNutrition(panel, 2));
+  const appended = appendCanonicalFoodToMeal({ ...original, build: saved, nutrition: scaleNutrition(panel, 2) }, food, "two");
+  assert.deepEqual(appended.nutrition, scaleNutrition(panel, 3));
+  const replaced = updateCanonicalFoodInMeal(appended, "two", { ...food, nutrition: scaleNutrition(panel, 2) });
+  assert.deepEqual(replaced.nutrition, scaleNutrition(panel, 4));
+  // Resolved menu data replaces an older snapshot and cannot inherit its certainty.
+  const item = { id: food.foodId, locationId: "test", stationId: "station", name: "Changed recipe", kind: "predefined" as const, nutrition: scaleNutrition(panel, 3), allergens: [], dietaryTags: [], provenance: { dataStatus: "verified" as const, source: { type: "chartwells" as const, name: "test" }, confidence: 1 } };
+  const recaptured = snapshotMealForHistory(build, { ...resources, menuItems: [item] });
+  assert.deepEqual(recaptured.items[0].foodSnapshot?.nutrition, scaleNutrition(panel, 6));
+  assert.equal(recaptured.items[0].foodSnapshot?.verification, "unverified-estimate");
+  assert.deepEqual(computeMealBuild(recaptured, resources).nutrition, scaleNutrition(panel, 6));
+});

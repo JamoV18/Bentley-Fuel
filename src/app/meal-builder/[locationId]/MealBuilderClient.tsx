@@ -34,7 +34,7 @@ import {
   suggestMealItemReplacements,
   mealSlotForBuilderPeriod,
   snapshotPlannedMealBuild,
-  snapshotMealCompositions,
+  snapshotMealForHistory,
 } from "@/services";
 import type { MealBuildResources, MealReplacementSuggestion, RankedMealCandidate } from "@/services";
 import type { RecommendationFeedbackIntent } from "@/services";
@@ -231,7 +231,7 @@ export default function MealBuilderClient({
       const existing = planId ? repository.get(planId) : undefined;
       const now = new Date().toISOString();
       const id = existing?.id ?? crypto.randomUUID();
-      const savedBuild = snapshotMealCompositions(build, resources);
+      const savedBuild = snapshotMealForHistory(build, resources);
       repository.upsert({ id, ownerProfileId: profile.id, intendedDate: planningDate, mealSlot, locationId: build.locationId, build: snapshotPlannedMealBuild(computeMealBuild(savedBuild, resources), now), nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built", status: "planned", createdAt: existing?.createdAt ?? now, updatedAt: now });
       setChooseSuccess(true);
       router.push(`/profile-summary?date=${planningDate}`);
@@ -239,7 +239,7 @@ export default function MealBuilderClient({
     }
     const historyId = crypto.randomUUID();
     const now = new Date().toISOString();
-    const savedBuild = snapshotMealCompositions(build, resources);
+    const savedBuild = snapshotMealForHistory(build, resources);
     browserMealHistoryRepository().upsert({ id: historyId, locationId: build.locationId, build: savedBuild, selectedAt: now, nutrition: selectedNutrition, campusBeverages: beverages, source: recommendationState === "ready" ? "recommended" : "self-built" });
     setChooseSuccess(true);
     if (reduceMotion) {

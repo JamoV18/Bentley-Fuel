@@ -1,6 +1,6 @@
 import { LOCATION_IDS } from "@/data/mock/locations";
 import type { BeverageCatalogItem, CampusBeverageSelection, NutritionFacts } from "@/types";
-import { addNutrition, scaleNutrition } from "./nutrition";
+import { addNutrition, scaleNutrition, sumNutrition } from "./nutrition";
 
 const nutrition = (calories: number, protein = 0, carbs = 0, fat = 0): NutritionFacts => ({ calories, protein, carbs, fat });
 
@@ -37,10 +37,7 @@ export function selectionFromCatalog(item: BeverageCatalogItem, id: string, quan
 }
 
 export function campusBeverageNutrition(selections: readonly CampusBeverageSelection[]): NutritionFacts {
-  return selections.reduce(
-    (total, selection) => addNutrition(total, scaleNutrition(selection.nutrition, selection.quantity)),
-    nutrition(0),
-  );
+  return sumNutrition(selections.filter((selection) => selection.quantity !== 0).map((selection) => scaleNutrition(selection.nutrition, selection.quantity)));
 }
 
 export function mealNutritionWithBeverages(

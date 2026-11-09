@@ -33,7 +33,8 @@ const history = (
   id,
   locationId: meal.locationId,
   build: meal,
-  selectedAt,
+  // These histories describe local meal times, matching the production clock.
+  selectedAt: new Date(selectedAt).toISOString(),
   completionFraction: 1,
   source: "self-built",
   ...overrides,
@@ -41,7 +42,7 @@ const history = (
 
 test("one meal is not enough to create a broad learned taste preference", () => {
   const current = candidate(build("new-chicken", "Chicken Rice Bowl", { stationId: "stn-kitchen" }), ["stn-kitchen"]);
-  const onePrior = history("h1", build("old-chicken", "Grilled Chicken Tacos", { stationId: "stn-kitchen" }), "2026-08-20T12:30:00.000Z");
+  const onePrior = history("h1", build("old-chicken", "Grilled Chicken Tacos", { stationId: "stn-kitchen" }), "2026-08-20T12:30:00.000");
   const learned = scoreLearnedMealPreferences(current, [onePrior], { mealPeriod: "lunch" });
   assert.equal(learned.totalBoost, 0);
   assert.equal(learned.signals.length, 0);
@@ -50,8 +51,8 @@ test("one meal is not enough to create a broad learned taste preference", () => 
 test("repeated successful choices teach protein cuisine and station patterns without exact-item matching", () => {
   const current = candidate(build("current", "Chicken Fajita Bowl", { stationId: "stn-la-mesa" }), ["stn-la-mesa"]);
   const entries = [
-    history("h1", build("past-1", "Chicken Tacos", { stationId: "stn-la-mesa" }), "2026-08-20T12:15:00.000Z"),
-    history("h2", build("past-2", "Chicken Burrito", { stationId: "stn-la-mesa" }), "2026-08-18T13:00:00.000Z", { explicitFeedback: "like" }),
+    history("h1", build("past-1", "Chicken Tacos", { stationId: "stn-la-mesa" }), "2026-08-20T12:15:00.000"),
+    history("h2", build("past-2", "Chicken Burrito", { stationId: "stn-la-mesa" }), "2026-08-18T13:00:00.000", { explicitFeedback: "like" }),
   ];
 
   const learned = scoreLearnedMealPreferences(current, entries, { mealPeriod: "lunch" });
@@ -68,8 +69,8 @@ test("repeated successful choices teach protein cuisine and station patterns wit
 test("meal-time learning keeps breakfast habits more influential at breakfast than dinner", () => {
   const current = candidate(build("current-eggs", "Egg White Omelet"));
   const entries = [
-    history("h1", build("past-eggs-1", "Egg Breakfast Bowl"), "2026-08-20T08:00:00.000Z"),
-    history("h2", build("past-eggs-2", "Vegetable Omelet"), "2026-08-18T09:00:00.000Z"),
+    history("h1", build("past-eggs-1", "Egg Breakfast Bowl"), "2026-08-20T08:00:00.000"),
+    history("h2", build("past-eggs-2", "Vegetable Omelet"), "2026-08-18T09:00:00.000"),
   ];
 
   const breakfast = scoreLearnedMealPreferences(current, entries, { mealPeriod: "breakfast" });
@@ -81,8 +82,8 @@ test("meal-time learning keeps breakfast habits more influential at breakfast th
 
 test("repeated finished meal size teaches a bounded portion-pattern preference", () => {
   const entries = [
-    history("h1", build("past-size-1", "Roasted Vegetable Plate", { quantity: 2 }), "2026-08-20T12:00:00.000Z"),
-    history("h2", build("past-size-2", "Seasonal Grain Plate", { quantity: 2 }), "2026-08-18T12:30:00.000Z"),
+    history("h1", build("past-size-1", "Roasted Vegetable Plate", { quantity: 2 }), "2026-08-20T12:00:00.000"),
+    history("h2", build("past-size-2", "Seasonal Grain Plate", { quantity: 2 }), "2026-08-18T12:30:00.000"),
   ];
   const similar = scoreLearnedMealPreferences(candidate(build("current-similar", "Chef Special", { quantity: 2 })), entries);
   const smaller = scoreLearnedMealPreferences(candidate(build("current-small", "Chef Special", { quantity: 1 })), entries);
@@ -94,8 +95,8 @@ test("repeated finished meal size teaches a bounded portion-pattern preference",
 test("broad learned preference joins exact history scoring but remains inside the existing behavior ceiling", () => {
   const current = candidate(build("current", "Grilled Chicken Plate", { stationId: "stn-flame" }), ["stn-flame"]);
   const entries = [
-    history("h1", build("past-1", "Chicken Sandwich", { stationId: "stn-flame" }), "2026-08-20T12:00:00.000Z"),
-    history("h2", build("past-2", "Roasted Chicken", { stationId: "stn-flame" }), "2026-08-18T12:30:00.000Z"),
+    history("h1", build("past-1", "Chicken Sandwich", { stationId: "stn-flame" }), "2026-08-20T12:00:00.000"),
+    history("h2", build("past-2", "Roasted Chicken", { stationId: "stn-flame" }), "2026-08-18T12:30:00.000"),
   ];
   const score = scoreMealHistory(current, entries, { mealPeriod: "lunch" });
   assert.ok(score.learnedPreferenceBoost > 0);

@@ -223,6 +223,7 @@ export function createLocalMealHistoryRepository(storage: StorageLike): MealHist
 export const mealSlotForBuilderPeriod = (period: string | null | undefined): MealLogSlot | undefined => {
   if (period === "breakfast" || period === "lunch" || period === "dinner") return period;
   if (period === "late-night") return "snack";
+  if (period === "brunch") return "lunch";
   return undefined;
 };
 

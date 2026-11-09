@@ -237,14 +237,18 @@ export default function LogMealClient({ menuItems, stationNames, campusAvailable
   };
 
   const removeLine = (entry: MealHistoryEntry, lineId: string) => {
-    const updated = removeCanonicalFoodFromMeal(entry, lineId);
-    if (updated) browserMealHistoryRepository().upsert(updated);
-    else {
-      browserMealHistoryRepository().remove(entry.id);
-      closeForm();
+    try {
+      const updated = removeCanonicalFoodFromMeal(entry, lineId);
+      if (updated) browserMealHistoryRepository().upsert(updated);
+      else {
+        browserMealHistoryRepository().remove(entry.id);
+        closeForm();
+      }
+      setRemovedEntry(entry);
+      refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not remove this food.");
     }
-    setRemovedEntry(entry);
-    refresh();
   };
 
   const undoRemove = () => {

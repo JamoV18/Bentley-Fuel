@@ -28,6 +28,40 @@ test("append, edit, and remove update meal totals exactly once", () => {
 
 test("adding to a legacy meal with unknown nutrition does not turn unknown into zero", () => {
   const legacy = createCanonicalFoodMealHistoryEntry({ id: "legacy", snapshot: egg(), slot: "lunch", eatenAt: new Date("2026-10-07T12:00:00Z"), locationId: "loc-921" });
-  const updated = appendCanonicalFoodToMeal({ ...legacy, nutrition: undefined }, ketchup());
+  const updated = appendCanonicalFoodToMeal({ ...legacy, build: { ...legacy.build, items: [{ id: "opaque", menuItemId: "old", quantity: 1 }] }, nutrition: undefined }, ketchup());
   assert.equal(updated.nutrition, undefined);
+});
+
+const richFood = () => ({ ...egg(), quantity: 1, verification: "verified" as const, nutrition: { calories: 100, protein: 10, carbs: 12, fat: 2, fiber: 5, sodium: 100, sugar: 3, potassium: 200 } });
+const richMeal = () => createCanonicalFoodMealHistoryEntry({ id: "rich", snapshot: richFood(), slot: "lunch", eatenAt: new Date(2026, 10, 6, 12), locationId: "loc-market", lineId: "one" });
+
+test("all nutrients and quality are rebuilt after removal and replacement (F05 R4/R5)", () => {
+  const original = richMeal();
+  const two = appendCanonicalFoodToMeal(original, richFood(), "two");
+  const removed = removeCanonicalFoodFromMeal(two, "one")!;
+  assert.deepEqual(removed.nutrition, richFood().nutrition);
+  assert.equal(removed.nutritionEstimateStatus, "verified");
+  const estimated = updateCanonicalFoodInMeal(two, "two", { ...richFood(), verification: "unverified-estimate", nutrition: { calories: 200, protein: 20, carbs: 24, fat: 4 } });
+  assert.equal(estimated.nutrition?.calories, 300);
+  assert.equal(estimated.nutrition?.fiber, undefined);
+  assert.equal(estimated.nutrition?.sodium, undefined);
+  assert.equal(estimated.nutritionEstimateStatus, "estimated");
+  const restored = removeCanonicalFoodFromMeal(estimated, "two")!;
+  assert.deepEqual(restored.nutrition, original.nutrition);
+  assert.equal(restored.nutritionEstimateStatus, "verified");
+  assert.deepEqual(updateCanonicalFoodInMeal(estimated, "two", richFood()).nutrition, two.nutrition);
+  assert.equal(updateCanonicalFoodInMeal(estimated, "two", richFood()).nutritionEstimateStatus, "verified");
+  assert.equal(two.nutrition?.fiber, 10); // earlier immutable result was not mutated
+});
+
+test("legacy aggregates remain intact on append and unsupported edits fail without mutation", () => {
+  const original = richMeal();
+  const legacy = { ...original, build: { ...original.build, items: [{ id: "opaque", menuItemId: "old", quantity: 1 }] } };
+  const added = appendCanonicalFoodToMeal(legacy, richFood(), "two");
+  assert.equal(added.nutrition?.fiber, 10);
+  assert.throws(() => updateCanonicalFoodInMeal(added, "two", egg()), /older meal/);
+  assert.throws(() => removeCanonicalFoodFromMeal(added, "two"), /older meal/);
+  assert.throws(() => removeCanonicalFoodFromMeal(added, "opaque"), /older meal/);
+  assert.equal(added.nutrition?.fiber, 10);
+  assert.equal(removeCanonicalFoodFromMeal(legacy, "opaque"), undefined);
 });

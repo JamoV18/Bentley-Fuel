@@ -16,7 +16,8 @@ const meal = (
 ): MealHistoryEntry => ({
   id,
   locationId,
-  selectedAt,
+  // These histories describe local meal times, matching the production clock.
+  selectedAt: new Date(selectedAt).toISOString(),
   completionFraction,
   nutrition: { calories, protein, carbs: Math.round(calories * 0.12), fat: Math.round(calories * 0.035) },
   source: "recommended",
@@ -36,8 +37,8 @@ const usableWeek = (monday: string, weekIndex: number): MealHistoryEntry[] => {
   return [0, 1, 2].flatMap((offset) => {
     const date = new Date(mondayDate.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
     return [
-      meal(`w${weekIndex}-${offset}-lunch`, `${date}T12:00:00.000Z`, 500, 50, "loc-921", "stn-flame"),
-      meal(`w${weekIndex}-${offset}-dinner`, `${date}T18:00:00.000Z`, 800, 24, "loc-dana", "stn-nest"),
+      meal(`w${weekIndex}-${offset}-lunch`, `${date}T12:00:00.000`, 500, 50, "loc-921", "stn-flame"),
+      meal(`w${weekIndex}-${offset}-dinner`, `${date}T18:00:00.000`, 800, 24, "loc-dana", "stn-nest"),
     ];
   });
 };
@@ -109,13 +110,13 @@ test("four usable weeks unlock cross-signal location, timing, and station patter
 
 test("pending or zero-consumption meals do not become positive cross-signal evidence", () => {
   const pendingMeal: MealHistoryEntry = {
-    ...meal("pending-high-protein", "2026-08-20T12:00:00.000Z", 400, 120, "loc-dana", "stn-nest"),
+    ...meal("pending-high-protein", "2026-08-20T12:00:00.000", 400, 120, "loc-dana", "stn-nest"),
     completionFraction: undefined,
   };
   const history = [
     ...fourUsableWeeks(),
     pendingMeal,
-    meal("zero-high-protein", "2026-08-19T12:00:00.000Z", 400, 120, "loc-dana", "stn-nest", 0),
+    meal("zero-high-protein", "2026-08-19T12:00:00.000", 400, 120, "loc-dana", "stn-nest", 0),
   ];
   const analysis = buildDeepNutritionPatternAnalysis(history, [], targets, new Date(2026, 8, 20, 12));
   assert.equal(analysis.confirmedMeals, 24);
@@ -126,8 +127,8 @@ test("pending or zero-consumption meals do not become positive cross-signal evid
 
 test("replacement follow-through is summarized only after repeated edit evidence", () => {
   const interactions: RecommendationInteraction[] = [
-    ...Array.from({ length: 6 }, (_, index) => interaction(`remove-${index}`, "item-removed", `2026-09-${String(10 + index).padStart(2, "0")}T18:00:00.000Z`)),
-    ...Array.from({ length: 4 }, (_, index) => interaction(`accept-${index}`, "replacement-accepted", `2026-09-${String(10 + index).padStart(2, "0")}T18:05:00.000Z`)),
+    ...Array.from({ length: 6 }, (_, index) => interaction(`remove-${index}`, "item-removed", `2026-09-${String(10 + index).padStart(2, "0")}T18:00:00.000`)),
+    ...Array.from({ length: 4 }, (_, index) => interaction(`accept-${index}`, "replacement-accepted", `2026-09-${String(10 + index).padStart(2, "0")}T18:05:00.000`)),
   ];
   const analysis = buildDeepNutritionPatternAnalysis(fourUsableWeeks(), interactions, targets, new Date(2026, 8, 20, 12));
   const finding = analysis.findings.find((candidate) => candidate.kind === "replacement-follow-through");
@@ -141,8 +142,8 @@ test("replacement follow-through is summarized only after repeated edit evidence
 
 test("a few isolated recommendation edits are not promoted into a pattern", () => {
   const interactions = [
-    interaction("one", "item-removed", "2026-09-10T18:00:00.000Z"),
-    interaction("two", "item-removed", "2026-09-11T18:00:00.000Z"),
+    interaction("one", "item-removed", "2026-09-10T18:00:00.000"),
+    interaction("two", "item-removed", "2026-09-11T18:00:00.000"),
   ];
   const analysis = buildDeepNutritionPatternAnalysis(fourUsableWeeks(), interactions, targets, new Date(2026, 8, 20, 12));
   assert.equal(analysis.findings.some((finding) => finding.kind === "replacement-follow-through"), false);

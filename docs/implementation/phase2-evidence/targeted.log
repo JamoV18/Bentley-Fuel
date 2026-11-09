@@ -1,0 +1,28 @@
+✔ creates an eaten meal with an immutable item nutrition snapshot (1.737542ms)
+✔ append, edit, and remove update meal totals exactly once (0.579583ms)
+✔ adding to a legacy meal with unknown nutrition does not turn unknown into zero (0.912791ms)
+✔ all nutrients and quality are rebuilt after removal and replacement (F05 R4/R5) (0.943542ms)
+✔ legacy aggregates remain intact on append and unsupported edits fail without mutation (0.433208ms)
+✔ Market and live venues share planning intent independently of provider dates (61.157458ms)
+✔ retrospective logging preserves yesterday and an explicit slot (0.311333ms)
+✔ selection stays separate; omitted planning periods have a valid campus-clock slot (0.775625ms)
+✔ intent date defaults use Bentley's date across UTC midnight and DST (0.403541ms)
+✔ composition snapshots retain known nutrients through quantities and an empty beverage list (R7) (1.867917ms)
+✔ empty assembly bases preserve component nutrients; real bases retain unknowns (0.326916ms)
+✔ edited lines, beverages, served portions and check-in fractions contribute exactly once (1.918042ms)
+✔ manual builder saves refreshed lines so a later canonical edit cannot restore old totals (7.105083ms)
+✔ date-only plans survive DST boundaries without shifting days (1.5895ms)
+✔ future planning accepts only the selected date's published menu (0.567334ms)
+✔ plans persist, update by id, remain profile-scoped, and delete independently (0.559417ms)
+✔ a meal slot has one active plan and profile cleanup preserves other owners (0.261667ms)
+✔ a plan contributes no meal history until check-in and then counts once (1.164041ms)
+✔ planned item snapshots remain editable after the published menu changes (0.766417ms)
+✔ a planned composed meal stays semantic and enters consumed nutrition exactly once at check-in (3.879083ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 334.569833
